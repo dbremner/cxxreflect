@@ -1,7 +1,15 @@
+//                 Copyright (c) 2011 James P. McNellis <james@jamesmcnellis.com>                 //
+//                   Distributed under the Boost Software License, Version 1.0.                   //
+//     (See accompanying file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)    //
+
+// This is the public header for the CxxReflect library.  It contains (or includes headers that
+// contain) all of the symbols that are intended to be used by a consumer of the library.
 #ifndef CXXREFLECT_CXXREFLECT_HPP_
 #define CXXREFLECT_CXXREFLECT_HPP_
 
-#include "BlobMetadata.hxx"
+// Be careful not to include any headers that include <cor.h> or any other system header
+#include "Exceptions.hpp"
+#include "Utility.hpp"
 
 #include <array>
 #include <cstdint>

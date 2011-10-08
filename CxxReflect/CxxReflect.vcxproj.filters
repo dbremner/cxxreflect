@@ -18,16 +18,16 @@
     <ClInclude Include="CxxReflect.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="BlobMetadata.hxx">
+    <ClInclude Include="Exceptions.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="Utility.hxx">
+    <ClInclude Include="Utility.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="CorEnumIterator.hxx">
+    <ClInclude Include="CorEnumIterator.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="Exceptions.hxx">
+    <ClInclude Include="BlobMetadata.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

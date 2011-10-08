@@ -65,11 +65,11 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include="BlobMetadata.hxx" />
-    <ClInclude Include="CorEnumIterator.hxx" />
+    <ClInclude Include="BlobMetadata.hpp" />
+    <ClInclude Include="CorEnumIterator.hpp" />
     <ClInclude Include="CxxReflect.hpp" />
-    <ClInclude Include="Exceptions.hxx" />
-    <ClInclude Include="Utility.hxx" />
+    <ClInclude Include="Exceptions.hpp" />
+    <ClInclude Include="Utility.hpp" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="CxxReflect.cpp" />
