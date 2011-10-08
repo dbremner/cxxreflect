@@ -37,7 +37,7 @@ namespace CxxReflect { namespace Detail {
         return String(oss.str());
     }
 
-    void ThrowOnFailure(long hr)
+    inline void ThrowOnFailure(long hr)
     {
         if (hr < 0)
         {
@@ -142,7 +142,7 @@ namespace CxxReflect { namespace Detail {
 
     private:
 
-        RefCounted const* GetBase() { return pointer_; }
+        RefCounted const* GetBase();
 
         Pointer pointer_;
     };

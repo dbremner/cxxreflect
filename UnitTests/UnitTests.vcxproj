@@ -14,22 +14,22 @@
     <VCTargetsPath Condition="'$(VCTargetsPath11)' != '' and '$(VSVersion)' == '' and '$(VisualStudioVersion)' == ''">$(VCTargetsPath11)</VCTargetsPath>
   </PropertyGroup>
   <PropertyGroup Label="Globals">
-    <ProjectGuid>{64DC7DFF-D2E4-4086-BE24-02F0B9D71128}</ProjectGuid>
-    <RootNamespace>CxxReflect</RootNamespace>
+    <ProjectGuid>{7C1FC03B-173F-40F5-8774-A69FECD19927}</ProjectGuid>
+    <RootNamespace>UnitTests</RootNamespace>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
-    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
     <PlatformToolset>v110</PlatformToolset>
-    <CharacterSet>Unicode</CharacterSet>
+    <CharacterSet>MultiByte</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
-    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
     <PlatformToolset>v110</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
-    <CharacterSet>Unicode</CharacterSet>
+    <CharacterSet>MultiByte</CharacterSet>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
   <ImportGroup Label="ExtensionSettings">
@@ -46,6 +46,8 @@
     <ClCompile>
       <WarningLevel>Level4</WarningLevel>
       <Optimization>Disabled</Optimization>
+      <AdditionalIncludeDirectories>d:\jm\dev\CxxReflect\</AdditionalIncludeDirectories>
+      <DisableSpecificWarnings>4505</DisableSpecificWarnings>
     </ClCompile>
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
@@ -65,15 +67,12 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include="BlobMetadata.hpp" />
-    <ClInclude Include="CorEnumIterator.hpp" />
-    <ClInclude Include="CxxReflect.hpp" />
-    <ClInclude Include="Exceptions.hpp" />
-    <ClInclude Include="Utility.hpp" />
-    <ClInclude Include="UtilityDefinitions.hpp" />
-  </ItemGroup>
-  <ItemGroup>
-    <ClCompile Include="CxxReflect.cpp" />
+    <ClCompile Include="InclusionTests\BlobMetadata.cpp" />
+    <ClCompile Include="InclusionTests\CorEnumIterator.cpp" />
+    <ClCompile Include="InclusionTests\CxxReflect.cpp" />
+    <ClCompile Include="InclusionTests\Exceptions.cpp" />
+    <ClCompile Include="InclusionTests\Utility.cpp" />
+    <ClCompile Include="Main.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

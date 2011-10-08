@@ -12,6 +12,7 @@
 #include "Utility.hpp"
 
 #include <array>
+#include <cstdio>
 #include <cstdint>
 #include <iostream>
 #include <iterator>
@@ -178,7 +179,9 @@ namespace CxxReflect
         return false;
     }
 
-    std::wostream& operator<<(std::wostream& os, Version const& v)
+    using namespace std::rel_ops;
+
+    inline std::wostream& operator<<(std::wostream& os, Version const& v)
     {
         return os << v.GetMajor() << L'.'
                   << v.GetMinor() << L'.'
@@ -188,7 +191,9 @@ namespace CxxReflect
 
     #pragma endregion
 
-    #pragma region AssemblyName    
+    #pragma region AssemblyName
+
+    typedef std::array<unsigned char, 8> PublicKeyToken;
 
     // TODO Lots of missing information here
     class AssemblyName
@@ -200,22 +205,41 @@ namespace CxxReflect
 
         explicit AssemblyName(Detail::String const& name = Detail::String(),
                               Version const& version = Version(),
+                              Detail::String const& culture = Detail::String(),
+                              PublicKeyToken const& publicKeyToken = PublicKeyToken(),
                               Detail::String const& path = Detail::String())
-            : name_(name), version_(version), path_(path)
+            : name_(name), version_(version), culture_(culture), publicKeyToken_(publicKeyToken), path_(path)
         {
         }
         
         // URI formatting?
         Detail::String GetCodeBase() const { return path_; }
 
-        //Detail::String GetCulture() const { return culture_; }
+        Detail::String GetCulture() const { return culture_; }
         // EscapedCodeBase?
 
         //unsigned long GetFlags() const { return flags_; }
 
         Detail::String GetFullName() const
         {
-            return name_ + L", Version=" + Detail::ToString(version_);
+            Detail::String result(name_);
+
+            if (GetVersion() != Version())
+                result += L", Version=" + Detail::ToString(version_);
+
+            if (GetCulture().size() > 0)
+                result += L", Culture=" + GetCulture();
+
+            // TODO HAS PUBLIC KEY TOKEN???
+            result += L", PublicKeyToken=";
+            std::for_each(publicKeyToken_.begin(), publicKeyToken_.end(), [&](std::uint8_t c)
+            {
+                std::array<wchar_t, 3> buffer = { 0 };
+                std::swprintf(buffer.data(), buffer.size(), L"%x", c);
+                result += buffer.data();
+            });
+
+            return result;
         }
 
         Detail::String GetName() const { return name_; }
@@ -228,10 +252,10 @@ namespace CxxReflect
 
         Detail::String name_;
         Detail::String path_;
-        //Detail::String culture_;
+        Detail::String culture_;
         //unsigned long  flags_;
         Version        version_;
-        //PublicKeyToken publicKeyToken_;
+        PublicKeyToken publicKeyToken_;
     };
 
     #pragma endregion
@@ -405,6 +429,8 @@ namespace CxxReflect
     class Assembly
     {
     public:
+
+        Detail::String GetFullName() const;
 
         Module GetModule(Detail::String const& name) const;
 

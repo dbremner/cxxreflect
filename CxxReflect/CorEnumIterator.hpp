@@ -9,6 +9,8 @@
 
 #include "Utility.hpp"
 
+#include <array>
+
 #include <cor.h>
 
 namespace CxxReflect { namespace Detail {

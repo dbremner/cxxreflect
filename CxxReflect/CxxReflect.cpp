@@ -2,13 +2,15 @@
 
 #include "BlobMetadata.hpp"
 #include "CorEnumIterator.hpp"
-#include "Utility.hpp"
+#include "UtilityDefinitions.hpp"
 
 #include <atlbase.h>
 #include <cor.h>
+#include <wincrypt.h>
 
 #include <array>
 #include <exception>
+#include <functional>
 #include <iostream>
 #include <map>
 #include <type_traits>
@@ -16,6 +18,58 @@
 namespace
 {
     #pragma region Debug Runtime Checks
+
+    class SimpleScopeGuard
+    {
+    public:
+
+        SimpleScopeGuard(std::function<void()> f)
+            : f_(f)
+        {
+        }
+
+        void Unset()
+        {
+            f_ = nullptr;
+        }
+
+        ~SimpleScopeGuard()
+        {
+            if (f_)
+            {
+                f_();
+            }
+        }
+
+    private:
+
+        std::function<void()> f_;
+    };
+
+    typedef std::array<std::uint8_t, 20> Sha1Result;
+
+    Sha1Result ComputeSha1Hash(std::uint8_t* data, std::size_t length)
+    {
+        HCRYPTPROV provider(0);
+        SimpleScopeGuard cleanupProvider([&](){ if (provider) { CryptReleaseContext(provider, 0); } });
+        if (!CryptAcquireContext(&provider, nullptr, nullptr, PROV_RSA_FULL, CRYPT_VERIFYCONTEXT))
+            throw std::logic_error("wtf");
+
+        HCRYPTHASH hash(0);
+        SimpleScopeGuard cleanupHash([&](){ if (hash) { CryptDestroyHash(hash); } });
+        if (!CryptCreateHash(provider, CALG_SHA1, 0, 0, &hash))
+            throw std::logic_error("wtf");
+
+        if (!CryptHashData(hash, data, length, 0))
+            throw std::logic_error("wtf");
+
+        Sha1Result result;
+        DWORD resultLength(result.size());
+        if (!CryptGetHashParam(hash, HP_HASHVAL, result.data(), &resultLength, 0) || resultLength != 20)
+            throw std::logic_error("wtf");
+
+        return result;
+    }
 
     namespace RuntimeCheck {
 
@@ -345,7 +399,28 @@ namespace
             metadata.usBuildNumber,
             metadata.usRevisionNumber);
 
-        return CxxReflect::AssemblyName(name, version);
+        std::wstring locale(metadata.szLocale == nullptr
+            ? L"neutral"
+            : metadata.szLocale);
+
+        CxxReflect::PublicKeyToken publicKeyToken;
+        if ((flags & afPublicKey) != 0)
+        {
+            Sha1Result fullHash(ComputeSha1Hash((std::uint8_t*)publicKeyOrToken, publicKeyOrTokenLength));
+            std::copy(fullHash.rbegin(), fullHash.rbegin() + 8, publicKeyToken.begin());
+        }
+        else if (publicKeyOrTokenLength == 8)
+        {
+            std::copy(static_cast<std::uint8_t const*>(publicKeyOrToken),
+                      static_cast<std::uint8_t const*>(publicKeyOrToken) + 8,
+                      publicKeyToken.begin());
+        }
+        else
+        {
+            throw std::logic_error("wtf");
+        }
+
+        return CxxReflect::AssemblyName(name, version, locale, publicKeyToken); // TODO public key
     }
 }
 
@@ -389,7 +464,12 @@ namespace CxxReflect { namespace Detail {
     public:
 
         TypeImpl(AssemblyImpl const* assembly, mdTypeDef token)
-            : assembly_(assembly), token_(token), realizedTypeDefProps_(false), baseType_(nullptr), resolvedBaseType_(false)
+            : assembly_(assembly),
+              token_(token),
+              realizedTypeDefProps_(false),
+              baseType_(nullptr),
+              resolvedBaseType_(false),
+              enclosingType_(nullptr)
         {
             RealizeTypeDefProps();
         }
@@ -401,12 +481,21 @@ namespace CxxReflect { namespace Detail {
 
         String GetName() const
         {
-            return fullName_; // TODO
+            //return typeName_.substr(typeName_.find_last_of(L'.', 0);
+            return typeName_; // TODO
         }
 
         String GetFullName() const
         {
-            return fullName_;
+            RealizeEnclosingType();
+            String fullName;
+            if (enclosingType_ != nullptr)
+            {
+                fullName += enclosingType_->GetFullName() + L"+";
+            }
+            fullName += typeName_;
+           
+            return fullName;
         }
 
         TypeImpl const* GetBaseType() const { ResolveBaseType(); return baseType_; }
@@ -456,26 +545,33 @@ namespace CxxReflect { namespace Detail {
 
         void RealizeTypeDefProps() const;
 
+        void RealizeEnclosingType() const;
+
         void ResolveBaseType() const;
 
         AssemblyImpl const* assembly_;
         mutable TypeDefToken token_;
 
         mutable bool realizedTypeDefProps_;
-        mutable String fullName_;
+        mutable String typeName_;
         mutable unsigned flags_;
         mutable MetadataToken baseToken_;
 
         mutable bool resolvedBaseType_;
         mutable TypeImpl const* baseType_;
 
+        mutable TypeImpl const* enclosingType_; // For nested classes
+
         enum RealizationFlags
         {
             EventsRealized,
             FieldsRealized,
             MethodsRealized,
-            PropertiesRealized
+            PropertiesRealized,
+            EnclosingTypeRealized
         };
+
+        mutable FlagSet<RealizationFlags> realizationState_;
 
         mutable std::vector<EventImpl>    events_;
         mutable std::vector<FieldImpl>    fields_;
@@ -730,12 +826,35 @@ namespace CxxReflect { namespace Detail {
             return lhs.GetMetadataToken() < rhs.GetMetadataToken();
         });
 
+        types_.erase(std::unique(types_.begin(), types_.end(), [](TypeImpl const& lhs, TypeImpl const& rhs)
+        {
+            return lhs.GetMetadataToken() == rhs.GetMetadataToken(); 
+        }), types_.end());
+
         state_.Set(TypesRealized);
     }
 
     #pragma endregion
 
     #pragma region TypeImpl
+
+    void TypeImpl::RealizeEnclosingType() const
+    {
+        if (realizationState_.IsSet(EnclosingTypeRealized))
+            return;
+
+        RealizeTypeDefProps();
+
+        if (IsTdNested(flags_))
+        {
+            mdTypeDef enclosingType;
+            ThrowOnFailure(assembly_->UnsafeGetImport()->GetNestedClassProps(token_.Get(), &enclosingType));
+
+            enclosingType_ = assembly_->ResolveTypeDef(enclosingType);
+        }
+        
+        realizationState_.Set(EnclosingTypeRealized);
+    }
 
     void TypeImpl::RealizeTypeDefProps() const
     {
@@ -749,7 +868,7 @@ namespace CxxReflect { namespace Detail {
         mdToken extends;
         ThrowOnFailure(import->GetTypeDefProps(token_.Get(), nameBuffer.data(), nameBuffer.size(), &count, &flags, &extends));
         
-        fullName_ = String(nameBuffer.begin(), nameBuffer.begin() + count - 1);
+        typeName_ = String(nameBuffer.begin(), nameBuffer.begin() + count - 1);
         flags_ = flags;
         baseToken_ = extends;
         realizedTypeDefProps_ = true;
@@ -824,6 +943,11 @@ namespace CxxReflect {
     {
     }
 
+    Detail::String Assembly::GetFullName() const
+    {
+        return impl_->GetName().GetFullName();
+    }
+
     AssemblySequence Assembly::GetReferencedAssemblies() const
     {
         return impl_->GetReferencedAssemblies();
@@ -851,6 +975,11 @@ namespace CxxReflect {
     Type::Type(Detail::TypeImpl const* impl)
         : impl_(impl)
     {
+    }
+
+    Detail::String Type::GetFullName() const
+    {
+        return impl_->GetFullName();
     }
 
     unsigned long Type::GetMetadataToken() const
@@ -908,6 +1037,7 @@ namespace CxxReflect {
 
 }
 
+/*
 int main()
 {
     using namespace CxxReflect;
@@ -924,7 +1054,7 @@ int main()
    /* Type t = ass.GetType(L"system.NullRefeRenceException", false, true);
     Type base = t.GetBaseType();
     Type base2 = base.GetBaseType();
-    Type base3 = base2.GetBaseType();*/
+    Type base3 = base2.GetBaseType();*
 
     AssemblySequence refAss = ass.GetReferencedAssemblies();
     //std::for_each(refAss.begin(), refAss.end(), [](Assembly const& a) { a.GetTypes(); });
@@ -957,5 +1087,6 @@ int main()
         ThrowOnFailure(import->GetTypeSpecFromToken(token, &signature, &length));
 
         std::vector<char> v(signature, signature + length);
-    });*/
+    });*
 }
+*/
