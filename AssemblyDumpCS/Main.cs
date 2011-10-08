@@ -30,6 +30,33 @@ class Program
     static void Dump(StringBuilder sb, Type t)
     {
         sb.AppendLine(String.Format(" -- Type [{0}] [${1}]", t.FullName, t.MetadataToken));
+        // TODO t.Assembly
+        sb.AppendLine(String.Format("     -- AssemblyQualifiedName [{0}]", t.AssemblyQualifiedName));
+        // TODO t.Attributes
+        sb.AppendLine(String.Format("     -- BaseType [{0}]", t.BaseType != null ? t.BaseType.FullName : "NO BASE TYPE"));
+        sb.AppendLine(String.Format("         -- AssemblyQualifiedName [{0}]", t.BaseType != null ? t.BaseType.AssemblyQualifiedName : "NO BASE TYPE"));
+        // TODO t.BaseType
+        // TODO t.ContainsGenericParameters
+        // TODO t.DeclaringMethod
+        // TODO t.DeclaringType
+        // TODO t.FullName
+        // TODO t.GenericParameterAttributes
+        // TODO t.GenericParameterPosition
+        // TODO t.GenericTypeArguments
+        // TODO ...
+
+        Func<bool, int> F = (x) => x ? 1 : 0;
+        sb.AppendLine(String.Format("     -- IsTraits [{0}{1}{2}{3}{4}{5}{6}{7}] [{8}{9}{10}{11}{12}{13}{14}{15}] [{16}{17}{18}{19}{20}{21}{22}{23}] [{24}{25}{26}{27}{28}] [{29}{30}{31}{32}    ]",
+            F(t.IsAbstract), F(t.IsArray), F(t.IsAutoClass), F(t.IsAutoLayout), F(t.IsByRef), F(t.IsClass), F(t.IsCOMObject), F(t.IsContextful),
+            F(t.IsEnum), F(t.IsExplicitLayout), F(t.IsGenericParameter), F(t.IsGenericType), F(t.IsGenericTypeDefinition), F(t.IsImport), F(t.IsInterface), F(t.IsLayoutSequential),
+            F(t.IsMarshalByRef), F(t.IsNested), F(t.IsNestedAssembly), F(t.IsNestedFamANDAssem), F(t.IsNestedFamily), F(t.IsNestedPrivate), F(t.IsNestedPublic), F(t.IsNotPublic),
+            F(t.IsPointer), F(t.IsPrimitive), F(t.IsPublic), F(t.IsSealed), /*F(t.IsSecurityCritical), F(t.IsSecuritySafeCritical), F(t.IsSecurityTransparent), */F(t.IsSerializable),
+            F(t.IsSpecialName), F(t.IsUnicodeClass), F(t.IsValueType), F(t.IsVisible)
+            ));
+
+        // TODO ...
+        sb.AppendLine(String.Format("     -- Name [{0}]", t.Name));
+        sb.AppendLine(String.Format("     -- Namespace [{0}]", t.Namespace));
     }
 
     static void Main(string[] args)
@@ -38,6 +65,6 @@ class Program
         StringBuilder result = new StringBuilder();
         Dump(result, Assembly.ReflectionOnlyLoadFrom(assemblyPath));
 
-        File.WriteAllText("d:\\jm\\devmscorlib.cs.txt", result.ToString());
+        File.WriteAllText("d:\\jm\\mscorlib.cs.txt", result.ToString());
     }
 }

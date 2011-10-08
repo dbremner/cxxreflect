@@ -63,6 +63,8 @@ namespace CxxReflect { namespace Detail {
             RealizeTypeDefProps();
         }
 
+        String GetAssemblyQualifiedName() const;
+
         TypeDefToken GetMetadataToken() const
         {
             return token_;
@@ -70,8 +72,20 @@ namespace CxxReflect { namespace Detail {
 
         String GetName() const
         {
-            //return typeName_.substr(typeName_.find_last_of(L'.', 0);
-            return typeName_; // TODO
+            RealizeTypeDefProps();
+            std::size_t indexOfLastDot(typeName_.find_last_of(L'.', std::wstring::npos));
+            return indexOfLastDot != std::wstring::npos
+                ? typeName_.substr(indexOfLastDot + 1, typeName_.size() - indexOfLastDot - 1)
+                : typeName_;
+        }
+
+        String GetNamespace() const
+        {
+            String fullName(GetFullName());
+            std::size_t indexOfLastDot(fullName.find_last_of(L'.', std::wstring::npos));
+            return indexOfLastDot != std::wstring::npos
+                ? fullName.substr(0, indexOfLastDot)
+                : L"";
         }
 
         String GetFullName() const
@@ -91,21 +105,26 @@ namespace CxxReflect { namespace Detail {
 
         bool IsAbstract()              const { return (flags_ & tdAbstract) != 0;                            }
         bool IsArray()                 const { return false; } // TODO
-        bool IsAutoClass()             const { return false; } // TODO
+        bool IsAutoClass()             const { return (flags_ & tdAutoClass) != 0;                           }
         bool IsAutoLayout()            const { return (flags_ & tdLayoutMask) == tdAutoLayout;               }
         bool IsByRef()                 const { return false; } // TODO
-        bool IsClass()                 const { return (flags_ & tdClassSemanticsMask) == tdClass;            }
-        bool IsCOMObject()             const { return false; } // TODO
-        bool IsContextful()            const { return IsDerivedFromSystemType(L"System.ContextBoundObject"); }
-        bool IsEnum()                  const { return IsDerivedFromSystemType(L"System.Enum");               }
+        bool IsClass()                 const { return !IsInterface() && !IsValueType();                      }
+        bool IsCOMObject()             const { return (flags_ & tdImport) != 0 && !IsInterface();                              }
+        bool IsContextful()            const { return IsDerivedFromSystemType(L"System.ContextBoundObject", true); }
+
+        bool IsEnum()                  const { return IsDerivedFromSystemType(L"System.Enum", false);               }
         bool IsExplicitLayout()        const { return (flags_ & tdLayoutMask) == tdExplicitLayout;           }
         bool IsGenericParameter()      const { return false; } // TODO
-        bool IsGenericType()           const { return false; } // TODO
-        bool IsGenericTypeDefinition() const { return false; } // TODO
+        bool IsGenericType()           const { return IsGenericTypeDefinition(); } // TODO
+        bool IsGenericTypeDefinition() const
+        {
+            return GetFullName().find_last_of(L'`', std::wstring::npos) != std::wstring::npos; // TODO
+        } // TODO
         bool IsImport()                const { return (flags_ & tdImport) != 0;                              }
         bool IsInterface()             const { return (flags_ & tdClassSemanticsMask) == tdInterface;        }
         bool IsLayoutSequential()      const { return (flags_ & tdLayoutMask) == tdSequentialLayout;         }
-        bool IsMarshalByRef()          const { return IsDerivedFromSystemType(L"System.MarshalByRefType");   }
+
+        bool IsMarshalByRef()          const { return IsDerivedFromSystemType(L"System.MarshalByRefObject", true); }
         bool IsNested()                const { return (flags_ & tdVisibilityMask) >= tdNestedPublic;         }
         bool IsNestedAssembly()        const { return (flags_ & tdVisibilityMask) == tdNestedAssembly;       }
         bool IsNestedFamANDAssem()     const { return (flags_ & tdVisibilityMask) == tdNestedFamANDAssem;    }
@@ -113,24 +132,42 @@ namespace CxxReflect { namespace Detail {
         bool IsNestedPrivate()         const { return (flags_ & tdVisibilityMask) == tdNestedPrivate;        }
         bool IsNestedPublic()          const { return (flags_ & tdVisibilityMask) == tdNestedPublic;         }
         bool IsNotPublic()             const { return (flags_ & tdVisibilityMask) == tdNotPublic;            }
+
         bool IsPointer()               const { return false; } // TODO
-        bool IsPrimitive()             const { return false; } // TODO Is one of: Boolean, Byte, SByte, Int16, UInt16, Int32, UInt32, Int64, UInt64, IntPtr, UIntPtr, Char, Double, Single
+        bool IsPrimitive()             const;
         bool IsPublic()                const { return (flags_ & tdVisibilityMask) == tdPublic;               }
         bool IsSealed()                const { return (flags_ & tdSealed) != 0;                              }
         bool IsSecurityCritical()      const { return false; } // TODO
         bool IsSecuritySafeCritical()  const { return false; } // TODO
         bool IsSecurityTransparent()   const { return false; } // TODO
-        bool IsSerializable()          const { return (flags_ & tdSerializable) != 0;                        }
+        bool IsSerializable()          const
+        {
+            return (flags_ & tdSerializable) != 0
+                || IsEnum()
+                || IsDerivedFromSystemType(L"System.MulticastDelegate", false);
+        }
+
         bool IsSpecialName()           const { return (flags_ & tdRTSpecialName) != 0;                       }
         bool IsUnicodeClass()          const { return (flags_ & tdStringFormatMask) == tdUnicodeClass;       }
-        bool IsValueType()             const { return IsDerivedFromSystemType(L"System.ValueType");          }
-        bool IsVisible()               const { return false; } // TODO
+        bool IsValueType()             const;
+
+        bool IsVisible() const
+        { 
+            if (IsPublic())
+                return true;
+
+            if (!IsNestedPublic())
+                return false;
+
+            RealizeEnclosingType();
+            return enclosingType_->IsVisible();
+        }
 
         AssemblyImpl GetAssembly() const;
 
     private:
 
-        bool IsDerivedFromSystemType(String const& typeName) const;
+        bool IsDerivedFromSystemType(String const& typeName, bool includeSelf) const;
 
         void RealizeTypeDefProps() const;
 
@@ -198,6 +235,12 @@ namespace CxxReflect { namespace Detail {
             return it != types_.end() ? &*it : nullptr;
         }
 
+        bool IsSystemAssembly() const
+        {
+            RealizeReferencedAssemblies();
+            return referencedAssemblies_.empty();
+        }
+
         IMetaDataImport2* UnsafeGetImport() const
         {
             return import_;
@@ -216,11 +259,7 @@ namespace CxxReflect { namespace Detail {
         void RealizeReferencedAssemblies() const;
         void RealizeTypes() const;
 
-        bool IsSystemAssembly() const
-        {
-            RealizeReferencedAssemblies();
-            return referencedAssemblies_.empty();
-        }
+        
             
         String path_;
         MetadataReaderImpl const* metadataReader_;
@@ -411,6 +450,11 @@ namespace CxxReflect { namespace Detail {
 
         state_.Set(TypesRealized);
     }
+    
+    inline String TypeImpl::GetAssemblyQualifiedName() const
+    {
+        return GetFullName() + L", " + assembly_->GetName().GetFullName();
+    }
 
     inline void TypeImpl::RealizeEnclosingType() const
     {
@@ -448,9 +492,55 @@ namespace CxxReflect { namespace Detail {
         realizedTypeDefProps_ = true;
     }
 
-    inline bool TypeImpl::IsDerivedFromSystemType(String const& typeName) const
+    inline bool TypeImpl::IsPrimitive() const
     {
-        UNREFERENCED_PARAMETER(typeName);
+        if (!assembly_->IsSystemAssembly())
+            return false;
+
+        String fullName(GetFullName());
+        return fullName == L"System.Boolean"
+            || fullName == L"System.Byte"
+            || fullName == L"System.SByte"
+            || fullName == L"System.Int16"
+            || fullName == L"System.UInt16"
+            || fullName == L"System.Int32"
+            || fullName == L"System.UInt32"
+            || fullName == L"System.Int64"
+            || fullName == L"System.UInt64"
+            || fullName == L"System.IntPtr"
+            || fullName == L"System.UIntPtr"
+            || fullName == L"System.Char"
+            || fullName == L"System.Double"
+            || fullName == L"System.Single";
+    }
+
+    inline bool TypeImpl::IsValueType() const
+    {
+        // System.Enum is derived from System.ValueType but is not itself a value type.  Go figure.
+        if (assembly_->IsSystemAssembly() && GetFullName() == L"System.Enum")
+            return false;
+            
+        return IsDerivedFromSystemType(L"System.ValueType", false);
+    }
+
+    inline bool TypeImpl::IsDerivedFromSystemType(String const& typeName, bool includeSelf) const
+    {
+        TypeImpl const* current(this);
+        if (!includeSelf)
+        {
+            current->ResolveBaseType();
+            current = current->baseType_;
+        }
+
+        while (current)
+        {
+            if (current->assembly_->IsSystemAssembly() && current->GetFullName() == typeName)
+                return true;
+
+            current->ResolveBaseType();
+            current = current->baseType_;
+        }
+
         return false; // TODO
     }
 
@@ -462,7 +552,10 @@ namespace CxxReflect { namespace Detail {
         RealizeTypeDefProps();
 
         if (baseToken_.Get() == 0)
+        {
+            resolvedBaseType_ = true;
             return;
+        }
 
         if (baseToken_.GetType() == mdtTypeDef)
         {
@@ -470,11 +563,11 @@ namespace CxxReflect { namespace Detail {
         }
         else if (baseToken_.GetType() == mdtTypeRef)
         {
-            throw std::logic_error("wtf");
+            // TODO
         }
-        else
+        else if (baseToken_.GetType() == mdtTypeSpec)
         {
-            throw std::logic_error("wtf");
+            // TODO 
         }
 
         resolvedBaseType_ = true;

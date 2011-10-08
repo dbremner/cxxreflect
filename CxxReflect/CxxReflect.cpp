@@ -78,6 +78,8 @@ namespace CxxReflect {
     {
     }
 
+    Detail::String Type::GetAssemblyQualifiedName() const { return impl_->GetAssemblyQualifiedName(); }
+
     Detail::String Type::GetFullName() const
     {
         return impl_->GetFullName();
@@ -88,10 +90,8 @@ namespace CxxReflect {
         return impl_->GetMetadataToken().Get();
     }
 
-    Detail::String Type::GetName() const
-    {
-        return impl_->GetName();
-    }
+    Detail::String Type::GetName()      const { return impl_->GetName();      }
+    Detail::String Type::GetNamespace() const { return impl_->GetNamespace(); }
 
     bool Type::IsAbstract()              const { return impl_->IsAbstract();              }
     bool Type::IsArray()                 const { return impl_->IsArray();                 }
@@ -130,8 +130,6 @@ namespace CxxReflect {
     bool Type::IsValueType()             const { return impl_->IsValueType();             }
     bool Type::IsVisible()               const { return impl_->IsVisible();               }
 
-    Type Type::GetBaseType() const
-    {
-        return impl_->GetBaseType();
-    }
+    bool Type::HasBaseType() const { return impl_->GetBaseType() != nullptr; }
+    Type Type::GetBaseType() const { return impl_->GetBaseType();            }
 }

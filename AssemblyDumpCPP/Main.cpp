@@ -37,6 +37,21 @@ namespace
     void Dump(std::wostream& os, Type t)
     {
         os << L" -- Type [" << t.GetFullName() << L"] [$" << t.GetMetadataToken() << L"]\n";
+        os << L"     -- AssemblyQualifiedName [" << t.GetAssemblyQualifiedName() << L"]\n";
+        os << L"     -- BaseType [" << (t.HasBaseType() ? t.GetBaseType().GetFullName() : L"NO BASE TYPE") << L"]\n";
+        os << L"         -- AssemblyQualifiedName [" << (t.HasBaseType() ? t.GetBaseType().GetAssemblyQualifiedName() : L"NO BASE TYPE") << L"]\n"; // TODO DO WE NEED TO DUMP FULL TYPE INFO?
+
+        #define F(n) (t.n() ? 1 : 0)
+        os << L"     -- IsTraits [" 
+           << F(IsAbstract) << F(IsArray) << F(IsAutoClass) << F(IsAutoLayout) << F(IsByRef) << F(IsClass) << F(IsCOMObject) << F(IsContextful) << L"] ["
+           << F(IsEnum) << F(IsExplicitLayout) << F(IsGenericParameter) << F(IsGenericType) << F(IsGenericTypeDefinition) << F(IsImport) << F(IsInterface) << F(IsLayoutSequential) << L"] ["
+           << F(IsMarshalByRef) << F(IsNested) << F(IsNestedAssembly) << F(IsNestedFamANDAssem) << F(IsNestedFamily) << F(IsNestedPrivate) << F(IsNestedPublic) << F(IsNotPublic) << L"] ["
+           << F(IsPointer) << F(IsPrimitive) << F(IsPublic) << F(IsSealed) << /* F(IsSecurityCritical) << F(IsSecuritySafeCritical) << F(IsSecurityTransparent) << */ F(IsSerializable) << L"] ["
+           << F(IsSpecialName) << F(IsUnicodeClass) << F(IsValueType) << F(IsVisible) << L"    ]\n";
+        #undef F
+
+        os << L"     -- Name [" << t.GetName() << L"]\n";
+        os << L"     -- Namespace [" << t.GetNamespace() << L"]\n";
     }
 }
 

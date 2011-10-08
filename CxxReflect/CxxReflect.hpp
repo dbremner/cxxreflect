@@ -430,6 +430,7 @@ namespace CxxReflect
         bool IsClass() const;
         bool IsCOMObject() const;
         bool IsContextful() const;
+
         bool IsEnum() const;
         bool IsExplicitLayout() const;
         bool IsGenericParameter() const;
@@ -438,6 +439,7 @@ namespace CxxReflect
         bool IsImport() const;
         bool IsInterface() const;
         bool IsLayoutSequential() const;
+
         bool IsMarshalByRef() const;
         bool IsNested() const;
         bool IsNestedAssembly() const;
@@ -446,6 +448,7 @@ namespace CxxReflect
         bool IsNestedPrivate() const;
         bool IsNestedPublic() const;
         bool IsNotPublic() const;
+
         bool IsPointer() const;
         bool IsPrimitive() const;
         bool IsPublic() const;
@@ -454,6 +457,7 @@ namespace CxxReflect
         bool IsSecuritySafeCritical() const;
         bool IsSecurityTransparent() const;
         bool IsSerializable() const;
+
         bool IsSpecialName() const;
         bool IsUnicodeClass() const;
         bool IsValueType() const;
