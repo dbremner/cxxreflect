@@ -67,12 +67,19 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="InclusionTests\BlobMetadata.cpp" />
-    <ClCompile Include="InclusionTests\CorEnumIterator.cpp" />
+    <ClCompile Include="InclusionTests\InternalBlobMetadata.cpp" />
+    <ClCompile Include="InclusionTests\InternalCorEnumIterator.cpp" />
     <ClCompile Include="InclusionTests\CxxReflect.cpp" />
     <ClCompile Include="InclusionTests\Exceptions.cpp" />
+    <ClCompile Include="InclusionTests\InternalCxxReflectImpl.cpp" />
+    <ClCompile Include="InclusionTests\InternalUtility.cpp" />
     <ClCompile Include="InclusionTests\Utility.cpp" />
     <ClCompile Include="Main.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\CxxReflect\CxxReflect.vcxproj">
+      <Project>{64dc7dff-d2e4-4086-be24-02f0b9d71128}</Project>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

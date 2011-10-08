@@ -4,10 +4,10 @@
 
 // This header contains private implementation details only.  It defines types and functions used
 // for parsing raw blob data from the metadata.
-#ifndef CXXREFLECT_BLOBMETADATA_HPP_
-#define CXXREFLECT_BLOBMETADATA_HPP_
+#ifndef CXXREFLECT_INTERNALBLOBMETADATA_HPP_
+#define CXXREFLECT_INTERNALBLOBMETADATA_HPP_
 
-#include "Utility.hpp"
+#include "CxxReflect/InternalUtility.hpp"
 
 #include <array>
 #include <cstdint>

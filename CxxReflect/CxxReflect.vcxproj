@@ -46,6 +46,7 @@
     <ClCompile>
       <WarningLevel>Level4</WarningLevel>
       <Optimization>Disabled</Optimization>
+      <AdditionalIncludeDirectories>../</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
@@ -65,12 +66,13 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include="BlobMetadata.hpp" />
-    <ClInclude Include="CorEnumIterator.hpp" />
+    <ClInclude Include="InternalBlobMetadata.hpp" />
+    <ClInclude Include="InternalCorEnumIterator.hpp" />
     <ClInclude Include="CxxReflect.hpp" />
     <ClInclude Include="Exceptions.hpp" />
+    <ClInclude Include="InternalCxxReflectImpl.hpp" />
     <ClInclude Include="Utility.hpp" />
-    <ClInclude Include="UtilityDefinitions.hpp" />
+    <ClInclude Include="InternalUtility.hpp" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="CxxReflect.cpp" />

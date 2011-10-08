@@ -8,8 +8,8 @@
 #define CXXREFLECT_CXXREFLECT_HPP_
 
 // Be careful not to include any headers that include <cor.h> or any other system header
-#include "Exceptions.hpp"
-#include "Utility.hpp"
+#include "CxxReflect/Exceptions.hpp"
+#include "CxxReflect/Utility.hpp"
 
 #include <array>
 #include <cstdio>

@@ -7,7 +7,7 @@
 #ifndef CXXREFLECT_UTILITY_HPP_
 #define CXXREFLECT_UTILITY_HPP_
 
-#include "Exceptions.hpp"
+#include "CxxReflect/Exceptions.hpp"
 
 #include <iostream>
 #include <string>
@@ -158,26 +158,6 @@ namespace CxxReflect { namespace Detail {
     {
         return std::less<T*>()(lhs.Get(), rhs.Get());
     }
-
-    class AllowConversionToArbitraryConstReference
-    {
-    public:
-
-        explicit AllowConversionToArbitraryConstReference(void const* pointer)
-            : pointer_(pointer)
-        {
-        }
-
-        template <typename T>
-        operator T const&() const
-        {
-            return *static_cast<T const*>(pointer_);
-        }
-
-    private:
-
-        void const* pointer_;
-    };
 
     using namespace std::rel_ops;
 } }

@@ -18,23 +18,29 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="InclusionTests\BlobMetadata.cpp">
-      <Filter>Source Files\InclusionTests</Filter>
-    </ClCompile>
-    <ClCompile Include="InclusionTests\CorEnumIterator.cpp">
-      <Filter>Source Files\InclusionTests</Filter>
-    </ClCompile>
     <ClCompile Include="InclusionTests\CxxReflect.cpp">
       <Filter>Source Files\InclusionTests</Filter>
     </ClCompile>
     <ClCompile Include="InclusionTests\Exceptions.cpp">
       <Filter>Source Files\InclusionTests</Filter>
     </ClCompile>
+    <ClCompile Include="Main.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="InclusionTests\InternalBlobMetadata.cpp">
+      <Filter>Source Files\InclusionTests</Filter>
+    </ClCompile>
+    <ClCompile Include="InclusionTests\InternalCorEnumIterator.cpp">
+      <Filter>Source Files\InclusionTests</Filter>
+    </ClCompile>
+    <ClCompile Include="InclusionTests\InternalUtility.cpp">
+      <Filter>Source Files\InclusionTests</Filter>
+    </ClCompile>
     <ClCompile Include="InclusionTests\Utility.cpp">
       <Filter>Source Files\InclusionTests</Filter>
     </ClCompile>
-    <ClCompile Include="Main.cpp">
-      <Filter>Source Files</Filter>
+    <ClCompile Include="InclusionTests\InternalCxxReflectImpl.cpp">
+      <Filter>Source Files\InclusionTests</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

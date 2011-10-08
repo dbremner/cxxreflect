@@ -1,6 +1,16 @@
+//                 Copyright (c) 2011 James P. McNellis <james@jamesmcnellis.com>                 //
+//                   Distributed under the Boost Software License, Version 1.0.                   //
+//     (See accompanying file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)    //
+
+// This is one of a pair of test programs for CxxReflect:  AssemblyDumpCS and AssemblyDumpCPP.  The
+// former uses the .NET Reflection APIs to write metadata for an assembly to a file; the latter uses
+// the CxxReflect library to write metadata to a file in the same format.  The files can be diffed
+// to validate that the CxxReflect library is functionally equivalent (where appropriate) to the
+// .NET Reflection API. 
+
 #include "CxxReflect/CxxReflect.hpp"
 
-#include <cor.h>
+#include <combaseapi.h>
 
 #include <fstream>
 #include <iostream>
@@ -43,5 +53,4 @@ int main()
     
     std::wofstream os("d:\\jm\\mscorlib.cpp.txt");
     Dump(os, a);
-
 }

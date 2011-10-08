@@ -24,13 +24,16 @@
     <ClInclude Include="Utility.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="CorEnumIterator.hpp">
+    <ClInclude Include="InternalBlobMetadata.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="BlobMetadata.hpp">
+    <ClInclude Include="InternalCorEnumIterator.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="UtilityDefinitions.hpp">
+    <ClInclude Include="InternalUtility.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="InternalCxxReflectImpl.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
