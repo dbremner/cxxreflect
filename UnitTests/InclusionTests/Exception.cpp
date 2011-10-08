@@ -4,4 +4,4 @@
 
 // This is a compilation verification test.  It ensures that the specified header can be compiled
 // without any additional headers being included.
-#include "CxxReflect/Exceptions.hpp"
+#include "CxxReflect/Exception.hpp"

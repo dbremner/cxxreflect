@@ -41,8 +41,6 @@ namespace CxxReflect { namespace Detail { namespace BlobMetadata {
 
     char const* const IteratorReadUnexpectedEnd("Unexpectedly reached end of range");
 
-    #pragma region Primitives
-
     inline std::int8_t ReadInt8(ByteIterator& it, ByteIterator last)
     {
         if (it == last)
@@ -214,8 +212,6 @@ namespace CxxReflect { namespace Detail { namespace BlobMetadata {
     {
         return ReadCorElementType(it, last);
     }
-
-    #pragma endregion
 
     // These are the core signature types
     class ArrayShape;

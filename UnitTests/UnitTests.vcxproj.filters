@@ -21,9 +21,6 @@
     <ClCompile Include="InclusionTests\CxxReflect.cpp">
       <Filter>Source Files\InclusionTests</Filter>
     </ClCompile>
-    <ClCompile Include="InclusionTests\Exceptions.cpp">
-      <Filter>Source Files\InclusionTests</Filter>
-    </ClCompile>
     <ClCompile Include="Main.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -40,6 +37,9 @@
       <Filter>Source Files\InclusionTests</Filter>
     </ClCompile>
     <ClCompile Include="InclusionTests\InternalCxxReflectImpl.cpp">
+      <Filter>Source Files\InclusionTests</Filter>
+    </ClCompile>
+    <ClCompile Include="InclusionTests\Exception.cpp">
       <Filter>Source Files\InclusionTests</Filter>
     </ClCompile>
   </ItemGroup>

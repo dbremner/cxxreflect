@@ -7,7 +7,7 @@
 #ifndef CXXREFLECT_UTILITY_HPP_
 #define CXXREFLECT_UTILITY_HPP_
 
-#include "CxxReflect/Exceptions.hpp"
+#include "CxxReflect/Exception.hpp"
 
 #include <iostream>
 #include <string>
@@ -157,6 +157,73 @@ namespace CxxReflect { namespace Detail {
     inline bool operator<(RefPointer<T> const& lhs, RefPointer<T> const& rhs)
     {
         return std::less<T*>()(lhs.Get(), rhs.Get());
+    }
+
+    template <typename T>
+    class OpaqueIterator
+    {
+    public:
+
+        typedef std::random_access_iterator_tag    iterator_category;
+        typedef T                                  value_type;
+        typedef T const&                           reference;
+        typedef T const*                           pointer;
+        typedef std::ptrdiff_t                     difference_type;
+
+        template <typename U>
+        explicit OpaqueIterator(U const* = nullptr);
+
+        pointer   operator->() const;
+        reference operator*()  const;
+
+        reference operator[](difference_type) const;
+
+        OpaqueIterator& operator++();
+        OpaqueIterator  operator++(int);
+
+        OpaqueIterator& operator--();
+        OpaqueIterator  operator--(int);
+
+        OpaqueIterator& operator+=(difference_type);
+        OpaqueIterator& operator-=(difference_type);
+
+    private:
+
+        void const* element_;
+    };
+
+    template <typename T>
+    OpaqueIterator<T> operator+(OpaqueIterator<T> lhs, std::ptrdiff_t rhs)
+    {
+        return lhs += rhs;
+    }
+
+    template <typename T>
+    OpaqueIterator<T> operator+(std::ptrdiff_t lhs, OpaqueIterator<T> rhs)
+    {
+        return rhs += lhs;
+    }
+
+    template <typename T>
+    OpaqueIterator<T> operator-(OpaqueIterator<T> lhs, std::ptrdiff_t rhs)
+    {
+        return lhs -= rhs;
+    }
+
+    // TODO Implemnent in source file
+    template <typename T>
+    std::ptrdiff_t operator-(OpaqueIterator<T> lhs, OpaqueIterator<T> rhs);
+
+    template <typename T>
+    bool operator==(OpaqueIterator<T> lhs, OpaqueIterator<T> rhs)
+    {
+        return lhs.operator->() == rhs.operator->();
+    }
+
+    template <typename T>
+    bool operator<(OpaqueIterator<T> const& lhs, OpaqueIterator<T> const& rhs)
+    {
+        return std::less<void const*>()(lhs.operator->(), rhs.operator->());
     }
 
     using namespace std::rel_ops;

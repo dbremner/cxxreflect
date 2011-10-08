@@ -3,8 +3,8 @@
 //     (See accompanying file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)    //
 
 // This header defines exceptions that are part of the public interface.
-#ifndef CXXREFLECT_EXCEPTIONS_HPP_
-#define CXXREFLECT_EXCEPTIONS_HPP_
+#ifndef CXXREFLECT_EXCEPTION_HPP_
+#define CXXREFLECT_EXCEPTION_HPP_
 
 #include <stdexcept>
 
