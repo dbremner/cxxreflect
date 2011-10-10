@@ -66,16 +66,26 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include="InternalBlobMetadata.hpp" />
-    <ClInclude Include="InternalCorEnumIterator.hpp" />
+    <ClInclude Include="Assembly.hpp" />
+    <ClInclude Include="AssemblyName.hpp" />
+    <ClInclude Include="CoreDeclarations.hpp" />
+    <ClInclude Include="Event.hpp" />
+    <ClInclude Include="Field.hpp" />
+    <ClInclude Include="BlobMetadata.hpp" />
+    <ClInclude Include="CorEnumIterator.hpp" />
     <ClInclude Include="CxxReflect.hpp" />
-    <ClInclude Include="Exception.hpp" />
-    <ClInclude Include="InternalCxxReflectImpl.hpp" />
+    <ClInclude Include="Exceptions.hpp" />
+    <ClInclude Include="MetadataReader.hpp" />
+    <ClInclude Include="Method.hpp" />
+    <ClInclude Include="Property.hpp" />
+    <ClInclude Include="Type.hpp" />
     <ClInclude Include="Utility.hpp" />
-    <ClInclude Include="InternalUtility.hpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="CxxReflect.cpp" />
+    <ClCompile Include="Assembly.cpp" />
+    <ClCompile Include="MetadataReader.cpp" />
+    <ClCompile Include="Type.cpp" />
+    <ClCompile Include="Utility.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

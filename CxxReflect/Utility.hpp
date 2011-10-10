@@ -7,44 +7,91 @@
 #ifndef CXXREFLECT_UTILITY_HPP_
 #define CXXREFLECT_UTILITY_HPP_
 
-#include "CxxReflect/Exception.hpp"
+#include "CxxReflect/CoreDeclarations.hpp"
+#include "CxxReflect/Exceptions.hpp"
 
-#include <iostream>
-#include <string>
-#include <utility>
+#include <array>
+#include <cstdint>
+#include <functional>
 
 namespace CxxReflect { namespace Detail {
 
-    typedef std::wstring String;
-
-    template <typename T>
-    struct Identity
+    class SimpleScopeGuard
     {
-        typedef T Type;
+    public:
+
+        SimpleScopeGuard(std::function<void()> f)
+            : f_(f)
+        {
+        }
+
+        void Unset() { f_ = nullptr; }
+
+        ~SimpleScopeGuard()
+        {
+            if (f_) { f_(); }
+        }
+
+    private:
+
+        std::function<void()> f_;
     };
 
-    template <typename Target>
-    Target ImplicitCast(typename Identity<Target>::Type x)
+    template <typename T>
+    void VerifyNotNull(T const& x)
     {
-        return x;
-    }
-
-    template <typename Source>
-    String ToString(Source const& x)
-    {
-        std::wostringstream oss;
-        oss << x;
-        return String(oss.str());
+        if (!x) { throw std::logic_error("wtf"); }
     }
 
     inline void ThrowOnFailure(long hr)
     {
-        if (hr < 0)
-        {
-            throw HResultException(hr);
-        }
+        if (hr < 0) { throw HResultException(hr); }
     }
-    
+
+    static const std::uint32_t InvalidMetadataTokenValue = 0x00000000;
+    static const std::uint32_t MetadataTokenTypeMask     = 0xFF000000;
+
+    class MetadataToken
+    {
+    public:
+
+        MetadataToken()
+            : _token(InvalidMetadataTokenValue)
+        {
+        }
+
+        MetadataToken(std::uint32_t token)
+            : _token(token)
+        {
+        }
+
+        void Set(std::uint32_t token)
+        {
+            _token = token;
+        }
+
+        std::uint32_t Get() const
+        {
+            //TODO Verify([&]{ return IsInitialized(); });
+            return _token;
+        }
+
+        MetadataTokenType GetType() const
+        {
+            //TODO Verify([&]{ return IsInitialized(); });
+            return static_cast<MetadataTokenType>(_token & MetadataTokenTypeMask);
+        }
+
+        bool IsInitialized() const
+        {
+            return _token != InvalidMetadataTokenValue;
+        }
+
+    private:
+
+        std::uint32_t _token;
+    };
+
     // A simple reference-counting base class.  This implementation is not thread-safe by design; we
     // use it as a high-performance alternative to std::shared_ptr, which must use interlocked
     // operations.
@@ -53,7 +100,7 @@ namespace CxxReflect { namespace Detail {
     protected:
 
         RefCounted()
-            : references_(0)
+            : _references(0)
         {
         }
 
@@ -68,19 +115,19 @@ namespace CxxReflect { namespace Detail {
 
         void Increment() const
         {
-            ++references_;
+            ++_references;
         }
 
         void Decrement() const
         {
-            --references_;
-            if (references_ == 0)
+            --_references;
+            if (_references == 0)
             {
                 delete this;
             }
         }
 
-        mutable unsigned references_;
+        mutable unsigned _references;
     };
 
     // Smart pointer that manages reference counting of an object of a type derived from RefCounted.
@@ -93,7 +140,7 @@ namespace CxxReflect { namespace Detail {
         typedef T& Reference;
 
         explicit RefPointer(T* p = 0)
-            : pointer_(p)
+            : _pointer(p)
         {
             if (IsValid())
             {
@@ -102,7 +149,7 @@ namespace CxxReflect { namespace Detail {
         }
 
         RefPointer(RefPointer const& other)
-            : pointer_(other.pointer_)
+            : _pointer(other._pointer)
         {
             if (IsValid())
             {
@@ -124,10 +171,10 @@ namespace CxxReflect { namespace Detail {
             }
         }
 
-        Reference operator*()  const { return *pointer_;     }
-        Pointer   operator->() const { return pointer_;      }
-        Pointer   Get()        const { return pointer_;      }
-        bool      IsValid()    const { return pointer_ != 0; }
+        Reference operator*()  const { return *_pointer;     }
+        Pointer   operator->() const { return _pointer;      }
+        Pointer   Get()        const { return _pointer;      }
+        bool      IsValid()    const { return _pointer != 0; }
 
         void Reset(T* p = 0)
         {
@@ -137,14 +184,17 @@ namespace CxxReflect { namespace Detail {
 
         void Swap(RefPointer& other)
         {
-            std::swap(pointer_, other.pointer_);
+            std::swap(_pointer, other._pointer);
         }
 
     private:
 
-        RefCounted const* GetBase();
+        RefCounted const* GetBase()
+        {
+            return _pointer;
+        }
 
-        Pointer pointer_;
+        Pointer _pointer;
     };
 
     template <typename T>
@@ -159,74 +209,18 @@ namespace CxxReflect { namespace Detail {
         return std::less<T*>()(lhs.Get(), rhs.Get());
     }
 
-    template <typename T>
-    class OpaqueIterator
-    {
-    public:
+    template <typename T> inline bool operator!=(RefPointer<T> const& lhs, RefPointer<T> const& rhs) { return !(lhs == rhs); }
+    template <typename T> inline bool operator> (RefPointer<T> const& lhs, RefPointer<T> const& rhs) { return  (rhs <  lhs); }
+    template <typename T> inline bool operator>=(RefPointer<T> const& lhs, RefPointer<T> const& rhs) { return !(lhs <  rhs); }
+    template <typename T> inline bool operator<=(RefPointer<T> const& lhs, RefPointer<T> const& rhs) { return !(rhs <  lhs); }
 
-        typedef std::random_access_iterator_tag    iterator_category;
-        typedef T                                  value_type;
-        typedef T const&                           reference;
-        typedef T const*                           pointer;
-        typedef std::ptrdiff_t                     difference_type;
+    typedef std::array<std::uint8_t, 20> Sha1Hash;
 
-        template <typename U>
-        explicit OpaqueIterator(U const* = nullptr);
+    // Computes the 20 byte SHA1 hash for the bytes in the range [first, last).
+    Sha1Hash ComputeSha1Hash(std::uint8_t const* first, std::uint8_t const* last);
 
-        pointer   operator->() const;
-        reference operator*()  const;
+    AssemblyName GetAssemblyNameFromToken(IMetaDataAssemblyImport* import, MetadataToken token);
 
-        reference operator[](difference_type) const;
-
-        OpaqueIterator& operator++();
-        OpaqueIterator  operator++(int);
-
-        OpaqueIterator& operator--();
-        OpaqueIterator  operator--(int);
-
-        OpaqueIterator& operator+=(difference_type);
-        OpaqueIterator& operator-=(difference_type);
-
-    private:
-
-        void const* element_;
-    };
-
-    template <typename T>
-    OpaqueIterator<T> operator+(OpaqueIterator<T> lhs, std::ptrdiff_t rhs)
-    {
-        return lhs += rhs;
-    }
-
-    template <typename T>
-    OpaqueIterator<T> operator+(std::ptrdiff_t lhs, OpaqueIterator<T> rhs)
-    {
-        return rhs += lhs;
-    }
-
-    template <typename T>
-    OpaqueIterator<T> operator-(OpaqueIterator<T> lhs, std::ptrdiff_t rhs)
-    {
-        return lhs -= rhs;
-    }
-
-    // TODO Implemnent in source file
-    template <typename T>
-    std::ptrdiff_t operator-(OpaqueIterator<T> lhs, OpaqueIterator<T> rhs);
-
-    template <typename T>
-    bool operator==(OpaqueIterator<T> lhs, OpaqueIterator<T> rhs)
-    {
-        return lhs.operator->() == rhs.operator->();
-    }
-
-    template <typename T>
-    bool operator<(OpaqueIterator<T> const& lhs, OpaqueIterator<T> const& rhs)
-    {
-        return std::less<void const*>()(lhs.operator->(), rhs.operator->());
-    }
-
-    using namespace std::rel_ops;
 } }
 
 #endif

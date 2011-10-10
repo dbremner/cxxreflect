@@ -9,10 +9,6 @@
       <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
       <Extensions>h;hpp;hxx;hm;inl;inc;xsd</Extensions>
     </Filter>
-    <Filter Include="Resource Files">
-      <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
-      <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
-    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="CxxReflect.hpp">
@@ -21,24 +17,54 @@
     <ClInclude Include="Utility.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="InternalBlobMetadata.hpp">
+    <ClInclude Include="Assembly.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="InternalCorEnumIterator.hpp">
+    <ClInclude Include="MetadataReader.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="InternalUtility.hpp">
+    <ClInclude Include="CoreDeclarations.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="InternalCxxReflectImpl.hpp">
+    <ClInclude Include="AssemblyName.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="Exception.hpp">
+    <ClInclude Include="Exceptions.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="CorEnumIterator.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Type.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Method.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Field.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Property.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Event.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="BlobMetadata.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="CxxReflect.cpp">
+    <ClCompile Include="MetadataReader.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Assembly.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Utility.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Type.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
