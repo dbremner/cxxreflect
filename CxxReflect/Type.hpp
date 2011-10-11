@@ -19,14 +19,14 @@ namespace CxxReflect {
 
         Assembly const* GetAssembly() const { return _assembly; }
 
-        String GetName() const;      // TODO
-        String GetNamespace() const; // TODO
-        String GetFullName() const;  // TODO
-
-        String GetAssemblyQualifiedName() const; // TODO
+        // A type by any other name would be something else...
+        String GetAssemblyQualifiedName() const;
+        String GetName()                  const;
+        String GetNamespace()             const;
+        String GetFullName()              const;
 
         // The base type of this type, or null if the type has no base type
-        Type const* GetBaseType() const; // TODO
+        Type const* GetBaseType() const;
 
         MetadataToken GetMetadataToken() const { return _originalToken; }
 

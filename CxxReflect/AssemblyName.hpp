@@ -10,7 +10,7 @@
 #include <array>
 #include <cstdint>
 #include <functional>
-#include <iostream>
+#include <iosfwd>
 
 namespace CxxReflect {
 
@@ -23,7 +23,7 @@ namespace CxxReflect {
         {
         }
 
-        Version(String versionString); // TODO
+        Version(String const& version);
 
         Version(std::uint16_t major, std::uint16_t minor, std::uint16_t build = 0, std::uint16_t revision = 0)
             : _major(major), _minor(minor), _build(build), _revision(revision)
@@ -68,31 +68,8 @@ namespace CxxReflect {
     inline bool operator>=(Version const& lhs, Version const& rhs) { return !(lhs <  rhs); }
     inline bool operator<=(Version const& lhs, Version const& rhs) { return !(rhs <  lhs); }
 
-    inline std::wostream& operator<<(std::wostream& os, Version const& v)
-    {
-        os << v.GetMajor() << L'.' << v.GetMinor() << L'.' << v.GetBuild() << L'.' << v.GetRevision();
-    }
-
-    inline std::wistream& operator>>(std::wistream& is, Version& v)
-    {
-        std::array<std::int16_t, 4> components = { 0 };
-        unsigned componentsRead(0);
-        bool TrueValueToSuppressC4127(true);
-        while (TrueValueToSuppressC4127)
-        {
-            if (!(is >> components[componentsRead]))
-                return is;
-
-            ++componentsRead;
-            if (componentsRead == 4 || is.peek() != L'.')
-                break;
-
-            is.ignore(1); // Ignore the . between numbers
-        }
-
-        v = Version(components[0], components[1], components[2], components[3]);
-        return is;
-    }
+    std::wostream& operator<<(std::wostream& os, Version const& v);
+    std::wistream& operator>>(std::wistream& is, Version& v);
 
     enum struct AssemblyNameFlags : std::uint16_t
     {
@@ -146,7 +123,7 @@ namespace CxxReflect {
         AssemblyNameFlags        GetFlags()          const { return _flags;          }
         String            const& GetPath()           const { return _path;           }
 
-        String GetFullName() const; // TODO
+        String GetFullName() const;
 
     private:
 
@@ -183,8 +160,8 @@ namespace CxxReflect {
     inline bool operator>=(AssemblyName const& lhs, AssemblyName const& rhs) { return !(lhs <  rhs); }
     inline bool operator<=(AssemblyName const& lhs, AssemblyName const& rhs) { return !(rhs <  lhs); }
 
-    inline std::wostream& operator<<(std::wostream& os, AssemblyName const& an); // TODO
-    inline std::wistream& operator>>(std::wistream& os, AssemblyName & an);      // TODO
+    std::wostream& operator<<(std::wostream& os, AssemblyName const& an);
+    std::wistream& operator>>(std::wistream& os, AssemblyName & an);      // TODO
 }
 
 #endif

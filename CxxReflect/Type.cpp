@@ -59,6 +59,11 @@ namespace CxxReflect {
         }
     }
 
+    String Type::GetAssemblyQualifiedName() const
+    {
+        return GetFullName() + L", " + GetAssembly()->GetName().GetFullName();
+    }
+
     String Type::GetFullName() const
     {
         String fullName;
@@ -95,12 +100,20 @@ namespace CxxReflect {
             : L"";
     }
 
+    Type const* Type::GetBaseType() const
+    {
+        return PrivateGetBaseType();
+    }
+
     bool Type::IsAbstract() const
     {
         return IsTdAbstract(PrivateGetTypeFlags()) != 0;
     }
 
-    // bool Type::IsArray() const; TODO
+    bool Type::IsArray() const
+    {
+        return false; // TODO
+    }
 
     bool Type::IsAutoClass() const
     {
@@ -112,7 +125,10 @@ namespace CxxReflect {
         return IsTdAutoLayout(PrivateGetTypeFlags());
     }
 
-    // bool Type::IsByRef() const; TODO
+    bool Type::IsByRef() const
+    {
+        return false; // TODO
+    }
 
     bool Type::IsClass() const
     {
@@ -139,7 +155,10 @@ namespace CxxReflect {
         return IsTdExplicitLayout(PrivateGetTypeFlags());
     }
 
-    // bool Type::IsGenericParameter() const; TODO
+    bool Type::IsGenericParameter() const
+    {
+        return false; // TODO
+    }
 
     bool Type::IsGenericType() const
     {
@@ -206,7 +225,10 @@ namespace CxxReflect {
         return IsTdNotPublic(PrivateGetTypeFlags());
     }
 
-    // bool Type::IsPointer() const; // TODO
+    bool Type::IsPointer() const
+    {
+        return false; // TODO
+    }
 
     bool Type::IsPrimitive() const
     {
