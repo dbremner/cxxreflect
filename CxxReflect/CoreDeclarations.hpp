@@ -84,18 +84,72 @@ namespace CxxReflect {
 
     class Assembly;
     class AssemblyName;
+    class CustomAttribute;
+    class CustomAttributeArgument;
+    class Event;
     class Field;
     class MetadataReader;
     class Method;
+    class Parameter;
     class Property;
     class Type;
+    class Version;
 
-    typedef std::vector<Assembly>                AssemblySequence;
-    typedef std::vector<AssemblyName>            AssemblyNameSequence;
-    typedef std::vector<Type>                    TypeSequence;
+    typedef Assembly                const* AssemblyHandle;
+    typedef CustomAttribute         const* CustomAttributeHandle;
+    typedef CustomAttributeArgument const* CustomAttributeArgumentHandle;
+    typedef Event                   const* EventHandle;
+    typedef Field                   const* FieldHandle;
+    typedef MetadataReader          const* MetadataReaderHandle;
+    typedef Method                  const* MethodHandle;
+    typedef Parameter               const* ParameterHandle;
+    typedef Property                const* PropertyHandle;
+    typedef Type                    const* TypeHandle;
 
-    typedef AssemblyNameSequence::iterator AssemblyNameIterator;
-    typedef TypeSequence::iterator         TypeIterator;
+    enum class MemberType : std::uint8_t
+    {
+        Event,
+        Field,
+        Method,
+        Property,
+        Type
+    };
+
+    // A Member is an Event, Field, Method, Property, or Type; effectively, anything that can be a
+    // member.  This discriminated union provides the functionality provided by the MemberInfo base
+    // class in the .NET Reflection API, but allows us to avoid inheritance and virtual functions.
+    class MemberHandle
+    {
+    public:
+
+        MemberHandle(Event    const* pointer) : _pointer(pointer), _type(MemberType::Event)    { }
+        MemberHandle(Field    const* pointer) : _pointer(pointer), _type(MemberType::Field)    { }
+        MemberHandle(Method   const* pointer) : _pointer(pointer), _type(MemberType::Method)   { }
+        MemberHandle(Property const* pointer) : _pointer(pointer), _type(MemberType::Property) { }
+        MemberHandle(Type     const* pointer) : _pointer(pointer), _type(MemberType::Type)     { }
+
+        MemberType GetType() const { return _type; }
+        
+        Event    const* AsEvent()    const { return VerifyAndGet<Event>   (MemberType::Event);    }
+        Field    const* AsField()    const { return VerifyAndGet<Field>   (MemberType::Field);    }
+        Method   const* AsMethod()   const { return VerifyAndGet<Method>  (MemberType::Method);   }
+        Property const* AsProperty() const { return VerifyAndGet<Property>(MemberType::Property); }
+        Type     const* AsType()     const { return VerifyAndGet<Type>    (MemberType::Type);     }
+
+    private:
+
+        template <typename T>
+        T const* VerifyAndGet(MemberType type) const
+        {
+            if (type != _type)
+                throw std::logic_error("wtf");
+
+            return reinterpret_cast<T const*>(_pointer);
+        }
+
+        MemberType  _type;
+        void const* _pointer;
+    };
 
 }
 

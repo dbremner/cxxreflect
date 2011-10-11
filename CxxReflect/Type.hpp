@@ -15,9 +15,9 @@ namespace CxxReflect {
 
         // The token must be a TypeDef, TypeRef, or TypeSpec.  The assembly must be the assembly
         // that we can use to resolve properties of the type.
-        Type(Assembly const* assembly, MetadataToken token);
+        Type(AssemblyHandle assembly, MetadataToken token);
 
-        Assembly const* GetAssembly() const { return _assembly; }
+        AssemblyHandle GetAssembly() const { return _assembly; }
 
         // A type by any other name would be something else...
         String GetAssemblyQualifiedName() const;
@@ -26,7 +26,7 @@ namespace CxxReflect {
         String GetFullName()              const;
 
         // The base type of this type, or null if the type has no base type
-        Type const* GetBaseType() const;
+        TypeHandle GetBaseType() const;
 
         MetadataToken GetMetadataToken() const { return _originalToken; }
 
@@ -48,6 +48,7 @@ namespace CxxReflect {
         bool IsByRef()                   const;
         bool IsClass()                   const;
         bool IsCOMObject()               const;
+
         bool IsContextful()              const;
         bool IsEnum()                    const;
         bool IsExplicitLayout()          const;
@@ -56,6 +57,7 @@ namespace CxxReflect {
         bool IsGenericTypeDefinition()   const;
         bool IsImport()                  const;
         bool IsInterface()               const;
+        
         bool IsLayoutSequential()        const;
         bool IsMarshalByRef()            const;
         bool IsNested()                  const;
@@ -64,6 +66,7 @@ namespace CxxReflect {
         bool IsNestedFamily()            const;
         bool IsNestedFamilyOrAssembly()  const;
         bool IsNestedPrivate()           const;
+        
         bool IsNestedPublic()            const;
         bool IsNotPublic()               const;
         bool IsPointer()                 const;
@@ -72,6 +75,7 @@ namespace CxxReflect {
         bool IsSealed()                  const;
         bool IsSerializable()            const;
         bool IsSpecialName()             const;
+
         bool IsUnicodeClass()            const;
         bool IsValueType()               const;
         bool IsVisible()                 const;
@@ -144,10 +148,10 @@ namespace CxxReflect {
             RealizedDeclaringType     = 0x0008
         };
 
-        void RealizeTypeDef()           const; // TODO
-        void RealizeTypeDefProperties() const; // TODO
-        void RealizeBaseType()          const; // TODO
-        void RealizeDeclaringType()     const; // TODO
+        void RealizeTypeDef()           const;
+        void RealizeTypeDefProperties() const;
+        void RealizeBaseType()          const;
+        void RealizeDeclaringType()     const;
 
         MetadataToken&  PrivateGetTypeDefToken()  const { RealizeTypeDef();           return _typeDefToken;  }
 
@@ -155,15 +159,14 @@ namespace CxxReflect {
         std::uint32_t&  PrivateGetTypeFlags()     const { RealizeTypeDefProperties(); return _typeFlags;     }
         MetadataToken&  PrivateGetBaseTypeToken() const { RealizeTypeDefProperties(); return _baseTypeToken; }
 
-        Type const*&    PrivateGetBaseType()      const { RealizeBaseType();          return _baseType;      }
-
-        Type const*&    PrivateGetDeclaringType() const { RealizeDeclaringType();     return _declaringType; }
+        TypeHandle&     PrivateGetBaseType()      const { RealizeBaseType();          return _baseType;      }
+        TypeHandle&     PrivateGetDeclaringType() const { RealizeDeclaringType();     return _declaringType; }
 
 
 
         // Always valid.  The original token may be a TypeDef, TypeRef, or TypeSpec.  The Assembly
         // is the assembly whence the original token was obtained.
-        Assembly const*       _assembly;
+        AssemblyHandle        _assembly;
         MetadataToken         _originalToken;
 
         mutable Detail::FlagSet<RealizationState> _state;
@@ -178,10 +181,10 @@ namespace CxxReflect {
         mutable MetadataToken _baseTypeToken;
 
         // Guarded by RealizedBaseType
-        mutable Type const*   _baseType;
+        mutable TypeHandle    _baseType;
 
         // Guarded by RealizedDeclaringType
-        mutable Type const*   _declaringType;
+        mutable TypeHandle    _declaringType;
     };
 
     bool operator==(Type const& lhs, Type const& rhs); // TODO

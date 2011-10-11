@@ -8,11 +8,13 @@
 #include "CxxReflect/Assembly.hpp"
 #include "CxxReflect/AssemblyName.hpp"
 #include "CxxReflect/CoreDeclarations.hpp"
+#include "CxxReflect/CustomAttribute.hpp"
 #include "CxxReflect/Event.hpp"
 #include "CxxReflect/Exceptions.hpp"
 #include "CxxReflect/Field.hpp"
 #include "CxxReflect/MetadataReader.hpp"
 #include "CxxReflect/Method.hpp"
+#include "CxxReflect/Parameter.hpp"
 #include "CxxReflect/Property.hpp"
 #include "CxxReflect/Type.hpp"
 

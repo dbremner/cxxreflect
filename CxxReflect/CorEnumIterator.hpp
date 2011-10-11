@@ -219,30 +219,12 @@ namespace CxxReflect { namespace Detail {
 
     typedef CorEnumIterator<ManifestResourceIteratorPolicy> ManifestResourceIterator;
 
-    class CustomAttributeIteratorArgument
-    {
-    public:
-
-        CustomAttributeIteratorArgument(mdToken scope, mdToken type)
-            : scope_(scope), type_(type)
-        {
-        }
-
-        mdToken GetScope() const { return scope_; }
-        mdToken GetType()  const { return type_;  }
-
-    private:
-
-        mdToken scope_;
-        mdToken type_;
-    };
-
     struct CustomAttributeIteratorPolicy
     {
         typedef IMetaDataImport                    InterfaceType;
         typedef mdCustomAttribute                  ValueType;
         typedef std::array<ValueType, 128>         BufferType;
-        typedef CustomAttributeIteratorArgument    ArgumentType;
+        typedef mdToken                            ArgumentType; // Scope
 
         static unsigned Advance(InterfaceType* import,
                                 HCORENUM& e,
@@ -252,8 +234,8 @@ namespace CxxReflect { namespace Detail {
             ULONG count;
             ThrowOnFailure(import->EnumCustomAttributes(
                 &e,
-                argument.GetScope(),
-                argument.GetType(),
+                argument,
+                0,
                 buffer.data(),
                 buffer.size(),
                 &count));
@@ -329,7 +311,6 @@ namespace CxxReflect { namespace Detail {
     > TypeSpecIteratorPolicy;
 
     typedef CorEnumIterator<TypeSpecIteratorPolicy> TypeSpecIterator;
-
 
 } }
 

@@ -23,7 +23,7 @@ namespace CxxReflect {
         {
         }
 
-        Version(String const& version);
+        explicit Version(String const& version);
 
         Version(std::uint16_t major, std::uint16_t minor, std::uint16_t build = 0, std::uint16_t revision = 0)
             : _major(major), _minor(minor), _build(build), _revision(revision)

@@ -60,7 +60,7 @@ namespace CxxReflect {
         String componentName(L"Name");
         String componentValue;
 
-        // TODO Unicode
+        // TODO Unicode and capitalization
         for (auto it(name.begin()); it != name.end(); ++it)
         {
             if (std::isspace(*it))
@@ -105,7 +105,18 @@ namespace CxxReflect {
             }
         }
 
-        String nameComponent(components[L"Name"]);
+        components.insert(std::make_pair(componentName, componentValue));
+
+        auto const nameIt(components.find(L"Name"));
+        _simpleName = nameIt != components.end() ? nameIt->second : L"";
+
+        // TODO auto const versionIt(components.find(L"Version"));
+        // TODO _version = versionIt != components.end() ? Version(versionIt->second) : L"";
+
+        auto const cultureIt(components.find(L"Culture"));
+        _cultureInfo = cultureIt != components.end() ? cultureIt->second : L"";
+        
+        // TODO PublicKeyToken
     }
 
     String AssemblyName::GetFullName() const

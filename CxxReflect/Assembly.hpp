@@ -7,6 +7,7 @@
 
 #include "CxxReflect/AssemblyName.hpp"
 #include "CxxReflect/CoreDeclarations.hpp"
+#include "CxxReflect/CustomAttribute.hpp"
 #include "CxxReflect/Utility.hpp"
 #include "CxxReflect/Type.hpp"
 
@@ -18,14 +19,16 @@ namespace CxxReflect {
     {
     public:
 
-        Assembly(MetadataReader const* reader, String const& path, IMetaDataImport2* import)
-            : _reader(reader), _path(path), _import(import)
-        {
-            Detail::VerifyNotNull(reader);
-            Detail::VerifyNotNull(import);
-        }
+        typedef std::vector<AssemblyName>            AssemblyNameSequence;
+        typedef AssemblyNameSequence::const_iterator AssemblyNameIterator;
+        typedef CustomAttributeHandle                CustomAttributeIterator;
+        typedef TypeHandle                           TypeIterator;
 
-        MetadataReader const* GetMetadataReader() const { return _reader; }
+        Assembly(MetadataReaderHandle reader, String const& path, IMetaDataImport2* import);
+
+        ~Assembly();
+
+        MetadataReaderHandle  GetMetadataReader() const { return _reader; }
         String const&         GetPath()           const { return _path;   }
         IMetaDataImport2*     UnsafeGetImport()   const { return _import; }
 
@@ -34,22 +37,31 @@ namespace CxxReflect {
         AssemblyNameIterator BeginReferencedAssemblies() const { return PrivateGetReferencedAssemblies().begin(); }
         AssemblyNameIterator EndReferencedAssemblies()   const { return PrivateGetReferencedAssemblies().end();   }
 
-        Type const* BeginTypes() const { return PrivateGetTypes().Get(); }
-        Type const* EndTypes()   const { return PrivateGetTypes().Get() + PrivateGetTypes().GetSize();   }
+        TypeIterator BeginTypes() const { return PrivateGetTypes().Get();                               }
+        TypeIterator EndTypes()   const { return PrivateGetTypes().Get() + PrivateGetTypes().GetSize(); }
+
+        CustomAttributeIterator BeginCustomAttributes() const
+        {
+            return PrivateGetCustomAttributes().Get();
+        }
+
+        CustomAttributeIterator EndCustomAttributes() const
+        {
+            return PrivateGetCustomAttributes().Get() + PrivateGetCustomAttributes().GetSize();
+        }
 
         // Resolves a type from this assembly by name, optionally ignoring case.  If no type with
         // the specified name is found, a null pointer is returned.
-        Type const* GetType(String const& name, bool ignoreCase) const;
+        TypeHandle GetType(String const& name, bool ignoreCase) const;
 
         // Resolves a type from this assembly by its metadata token.  If no type matching the token
         // is found, a null pointer is returned.
-        Type const* GetType(MetadataToken typeDef) const;
+        TypeHandle GetType(MetadataToken typeDef) const;
 
         // EntryPoint
         // ImageRuntimeVersion
         // ManifestModule
 
-        // GetCustomAttributes
         // GetExportedTypes
         // GetFile
         // GetFiles
@@ -59,7 +71,6 @@ namespace CxxReflect {
         // GetModule
         // GetModules
         // GetSatelliteAssembly
-        // GetType
         // IsDefined
 
         // -- The following members of System.Reflection.Assembly are not implemented --
@@ -92,12 +103,14 @@ namespace CxxReflect {
         {
             RealizedName                 = 0x0001,
             RealizedReferencedAssemblies = 0x0002,
-            RealizedTypes                = 0x0004
+            RealizedTypes                = 0x0004,
+            RealizedCustomAttributes     = 0x0008
         };
 
         void RealizeName()                 const;
         void RealizeReferencedAssemblies() const;
         void RealizeTypes()                const;
+        void RealizeCustomAttributes()     const;
 
         AssemblyName& PrivateGetName() const
         {
@@ -117,6 +130,12 @@ namespace CxxReflect {
             return _types;
         }
 
+        Detail::AllocatorBasedArray<CustomAttribute>& PrivateGetCustomAttributes() const
+        {
+            RealizeCustomAttributes();
+            return _customAttributes;
+        }
+
         // These are set in the constructor, never change, and are guaranteed to be valid
         MetadataReader const* _reader;
         String                _path;
@@ -127,7 +146,8 @@ namespace CxxReflect {
         mutable AssemblyName         _name;
         mutable AssemblyNameSequence _referencedAssemblies;
 
-        mutable Detail::AllocatorBasedArray<Type> _types;
+        mutable Detail::AllocatorBasedArray<Type>            _types;
+        mutable Detail::AllocatorBasedArray<CustomAttribute> _customAttributes;
     };
 
     bool operator==(Assembly const&, Assembly const&); // TODO

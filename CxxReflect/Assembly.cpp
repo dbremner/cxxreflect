@@ -12,6 +12,21 @@
 
 namespace CxxReflect {
 
+    Assembly::Assembly(MetadataReaderHandle reader, String const& path, IMetaDataImport2* import)
+        : _reader(reader), _path(path), _import(import)
+    {
+        Detail::VerifyNotNull(_reader);
+        Detail::VerifyNotNull(_import);
+
+        // We avoid using CComPtr so that we don't need to have IMetaDataImport defined in the header.
+        _import->AddRef();
+    }
+
+    Assembly::~Assembly()
+    {
+        _import->Release();
+    }
+
     Type const* Assembly::GetType(String const& name, bool ignoreCase) const
     {
         int (*compare)(wchar_t const*, wchar_t const*) = ignoreCase ? _wcsicmp : wcscmp;
@@ -84,6 +99,31 @@ namespace CxxReflect {
         });
 
         _state.Set(RealizedTypes);
+    }
+
+    void Assembly::RealizeCustomAttributes() const
+    {
+        if (_state.IsSet(RealizedCustomAttributes)) { return; }
+
+        CComQIPtr<IMetaDataAssemblyImport, &IID_IMetaDataAssemblyImport> assemblyImport(_import);
+        Detail::VerifyNotNull(assemblyImport);
+
+        mdAssembly assemblyToken(0);
+        Detail::ThrowOnFailure(assemblyImport->GetAssemblyFromScope(&assemblyToken));
+
+        typedef  Detail::CustomAttributeIterator Iterator;
+        std::vector<mdCustomAttribute> tokens(Iterator(_import, assemblyToken), (Iterator()));
+
+        std::sort(tokens.begin(), tokens.end());
+        tokens.erase(std::unique(tokens.begin(), tokens.end()), tokens.end());
+
+        _customAttributes.Allocate(tokens.size());
+        std::for_each(tokens.begin(), tokens.end(), [&](mdCustomAttribute x)
+        {
+            _customAttributes.EmplaceBack(this, x);
+        });
+
+        _state.Set(RealizedCustomAttributes);
     }
 
 }

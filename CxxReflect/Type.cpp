@@ -14,7 +14,7 @@ namespace {
                                  CxxReflect::String const& systemTypeName,
                                  bool                      includeSelf)
     {
-        CxxReflect::Type const* current(&type);
+        CxxReflect::TypeHandle current(&type);
         if (!includeSelf)
         {
             current = current->GetBaseType();
@@ -35,8 +35,14 @@ namespace {
 
 namespace CxxReflect {
 
-    Type::Type(Assembly const* assembly, MetadataToken token)
-        : _assembly(assembly), _originalToken(token)
+    Type::Type(AssemblyHandle assembly, MetadataToken token)
+        : _assembly(assembly),
+          _originalToken(token),
+          _typeDefToken(0),
+          _typeFlags(0),
+          _baseTypeToken(0),
+          _baseType(nullptr),
+          _declaringType(nullptr)
     {
         Detail::VerifyNotNull(assembly);
 
@@ -100,7 +106,7 @@ namespace CxxReflect {
             : L"";
     }
 
-    Type const* Type::GetBaseType() const
+    TypeHandle Type::GetBaseType() const
     {
         return PrivateGetBaseType();
     }
@@ -108,6 +114,11 @@ namespace CxxReflect {
     bool Type::IsAbstract() const
     {
         return IsTdAbstract(PrivateGetTypeFlags()) != 0;
+    }
+
+    bool Type::IsAnsiClass() const
+    {
+        return IsTdAnsiClass(PrivateGetTypeFlags());
     }
 
     bool Type::IsArray() const
@@ -192,7 +203,7 @@ namespace CxxReflect {
 
     bool Type::IsNested() const
     {
-        return IsTdNestedPublic(PrivateGetTypeFlags());
+        return IsTdNested(PrivateGetTypeFlags());
     }
 
     bool Type::IsNestedAssembly() const
@@ -208,6 +219,11 @@ namespace CxxReflect {
     bool Type::IsNestedFamily() const
     {
         return IsTdNestedFamily(PrivateGetTypeFlags());
+    }
+
+    bool Type::IsNestedFamilyOrAssembly() const
+    {
+        return IsTdNestedFamORAssem(PrivateGetTypeFlags());
     }
 
     bool Type::IsNestedPrivate() const
@@ -373,7 +389,7 @@ namespace CxxReflect {
             mdTypeDef declaringType(0);
 
             Detail::ThrowOnFailure(_assembly->UnsafeGetImport()->GetNestedClassProps(
-                PrivateGetBaseTypeToken().Get(),
+                PrivateGetTypeDefToken().Get(),
                 &declaringType));
 
             _declaringType = _assembly->GetType(MetadataToken(declaringType));

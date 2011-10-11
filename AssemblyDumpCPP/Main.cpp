@@ -49,11 +49,11 @@ namespace
 
         #define F(n) (t.n() ? 1 : 0)
         os << L"     -- IsTraits [" 
-           << F(IsAbstract) << F(IsArray) << F(IsAutoClass) << F(IsAutoLayout) << F(IsByRef) << F(IsClass) << F(IsCOMObject) << F(IsContextful) << L"] ["
-           << F(IsEnum) << F(IsExplicitLayout) << F(IsGenericParameter) << F(IsGenericType) << F(IsGenericTypeDefinition) << F(IsImport) << F(IsInterface) << F(IsLayoutSequential) << L"] ["
-           << F(IsMarshalByRef) << F(IsNested) << F(IsNestedAssembly) << F(IsNestedFamilyAndAssembly) << F(IsNestedFamily) << F(IsNestedPrivate) << F(IsNestedPublic) << F(IsNotPublic) << L"] ["
-           << F(IsPointer) << F(IsPrimitive) << F(IsPublic) << F(IsSealed) << F(IsSerializable) << F(IsSpecialName) << F(IsUnicodeClass) << F(IsValueType) << L"] ["
-           << F(IsVisible) << L"       ]\n";
+           << F(IsAbstract) << F(IsAnsiClass) << F(IsArray) << F(IsAutoClass) << F(IsAutoLayout) << F(IsByRef) << F(IsClass) << F(IsCOMObject) << L"] ["
+           << F(IsContextful) << F(IsEnum) << F(IsExplicitLayout) << F(IsGenericParameter) << F(IsGenericType) << F(IsGenericTypeDefinition) << F(IsImport) << F(IsInterface) << L"] ["
+           << F(IsLayoutSequential) << F(IsMarshalByRef) << F(IsNested) << F(IsNestedAssembly) << F(IsNestedFamilyAndAssembly) << F(IsNestedFamily) << F(IsNestedFamilyOrAssembly) << F(IsNestedPrivate) << L"] ["
+           << F(IsNestedPublic) << F(IsNotPublic) << F(IsPointer) << F(IsPrimitive) << F(IsPublic) << F(IsSealed) << F(IsSerializable) << F(IsSpecialName) << L"] ["
+           << F(IsUnicodeClass) << F(IsValueType) << F(IsVisible) << L"     ]\n";
         #undef F
 
         os << L"     -- Name [" << t.GetName() << L"]\n";
