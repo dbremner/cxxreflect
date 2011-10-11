@@ -12,6 +12,7 @@
 
 #include <combaseapi.h>
 
+#include <algorithm>
 #include <fstream>
 #include <iostream>
 
@@ -19,35 +20,40 @@ using namespace CxxReflect;
 
 namespace
 {
-    void Dump(std::wostream& os, Assembly a);
-    void Dump(std::wostream& os, Type t);
+    void Dump(std::wostream& os, Assembly const& a);
+    void Dump(std::wostream& os, Type const& t);
 
-    void Dump(std::wostream& os, Assembly a)
+    void Dump(std::wostream& os, Assembly const& a)
     {
-        os << L"Assembly [" << a.GetFullName() << L"]\n";
-        os << L"!!BeginTypes\n";
-        TypeSequence const types(a.GetTypes());
-        std::for_each(types.begin(), types.end(), [&](Type t)
+        os << L"Assembly [" << a.GetName().GetFullName() << L"]\n";
+        os << L"!!BeginAssemblyReferences\n";
+        std::for_each(a.BeginReferencedAssemblies(), a.EndReferencedAssemblies(), [&](AssemblyName const& x)
         {
-            Dump(os, t);
+            os << L" -- AssemblyName [" << x.GetFullName() << L"]\n";
+        });
+        os << L"!!EndAssemblyReferences\n";
+        os << L"!!BeginTypes\n";
+        std::for_each(a.BeginTypes(), a.EndTypes(), [&](Type const& x)
+        {
+            Dump(os, x);
         });
         os << L"!!EndTypes\n";
     }
 
-    void Dump(std::wostream& os, Type t)
+    void Dump(std::wostream& os, Type const& t)
     {
-        os << L" -- Type [" << t.GetFullName() << L"] [$" << t.GetMetadataToken() << L"]\n";
+        os << L" -- Type [" << t.GetFullName() << L"] [$" << t.GetMetadataToken().Get() << L"]\n";
         os << L"     -- AssemblyQualifiedName [" << t.GetAssemblyQualifiedName() << L"]\n";
-        os << L"     -- BaseType [" << (t.HasBaseType() ? t.GetBaseType().GetFullName() : L"NO BASE TYPE") << L"]\n";
-        os << L"         -- AssemblyQualifiedName [" << (t.HasBaseType() ? t.GetBaseType().GetAssemblyQualifiedName() : L"NO BASE TYPE") << L"]\n"; // TODO DO WE NEED TO DUMP FULL TYPE INFO?
+        os << L"     -- BaseType [" << (t.GetBaseType() ? t.GetBaseType()->GetFullName() : L"NO BASE TYPE") << L"]\n";
+        os << L"         -- AssemblyQualifiedName [" << (t.GetBaseType() ? t.GetBaseType()->GetAssemblyQualifiedName() : L"NO BASE TYPE") << L"]\n"; // TODO DO WE NEED TO DUMP FULL TYPE INFO?
 
         #define F(n) (t.n() ? 1 : 0)
         os << L"     -- IsTraits [" 
            << F(IsAbstract) << F(IsArray) << F(IsAutoClass) << F(IsAutoLayout) << F(IsByRef) << F(IsClass) << F(IsCOMObject) << F(IsContextful) << L"] ["
            << F(IsEnum) << F(IsExplicitLayout) << F(IsGenericParameter) << F(IsGenericType) << F(IsGenericTypeDefinition) << F(IsImport) << F(IsInterface) << F(IsLayoutSequential) << L"] ["
-           << F(IsMarshalByRef) << F(IsNested) << F(IsNestedAssembly) << F(IsNestedFamANDAssem) << F(IsNestedFamily) << F(IsNestedPrivate) << F(IsNestedPublic) << F(IsNotPublic) << L"] ["
-           << F(IsPointer) << F(IsPrimitive) << F(IsPublic) << F(IsSealed) << /* F(IsSecurityCritical) << F(IsSecuritySafeCritical) << F(IsSecurityTransparent) << */ F(IsSerializable) << L"] ["
-           << F(IsSpecialName) << F(IsUnicodeClass) << F(IsValueType) << F(IsVisible) << L"    ]\n";
+           << F(IsMarshalByRef) << F(IsNested) << F(IsNestedAssembly) << F(IsNestedFamilyAndAssembly) << F(IsNestedFamily) << F(IsNestedPrivate) << F(IsNestedPublic) << F(IsNotPublic) << L"] ["
+           << F(IsPointer) << F(IsPrimitive) << F(IsPublic) << F(IsSealed) << F(IsSerializable) << F(IsSpecialName) << F(IsUnicodeClass) << F(IsValueType) << L"] ["
+           << F(IsVisible) << L"       ]\n";
         #undef F
 
         os << L"     -- Name [" << t.GetName() << L"]\n";
@@ -59,13 +65,15 @@ int main()
 {
     CoInitializeEx(0, COINIT_APARTMENTTHREADED);
 
-    std::unique_ptr<DirectoryBasedReferenceResolver> referenceResolver(new DirectoryBasedReferenceResolver());
-    referenceResolver->AddDirectory(L"C:\\Windows\\Microsoft.NET\\Framework\\v4.0.30319\\");
+    auto frameworkResolver([](AssemblyName name)
+    {
+        return String(L"C:\\Windows\\Microsoft.NET\\Framework\\v4.0.30319\\") + name.GetName() + L".dll";
+    });
 
-    MetadataReader reader(std::move(referenceResolver));
+    MetadataReader reader(frameworkResolver);
 
-    Assembly a(reader.GetAssemblyByName(AssemblyName(L"mscorlib")));
-    
+    Assembly const* a(reader.GetAssemblyByName(AssemblyName(L"mscorlib")));
+
     std::wofstream os("d:\\jm\\mscorlib.cpp.txt");
-    Dump(os, a);
+    Dump(os, *a);
 }

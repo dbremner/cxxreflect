@@ -67,13 +67,6 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="InclusionTests\InternalBlobMetadata.cpp" />
-    <ClCompile Include="InclusionTests\InternalCorEnumIterator.cpp" />
-    <ClCompile Include="InclusionTests\CxxReflect.cpp" />
-    <ClCompile Include="InclusionTests\Exception.cpp" />
-    <ClCompile Include="InclusionTests\InternalCxxReflectImpl.cpp" />
-    <ClCompile Include="InclusionTests\InternalUtility.cpp" />
-    <ClCompile Include="InclusionTests\Utility.cpp" />
     <ClCompile Include="Main.cpp" />
   </ItemGroup>
   <ItemGroup>

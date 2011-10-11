@@ -18,29 +18,8 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="InclusionTests\CxxReflect.cpp">
-      <Filter>Source Files\InclusionTests</Filter>
-    </ClCompile>
     <ClCompile Include="Main.cpp">
       <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="InclusionTests\InternalBlobMetadata.cpp">
-      <Filter>Source Files\InclusionTests</Filter>
-    </ClCompile>
-    <ClCompile Include="InclusionTests\InternalCorEnumIterator.cpp">
-      <Filter>Source Files\InclusionTests</Filter>
-    </ClCompile>
-    <ClCompile Include="InclusionTests\InternalUtility.cpp">
-      <Filter>Source Files\InclusionTests</Filter>
-    </ClCompile>
-    <ClCompile Include="InclusionTests\Utility.cpp">
-      <Filter>Source Files\InclusionTests</Filter>
-    </ClCompile>
-    <ClCompile Include="InclusionTests\InternalCxxReflectImpl.cpp">
-      <Filter>Source Files\InclusionTests</Filter>
-    </ClCompile>
-    <ClCompile Include="InclusionTests\Exception.cpp">
-      <Filter>Source Files\InclusionTests</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

@@ -13,11 +13,46 @@ namespace CxxReflect {
     {
     public:
 
+        // Attributes
+        // CanRead
+        // CanWrite
+        // DeclaringType
+        // IsSpecialName
+        // MemberType
+        // MetadataToken
+        // Module
+        // Name
+        // PropertyType
+        // ReflectedType
+
+        // GetAccessors
+        // GetConstantValue
+        // GetCustomAttributes
+        // GetGetMethod
+        // GetIndexParameters
+        // GetOptionalCustomModifiers
+        // GetRawConstantValue
+        // GetRequiredCustomModifiers
+        // GetSetMethod
+        // GetValue
+        // IsDefined
+        // SetValue
+
+        // -- The following members of System.Reflection.PropertyInfo are not implemented --
+
     private:
 
         CXXREFLECT_MAKE_NONCOPYABLE(Property);
 
     };
+
+    bool operator==(Property const& lhs, Property const& rhs); // TODO
+    bool operator< (Property const& lhs, Property const& rhs); // TODO
+
+    inline bool operator!=(Property const& lhs, Property const& rhs) { return !(lhs == rhs); }
+    inline bool operator> (Property const& lhs, Property const& rhs) { return  (rhs <  lhs); }
+    inline bool operator>=(Property const& lhs, Property const& rhs) { return !(lhs <  rhs); }
+    inline bool operator<=(Property const& lhs, Property const& rhs) { return !(rhs <  lhs); }
 
 }
 

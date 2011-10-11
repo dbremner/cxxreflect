@@ -13,11 +13,39 @@ namespace CxxReflect {
     {
     public:
 
+        // Attributes
+        // DeclaringType
+        // EventHandlerType
+        // IsMulticast
+        // IsSpecialName
+        // MemberType
+        // MetadataToken
+        // Module
+        // Name
+        // ReflectedType
+
+        // AddEventHandler
+        // GetAddMethod
+        // GetCustomAttributes
+        // GetOtherMethods
+        // GetRaiseMethod
+        // GetRemoveMethod
+        // IsDefined
+        // RemoveEventHandler
+
     private:
 
         CXXREFLECT_MAKE_NONCOPYABLE(Event);
 
     };
+
+    bool operator==(Event const& lhs, Event const& rhs); // TODO
+    bool operator< (Event const& lhs, Event const& rhs); // TODO
+
+    inline bool operator!=(Event const& lhs, Event const& rhs) { return !(lhs == rhs); }
+    inline bool operator> (Event const& lhs, Event const& rhs) { return  (rhs <  lhs); }
+    inline bool operator>=(Event const& lhs, Event const& rhs) { return !(lhs <  rhs); }
+    inline bool operator<=(Event const& lhs, Event const& rhs) { return !(rhs <  lhs); }
 
 }
 

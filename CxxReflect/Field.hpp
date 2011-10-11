@@ -13,11 +13,54 @@ namespace CxxReflect {
     {
     public:
 
+        // Attributes
+        // DeclaringType
+        // FieldHandle
+        // FieldType
+        // IsAssembly
+        // IsFamily
+        // IsFamilyAndAssembly
+        // IsFamilyOrAssembly
+        // IsInitOnly
+        // IsLiteral
+        // IsNotSerialized
+        // IsPinvokeImpl
+        // IsPrivate
+        // IsPublic
+        // IsSecurityCritical
+        // IsSecuritySafeCritical
+        // IsSecurityTransparent
+        // IsSpecialName
+        // IsStatic
+        // MemberType
+        // MetadataToken
+        // Module
+        // Name
+        // ReflectedType
+
+        // GetCustomAttributes
+        // GetOptionalCustomModifiers
+        // GetRawConstantValue
+        // GetRequiredCustomModifiers
+        // GetValue
+        // GetValueDirect
+        // IsDefined
+        // SetValue
+        // SetValueDirect
+
     private:
 
         CXXREFLECT_MAKE_NONCOPYABLE(Field);
 
     };
+
+    bool operator==(Field const& lhs, Field const& rhs); // TODO
+    bool operator< (Field const& lhs, Field const& rhs); // TODO
+
+    inline bool operator!=(Field const& lhs, Field const& rhs) { return !(lhs == rhs); }
+    inline bool operator> (Field const& lhs, Field const& rhs) { return  (rhs <  lhs); }
+    inline bool operator>=(Field const& lhs, Field const& rhs) { return !(lhs <  rhs); }
+    inline bool operator<=(Field const& lhs, Field const& rhs) { return !(rhs <  lhs); }
 
 }
 

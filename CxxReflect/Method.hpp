@@ -38,25 +38,28 @@ namespace CxxReflect {
         // Module
         // Name
         // ReflectedType
-        // ReturnParameter
-        // ReturnType
-        // ReturnTypeCustomAttributes
+        // ReturnParameter            -- Non-constructor only
+        // ReturnType                 -- Non-constructor only
+        // ReturnTypeCustomAttributes -- Non-constructor only
 
-        // GetBaseDefinition
+        // GetBaseDefinition          -- Non-constructor only
         // GetCustomAttributes
         // GetGenericArguments
-        // GetGenericMethodDefinition
+        // GetGenericMethodDefinition -- Non-constructor only
         // GetMethodBody
         // GetMethodImplementationFlags
         // GetParameters
-        // Invoke
+        
         // IsDefined
-        // MakeGenericMethod
+        // MakeGenericMethod          -- Non-constructor only
+
 
         // -- The following members of System.Reflection.MethodInfo are not implemented --
         // IsSecurityCritical        } 
         // IsSecuritySafeCritical    } Security properties do not apply for reflection 
         // IsSecurityTransparent     }
+        //
+        // Invoke                    N/A in reflection-only
 
     private:
 

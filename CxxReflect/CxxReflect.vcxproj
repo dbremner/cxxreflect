@@ -77,6 +77,7 @@
     <ClInclude Include="Exceptions.hpp" />
     <ClInclude Include="MetadataReader.hpp" />
     <ClInclude Include="Method.hpp" />
+    <ClInclude Include="Parameter.hpp" />
     <ClInclude Include="Property.hpp" />
     <ClInclude Include="Type.hpp" />
     <ClInclude Include="Utility.hpp" />

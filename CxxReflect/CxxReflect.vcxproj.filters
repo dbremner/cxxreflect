@@ -53,6 +53,9 @@
     <ClInclude Include="BlobMetadata.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="Parameter.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="MetadataReader.cpp">

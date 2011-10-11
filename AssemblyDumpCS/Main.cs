@@ -19,10 +19,16 @@ class Program
     static void Dump(StringBuilder sb, Assembly a)
     {
         sb.AppendLine(String.Format("Assembly [{0}]", a.FullName));
-        sb.AppendLine("!!BeginTypes");
-        foreach (Type t in a.GetTypes().OrderBy(x => x.MetadataToken))
+        sb.AppendLine("!!BeginAssemblyReferences");
+        foreach (AssemblyName x in a.GetReferencedAssemblies())
         {
-            Dump(sb, t);
+            sb.AppendLine(String.Format(" -- AssemblyName [{0}]", x.FullName));
+        }
+        sb.AppendLine("!!EndAssemblyReferences");
+        sb.AppendLine("!!BeginTypes");
+        foreach (Type x in a.GetTypes().OrderBy(x => x.MetadataToken))
+        {
+            Dump(sb, x);
         }
         sb.AppendLine("!!EndTypes");
     }
@@ -46,12 +52,12 @@ class Program
         // TODO ...
 
         Func<bool, int> F = (x) => x ? 1 : 0;
-        sb.AppendLine(String.Format("     -- IsTraits [{0}{1}{2}{3}{4}{5}{6}{7}] [{8}{9}{10}{11}{12}{13}{14}{15}] [{16}{17}{18}{19}{20}{21}{22}{23}] [{24}{25}{26}{27}{28}] [{29}{30}{31}{32}    ]",
+        sb.AppendLine(String.Format("     -- IsTraits [{0}{1}{2}{3}{4}{5}{6}{7}] [{8}{9}{10}{11}{12}{13}{14}{15}] [{16}{17}{18}{19}{20}{21}{22}{23}] [{24}{25}{26}{27}{28}{29}{30}{31}] [{32}       ]",
             F(t.IsAbstract), F(t.IsArray), F(t.IsAutoClass), F(t.IsAutoLayout), F(t.IsByRef), F(t.IsClass), F(t.IsCOMObject), F(t.IsContextful),
             F(t.IsEnum), F(t.IsExplicitLayout), F(t.IsGenericParameter), F(t.IsGenericType), F(t.IsGenericTypeDefinition), F(t.IsImport), F(t.IsInterface), F(t.IsLayoutSequential),
             F(t.IsMarshalByRef), F(t.IsNested), F(t.IsNestedAssembly), F(t.IsNestedFamANDAssem), F(t.IsNestedFamily), F(t.IsNestedPrivate), F(t.IsNestedPublic), F(t.IsNotPublic),
-            F(t.IsPointer), F(t.IsPrimitive), F(t.IsPublic), F(t.IsSealed), /*F(t.IsSecurityCritical), F(t.IsSecuritySafeCritical), F(t.IsSecurityTransparent), */F(t.IsSerializable),
-            F(t.IsSpecialName), F(t.IsUnicodeClass), F(t.IsValueType), F(t.IsVisible)
+            F(t.IsPointer), F(t.IsPrimitive), F(t.IsPublic), F(t.IsSealed), F(t.IsSerializable), F(t.IsSpecialName), F(t.IsUnicodeClass), F(t.IsValueType),
+            F(t.IsVisible)
             ));
 
         // TODO ...
