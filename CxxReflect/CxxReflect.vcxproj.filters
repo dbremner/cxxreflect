@@ -59,6 +59,12 @@
     <ClInclude Include="CustomAttribute.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="Guid.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="RefCounted.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="MetadataReader.cpp">
@@ -77,6 +83,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="CustomAttribute.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Guid.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

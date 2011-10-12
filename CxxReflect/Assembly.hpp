@@ -97,7 +97,7 @@ namespace CxxReflect {
 
     private:
 
-        CXXREFLECT_MAKE_NONCOPYABLE(Assembly);
+        CXXREFLECT_NONCOPYABLE(Assembly);
 
         enum RealizationState
         {

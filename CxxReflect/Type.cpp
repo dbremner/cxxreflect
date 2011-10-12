@@ -106,9 +106,9 @@ namespace CxxReflect {
             : L"";
     }
 
-    TypeHandle Type::GetBaseType() const
+    bool Type::HasElementType() const
     {
-        return PrivateGetBaseType();
+        return IsArray() || IsPointer() || IsByRef();
     }
 
     bool Type::IsAbstract() const

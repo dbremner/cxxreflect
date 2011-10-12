@@ -35,7 +35,7 @@ namespace CxxReflect {
 
     private:
 
-        CXXREFLECT_MAKE_NONCOPYABLE(Event);
+        CXXREFLECT_NONCOPYABLE(Event);
 
     };
 

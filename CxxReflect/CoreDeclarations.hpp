@@ -158,9 +158,9 @@ namespace CxxReflect { namespace Detail {
     // When we use a "noncopyable" base class and accidentally use one of the copy operations, 
     // Visual C++ fails to report the location where the invalid use occurs (it points to the
     // derive class, which is not helpful).  Instead, we use a macro.
-    #define CXXREFLECT_MAKE_NONCOPYABLE(c) \
-        c(c const&);                       \
-        c& operator=(c const&) // We intentionally omit the semicolon to force users to add it.
+    #define CXXREFLECT_NONCOPYABLE(c) \
+        c(c const&);                  \
+        c& operator=(c const&)
 
     template <typename T, typename TAllocator = std::allocator<T>>
     class AllocatorBasedArray
@@ -230,7 +230,7 @@ namespace CxxReflect { namespace Detail {
 
     private:
 
-        CXXREFLECT_MAKE_NONCOPYABLE(AllocatorBasedArray);
+        CXXREFLECT_NONCOPYABLE(AllocatorBasedArray);
 
         void VerifyAvailable() const
         {

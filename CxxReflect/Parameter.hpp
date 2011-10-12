@@ -36,7 +36,7 @@ namespace CxxReflect {
 
     private:
 
-        CXXREFLECT_MAKE_NONCOPYABLE(Parameter);
+        CXXREFLECT_NONCOPYABLE(Parameter);
 
     };
 

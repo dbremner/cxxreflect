@@ -4,10 +4,10 @@
 
 // This header contains private implementation details only.  It defines a policy-based iterator
 // template that wraps the HCORENUM provided by various unmanaged metadata interface functions.
-#ifndef CXXREFLECT_INTERNALCORENUMITERATOR_HPP_
-#define CXXREFLECT_INTERNALCORENUMITERATOR_HPP_
+#ifndef CXXREFLECT_CORENUMITERATOR_HPP_
+#define CXXREFLECT_CORENUMITERATOR_HPP_
 
-#include "CxxReflect/Utility.hpp"
+#include "CxxReflect/RefCounted.hpp"
 
 #include <cor.h>
 

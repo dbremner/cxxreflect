@@ -31,7 +31,7 @@ namespace CxxReflect {
 
     private:
 
-        CXXREFLECT_MAKE_NONCOPYABLE(CustomAttributeArgument);
+        CXXREFLECT_NONCOPYABLE(CustomAttributeArgument);
 
     };
 
@@ -81,7 +81,7 @@ namespace CxxReflect {
 
     private:
 
-        CXXREFLECT_MAKE_NONCOPYABLE(CustomAttribute);
+        CXXREFLECT_NONCOPYABLE(CustomAttribute);
 
         enum RealizationState
         {

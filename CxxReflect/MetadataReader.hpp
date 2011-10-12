@@ -25,14 +25,14 @@ namespace CxxReflect {
 
         ~MetadataReader();
 
-        Assembly const* GetAssemblyByPath(String const& path) const;
-        Assembly const* GetAssemblyByName(AssemblyName const& name) const;
+        AssemblyHandle GetAssemblyByPath(String const& path) const;
+        AssemblyHandle GetAssemblyByName(AssemblyName const& name) const;
 
         IMetaDataDispenserEx* UnsafeGetDispenser() const;
 
     private:
 
-        CXXREFLECT_MAKE_NONCOPYABLE(MetadataReader);
+        CXXREFLECT_NONCOPYABLE(MetadataReader);
 
         std::unique_ptr<Detail::MetadataReaderImpl> _impl;
     };

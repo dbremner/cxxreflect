@@ -50,7 +50,7 @@ namespace CxxReflect {
 
     private:
 
-        CXXREFLECT_MAKE_NONCOPYABLE(Field);
+        CXXREFLECT_NONCOPYABLE(Field);
 
     };
 

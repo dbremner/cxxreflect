@@ -42,7 +42,7 @@ namespace CxxReflect {
 
     private:
 
-        CXXREFLECT_MAKE_NONCOPYABLE(Property);
+        CXXREFLECT_NONCOPYABLE(Property);
 
     };
 

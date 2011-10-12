@@ -26,20 +26,21 @@ namespace CxxReflect {
         String GetFullName()              const;
 
         // The base type of this type, or null if the type has no base type
-        TypeHandle GetBaseType() const;
+        TypeHandle    GetBaseType()        const { return PrivateGetBaseType();      }
+        TypeHandle    GetDeclaringType()   const { return PrivateGetDeclaringType(); }
+        MethodHandle  GetDeclaringMethod() const; // TODO
 
-        MetadataToken GetMetadataToken() const { return _originalToken; }
+        MetadataToken GetMetadataToken()   const { return _originalToken;            }
 
-        // Attributes
         // ContainsGenericParameters
-        // DeclaringMethod
-        // DeclaringType
-        // DefaultBinder
         // GenericParameterAttributes
         // GenericParameterPosition
         // GUID
-        // HasElementType
+
+        std::uint32_t GetAttributes()    const { return PrivateGetTypeFlags(); }
         
+        bool HasElementType()            const;
+
         bool IsAbstract()                const;
         bool IsAnsiClass()               const;
         bool IsArray()                   const;
@@ -80,11 +81,9 @@ namespace CxxReflect {
         bool IsValueType()               const;
         bool IsVisible()                 const;
         
-        // MemberType
         // Module
         // ReflectedType
         // StructLayoutAttribute
-        // Typeandle
         // TypeInitializer
         // UnderlyingSystemType
 
@@ -119,26 +118,32 @@ namespace CxxReflect {
         // GetNestedTypes
         // GetProperties
         // GetProperty
-        // InvokeMember
+        
         // IsAssignableFrom
         // IsDefined
         // IsEnumDefined
         // IsEquivalentTo
         // IsInstanceOfType
         // IsSubclassOf
+
         // MakeArrayType
         // MakeByRefType
         // MakeGenericType
         // MakePointerType
 
         // -- The following members of System.Type are not implemented --
+        // DefaultBinder             Requires runtime
         // IsSecurityCritical        } 
         // IsSecuritySafeCritical    } Security properties do not apply for reflection 
         // IsSecurityTransparent     }
+        // MemberType                We always know that this is a Type object
+        // TypeHandle                No meaning outside of the CLR
+        //
+        // InvokeMember              Requires runtime
 
     private:
 
-        CXXREFLECT_MAKE_NONCOPYABLE(Type);
+        CXXREFLECT_NONCOPYABLE(Type);
 
         enum RealizationState
         {
