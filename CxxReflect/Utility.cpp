@@ -117,7 +117,7 @@ namespace CxxReflect { namespace Utility {
             throw std::logic_error("wtf");
         }
 
-        return CxxReflect::AssemblyName(name, version, locale, publicKeyToken, static_cast<AssemblyNameFlags>(flags));
+        return AssemblyName(name, version, locale, publicKeyToken, static_cast<AssemblyNameFlags>(flags));
     }
 
 } }

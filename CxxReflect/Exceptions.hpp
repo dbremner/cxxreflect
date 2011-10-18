@@ -28,6 +28,12 @@ namespace CxxReflect {
         long hresult_;
     };
 
+    // VerificationFailure is thrown when a debug check fails.
+    struct VerificationFailure : std::logic_error
+    {
+        VerificationFailure(char const* const message) : std::logic_error(message) { }
+    };
+
 }
 
 #endif

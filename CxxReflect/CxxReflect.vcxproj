@@ -85,7 +85,6 @@
     <ClInclude Include="Method.hpp" />
     <ClInclude Include="Parameter.hpp" />
     <ClInclude Include="Property.hpp" />
-    <ClInclude Include="RefCounted.hpp" />
     <ClInclude Include="Type.hpp" />
     <ClInclude Include="Utility.hpp" />
   </ItemGroup>

@@ -18,7 +18,7 @@ struct IMetaDataImport2;
 
 namespace CxxReflect {
 
-    typedef std::wstring  String;
+    typedef std::wstring String;
 
     // This mirrors the definition of CorTokenType in <cor.h>
     enum class MetadataTokenKind : std::uint32_t

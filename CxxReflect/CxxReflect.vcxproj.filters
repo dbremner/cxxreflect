@@ -62,9 +62,6 @@
     <ClInclude Include="Guid.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="RefCounted.hpp">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="MetadataDatabase.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>

@@ -7,7 +7,7 @@
 #ifndef CXXREFLECT_CORENUMITERATOR_HPP_
 #define CXXREFLECT_CORENUMITERATOR_HPP_
 
-#include "CxxReflect/RefCounted.hpp"
+#include "CxxReflect/Utility.hpp"
 
 #include <cor.h>
 
@@ -80,7 +80,7 @@ namespace CxxReflect { namespace Detail {
 
     private:
 
-        class Context : public RefCounted
+        class Context : public Utility::RefCounted
         {
         public:
 
@@ -145,7 +145,7 @@ namespace CxxReflect { namespace Detail {
             ArgumentType      argument_;
         };
 
-        RefPointer<Context> context_;
+        Utility::RefPointer<Context> context_;
     };
 
     template <

@@ -879,7 +879,7 @@ namespace CxxReflect { namespace Metadata {
     public:
 
         AssemblyHashAlgorithm GetHashAlgorithm() const;
-        //Version               GetVersion()       const; // TODO
+        Version               GetVersion()       const;
         AssemblyFlags         GetFlags()         const;
         BlobIndex             GetPublicKey()     const;
         String                GetName()          const;
@@ -912,7 +912,7 @@ namespace CxxReflect { namespace Metadata {
 
     public:
 
-        // Version GetVersion() const; // TODO
+        Version       GetVersion()          const;
         AssemblyFlags GetFlags()            const;
         BlobIndex     GetPublicKeyOrToken() const;
         String        GetName()             const;
@@ -992,9 +992,9 @@ namespace CxxReflect { namespace Metadata {
 
     public:
 
-        TableReference GetParent()   const;
-        TableReference BeginEvents() const; // TODO??
-        TableReference EndEvents()   const; // TODO??
+        TableReference GetParent()     const;
+        TableReference GetFirstEvent() const;
+        TableReference GetLastEvent()  const;
     };
 
     class EventRow

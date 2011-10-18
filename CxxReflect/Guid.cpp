@@ -9,9 +9,6 @@
 #include <cstdio>
 #include <sstream>
 
-using CxxReflect::Utility::BeginBigEndianBytes;
-using CxxReflect::Utility::EndBigEndianBytes;
-
 namespace CxxReflect {
 
     Guid::Guid(String const& guid)
@@ -23,9 +20,9 @@ namespace CxxReflect {
 
     Guid::Guid(Element0 m0, Element1 m1, Element2 m2)
     {
-        std::copy(BeginBigEndianBytes(m0), EndBigEndianBytes(m0), _data.data());
-        std::copy(BeginBigEndianBytes(m1.data() + m1.size()),
-                  EndBigEndianBytes(m1.data()),
+        std::copy(Utility::BeginBigEndianBytes(m0), Utility::EndBigEndianBytes(m0), _data.data());
+        std::copy(Utility::BeginBigEndianBytes(m1.data() + m1.size()),
+                  Utility::EndBigEndianBytes(m1.data()),
                   _data.data() + 4);
 
         std::copy(m2.begin(), m2.end(), _data.data() + 8);
@@ -33,9 +30,9 @@ namespace CxxReflect {
 
     Guid::Guid(U4 m0, U2 m1a, U2 m1b, U1 m2a, U1 m2b, U1 m2c, U1 m2d, U1 m2e, U1 m2f, U1 m2g, U1 m2h)
     {
-        std::copy(BeginBigEndianBytes(m0),  EndBigEndianBytes(m0),  _data.data());
-        std::copy(BeginBigEndianBytes(m1a), EndBigEndianBytes(m1a), _data.data() + 4);
-        std::copy(BeginBigEndianBytes(m1b), EndBigEndianBytes(m1b), _data.data() + 6);
+        std::copy(Utility::BeginBigEndianBytes(m0),  Utility::EndBigEndianBytes(m0),  _data.data());
+        std::copy(Utility::BeginBigEndianBytes(m1a), Utility::EndBigEndianBytes(m1a), _data.data() + 4);
+        std::copy(Utility::BeginBigEndianBytes(m1b), Utility::EndBigEndianBytes(m1b), _data.data() + 6);
 
         _data[0x8] = m2a; _data[0x9] = m2b; _data[0xA] = m2c; _data[0xB] = m2d;
         _data[0xC] = m2e; _data[0xD] = m2f; _data[0xE] = m2g; _data[0xF] = m2h;
