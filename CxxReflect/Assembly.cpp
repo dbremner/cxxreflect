@@ -10,13 +10,16 @@
 #include <atlbase.h>
 #include <cor.h>
 
+using CxxReflect::Utility::DebugVerifyNotNull;
+using CxxReflect::Utility::ThrowOnFailure;
+
 namespace CxxReflect {
 
     Assembly::Assembly(MetadataReaderHandle reader, String const& path, IMetaDataImport2* import)
         : _reader(reader), _path(path), _import(import)
     {
-        Detail::VerifyNotNull(_reader);
-        Detail::VerifyNotNull(_import);
+        DebugVerifyNotNull(_reader);
+        DebugVerifyNotNull(_import);
 
         // We avoid using CComPtr so that we don't need to have IMetaDataImport defined in the header.
         _import->AddRef();
@@ -41,15 +44,32 @@ namespace CxxReflect {
 
     Type const* Assembly::GetType(MetadataToken token) const
     {
-        if (token.GetType() != MetadataTokenType::TypeDef) { return nullptr; } // TODO throw?
-
-
-        auto it(std::find_if(BeginTypes(), EndTypes(), [&](Type const& x)
+        switch (token.GetKind())
         {
-            return x.GetMetadataToken() == token;
-        }));
+        case MetadataTokenKind::TypeDef:
+        {
+            auto it(std::find_if(BeginTypes(), EndTypes(), [&](Type const& x)
+            {
+                return x.GetMetadataToken() == token;
+            }));
 
-        return it != EndTypes() ? &*it : nullptr;
+            return it != EndTypes() ? &*it : nullptr;
+        }
+        
+        case MetadataTokenKind::TypeSpec:
+        {
+            auto const& typeSpecs(PrivateGetTypeSpecs());
+            auto it(std::find_if(typeSpecs.Begin(), typeSpecs.End(), [&](Type const& x)
+            {
+                return x.GetMetadataToken() == token;
+            }));
+
+            return it != typeSpecs.End() ? &*it : nullptr;
+        }
+        
+        default:
+            throw std::logic_error("wtf");
+        }
     }
 
     void Assembly::RealizeName() const
@@ -57,11 +77,11 @@ namespace CxxReflect {
         if (_state.IsSet(RealizedName)) { return; }
 
         CComQIPtr<IMetaDataAssemblyImport, &IID_IMetaDataAssemblyImport> assemblyImport(_import);
-        Detail::VerifyNotNull(assemblyImport);
+        DebugVerifyNotNull(assemblyImport);
 
         mdAssembly assemblyToken;
-        Detail::ThrowOnFailure(assemblyImport->GetAssemblyFromScope(&assemblyToken));
-        _name = Detail::GetAssemblyNameFromToken(assemblyImport, assemblyToken);
+        ThrowOnFailure(assemblyImport->GetAssemblyFromScope(&assemblyToken));
+        _name = Utility::GetAssemblyNameFromToken(assemblyImport, assemblyToken);
 
         _state.Set(RealizedName);
     }
@@ -71,20 +91,20 @@ namespace CxxReflect {
         if (_state.IsSet(RealizedReferencedAssemblies)) { return; }
 
         CComQIPtr<IMetaDataAssemblyImport, &IID_IMetaDataAssemblyImport> assemblyImport(_import);
-        Detail::VerifyNotNull(assemblyImport);
+        DebugVerifyNotNull(assemblyImport);
 
         typedef Detail::AssemblyRefIterator Iterator;
         std::transform(Iterator(assemblyImport), Iterator(), std::back_inserter(_referencedAssemblies), [&](mdToken x)
         {
-            return Detail::GetAssemblyNameFromToken(assemblyImport, x);
+            return Utility::GetAssemblyNameFromToken(assemblyImport, x);
         });
 
         _state.Set(RealizedReferencedAssemblies);
     }
 
-    void Assembly::RealizeTypes() const
+    void Assembly::RealizeTypeDefs() const
     {
-        if (_state.IsSet(RealizedTypes)) { return; }
+        if (_state.IsSet(RealizedTypeDefs)) { return; }
 
         using Detail::TypeDefIterator;
         std::vector<mdTypeDef> tokens(TypeDefIterator(_import), (TypeDefIterator()));
@@ -92,13 +112,32 @@ namespace CxxReflect {
         std::sort(tokens.begin(), tokens.end());
         tokens.erase(std::unique(tokens.begin(), tokens.end()), tokens.end());
 
-        _types.Allocate(tokens.size());
-        std::for_each(tokens.begin(), tokens.end(), [&](mdToken x)
+        _typeDefs.Allocate(tokens.size());
+        std::for_each(tokens.begin(), tokens.end(), [&](mdTypeDef x)
         {
-            _types.EmplaceBack(this, x);
+            _typeDefs.EmplaceBack(this, x);
         });
 
-        _state.Set(RealizedTypes);
+        _state.Set(RealizedTypeDefs);
+    }
+
+    void Assembly::RealizeTypeSpecs() const
+    {
+        if (_state.IsSet(RealizedTypeSpecs)) { return; }
+
+        using Detail::TypeSpecIterator;
+        std::vector<mdTypeSpec> tokens(TypeSpecIterator(_import), (TypeSpecIterator()));
+
+        std::sort(tokens.begin(), tokens.end());
+        tokens.erase(std::unique(tokens.begin(), tokens.end()), tokens.end());
+
+        _typeSpecs.Allocate(tokens.size());
+        std::for_each(tokens.begin(), tokens.end(), [&](mdTypeSpec x)
+        {
+            _typeSpecs.EmplaceBack(this, x);
+        });
+
+        _state.Set(RealizedTypeSpecs);
     }
 
     void Assembly::RealizeCustomAttributes() const
@@ -106,10 +145,10 @@ namespace CxxReflect {
         if (_state.IsSet(RealizedCustomAttributes)) { return; }
 
         CComQIPtr<IMetaDataAssemblyImport, &IID_IMetaDataAssemblyImport> assemblyImport(_import);
-        Detail::VerifyNotNull(assemblyImport);
+        DebugVerifyNotNull(assemblyImport);
 
         mdAssembly assemblyToken(0);
-        Detail::ThrowOnFailure(assemblyImport->GetAssemblyFromScope(&assemblyToken));
+        ThrowOnFailure(assemblyImport->GetAssemblyFromScope(&assemblyToken));
 
         typedef  Detail::CustomAttributeIterator Iterator;
         std::vector<mdCustomAttribute> tokens(Iterator(_import, assemblyToken), (Iterator()));

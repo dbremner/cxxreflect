@@ -13,6 +13,9 @@
 #include <map>
 #include <vector>
 
+using CxxReflect::Utility::ThrowOnFailure;
+using CxxReflect::Utility::DebugVerifyNotNull;
+
 namespace CxxReflect { namespace Detail {
 
     // Private implementation details of MetadataReader
@@ -23,7 +26,7 @@ namespace CxxReflect { namespace Detail {
         MetadataReaderImpl(MetadataReader const* owner, AssemblyResolutionCallback const& resolver)
             : _owner(owner), _resolver(resolver)
         {
-            VerifyNotNull(resolver);
+            DebugVerifyNotNull(resolver);
 
             ThrowOnFailure(CoCreateInstance(
                 CLSID_CorMetaDataDispenser,

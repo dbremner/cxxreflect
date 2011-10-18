@@ -135,7 +135,7 @@ namespace CxxReflect {
             oss << L", PublicKeyToken=";
             std::for_each(_publicKeyToken.begin(), _publicKeyToken.end(), [&](std::uint8_t x)
             {
-                std::array<wchar_t, 3> buffer;
+                std::array<wchar_t, 3> buffer = { 0 };
                 std::swprintf(buffer.data(), buffer.size(), L"%x", x);
                 oss << buffer.data();
             });

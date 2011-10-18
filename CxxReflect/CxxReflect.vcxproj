@@ -47,7 +47,7 @@
       <WarningLevel>Level4</WarningLevel>
       <Optimization>Disabled</Optimization>
       <AdditionalIncludeDirectories>../</AdditionalIncludeDirectories>
-      <AdditionalOptions>/D_CRT_SECURE_NO_WARNINGS %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions>-D_SCL_SECURE_NO_WARNINGS %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
@@ -80,6 +80,7 @@
     <ClInclude Include="CxxReflect.hpp" />
     <ClInclude Include="Exceptions.hpp" />
     <ClInclude Include="Guid.hpp" />
+    <ClInclude Include="MetadataDatabase.hpp" />
     <ClInclude Include="MetadataReader.hpp" />
     <ClInclude Include="Method.hpp" />
     <ClInclude Include="Parameter.hpp" />
@@ -93,6 +94,7 @@
     <ClCompile Include="AssemblyName.cpp" />
     <ClCompile Include="CustomAttribute.cpp" />
     <ClCompile Include="Guid.cpp" />
+    <ClCompile Include="MetadataDatabase.cpp" />
     <ClCompile Include="MetadataReader.cpp" />
     <ClCompile Include="Type.cpp" />
     <ClCompile Include="Utility.cpp" />

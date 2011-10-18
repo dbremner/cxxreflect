@@ -2,34 +2,20 @@
 //                   Distributed under the Boost Software License, Version 1.0.                   //
 //     (See accompanying file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)    //
 
-// This header contains private implementation details only.  It defines a number of usefule utility
-// classes, templates, and functions that are used throughout the library.
-#ifndef CXXREFLECT_UTILITY_HPP_
-#define CXXREFLECT_UTILITY_HPP_
-
-#include "CxxReflect/CoreDeclarations.hpp"
-#include "CxxReflect/Exceptions.hpp"
+#ifndef PELOADER_UTILITY_HPP_
+#define PELOADER_UTILITY_HPP_
 
 #include <array>
 #include <cstdint>
 #include <cstdio>
-#include <functional>
-#include <iterator>
-#include <sstream>
+#include <memory>
+#include <stdexcept>
+#include <utility>
+#include <vector>
 
 #define CXXREFLECT_DEBUG
 
-namespace CxxReflect { namespace Utility {
-
-    template <typename T>
-    String ToString(T const& x)
-    {
-        std::wostringstream iss;
-        if (!(iss << x))
-            throw std::logic_error("wtf");
-
-        return iss.str();
-    }
+namespace PeLoader { namespace Utility {
 
     struct VerificationFailure : std::logic_error
     {
@@ -37,13 +23,6 @@ namespace CxxReflect { namespace Utility {
     };
 
     #ifdef CXXREFLECT_DEBUG
-
-    template <typename T>
-    void DebugVerifyNotNull(T const& x)
-    {
-        if (!x) 
-            throw std::logic_error("wtf");
-    }
 
     template <typename TCallable>
     void DebugVerify(TCallable const& callable, char const* const message)
@@ -58,9 +37,6 @@ namespace CxxReflect { namespace Utility {
     }
 
     #else
-
-    template <typename T>
-    void DebugVerifyNotNull(T const&) { }
 
     template <typename TCallable>
     void DebugVerify(TCallable const&, char const*) { }
@@ -81,11 +57,6 @@ namespace CxxReflect { namespace Utility {
         return value + (value % roundToNearest);
     }
 
-    inline void ThrowOnFailure(long hr)
-    {
-        if (hr < 0) { throw HResultException(hr); }
-    }
-
     template <typename T>
     class Dereferenceable
     {
@@ -103,60 +74,6 @@ namespace CxxReflect { namespace Utility {
     private:
 
         T _value;
-    };
-
-    template <typename T>
-    class EnhancedCString
-    {
-    public:
-
-        typedef T                               ValueType;
-        typedef T const*                        Pointer;
-        typedef T const&                        Reference;
-        typedef std::size_t                     SizeType;
-
-        typedef T const*                        Iterator;
-        typedef std::reverse_iterator<Iterator> ReverseIterator;
-
-        EnhancedCString()
-            : _first(nullptr), _last(nullptr)
-        {
-        }
-
-        explicit EnhancedCString(Pointer first)
-            : _first(first)
-        {
-            if (first == nullptr)
-                return;
-
-            for (_last = first; *_last != 0; ++_last);
-            ++_last; // One-past-the-end of the null terminator
-        }
-
-        EnhancedCString(Pointer first, Pointer last)
-            : _first(first), _last(last)
-        {
-        }
-
-        template <SizeType N>
-        EnhancedCString(ValueType (&data)[N])
-            : _first(data), _last(data + N)
-        {
-        }
-
-        Iterator        Begin()        const { return _first;                  }
-        Iterator        End()          const { return _last;                   }
-
-        ReverseIterator ReverseBegin() const { return ReverseIterator(_last);  }
-        ReverseIterator ReverseEnd()   const { return ReverseIterator(_first); }
-
-        Pointer         CStr()         const { return _first;                  }
-        Pointer         Data()         const { return _first;                  }
-
-    private:
-
-        Pointer _first;
-        Pointer _last;
     };
 
     struct FileReadException : std::runtime_error
@@ -214,37 +131,6 @@ namespace CxxReflect { namespace Utility {
         FileHandle& operator=(FileHandle const&);
 
         FILE* _handle;
-    };
-
-    template <typename TEnumeration>
-    class FlagSet
-    {
-    public:
-
-        typedef TEnumeration                                      EnumerationType;
-        typedef typename std::underlying_type<TEnumeration>::type IntegerType;
-
-        FlagSet()
-            : _value()
-        {
-        }
-
-        explicit FlagSet(EnumerationType const value)
-            : _value(value)
-        {
-        }
-
-        explicit FlagSet(IntegerType const value)
-            : _value(static_cast<EnumerationType>(value))
-        {
-        }
-
-        EnumerationType Get()        const { return _value; }
-        IntegerType     GetInteger() const { return static_cast<IntegerType>(_value); }
-
-    private:
-
-        TEnumeration _value;
     };
 
     // A linear allocator for arrays; this is most useful for the allocation of strings.
@@ -343,115 +229,90 @@ namespace CxxReflect { namespace Utility {
         BlockIterator _current;
     };
 
-    static const std::uint32_t InvalidMetadataTokenValue = 0x00000000;
-    static const std::uint32_t MetadataTokenKindMask     = 0xFF000000;
-
-    class MetadataToken
+    template <typename T>
+    class EnhancedCString
     {
     public:
 
-        MetadataToken()
-            : _token(InvalidMetadataTokenValue)
+        typedef T                               ValueType;
+        typedef T const*                        Pointer;
+        typedef T const&                        Reference;
+        typedef std::size_t                     SizeType;
+
+        typedef T const*                        Iterator;
+        typedef std::reverse_iterator<Iterator> ReverseIterator;
+
+        EnhancedCString()
+            : _first(nullptr), _last(nullptr)
         {
         }
 
-        MetadataToken(std::uint32_t token)
-            : _token(token)
+        explicit EnhancedCString(Pointer first)
+            : _first(first)
+        {
+            if (first == nullptr)
+                return;
+
+            for (_last = first; *_last != 0; ++_last);
+            ++_last; // One-past-the-end of the null terminator
+        }
+
+        EnhancedCString(Pointer first, Pointer last)
+            : _first(first), _last(last)
         {
         }
 
-        void Set(std::uint32_t token)
+        template <SizeType N>
+        EnhancedCString(ValueType (&data)[N])
+            : _first(data), _last(data + N)
         {
-            _token = token;
         }
 
-        std::uint32_t Get() const
-        {
-            //TODO Verify([&]{ return IsInitialized(); });
-            return _token;
-        }
+        Iterator        Begin()        const { return _first;                  }
+        Iterator        End()          const { return _last;                   }
 
-        MetadataTokenKind GetType() const
-        {
-            //TODO Verify([&]{ return IsInitialized(); });
-            return static_cast<MetadataTokenKind>(_token & MetadataTokenKindMask);
-        }
+        ReverseIterator ReverseBegin() const { return ReverseIterator(_last);  }
+        ReverseIterator ReverseEnd()   const { return ReverseIterator(_first); }
 
-        bool IsInitialized() const
-        {
-            return _token != InvalidMetadataTokenValue;
-        }
+        Pointer         CStr()         const { return _first;                  }
+        Pointer         Data()         const { return _first;                  }
 
     private:
 
-        std::uint32_t _token;
+        Pointer _first;
+        Pointer _last;
     };
 
-    class SimpleScopeGuard
+    template <typename TEnumeration>
+    class FlagSet
     {
     public:
 
-        SimpleScopeGuard(std::function<void()> f)
-            : f_(f)
+        typedef TEnumeration                                      EnumerationType;
+        typedef typename std::underlying_type<TEnumeration>::type IntegerType;
+
+        FlagSet()
+            : _value()
         {
         }
 
-        void Unset() { f_ = nullptr; }
-
-        ~SimpleScopeGuard()
+        explicit FlagSet(EnumerationType const value)
+            : _value(value)
         {
-            if (f_) { f_(); }
         }
+
+        explicit FlagSet(IntegerType const value)
+            : _value(static_cast<EnumerationType>(value))
+        {
+        }
+
+        EnumerationType Get()        const { return _value; }
+        IntegerType     GetInteger() const { return static_cast<IntegerType>(_value); }
 
     private:
 
-        std::function<void()> f_;
+        TEnumeration _value;
     };
-
-    typedef std::array<std::uint8_t, 20> Sha1Hash;
-
-    // Computes the 20 byte SHA1 hash for the bytes in the range [first, last).
-    Sha1Hash ComputeSha1Hash(std::uint8_t const* first, std::uint8_t const* last);
-
-    AssemblyName GetAssemblyNameFromToken(IMetaDataAssemblyImport* import, MetadataToken token);
-
-    // These provide friendly support for char[] aliasing, one of the few forms of aliasing that is
-    // permitted by the language standard.
-    template <typename T>
-    std::uint8_t const* BeginBytes(T const& p)
-    {
-        return reinterpret_cast<std::uint8_t const*>(&p);
-    }
-
-    template <typename T>
-    std::uint8_t const* EndBytes(T const& p)
-    {
-        return reinterpret_cast<std::uint8_t const*>(&p + 1);
-    }
-
-    template <typename T>
-    std::reverse_iterator<std::uint8_t const*> BeginReverseBytes(T const& p)
-    {
-        return std::reverse_iterator<std::uint8_t const*>(EndBytes(p));
-    }
-
-    template <typename T>
-    std::reverse_iterator<std::uint8_t const*> EndReverseBytes(T const& p)
-    {
-        return std::reverse_iterator<std::uint8_t const*>(BeginBytes(p));
-    }
-
-    template <typename T>
-    std::reverse_iterator<std::uint8_t const*> BeginBigEndianBytes(T const& p)
-    {
-        return std::reverse_iterator<std::uint8_t const*>(EndBytes(p)); // TODO Fix for big-endian machines?
-    }
-
-    template <typename T>
-    std::reverse_iterator<std::uint8_t const*> EndBigEndianBytes(T const& p)
-    {
-        return std::reverse_iterator<std::uint8_t const*>(BeginBytes(p)); // TODO Fix for big-endian machines?
-    }
 
 } }
 

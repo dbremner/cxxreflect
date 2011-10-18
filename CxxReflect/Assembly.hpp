@@ -37,8 +37,8 @@ namespace CxxReflect {
         AssemblyNameIterator BeginReferencedAssemblies() const { return PrivateGetReferencedAssemblies().begin(); }
         AssemblyNameIterator EndReferencedAssemblies()   const { return PrivateGetReferencedAssemblies().end();   }
 
-        TypeIterator BeginTypes() const { return PrivateGetTypes().Get();                               }
-        TypeIterator EndTypes()   const { return PrivateGetTypes().Get() + PrivateGetTypes().GetSize(); }
+        TypeIterator BeginTypes() const { return PrivateGetTypeDefs().Get();                                  }
+        TypeIterator EndTypes()   const { return PrivateGetTypeDefs().Get() + PrivateGetTypeDefs().GetSize(); }
 
         CustomAttributeIterator BeginCustomAttributes() const
         {
@@ -103,13 +103,15 @@ namespace CxxReflect {
         {
             RealizedName                 = 0x0001,
             RealizedReferencedAssemblies = 0x0002,
-            RealizedTypes                = 0x0004,
-            RealizedCustomAttributes     = 0x0008
+            RealizedTypeDefs             = 0x0004,
+            RealizedTypeSpecs            = 0x0008,
+            RealizedCustomAttributes     = 0x0010
         };
 
         void RealizeName()                 const;
         void RealizeReferencedAssemblies() const;
-        void RealizeTypes()                const;
+        void RealizeTypeDefs()             const;
+        void RealizeTypeSpecs()            const;
         void RealizeCustomAttributes()     const;
 
         AssemblyName& PrivateGetName() const
@@ -124,10 +126,16 @@ namespace CxxReflect {
             return _referencedAssemblies;
         }
 
-        Detail::AllocatorBasedArray<Type>& PrivateGetTypes() const
+        Detail::AllocatorBasedArray<Type>& PrivateGetTypeDefs() const
         {
-            RealizeTypes();
-            return _types;
+            RealizeTypeDefs();
+            return _typeDefs;
+        }
+
+        Detail::AllocatorBasedArray<Type>& PrivateGetTypeSpecs() const
+        {
+            RealizeTypeSpecs();
+            return _typeSpecs;
         }
 
         Detail::AllocatorBasedArray<CustomAttribute>& PrivateGetCustomAttributes() const
@@ -146,7 +154,8 @@ namespace CxxReflect {
         mutable AssemblyName         _name;
         mutable AssemblyNameSequence _referencedAssemblies;
 
-        mutable Detail::AllocatorBasedArray<Type>            _types;
+        mutable Detail::AllocatorBasedArray<Type>            _typeDefs;
+        mutable Detail::AllocatorBasedArray<Type>            _typeSpecs;
         mutable Detail::AllocatorBasedArray<CustomAttribute> _customAttributes;
     };
 

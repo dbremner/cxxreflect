@@ -35,7 +35,8 @@ namespace CxxReflect {
         // ContainsGenericParameters
         // GenericParameterAttributes
         // GenericParameterPosition
-        // GUID
+
+        Guid GetGuid()                   const; // TODO
 
         std::uint32_t GetAttributes()    const { return PrivateGetTypeFlags(); }
         
@@ -179,6 +180,8 @@ namespace CxxReflect {
         // Guarded by RealizedTypeDef.  The TypeDef token is the TypeDef referred to by the original
         // token; it is the same as the original token if the original token is a TypeDef
         mutable MetadataToken _typeDefToken;
+
+        mutable void*         _typeSpecSignature;
 
         // Guarded by RealizedTypeDefProperties
         mutable String        _typeName;

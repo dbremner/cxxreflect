@@ -8,6 +8,9 @@
 
 #include <cor.h>
 
+using CxxReflect::Utility::DebugVerifyNotNull;
+using CxxReflect::Utility::ThrowOnFailure;
+
 namespace {
 
     bool IsDerivedFromSystemType(CxxReflect::Type const&   type,
@@ -44,19 +47,19 @@ namespace CxxReflect {
           _baseType(nullptr),
           _declaringType(nullptr)
     {
-        Detail::VerifyNotNull(assembly);
+        DebugVerifyNotNull(assembly);
 
-        switch (_originalToken.GetType())
+        switch (_originalToken.GetKind())
         {
         // If we have a TypeDef token, we can preemptively set the _typeDefToken value
-        case MetadataTokenType::TypeDef:
+        case MetadataTokenKind::TypeDef:
             _typeDefToken = _originalToken;
             _state.Set(RealizedTypeDef);
             break;
 
         // These token types are okay:
-        case MetadataTokenType::TypeRef:
-        case MetadataTokenType::TypeSpec:
+        case MetadataTokenKind::TypeRef:
+        case MetadataTokenKind::TypeSpec:
             break;
 
         // We don't know what to do with other token types:
@@ -331,7 +334,7 @@ namespace CxxReflect {
         DWORD flags(0);
         mdToken extends(0);
 
-        Detail::ThrowOnFailure(_assembly->UnsafeGetImport()->GetTypeDefProps(
+        ThrowOnFailure(_assembly->UnsafeGetImport()->GetTypeDefProps(
             PrivateGetTypeDefToken().Get(),
             nameBuffer.data(),
             nameBuffer.size(),
@@ -358,22 +361,18 @@ namespace CxxReflect {
             return;
         }
 
-        if (baseTypeToken.GetType() == MetadataTokenType::TypeDef)
+        switch (baseTypeToken.GetKind())
         {
+        case MetadataTokenKind::TypeDef:
+        case MetadataTokenKind::TypeSpec:
             _baseType = _assembly->GetType(baseTypeToken);
-            _state.Set(RealizedBaseType);
-            return;
-        }
-        else if (baseTypeToken.GetType() == MetadataTokenType::TypeRef)
-        {
+            break;
+
+        case MetadataTokenKind::TypeRef:
             // TODO
-        }
-        else if (baseTypeToken.GetType() == MetadataTokenType::TypeSpec)
-        {
-            // TODO
-        }
-        else
-        {
+            break;
+
+        default:
             throw std::logic_error("wtf");
         }
 
@@ -388,7 +387,7 @@ namespace CxxReflect {
         {
             mdTypeDef declaringType(0);
 
-            Detail::ThrowOnFailure(_assembly->UnsafeGetImport()->GetNestedClassProps(
+            ThrowOnFailure(_assembly->UnsafeGetImport()->GetNestedClassProps(
                 PrivateGetTypeDefToken().Get(),
                 &declaringType));
 

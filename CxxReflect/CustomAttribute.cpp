@@ -5,12 +5,14 @@
 #include "CxxReflect/CustomAttribute.hpp"
 #include "CxxReflect/Utility.hpp"
 
+using CxxReflect::Utility::DebugVerifyNotNull;
+
 namespace CxxReflect {
 
     CustomAttribute::CustomAttribute(Assembly const* assembly, MetadataToken token)
         : _assembly(assembly), _token(token)
     {
-        Detail::VerifyNotNull(_assembly);
+        DebugVerifyNotNull(_assembly);
     }
 
     void CustomAttribute::RealizeConstructor() const

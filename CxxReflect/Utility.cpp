@@ -8,12 +8,12 @@
 #include <cor.h>
 #include <wincrypt.h>
 
-namespace CxxReflect { namespace Detail {
+namespace CxxReflect { namespace Utility {
 
     Sha1Hash ComputeSha1Hash(std::uint8_t const* first, std::uint8_t const* last)
     {
-        VerifyNotNull(first);
-        VerifyNotNull(last);
+        DebugVerifyNotNull(first);
+        DebugVerifyNotNull(last);
 
         HCRYPTPROV provider(0);
         SimpleScopeGuard cleanupProvider([&](){ if (provider) { CryptReleaseContext(provider, 0); } });
@@ -28,7 +28,7 @@ namespace CxxReflect { namespace Detail {
         if (!CryptHashData(hash, first, last - first, 0))
             throw std::logic_error("wtf");
 
-        Sha1Hash result;
+        Sha1Hash result = { 0 };
         DWORD resultLength(result.size());
         if (!CryptGetHashParam(hash, HP_HASHVAL, result.data(), &resultLength, 0) || resultLength != 20)
             throw std::logic_error("wtf");
@@ -38,7 +38,7 @@ namespace CxxReflect { namespace Detail {
 
     AssemblyName GetAssemblyNameFromToken(IMetaDataAssemblyImport* import, MetadataToken token)
     {
-        VerifyNotNull(import);
+        DebugVerifyNotNull(import);
 
         std::uint8_t const* publicKeyOrToken(nullptr);
         ULONG publicKeyOrTokenLength(0);
@@ -55,7 +55,7 @@ namespace CxxReflect { namespace Detail {
 
         DWORD flags(0);
 
-        if (token.GetType() == MetadataTokenType::Assembly)
+        if (token.GetType() == MetadataTokenKind::Assembly)
         {
             ThrowOnFailure(import->GetAssemblyProps(
                 token.Get(),
@@ -68,7 +68,7 @@ namespace CxxReflect { namespace Detail {
                 &metadata,
                 &flags));
         }
-        else if (token.GetType() == MetadataTokenType::AssemblyRef)
+        else if (token.GetType() == MetadataTokenKind::AssemblyRef)
         {
             ThrowOnFailure(import->GetAssemblyRefProps(
                 token.Get(),

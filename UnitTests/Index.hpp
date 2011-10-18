@@ -2,9 +2,16 @@
 //                   Distributed under the Boost Software License, Version 1.0.                   //
 //     (See accompanying file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)    //
 
-#include "UnitTests/Index.hpp"
+#ifndef CXXREFLECT_UNITTESTS_INDEX_HPP_
+#define CXXREFLECT_UNITTESTS_INDEX_HPP_
 
-int main()
-{
-    CxxReflectTest::Index::VerifyGuid();
+namespace CxxReflectTest {
+
+    struct Index
+    {
+        static void VerifyGuid();
+    };
+
 }
+
+#endif

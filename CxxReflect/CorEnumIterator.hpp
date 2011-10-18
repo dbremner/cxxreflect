@@ -232,7 +232,7 @@ namespace CxxReflect { namespace Detail {
                                 ArgumentType const& argument)
         {
             ULONG count;
-            ThrowOnFailure(import->EnumCustomAttributes(
+            Utility::ThrowOnFailure(import->EnumCustomAttributes(
                 &e,
                 argument,
                 0,

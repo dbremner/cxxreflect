@@ -21,7 +21,7 @@ namespace CxxReflect {
     typedef std::wstring  String;
 
     // This mirrors the definition of CorTokenType in <cor.h>
-    enum class MetadataTokenType : std::uint32_t
+    enum class MetadataTokenKind : std::uint32_t
     {
         Module                 = 0x00000000,
         TypeRef                = 0x01000000,
@@ -60,9 +60,9 @@ namespace CxxReflect {
         {
         }
 
-        MetadataTokenType GetType() const
+        MetadataTokenKind GetKind() const
         {
-            return static_cast<MetadataTokenType>(_value & 0xFF000000);
+            return static_cast<MetadataTokenKind>(_value & 0xFF000000);
         }
 
         std::uint32_t Get()                    const { return _value;      }
@@ -88,6 +88,7 @@ namespace CxxReflect {
     class CustomAttributeArgument;
     class Event;
     class Field;
+    class Guid;
     class MetadataReader;
     class Method;
     class Parameter;
@@ -106,7 +107,7 @@ namespace CxxReflect {
     typedef Property                const* PropertyHandle;
     typedef Type                    const* TypeHandle;
 
-    enum class MemberType : std::uint8_t
+    enum class MemberKind : std::uint8_t
     {
         Event,
         Field,
@@ -122,33 +123,36 @@ namespace CxxReflect {
     {
     public:
 
-        MemberHandle(Event    const* pointer) : _pointer(pointer), _type(MemberType::Event)    { }
-        MemberHandle(Field    const* pointer) : _pointer(pointer), _type(MemberType::Field)    { }
-        MemberHandle(Method   const* pointer) : _pointer(pointer), _type(MemberType::Method)   { }
-        MemberHandle(Property const* pointer) : _pointer(pointer), _type(MemberType::Property) { }
-        MemberHandle(Type     const* pointer) : _pointer(pointer), _type(MemberType::Type)     { }
+        MemberHandle(EventHandle    pointer) : _pointer(pointer), _kind(MemberKind::Event)    { }
+        MemberHandle(FieldHandle    pointer) : _pointer(pointer), _kind(MemberKind::Field)    { }
+        MemberHandle(MethodHandle   pointer) : _pointer(pointer), _kind(MemberKind::Method)   { }
+        MemberHandle(PropertyHandle pointer) : _pointer(pointer), _kind(MemberKind::Property) { }
+        MemberHandle(TypeHandle     pointer) : _pointer(pointer), _kind(MemberKind::Type)     { }
 
-        MemberType GetType() const { return _type; }
+        MemberKind GetKind() const { return _kind; }
+
+        bool IsEvent()    const { return _kind == MemberKind::Event;    }
+        bool IsField()    const { return _kind == MemberKind::Field;    }
+        bool IsMethod()   const { return _kind == MemberKind::Method;   }
+        bool IsProperty() const { return _kind == MemberKind::Property; }
+        bool IsType()     const { return _kind == MemberKind::Type;     }
         
-        Event    const* AsEvent()    const { return VerifyAndGet<Event>   (MemberType::Event);    }
-        Field    const* AsField()    const { return VerifyAndGet<Field>   (MemberType::Field);    }
-        Method   const* AsMethod()   const { return VerifyAndGet<Method>  (MemberType::Method);   }
-        Property const* AsProperty() const { return VerifyAndGet<Property>(MemberType::Property); }
-        Type     const* AsType()     const { return VerifyAndGet<Type>    (MemberType::Type);     }
+        EventHandle    AsEvent()    const { return VerifyAndGet<Event>   (MemberKind::Event);    }
+        FieldHandle    AsField()    const { return VerifyAndGet<Field>   (MemberKind::Field);    }
+        MethodHandle   AsMethod()   const { return VerifyAndGet<Method>  (MemberKind::Method);   }
+        PropertyHandle AsProperty() const { return VerifyAndGet<Property>(MemberKind::Property); }
+        TypeHandle     AsType()     const { return VerifyAndGet<Type>    (MemberKind::Type);     }
 
     private:
 
         template <typename T>
-        T const* VerifyAndGet(MemberType type) const
+        T const* VerifyAndGet(MemberKind kind) const
         {
-            if (type != _type)
-                throw std::logic_error("wtf");
-
-            return reinterpret_cast<T const*>(_pointer);
+            return kind == _kind ? static_cast<T const*>(_pointer) : nullptr;
         }
 
-        MemberType  _type;
         void const* _pointer;
+        MemberKind  _kind;
     };
 
 }
@@ -184,9 +188,12 @@ namespace CxxReflect { namespace Detail {
             TAllocator().deallocate(_data, _capacity);
         }
 
-        T*          Get()         const { return _data;     }
-        std::size_t GetCapacity() const { return _capacity; }
-        std::size_t GetSize()     const { return _size;     }
+        T*          Get()         const { return _data;         }
+        std::size_t GetCapacity() const { return _capacity;     }
+        std::size_t GetSize()     const { return _size;         }
+
+        T*          Begin()       const { return _data;         }
+        T*          End()         const { return _data + _size; }
 
         void Allocate(std::size_t capacity)
         {

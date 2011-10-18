@@ -42,13 +42,11 @@ namespace CxxReflect {
             return _data;
         }
 
+        static Guid Empty;
+
     private:
 
         ByteArray _data;
-
-        Element0 _m0;
-        Element1 _m1;
-        Element2 _m2;
     };
 
     inline bool operator==(Guid const& lhs, Guid const& rhs) { return lhs.AsByteArray() == rhs.AsByteArray(); }
@@ -59,8 +57,8 @@ namespace CxxReflect {
     inline bool operator>=(Guid const& lhs, Guid const& rhs) { return !(lhs <  rhs); }
     inline bool operator<=(Guid const& lhs, Guid const& rhs) { return !(rhs <  lhs); }
 
-    std::wostream& operator<<(std::wostream&, Guid const& x);
-    std::wistream& operator>>(std::wistream&, Guid& x);
+    std::wostream& operator<<(std::wostream&, Guid const&);
+    std::wistream& operator>>(std::wistream&, Guid&);
 
 }
 
