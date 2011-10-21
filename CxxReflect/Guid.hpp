@@ -5,7 +5,7 @@
 #ifndef CXXREFLECT_GUID_HPP_
 #define CXXREFLECT_GUID_HPP_
 
-#include "CxxReflect/CoreDeclarations.hpp"
+#include "CxxReflect/Core.hpp"
 
 #include <array>
 #include <cstdint>

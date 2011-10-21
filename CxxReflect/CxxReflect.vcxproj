@@ -71,6 +71,7 @@
   <ItemGroup>
     <ClInclude Include="Assembly.hpp" />
     <ClInclude Include="AssemblyName.hpp" />
+    <ClInclude Include="Core.hpp" />
     <ClInclude Include="CoreDeclarations.hpp" />
     <ClInclude Include="CustomAttribute.hpp" />
     <ClInclude Include="Event.hpp" />
@@ -81,9 +82,10 @@
     <ClInclude Include="Exceptions.hpp" />
     <ClInclude Include="Guid.hpp" />
     <ClInclude Include="MetadataDatabase.hpp" />
-    <ClInclude Include="MetadataReader.hpp" />
+    <ClInclude Include="MetadataLoader.hpp" />
     <ClInclude Include="Method.hpp" />
     <ClInclude Include="Parameter.hpp" />
+    <ClInclude Include="Platform.hpp" />
     <ClInclude Include="Property.hpp" />
     <ClInclude Include="Type.hpp" />
     <ClInclude Include="Utility.hpp" />
@@ -94,7 +96,8 @@
     <ClCompile Include="CustomAttribute.cpp" />
     <ClCompile Include="Guid.cpp" />
     <ClCompile Include="MetadataDatabase.cpp" />
-    <ClCompile Include="MetadataReader.cpp" />
+    <ClCompile Include="MetadataLoader.cpp" />
+    <ClCompile Include="PlatformWin32.cpp" />
     <ClCompile Include="Type.cpp" />
     <ClCompile Include="Utility.cpp" />
   </ItemGroup>

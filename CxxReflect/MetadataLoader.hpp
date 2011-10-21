@@ -2,8 +2,13 @@
 //                   Distributed under the Boost Software License, Version 1.0.                   //
 //     (See accompanying file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)    //
 
-#include "CxxReflect/Utility.hpp"
+#ifndef CXXREFLECT_METADATALOADER_HPP_
+#define CXXREFLECT_METADATALOADER_HPP_
 
-namespace CxxReflect { namespace Utility {
+#include "CxxReflect/Core.hpp"
 
-} }
+namespace CxxReflect {
+
+}
+
+#endif

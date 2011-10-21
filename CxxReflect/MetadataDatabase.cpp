@@ -4,22 +4,21 @@
 
 #include "CxxReflect/AssemblyName.hpp"
 #include "CxxReflect/MetadataDatabase.hpp"
+#include "CxxReflect/Platform.hpp"
 #include "CxxReflect/Utility.hpp"
 
-#define _X86_ // TODO WHY IS THIS NEEDED? :'(
 #include <algorithm>
 #include <array>
 #include <cstdint>
 #include <numeric>
 #include <vector>
-#include <winnls.h>
 
 using CxxReflect::Utility::AsInteger;
 using CxxReflect::Utility::DebugFail;
 using CxxReflect::Utility::DebugVerify;
-using CxxReflect::Utility::EnhancedCString;
 using CxxReflect::Utility::FileHandle;
 
+using namespace CxxReflect;
 using namespace CxxReflect::Metadata;
 
 namespace {
@@ -187,6 +186,7 @@ namespace {
         PeCliHeader             _cliHeader;
     };
 
+    // Predicate that tests whether a PE section contains a specified RVA
     class PeSectionContainsRva
     {
     public:
@@ -317,112 +317,114 @@ namespace {
         2, 2, 5, 1, 2, 3, 1, 1, 1, 2, 3, 2, 1
     };
 
-    #define CXXREFLECT_GENERATE(x) \
-        (tableSizes[AsInteger(TableId::x)] < (1ull << (16 - CompositeIndexTagSize[AsInteger(TableId::x)])))
+    #define CXXREFLECT_GENERATE(x, y)                                         \
+        (tableSizes[AsInteger(TableId::y)] <                                  \
+        (1ull << (16 - CompositeIndexTagSize[AsInteger(CompositeIndex::x)])))
 
     std::size_t ComputeTypeDefOrRefIndexSize(TableIdSizeArray const& tableSizes)
     {
-        return CXXREFLECT_GENERATE(TypeDef)
-            && CXXREFLECT_GENERATE(TypeRef)
-            && CXXREFLECT_GENERATE(TypeSpec) ? 2 : 4;
+        return CXXREFLECT_GENERATE(TypeDefOrRef, TypeDef)
+            && CXXREFLECT_GENERATE(TypeDefOrRef, TypeRef)
+            && CXXREFLECT_GENERATE(TypeDefOrRef, TypeSpec) ? 2 : 4;
     }
 
     std::size_t ComputeHasConstantIndexSize(TableIdSizeArray const& tableSizes)
     {
-        return CXXREFLECT_GENERATE(Field)
-            && CXXREFLECT_GENERATE(Param)
-            && CXXREFLECT_GENERATE(Property) ? 2 : 4;
+        return CXXREFLECT_GENERATE(HasConstant, Field)
+            && CXXREFLECT_GENERATE(HasConstant, Param)
+            && CXXREFLECT_GENERATE(HasConstant, Property) ? 2 : 4;
     }
 
     std::size_t ComputeHasCustomAttributeIndexSize(TableIdSizeArray const& tableSizes)
     {
-        return CXXREFLECT_GENERATE(MethodDef)
-            && CXXREFLECT_GENERATE(Field)
-            && CXXREFLECT_GENERATE(TypeRef)
-            && CXXREFLECT_GENERATE(TypeDef)
-            && CXXREFLECT_GENERATE(Param)
-            && CXXREFLECT_GENERATE(InterfaceImpl)
-            && CXXREFLECT_GENERATE(MemberRef)
-            && CXXREFLECT_GENERATE(Module)
-            && CXXREFLECT_GENERATE(Property)
-            && CXXREFLECT_GENERATE(Event)
-            && CXXREFLECT_GENERATE(StandaloneSig)
-            && CXXREFLECT_GENERATE(ModuleRef)
-            && CXXREFLECT_GENERATE(TypeSpec)
-            && CXXREFLECT_GENERATE(Assembly)
-            && CXXREFLECT_GENERATE(AssemblyRef)
-            && CXXREFLECT_GENERATE(File)
-            && CXXREFLECT_GENERATE(ExportedType)
-            && CXXREFLECT_GENERATE(ManifestResource)
-            && CXXREFLECT_GENERATE(GenericParam)
-            && CXXREFLECT_GENERATE(GenericParamConstraint)
-            && CXXREFLECT_GENERATE(MethodSpec) ? 2 : 4;
+        return CXXREFLECT_GENERATE(HasCustomAttribute, MethodDef)
+            && CXXREFLECT_GENERATE(HasCustomAttribute, Field)
+            && CXXREFLECT_GENERATE(HasCustomAttribute, TypeRef)
+            && CXXREFLECT_GENERATE(HasCustomAttribute, TypeDef)
+            && CXXREFLECT_GENERATE(HasCustomAttribute, Param)
+            && CXXREFLECT_GENERATE(HasCustomAttribute, InterfaceImpl)
+            && CXXREFLECT_GENERATE(HasCustomAttribute, MemberRef)
+            && CXXREFLECT_GENERATE(HasCustomAttribute, Module)
+            && CXXREFLECT_GENERATE(HasCustomAttribute, Property)
+            && CXXREFLECT_GENERATE(HasCustomAttribute, Event)
+            && CXXREFLECT_GENERATE(HasCustomAttribute, StandaloneSig)
+            && CXXREFLECT_GENERATE(HasCustomAttribute, ModuleRef)
+            && CXXREFLECT_GENERATE(HasCustomAttribute, TypeSpec)
+            && CXXREFLECT_GENERATE(HasCustomAttribute, Assembly)
+            && CXXREFLECT_GENERATE(HasCustomAttribute, AssemblyRef)
+            && CXXREFLECT_GENERATE(HasCustomAttribute, File)
+            && CXXREFLECT_GENERATE(HasCustomAttribute, ExportedType)
+            && CXXREFLECT_GENERATE(HasCustomAttribute, ManifestResource)
+            && CXXREFLECT_GENERATE(HasCustomAttribute, GenericParam)
+            && CXXREFLECT_GENERATE(HasCustomAttribute, GenericParamConstraint)
+            && CXXREFLECT_GENERATE(HasCustomAttribute, MethodSpec) ? 2 : 4;
     }
 
     std::size_t ComputeHasFieldMarshalIndexSize(TableIdSizeArray const& tableSizes)
     {
-        return CXXREFLECT_GENERATE(Field)
-            && CXXREFLECT_GENERATE(Param) ? 2 : 4;
+        return CXXREFLECT_GENERATE(HasFieldMarshal, Field)
+            && CXXREFLECT_GENERATE(HasFieldMarshal, Param) ? 2 : 4;
     }
 
     std::size_t ComputeHasDeclSecurityIndexSize(TableIdSizeArray const& tableSizes)
     {
-        return CXXREFLECT_GENERATE(TypeDef)
-            && CXXREFLECT_GENERATE(MethodDef)
-            && CXXREFLECT_GENERATE(Assembly) ? 2 : 4;
+        return CXXREFLECT_GENERATE(HasDeclSecurity, TypeDef)
+            && CXXREFLECT_GENERATE(HasDeclSecurity, MethodDef)
+            && CXXREFLECT_GENERATE(HasDeclSecurity, Assembly) ? 2 : 4;
     }
 
     std::size_t ComputeMemberRefParentIndexSize(TableIdSizeArray const& tableSizes)
     {
-        return CXXREFLECT_GENERATE(TypeDef)
-            && CXXREFLECT_GENERATE(TypeRef)
-            && CXXREFLECT_GENERATE(ModuleRef)
-            && CXXREFLECT_GENERATE(MethodDef)
-            && CXXREFLECT_GENERATE(TypeSpec) ? 2 : 4;
+        return CXXREFLECT_GENERATE(MemberRefParent, TypeDef)
+            && CXXREFLECT_GENERATE(MemberRefParent, TypeRef)
+            && CXXREFLECT_GENERATE(MemberRefParent, ModuleRef)
+            && CXXREFLECT_GENERATE(MemberRefParent, MethodDef)
+            && CXXREFLECT_GENERATE(MemberRefParent, TypeSpec) ? 2 : 4;
     }
 
     std::size_t ComputeHasSemanticsIndexSize(TableIdSizeArray const& tableSizes)
     {
-        return CXXREFLECT_GENERATE(Event)
-            && CXXREFLECT_GENERATE(Property) ? 2 : 4;
+        return CXXREFLECT_GENERATE(HasSemantics, Event)
+            && CXXREFLECT_GENERATE(HasSemantics, Property) ? 2 : 4;
     }
 
     std::size_t ComputeMethodDefOrRefIndexSize(TableIdSizeArray const& tableSizes)
     {
-        return CXXREFLECT_GENERATE(MethodDef)
-            && CXXREFLECT_GENERATE(MemberRef) ? 2 : 4;
+        return CXXREFLECT_GENERATE(MethodDefOrRef, MethodDef)
+            && CXXREFLECT_GENERATE(MethodDefOrRef, MemberRef) ? 2 : 4;
     }
 
     std::size_t ComputeMemberForwardedIndexSize(TableIdSizeArray const& tableSizes)
     {
-        return CXXREFLECT_GENERATE(Field)
-            && CXXREFLECT_GENERATE(MethodDef) ? 2 : 4;
+        return CXXREFLECT_GENERATE(MemberForwarded, Field)
+            && CXXREFLECT_GENERATE(MemberForwarded, MethodDef) ? 2 : 4;
     }
 
     std::size_t ComputeImplementationIndexSize(TableIdSizeArray const& tableSizes)
     {
-        return CXXREFLECT_GENERATE(File)
-            && CXXREFLECT_GENERATE(AssemblyRef)
-            && CXXREFLECT_GENERATE(ExportedType) ? 2 : 4;
+        return CXXREFLECT_GENERATE(Implementation, File)
+            && CXXREFLECT_GENERATE(Implementation, AssemblyRef)
+            && CXXREFLECT_GENERATE(Implementation, ExportedType) ? 2 : 4;
     }
 
     std::size_t ComputeCustomAttributeTypeIndexSize(TableIdSizeArray const& tableSizes)
     {
-        return CXXREFLECT_GENERATE(MethodDef) && CXXREFLECT_GENERATE(MemberRef) ? 2 : 4;
+        return CXXREFLECT_GENERATE(CustomAttributeType, MethodDef)
+            && CXXREFLECT_GENERATE(CustomAttributeType, MemberRef) ? 2 : 4;
     }
 
     std::size_t ComputeResolutionScopeIndexSize(TableIdSizeArray const& tableSizes)
     {
-        return CXXREFLECT_GENERATE(Module)
-            && CXXREFLECT_GENERATE(ModuleRef)
-            && CXXREFLECT_GENERATE(AssemblyRef)
-            && CXXREFLECT_GENERATE(TypeRef) ? 2 : 4;
+        return CXXREFLECT_GENERATE(ResolutionScope, Module)
+            && CXXREFLECT_GENERATE(ResolutionScope, ModuleRef)
+            && CXXREFLECT_GENERATE(ResolutionScope, AssemblyRef)
+            && CXXREFLECT_GENERATE(ResolutionScope, TypeRef) ? 2 : 4;
     }
 
     std::size_t ComputeTypeOrMethodDefIndexSize(TableIdSizeArray const& tableSizes)
     {
-        return CXXREFLECT_GENERATE(TypeDef)
-            && CXXREFLECT_GENERATE(MethodDef) ? 2 : 4;
+        return CXXREFLECT_GENERATE(TypeOrMethodDef, TypeDef)
+            && CXXREFLECT_GENERATE(TypeOrMethodDef, MethodDef) ? 2 : 4;
     }
 
     #undef CXXREFLECT_GENERATE
@@ -492,10 +494,10 @@ namespace {
         return database.GetStrings().At(ReadStringHeapIndex(database, data, offset));
     }
 
-    TableReference ReadTableReference(Database const&       database,
-                                      ByteIterator    const data,
-                                      TableId         const table,
-                                      SizeType        const offset)
+    TableReference ReadTableReference(Database     const& database,
+                                      ByteIterator const  data,
+                                      TableId      const  table,
+                                      SizeType     const  offset)
     {
         return TableReference(table, ReadTableIndex(database, data, table, offset));
     }
@@ -518,7 +520,7 @@ namespace {
         {
         case 2:  return TableReference(TableId::MethodDef, split.second);
         case 3:  return TableReference(TableId::MemberRef, split.second);
-        default: return TableReference(); // TODO ERROR HANDLING
+        default: throw ReadException("Invalid CustomAttributeType composite index value encountered");
         }
     }
 
@@ -530,7 +532,7 @@ namespace {
         case 0:  return TableReference(TableId::Field,    split.second);
         case 1:  return TableReference(TableId::Param,    split.second);
         case 2:  return TableReference(TableId::Property, split.second);
-        default: return TableReference(); // TODO
+        default: throw ReadException("Invalid HasConstant composite index value encountered");
         }
     }
 
@@ -561,7 +563,7 @@ namespace {
         case 19: return TableReference(TableId::GenericParam,           split.second);
         case 20: return TableReference(TableId::GenericParamConstraint, split.second);
         case 21: return TableReference(TableId::MethodSpec,             split.second);
-        default: return TableReference(); // TODO ERROR HANDLING
+        default: throw ReadException("Invalid HasCustomAttribute composite index value encountered");
         }
     }
 
@@ -573,7 +575,7 @@ namespace {
         case 0:  return TableReference(TableId::TypeDef,   split.second);
         case 1:  return TableReference(TableId::MethodDef, split.second);
         case 2:  return TableReference(TableId::Assembly,  split.second);
-        default: return TableReference(); // TODO ERROR HANDLING
+        default: throw ReadException("Invalid HasFieldMarshal composite index value encountered");
         }
     }
 
@@ -584,7 +586,7 @@ namespace {
         {
         case 0:  return TableReference(TableId::Field, split.second);
         case 1:  return TableReference(TableId::Param, split.second);
-        default: throw std::logic_error("Too many bits!");
+        default: DebugFail("Too many bits!"); return TableReference();
         }
     }
 
@@ -595,7 +597,7 @@ namespace {
         {
         case 0:  return TableReference(TableId::Event,    split.second);
         case 1:  return TableReference(TableId::Property, split.second);
-        default: throw std::logic_error("Too many bits!");
+        default: DebugFail("Too many bits!"); return TableReference();
         }
     }
 
@@ -607,7 +609,7 @@ namespace {
         case 0:  return TableReference(TableId::File,         split.second);
         case 1:  return TableReference(TableId::AssemblyRef,  split.second);
         case 2:  return TableReference(TableId::ExportedType, split.second);
-        default: return TableReference(); // TODO ERROR HANDLING
+        default: throw ReadException("Invalid Implementation composite index value encountered");
         }
     }
 
@@ -618,7 +620,7 @@ namespace {
         {
         case 0:  return TableReference(TableId::Field,     split.second);
         case 1:  return TableReference(TableId::MethodDef, split.second);
-        default: throw std::logic_error("Too many bits!");
+        default: DebugFail("Too many bits!"); return TableReference();
         }
     }
 
@@ -632,7 +634,7 @@ namespace {
         case 2:  return TableReference(TableId::ModuleRef, split.second);
         case 3:  return TableReference(TableId::MethodDef, split.second);
         case 4:  return TableReference(TableId::TypeSpec,  split.second);
-        default: return TableReference(); // TODO ERROR HANDLING
+        default: throw ReadException("Invalid MemberRefParent composite index value encountered");
         }
     }
 
@@ -643,7 +645,7 @@ namespace {
         {
         case 0:  return TableReference(TableId::MethodDef, split.second);
         case 1:  return TableReference(TableId::MemberRef, split.second);
-        default: throw std::logic_error("Too many bits!");
+        default: DebugFail("Too many bits!"); return TableReference();
         }
     }
 
@@ -656,7 +658,7 @@ namespace {
         case 1:  return TableReference(TableId::ModuleRef,   split.second);
         case 2:  return TableReference(TableId::AssemblyRef, split.second);
         case 3:  return TableReference(TableId::TypeRef,     split.second);
-        default: throw std::logic_error("Too many bits!");
+        default: DebugFail("Too many bits!"); return TableReference();
         }
     }
 
@@ -668,7 +670,7 @@ namespace {
         case 0:  return TableReference(TableId::TypeDef,  split.second);
         case 1:  return TableReference(TableId::TypeRef,  split.second);
         case 2:  return TableReference(TableId::TypeSpec, split.second);
-        default: return TableReference(); // TODO ERROR HANDLING
+        default: throw ReadException("Invalid TypeDefOrRef composite index value encountered");
         }
     }
 
@@ -679,7 +681,7 @@ namespace {
         {
         case 0:  return TableReference(TableId::TypeDef,   split.second);
         case 1:  return TableReference(TableId::MethodDef, split.second);
-        default: throw std::logic_error("Too many bits!");
+        default: DebugFail("Too many bits!"); return TableReference();
         }
     }
 
@@ -717,9 +719,10 @@ namespace {
         SizeType const rowSize(database.GetTables().GetTable(TSourceId).GetRowSize());
         SizeType const logicalIndex(byteOffset / rowSize);
 
-        if (logicalIndex == database.GetTables().GetRowCount(TSourceId))
+        SizeType const targetTableRowCount(database.GetTables().GetTable(TSourceId).GetRowCount());
+        if (logicalIndex == targetTableRowCount)
         {
-            return TableReference(TTargetId, database.GetTables().GetRowCount(TTargetId));
+            return TableReference(TTargetId, targetTableRowCount);
         }
         else
         {
@@ -737,17 +740,19 @@ namespace CxxReflect { namespace Metadata {
             return existingIt->second;
 
         char const* pointer(_stream.ReinterpretAs<char>(index));
-        int const required(MultiByteToWideChar(CP_UTF8, 0, pointer, -1, nullptr, 0));
+        int const required(Platform::ComputeUtf16LengthOfUtf8String(pointer));
 
-        auto const range(_buffer.Allocate(required));
-        int const actual(MultiByteToWideChar(CP_UTF8, 0, pointer, -1, range.Begin(), required));
-        if (actual != required)
+        auto const range(_buffer.allocate(required));
+        if (!Platform::ConvertUtf8ToUtf16(pointer, range.begin(), required))
             throw std::logic_error("wtf");
 
-        return _index.insert(std::make_pair(index, String(range.Begin(), range.End()))).first->second;
+        return _index.insert(std::make_pair(index, String(range.begin(), range.end()))).first->second;
     }
 
-    Stream::Stream(FileHandle& file, SizeType metadataOffset, SizeType streamOffset, SizeType streamSize)
+    Stream::Stream(FileHandle& file,
+                   SizeType const metadataOffset,
+                   SizeType const streamOffset,
+                   SizeType const streamSize)
         : _size(streamSize)
     {
         _data.reset(new Byte[streamSize]);
@@ -972,7 +977,7 @@ namespace CxxReflect { namespace Metadata {
         CXXREFLECT_GENERATE(TypeDef, 3, GetStringHeapIndexSize());
         CXXREFLECT_GENERATE(TypeDef, 4, GetCompositeIndexSize(CompositeIndex::TypeDefOrRef));
         CXXREFLECT_GENERATE(TypeDef, 5, GetTableIndexSize(TableId::Field));
-        CXXREFLECT_GENERATE(TypeDef, 5, GetTableIndexSize(TableId::MethodDef));
+        CXXREFLECT_GENERATE(TypeDef, 6, GetTableIndexSize(TableId::MethodDef));
 
         CXXREFLECT_GENERATE(TypeRef, 1, GetCompositeIndexSize(CompositeIndex::ResolutionScope));
         CXXREFLECT_GENERATE(TypeRef, 2, GetStringHeapIndexSize());
@@ -1005,11 +1010,6 @@ namespace CxxReflect { namespace Metadata {
         return _state._columnOffsets[AsInteger(table)][column];
     }
 
-    SizeType TableCollection::GetRowCount(TableId const id) const
-    {
-        return _state._rowCounts[AsInteger(id)];
-    }
-
     Table const& TableCollection::GetTable(TableId const id) const
     {
         return _state._tables[AsInteger(id)];
@@ -1020,14 +1020,13 @@ namespace CxxReflect { namespace Metadata {
         return _state._rowCounts[AsInteger(id)] < (1 << 16) ? 2 : 4;
     }
 
-    Database::Database(wchar_t const* fileName)
+    Database::Database(wchar_t const* const fileName)
         : _fileName(fileName)
     {
         FileHandle file(fileName);
 
-        PeSectionsAndCliHeader peSectionsAndCliHeader(ReadPeSectionsAndCliHeader(file));
-
-        PeCliStreamHeaderSequence streamHeaders(ReadPeCliStreamHeaders(file, peSectionsAndCliHeader));
+        PeSectionsAndCliHeader const peSectionsAndCliHeader(ReadPeSectionsAndCliHeader(file));
+        PeCliStreamHeaderSequence const streamHeaders(ReadPeCliStreamHeaders(file, peSectionsAndCliHeader));
         for (std::size_t i(0); i < streamHeaders.size(); ++i)
         {
             if (streamHeaders[i]._metadataOffset == 0)
@@ -1083,7 +1082,7 @@ namespace CxxReflect { namespace Metadata {
         return ReadAs<AssemblyAttribute>(_data, GetColumnOffset(2));
     }
 
-    BlobIndex     AssemblyRow::GetPublicKey() const
+    BlobIndex AssemblyRow::GetPublicKey() const
     {
         return ReadBlobHeapIndex(*_database, _data, GetColumnOffset(3));
     }
@@ -1670,21 +1669,3 @@ namespace CxxReflect { namespace Metadata {
     }
 
 } }
-
-int main()
-{
-    using namespace CxxReflect::Metadata;
-
-    Database db(L"C:\\Windows\\Microsoft.NET\\Framework\\v4.0.30319\\mscorlib.dll");
-
-    String moduleName(db.GetRow<TableId::Module>(0).GetName());
-
-    std::vector<String> names;
-    std::transform(db.Begin<TableId::TypeDef>(),
-                   db.End<TableId::TypeDef>(),
-                   std::back_inserter(names),
-                   [&](TypeDefRow const& r)
-    {
-        return r.GetName();
-    });
-}

@@ -12,6 +12,8 @@
 #ifndef CXXREFLECT_METADATADATABASE_HPP_
 #define CXXREFLECT_METADATADATABASE_HPP_
 
+#include "CxxReflect/AssemblyName.hpp"
+#include "CxxReflect/Core.hpp"
 #include "CxxReflect/Utility.hpp"
 
 #include <array>
@@ -23,12 +25,7 @@
 
 namespace CxxReflect { namespace Metadata {
 
-    typedef wchar_t                                Character;
-    typedef Utility::EnhancedCString<Character>    String;
-    typedef std::size_t                            SizeType;
-    typedef std::uint8_t                           Byte;
-    typedef Byte const*                            ByteIterator;
-    typedef std::uint32_t                          BlobIndex;
+    typedef std::uint32_t BlobIndex;
 
     struct ReadException : std::runtime_error
     {
@@ -295,6 +292,7 @@ namespace CxxReflect { namespace Metadata {
         ByteIterator  End()           const { VerifyInitialized(); return _data + _rowCount * _rowSize; }
         bool          IsSorted()      const { VerifyInitialized(); return _isSorted;                    }
         bool          IsInitialized() const {                      return _data != nullptr;             }
+        SizeType      GetRowCount()   const { VerifyInitialized(); return _rowCount;                    }
         SizeType      GetRowSize()    const { VerifyInitialized(); return _rowSize;                     }
 
         ByteIterator At(SizeType const index) const
@@ -352,8 +350,6 @@ namespace CxxReflect { namespace Metadata {
 
         Table const& GetTable(TableId id) const;
 
-        SizeType GetRowCount(TableId id) const;
-
         SizeType GetTableIndexSize(TableId id) const;
         SizeType GetCompositeIndexSize(CompositeIndex index) const;
 
@@ -374,9 +370,6 @@ namespace CxxReflect { namespace Metadata {
 
         typedef std::array<SizeType, MaximumColumnCount>       ColumnOffsetSequence;
         typedef std::array<ColumnOffsetSequence, TableIdCount> TableColumnOffsetSequence;
-
-        // TODO Add a _columnOffsets to allow us to quickly look up indices of specific columns
-        // in each table.
 
         void ComputeCompositeIndexSizes();
         void ComputeTableRowSizes();
@@ -443,7 +436,7 @@ namespace CxxReflect { namespace Metadata {
 
     private:
 
-        typedef Utility::LinearArrayAllocator<Character, (1 << 16)> Allocator;
+        typedef detail::linear_array_allocator<Character, (1 << 16)> Allocator;
 
         StringCollection(StringCollection const&);
         StringCollection& operator=(StringCollection const&);
@@ -471,7 +464,7 @@ namespace CxxReflect { namespace Metadata {
         template <TableId TId>
         RowIterator<TId> End() const
         {
-            return RowIterator<TId>(this, _tables.GetRowCount(TId));
+            return RowIterator<TId>(this, _tables.GetTable(TId).GetRowCount());
         }
 
         template <TableId TId>
@@ -534,8 +527,8 @@ namespace CxxReflect { namespace Metadata {
         RowIterator& operator--()    { --_index; return *this;                      }
         RowIterator  operator--(int) { RowIterator it(*this); --*this; return it;   }
 
-        RowIterator& operator+=(DifferenceType const n) const { _index += n; return *this; }
-        RowIterator& operator-=(DifferenceType const n) const { _index -= n; return *this; }
+        RowIterator& operator+=(DifferenceType const n) { _index += n; return *this; }
+        RowIterator& operator-=(DifferenceType const n) { _index -= n; return *this; }
 
         Reference operator[](DifferenceType const n) const
         {

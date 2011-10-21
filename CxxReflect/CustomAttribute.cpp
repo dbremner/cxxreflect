@@ -3,34 +3,7 @@
 //     (See accompanying file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)    //
 
 #include "CxxReflect/CustomAttribute.hpp"
-#include "CxxReflect/Utility.hpp"
-
-using CxxReflect::Utility::DebugVerifyNotNull;
 
 namespace CxxReflect {
-
-    CustomAttribute::CustomAttribute(Assembly const* assembly, MetadataToken token)
-        : _assembly(assembly), _token(token)
-    {
-        DebugVerifyNotNull(_assembly);
-    }
-
-    void CustomAttribute::RealizeConstructor() const
-    {
-        if (_state.IsSet(RealizedConstructor)) { return; }
-
-        // TODO
-
-        _state.Set(RealizedConstructor);
-    }
-
-    void CustomAttribute::RealizeArguments() const
-    {
-        if (_state.IsSet(RealizedArguments)) { return; }
-
-        // TODO
-
-        _state.Set(RealizedArguments);
-    }
 
 }

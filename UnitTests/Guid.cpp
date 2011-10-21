@@ -11,6 +11,7 @@ namespace CxxReflectTest {
 
     void Index::VerifyGuid()
     {
+        /*
         using CxxReflect::Guid;
         using CxxReflect::String;
 
@@ -28,7 +29,7 @@ namespace CxxReflectTest {
 
         bool seq(s == t);
         bool geq(g == h);
-
+        */
     }
 
 }

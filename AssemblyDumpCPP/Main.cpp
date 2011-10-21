@@ -8,7 +8,7 @@
 // to validate that the CxxReflect library is functionally equivalent (where appropriate) to the
 // .NET Reflection API. 
 
-#include "CxxReflect/CxxReflect.hpp"
+#include "CxxReflect/MetadataDatabase.hpp"
 
 #include <combaseapi.h>
 
@@ -16,8 +16,8 @@
 #include <fstream>
 #include <iostream>
 
-using namespace CxxReflect;
-
+using namespace CxxReflect::Metadata;
+/*
 namespace
 {
     void Dump(std::wostream& os, Assembly const& a);
@@ -60,7 +60,7 @@ namespace
         os << L"     -- Namespace [" << t.GetNamespace() << L"]\n";
     }
 }
-
+*//*
 int main()
 {
     CoInitializeEx(0, COINIT_APARTMENTTHREADED);
@@ -77,3 +77,36 @@ int main()
     std::wofstream os("d:\\jm\\mscorlib.cpp.txt");
     Dump(os, *a);
 }
+*/
+
+
+int main()
+{
+    using namespace CxxReflect;
+    using namespace CxxReflect::Metadata;
+
+    Database db(L"C:\\Windows\\Microsoft.NET\\Framework\\v4.0.30319\\mscorlib.dll");
+
+    String moduleName(db.GetRow<TableId::Module>(0).GetName());
+
+    std::vector<std::wstring> names;
+    std::transform(db.Begin<TableId::TypeDef>(),
+                   db.End<TableId::TypeDef>(),
+                   std::back_inserter(names),
+                   [&](TypeDefRow const& r)
+    {
+        return r.GetName().c_str();
+    });
+
+    TypeDefRow object(db.GetRow<TableId::TypeDef>(1));
+    std::vector<std::wstring> functions;
+    std::transform(db.Begin<TableId::MethodDef>() + (object.GetFirstMethod().GetIndex() - 1),
+                   db.Begin<TableId::MethodDef>() + (object.GetLastMethod().GetIndex() - 1),
+                   std::back_inserter(functions),
+                   [&](MethodDefRow const& r)
+    {
+        return r.GetName().c_str();
+    });
+}
+
+

@@ -5,7 +5,7 @@
 #ifndef CXXREFLECT_ASSEMBLYNAME_HPP_
 #define CXXREFLECT_ASSEMBLYNAME_HPP_
 
-#include "CxxReflect/CoreDeclarations.hpp"
+#include "CxxReflect/Core.hpp"
 
 #include <array>
 #include <cstdint>

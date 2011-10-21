@@ -7,7 +7,7 @@
 #ifndef CXXREFLECT_UTILITY_HPP_
 #define CXXREFLECT_UTILITY_HPP_
 
-#include "CxxReflect/CoreDeclarations.hpp"
+#include "CxxReflect/Core.hpp"
 #include "CxxReflect/Exceptions.hpp"
 
 #include <array>
@@ -98,60 +98,6 @@ namespace CxxReflect { namespace Utility {
     private:
 
         T _value;
-    };
-
-    template <typename T>
-    class EnhancedCString
-    {
-    public:
-
-        typedef T                               ValueType;
-        typedef T const*                        Pointer;
-        typedef T const&                        Reference;
-        typedef std::size_t                     SizeType;
-
-        typedef T const*                        Iterator;
-        typedef std::reverse_iterator<Iterator> ReverseIterator;
-
-        EnhancedCString()
-            : _first(nullptr), _last(nullptr)
-        {
-        }
-
-        explicit EnhancedCString(Pointer first)
-            : _first(first)
-        {
-            if (first == nullptr)
-                return;
-
-            for (_last = first; *_last != 0; ++_last);
-            ++_last; // One-past-the-end of the null terminator
-        }
-
-        EnhancedCString(Pointer first, Pointer last)
-            : _first(first), _last(last)
-        {
-        }
-
-        template <SizeType N>
-        EnhancedCString(ValueType (&data)[N])
-            : _first(data), _last(data + N)
-        {
-        }
-
-        Iterator        Begin()        const { return _first;                  }
-        Iterator        End()          const { return _last;                   }
-
-        ReverseIterator ReverseBegin() const { return ReverseIterator(_last);  }
-        ReverseIterator ReverseEnd()   const { return ReverseIterator(_first); }
-
-        Pointer         CStr()         const { return _first;                  }
-        Pointer         Data()         const { return _first;                  }
-
-    private:
-
-        Pointer _first;
-        Pointer _last;
     };
 
     struct FileReadException : std::runtime_error
@@ -245,146 +191,6 @@ namespace CxxReflect { namespace Utility {
     private:
 
         IntegerType _value;
-    };
-
-    // A linear allocator for arrays; this is most useful for the allocation of strings.
-    template <typename T, std::size_t TBlockSize>
-    class LinearArrayAllocator
-    {
-    public:
-
-        typedef std::size_t SizeType;
-        typedef T           ValueType;
-        typedef T*          Pointer;
-
-        enum { BlockSize = TBlockSize };
-
-        class Range
-        {
-        public:
-
-            Range()
-                : _begin(nullptr), _end(nullptr)
-            {
-            }
-
-            Range(Pointer const begin, Pointer const end)
-                : _begin(begin), _end(end)
-            {
-            }
-
-            Pointer Begin() const { return _begin; }
-            Pointer End()   const { return _end;   }
-
-        private:
-
-            Pointer _begin;
-            Pointer _end;
-        };
-
-        LinearArrayAllocator()
-        {
-        }
-
-        LinearArrayAllocator(LinearArrayAllocator&& other)
-            : _blocks(std::move(other._blocks)),
-              _current(std::move(other._current))
-        {
-            other._current = BlockIterator();
-        }
-
-        LinearArrayAllocator& operator=(LinearArrayAllocator&& other)
-        {
-            Swap(other);
-            return *this;
-        }
-
-        void Swap(LinearArrayAllocator& other)
-        {
-            std::swap(other._blocks,  _blocks);
-            std::swap(other._current, _current);
-        }
-
-        Range Allocate(SizeType const n)
-        {
-            EnsureAvailable(n);
-
-            Range const r(&*_current, &*_current + n);
-            _current += n;
-            return r;
-        }
-
-    private:
-
-        typedef std::array<ValueType, BlockSize> BlockType;
-        typedef std::unique_ptr<BlockType>       BlockPointer;
-        typedef std::vector<BlockPointer>        BlockSequence;
-        typedef typename BlockType::iterator     BlockIterator;
-
-        LinearArrayAllocator(LinearArrayAllocator const&);
-        LinearArrayAllocator& operator=(LinearArrayAllocator const&);
-
-        void EnsureAvailable(SizeType const n)
-        {
-            if (n > BlockSize)
-                throw std::bad_alloc("Size exceeds maximum block size");
-
-            if (_blocks.size() > 0)
-            {
-                if (static_cast<SizeType>(std::distance(_current, _blocks.back()->end())) >= n)
-                    return;
-            }
-
-            _blocks.emplace_back(new BlockType);
-            _current = _blocks.back()->begin();
-        }
-
-        BlockSequence _blocks;
-        BlockIterator _current;
-    };
-
-    static const std::uint32_t InvalidMetadataTokenValue = 0x00000000;
-    static const std::uint32_t MetadataTokenKindMask     = 0xFF000000;
-
-    class MetadataToken
-    {
-    public:
-
-        MetadataToken()
-            : _token(InvalidMetadataTokenValue)
-        {
-        }
-
-        MetadataToken(std::uint32_t token)
-            : _token(token)
-        {
-        }
-
-        void Set(std::uint32_t token)
-        {
-            _token = token;
-        }
-
-        std::uint32_t Get() const
-        {
-            //TODO Verify([&]{ return IsInitialized(); });
-            return _token;
-        }
-
-        MetadataTokenKind GetType() const
-        {
-            //TODO Verify([&]{ return IsInitialized(); });
-            return static_cast<MetadataTokenKind>(_token & MetadataTokenKindMask);
-        }
-
-        bool IsInitialized() const
-        {
-            return _token != InvalidMetadataTokenValue;
-        }
-
-    private:
-
-        std::uint32_t _token;
     };
 
     // A simple, non-thread-safe, intrusive reference-counted base class.
@@ -534,71 +340,7 @@ namespace CxxReflect { namespace Utility {
         return !(rhs < lhs);
     }
 
-    class SimpleScopeGuard
-    {
-    public:
-
-        SimpleScopeGuard(std::function<void()> f)
-            : f_(f)
-        {
-        }
-
-        void Unset() { f_ = nullptr; }
-
-        ~SimpleScopeGuard()
-        {
-            if (f_) { f_(); }
-        }
-
-    private:
-
-        std::function<void()> f_;
-    };
-
-    typedef std::array<std::uint8_t, 20> Sha1Hash;
-
-    // Computes the 20 byte SHA1 hash for the bytes in the range [first, last).
-    Sha1Hash ComputeSha1Hash(std::uint8_t const* first, std::uint8_t const* last);
-
-    AssemblyName GetAssemblyNameFromToken(IMetaDataAssemblyImport* import, MetadataToken token);
-
-    // These provide friendly support for char[] aliasing, one of the few forms of aliasing that is
-    // permitted by the language standard.
-    template <typename T>
-    std::uint8_t const* BeginBytes(T const& p)
-    {
-        return reinterpret_cast<std::uint8_t const*>(&p);
-    }
-
-    template <typename T>
-    std::uint8_t const* EndBytes(T const& p)
-    {
-        return reinterpret_cast<std::uint8_t const*>(&p + 1);
-    }
-
-    template <typename T>
-    std::reverse_iterator<std::uint8_t const*> BeginReverseBytes(T const& p)
-    {
-        return std::reverse_iterator<std::uint8_t const*>(EndBytes(p));
-    }
-
-    template <typename T>
-    std::reverse_iterator<std::uint8_t const*> EndReverseBytes(T const& p)
-    {
-        return std::reverse_iterator<std::uint8_t const*>(BeginBytes(p));
-    }
-
-    template <typename T>
-    std::reverse_iterator<std::uint8_t const*> BeginBigEndianBytes(T const& p)
-    {
-        return std::reverse_iterator<std::uint8_t const*>(EndBytes(p)); // TODO Fix for big-endian machines?
-    }
-
-    template <typename T>
-    std::reverse_iterator<std::uint8_t const*> EndBigEndianBytes(T const& p)
-    {
-        return std::reverse_iterator<std::uint8_t const*>(BeginBytes(p)); // TODO Fix for big-endian machines?
-    }
+    // TODO AssemblyName GetAssemblyNameFromToken(IMetaDataAssemblyImport* import, MetadataToken token);
 
 } }
 
