@@ -2,6 +2,7 @@
 //                   Distributed under the Boost Software License, Version 1.0.                   //
 //     (See accompanying file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)    //
 
+#include "CxxReflect/AssemblyName.hpp"
 #include "CxxReflect/MetadataDatabase.hpp"
 #include "CxxReflect/Utility.hpp"
 
@@ -9,6 +10,7 @@
 #include <algorithm>
 #include <array>
 #include <cstdint>
+#include <numeric>
 #include <vector>
 #include <winnls.h>
 
@@ -18,10 +20,7 @@ using CxxReflect::Utility::DebugVerify;
 using CxxReflect::Utility::EnhancedCString;
 using CxxReflect::Utility::FileHandle;
 
-using CxxReflect::Metadata::Database;
-using CxxReflect::Metadata::ReadException;
-using CxxReflect::Metadata::TableId;
-using CxxReflect::Metadata::TableIdSizeArray;
+using namespace CxxReflect::Metadata;
 
 namespace {
 
@@ -172,6 +171,16 @@ namespace {
         return rvaAndSize._rva - section._virtualAddress + section._rawDataOffset;
     }
 
+    struct FourComponentVersion
+    {
+        std::uint16_t _major;
+        std::uint16_t _minor;
+        std::uint16_t _build;
+        std::uint16_t _revision;
+    };
+
+    static_assert(sizeof(FourComponentVersion) == 8, "Invalid FourComponentVersion Definition");
+
     struct PeSectionsAndCliHeader
     {
         PeSectionHeaderSequence _sections;
@@ -303,11 +312,16 @@ namespace {
         return streamHeaders;
     }
 
-    #define CXXREFLECT_GENERATE(x) (tableSizes[AsInteger(TableId::x)] < (1 << (16 - tagBits)))
+    CompositeIndexSizeArray const CompositeIndexTagSize =
+    {
+        2, 2, 5, 1, 2, 3, 1, 1, 1, 2, 3, 2, 1
+    };
+
+    #define CXXREFLECT_GENERATE(x) \
+        (tableSizes[AsInteger(TableId::x)] < (1ull << (16 - CompositeIndexTagSize[AsInteger(TableId::x)])))
 
     std::size_t ComputeTypeDefOrRefIndexSize(TableIdSizeArray const& tableSizes)
     {
-        std::uint32_t const tagBits(2);
         return CXXREFLECT_GENERATE(TypeDef)
             && CXXREFLECT_GENERATE(TypeRef)
             && CXXREFLECT_GENERATE(TypeSpec) ? 2 : 4;
@@ -315,7 +329,6 @@ namespace {
 
     std::size_t ComputeHasConstantIndexSize(TableIdSizeArray const& tableSizes)
     {
-        std::uint32_t const tagBits(2);
         return CXXREFLECT_GENERATE(Field)
             && CXXREFLECT_GENERATE(Param)
             && CXXREFLECT_GENERATE(Property) ? 2 : 4;
@@ -323,7 +336,6 @@ namespace {
 
     std::size_t ComputeHasCustomAttributeIndexSize(TableIdSizeArray const& tableSizes)
     {
-        std::uint32_t const tagBits(5);
         return CXXREFLECT_GENERATE(MethodDef)
             && CXXREFLECT_GENERATE(Field)
             && CXXREFLECT_GENERATE(TypeRef)
@@ -349,13 +361,12 @@ namespace {
 
     std::size_t ComputeHasFieldMarshalIndexSize(TableIdSizeArray const& tableSizes)
     {
-        std::uint32_t const tagBits(1);
-        return CXXREFLECT_GENERATE(Field) && CXXREFLECT_GENERATE(Param) ? 2 : 4;
+        return CXXREFLECT_GENERATE(Field)
+            && CXXREFLECT_GENERATE(Param) ? 2 : 4;
     }
 
     std::size_t ComputeHasDeclSecurityIndexSize(TableIdSizeArray const& tableSizes)
     {
-        std::uint32_t const tagBits(2);
         return CXXREFLECT_GENERATE(TypeDef)
             && CXXREFLECT_GENERATE(MethodDef)
             && CXXREFLECT_GENERATE(Assembly) ? 2 : 4;
@@ -363,7 +374,6 @@ namespace {
 
     std::size_t ComputeMemberRefParentIndexSize(TableIdSizeArray const& tableSizes)
     {
-        std::uint32_t const tagBits(3);
         return CXXREFLECT_GENERATE(TypeDef)
             && CXXREFLECT_GENERATE(TypeRef)
             && CXXREFLECT_GENERATE(ModuleRef)
@@ -373,25 +383,24 @@ namespace {
 
     std::size_t ComputeHasSemanticsIndexSize(TableIdSizeArray const& tableSizes)
     {
-        std::uint32_t const tagBits(1);
-        return CXXREFLECT_GENERATE(Event) && CXXREFLECT_GENERATE(Property) ? 2 : 4;
+        return CXXREFLECT_GENERATE(Event)
+            && CXXREFLECT_GENERATE(Property) ? 2 : 4;
     }
 
     std::size_t ComputeMethodDefOrRefIndexSize(TableIdSizeArray const& tableSizes)
     {
-        std::uint32_t const tagBits(1);
-        return CXXREFLECT_GENERATE(MethodDef) && CXXREFLECT_GENERATE(MemberRef) ? 2 : 4;
+        return CXXREFLECT_GENERATE(MethodDef)
+            && CXXREFLECT_GENERATE(MemberRef) ? 2 : 4;
     }
 
     std::size_t ComputeMemberForwardedIndexSize(TableIdSizeArray const& tableSizes)
     {
-        std::uint32_t const tagBits(1);
-        return CXXREFLECT_GENERATE(Field) && CXXREFLECT_GENERATE(MethodDef) ? 2 : 4;
+        return CXXREFLECT_GENERATE(Field)
+            && CXXREFLECT_GENERATE(MethodDef) ? 2 : 4;
     }
 
     std::size_t ComputeImplementationIndexSize(TableIdSizeArray const& tableSizes)
     {
-        std::uint32_t const tagBits(2);
         return CXXREFLECT_GENERATE(File)
             && CXXREFLECT_GENERATE(AssemblyRef)
             && CXXREFLECT_GENERATE(ExportedType) ? 2 : 4;
@@ -399,13 +408,11 @@ namespace {
 
     std::size_t ComputeCustomAttributeTypeIndexSize(TableIdSizeArray const& tableSizes)
     {
-        std::uint32_t const tagBits(3);
         return CXXREFLECT_GENERATE(MethodDef) && CXXREFLECT_GENERATE(MemberRef) ? 2 : 4;
     }
 
     std::size_t ComputeResolutionScopeIndexSize(TableIdSizeArray const& tableSizes)
     {
-        std::uint32_t const tagBits(2);
         return CXXREFLECT_GENERATE(Module)
             && CXXREFLECT_GENERATE(ModuleRef)
             && CXXREFLECT_GENERATE(AssemblyRef)
@@ -414,59 +421,310 @@ namespace {
 
     std::size_t ComputeTypeOrMethodDefIndexSize(TableIdSizeArray const& tableSizes)
     {
-        std::uint32_t const tagBits(1);
-        return CXXREFLECT_GENERATE(TypeDef) && CXXREFLECT_GENERATE(MethodDef) ? 2 : 4;
+        return CXXREFLECT_GENERATE(TypeDef)
+            && CXXREFLECT_GENERATE(MethodDef) ? 2 : 4;
     }
 
     #undef CXXREFLECT_GENERATE
 
     template <typename T>
-    T const& ReadAs(std::uint8_t const* const data, std::size_t const index)
+    T const& ReadAs(ByteIterator const data, SizeType const index)
     {
         return *reinterpret_cast<T const*>(data + index);
     }
 
-    std::uint32_t ReadTableIndex(Database const*     const database,
-                                 std::uint8_t const* const data,
-                                 TableId             const table,
-                                 std::size_t         const index = 0)
+    std::uint32_t ReadTableIndex(Database const&       database,
+                                 ByteIterator    const data,
+                                 TableId         const table,
+                                 SizeType        const offset)
     {
-        switch (database->GetTables().GetTableIndexSize(table))
+        switch (database.GetTables().GetTableIndexSize(table))
         {
-        case 2:  return ReadAs<std::uint16_t>(data, index);
-        case 4:  return ReadAs<std::uint32_t>(data, index);
+        case 2:  return ReadAs<std::uint16_t>(data, offset);
+        case 4:  return ReadAs<std::uint32_t>(data, offset);
         default: DebugFail("Invalid table index size");
         }
 
         return 0;
     }
 
-    std::uint32_t ReadBlobHeapIndex(Database const*     const database,
-                                    std::uint8_t const* const data,
-                                    std::size_t         const index = 0)
+    std::uint32_t ReadCompositeIndex(Database const&       database,
+                                     ByteIterator    const data,
+                                     CompositeIndex  const index,
+                                     SizeType        const offset)
     {
-        switch (database->GetTables().GetBlobHeapIndexSize())
+        switch (database.GetTables().GetCompositeIndexSize(index))
         {
-        case 2:  return ReadAs<std::uint16_t>(data, index);
-        case 4:  return ReadAs<std::uint32_t>(data, index);
+            case 2:  return ReadAs<std::uint16_t>(data, offset);
+            case 4:  return ReadAs<std::uint32_t>(data, offset);
+            default: DebugFail("Invalid composite index size");
+        }
+        
+        return 0;
+    }
+
+    std::uint32_t ReadBlobHeapIndex(Database const& database, ByteIterator const data, SizeType const offset)
+    {
+        switch (database.GetTables().GetBlobHeapIndexSize())
+        {
+        case 2:  return ReadAs<std::uint16_t>(data, offset);
+        case 4:  return ReadAs<std::uint32_t>(data, offset);
         default: DebugFail("Invalid blob heap index size");
         }
 
         return 0;
     }
 
-    std::uint32_t ReadStringHeapIndex(Database const*     const database,
-                                      std::uint8_t const* const data,
-                                      std::size_t         const index = 0)
+    std::uint32_t ReadStringHeapIndex(Database const& database, ByteIterator const data, SizeType const offset)
     {
-        switch (database->GetTables().GetStringHeapIndexSize())
+        switch (database.GetTables().GetStringHeapIndexSize())
         {
-        case 2:  return ReadAs<std::uint16_t>(data, index);
-        case 4:  return ReadAs<std::uint32_t>(data, index);
+        case 2:  return ReadAs<std::uint16_t>(data, offset);
+        case 4:  return ReadAs<std::uint32_t>(data, offset);
         default: DebugFail("Invalid string heap index size");
         }
 
         return 0;
+    }
+
+    String ReadString(Database const& database, ByteIterator const data, SizeType const offset)
+    {
+        return database.GetStrings().At(ReadStringHeapIndex(database, data, offset));
+    }
+
+    TableReference ReadTableReference(Database const&       database,
+                                      ByteIterator    const data,
+                                      TableId         const table,
+                                      SizeType        const offset)
+    {
+        return TableReference(table, ReadTableIndex(database, data, table, offset));
+    }
+
+    typedef std::pair<std::uint32_t, std::uint32_t> TagIndexPair;
+
+    TagIndexPair SplitCompositeIndex(CompositeIndex const index, std::uint32_t const value)
+    {
+        std::uint32_t const tagBits(CompositeIndexTagSize[AsInteger(index)]);
+        return std::make_pair(
+            value & ((static_cast<std::uint32_t>(1u) << tagBits) - 1),
+            value >> tagBits
+            );
+    }
+
+    TableReference DecodeCustomAttributeTypeIndex(std::uint32_t const value)
+    {
+        TagIndexPair const split(SplitCompositeIndex(CompositeIndex::CustomAttributeType, value));
+        switch (split.first)
+        {
+        case 2:  return TableReference(TableId::MethodDef, split.second);
+        case 3:  return TableReference(TableId::MemberRef, split.second);
+        default: return TableReference(); // TODO ERROR HANDLING
+        }
+    }
+
+    TableReference DecodeHasConstantIndex(std::uint32_t const value)
+    {
+        TagIndexPair const split(SplitCompositeIndex(CompositeIndex::HasConstant, value));
+        switch (split.first)
+        {
+        case 0:  return TableReference(TableId::Field,    split.second);
+        case 1:  return TableReference(TableId::Param,    split.second);
+        case 2:  return TableReference(TableId::Property, split.second);
+        default: return TableReference(); // TODO
+        }
+    }
+
+    TableReference DecodeHasCustomAttributeIndex(std::uint32_t const value)
+    {
+        TagIndexPair const split(SplitCompositeIndex(CompositeIndex::HasCustomAttribute, value));
+        switch (split.first)
+        {
+        case  0: return TableReference(TableId::MethodDef,              split.second);
+        case  1: return TableReference(TableId::Field,                  split.second);
+        case  2: return TableReference(TableId::TypeRef,                split.second);
+        case  3: return TableReference(TableId::TypeDef,                split.second);
+        case  4: return TableReference(TableId::Param,                  split.second);
+        case  5: return TableReference(TableId::InterfaceImpl,          split.second);
+        case  6: return TableReference(TableId::MemberRef,              split.second);
+        case  7: return TableReference(TableId::Module,                 split.second);
+        // case  8: return TableReference(TableId::Permission,          split.second); // TODO WHAT IS THIS?
+        case  9: return TableReference(TableId::Property,               split.second);
+        case 10: return TableReference(TableId::Event,                  split.second);
+        case 11: return TableReference(TableId::StandaloneSig,          split.second);
+        case 12: return TableReference(TableId::ModuleRef,              split.second);
+        case 13: return TableReference(TableId::TypeSpec,               split.second);
+        case 14: return TableReference(TableId::Assembly,               split.second);
+        case 15: return TableReference(TableId::AssemblyRef,            split.second);
+        case 16: return TableReference(TableId::File,                   split.second);
+        case 17: return TableReference(TableId::ExportedType,           split.second);
+        case 18: return TableReference(TableId::ManifestResource,       split.second);
+        case 19: return TableReference(TableId::GenericParam,           split.second);
+        case 20: return TableReference(TableId::GenericParamConstraint, split.second);
+        case 21: return TableReference(TableId::MethodSpec,             split.second);
+        default: return TableReference(); // TODO ERROR HANDLING
+        }
+    }
+
+    TableReference DecodeHasDeclSecurityIndex(std::uint32_t const value)
+    {
+        TagIndexPair const split(SplitCompositeIndex(CompositeIndex::HasFieldMarshal, value));
+        switch (split.first)
+        {
+        case 0:  return TableReference(TableId::TypeDef,   split.second);
+        case 1:  return TableReference(TableId::MethodDef, split.second);
+        case 2:  return TableReference(TableId::Assembly,  split.second);
+        default: return TableReference(); // TODO ERROR HANDLING
+        }
+    }
+
+    TableReference DecodeHasFieldMarshalIndex(std::uint32_t const value)
+    {
+        TagIndexPair const split(SplitCompositeIndex(CompositeIndex::HasFieldMarshal, value));
+        switch (split.first)
+        {
+        case 0:  return TableReference(TableId::Field, split.second);
+        case 1:  return TableReference(TableId::Param, split.second);
+        default: throw std::logic_error("Too many bits!");
+        }
+    }
+
+    TableReference DecodeHasSemanticsIndex(std::uint32_t const value)
+    {
+        TagIndexPair const split(SplitCompositeIndex(CompositeIndex::HasSemantics, value));
+        switch (split.first)
+        {
+        case 0:  return TableReference(TableId::Event,    split.second);
+        case 1:  return TableReference(TableId::Property, split.second);
+        default: throw std::logic_error("Too many bits!");
+        }
+    }
+
+    TableReference DecodeImplementationIndex(std::uint32_t const value)
+    {
+        TagIndexPair const split(SplitCompositeIndex(CompositeIndex::Implementation, value));
+        switch (split.first)
+        {
+        case 0:  return TableReference(TableId::File,         split.second);
+        case 1:  return TableReference(TableId::AssemblyRef,  split.second);
+        case 2:  return TableReference(TableId::ExportedType, split.second);
+        default: return TableReference(); // TODO ERROR HANDLING
+        }
+    }
+
+    TableReference DecodeMemberForwardedIndex(std::uint32_t const value)
+    {
+        TagIndexPair const split(SplitCompositeIndex(CompositeIndex::MemberForwarded, value));
+        switch (split.first)
+        {
+        case 0:  return TableReference(TableId::Field,     split.second);
+        case 1:  return TableReference(TableId::MethodDef, split.second);
+        default: throw std::logic_error("Too many bits!");
+        }
+    }
+
+    TableReference DecodeMemberRefParentIndex(std::uint32_t const value)
+    {
+        TagIndexPair const split(SplitCompositeIndex(CompositeIndex::MemberRefParent, value));
+        switch (split.first)
+        {
+        case 0:  return TableReference(TableId::TypeDef,   split.second);
+        case 1:  return TableReference(TableId::TypeRef,   split.second);
+        case 2:  return TableReference(TableId::ModuleRef, split.second);
+        case 3:  return TableReference(TableId::MethodDef, split.second);
+        case 4:  return TableReference(TableId::TypeSpec,  split.second);
+        default: return TableReference(); // TODO ERROR HANDLING
+        }
+    }
+
+    TableReference DecodeMethodDefOrRefIndex(std::uint32_t const value)
+    {
+        TagIndexPair const split(SplitCompositeIndex(CompositeIndex::MethodDefOrRef, value));
+        switch (split.first)
+        {
+        case 0:  return TableReference(TableId::MethodDef, split.second);
+        case 1:  return TableReference(TableId::MemberRef, split.second);
+        default: throw std::logic_error("Too many bits!");
+        }
+    }
+
+    TableReference DecodeResolutionScopeIndex(std::uint32_t const value)
+    {
+        TagIndexPair const split(SplitCompositeIndex(CompositeIndex::ResolutionScope, value));
+        switch (split.first)
+        {
+        case 0:  return TableReference(TableId::Module,      split.second);
+        case 1:  return TableReference(TableId::ModuleRef,   split.second);
+        case 2:  return TableReference(TableId::AssemblyRef, split.second);
+        case 3:  return TableReference(TableId::TypeRef,     split.second);
+        default: throw std::logic_error("Too many bits!");
+        }
+    }
+
+    TableReference DecodeTypeDefOrRefIndex(std::uint32_t const value)
+    {
+        TagIndexPair const split(SplitCompositeIndex(CompositeIndex::TypeDefOrRef, value));
+        switch (split.first)
+        {
+        case 0:  return TableReference(TableId::TypeDef,  split.second);
+        case 1:  return TableReference(TableId::TypeRef,  split.second);
+        case 2:  return TableReference(TableId::TypeSpec, split.second);
+        default: return TableReference(); // TODO ERROR HANDLING
+        }
+    }
+
+    TableReference DecodeTypeOrMethodDefIndex(std::uint32_t const value)
+    {
+        TagIndexPair const split(SplitCompositeIndex(CompositeIndex::TypeOrMethodDef, value));
+        switch (split.first)
+        {
+        case 0:  return TableReference(TableId::TypeDef,   split.second);
+        case 1:  return TableReference(TableId::MethodDef, split.second);
+        default: throw std::logic_error("Too many bits!");
+        }
+    }
+
+    TableReference ReadTableReference(Database const&       database,
+                                      ByteIterator    const data,
+                                      CompositeIndex  const index,
+                                      SizeType        const offset)
+    {
+        std::uint32_t const value(ReadCompositeIndex(database, data, index, offset));
+        switch (index)
+        {
+        case CompositeIndex::CustomAttributeType: return DecodeCustomAttributeTypeIndex(value);
+        case CompositeIndex::HasConstant:         return DecodeHasConstantIndex(value);
+        case CompositeIndex::HasCustomAttribute:  return DecodeHasCustomAttributeIndex(value);
+        case CompositeIndex::HasDeclSecurity:     return DecodeHasDeclSecurityIndex(value);
+        case CompositeIndex::HasFieldMarshal:     return DecodeHasFieldMarshalIndex(value);
+        case CompositeIndex::HasSemantics:        return DecodeHasSemanticsIndex(value);
+        case CompositeIndex::Implementation:      return DecodeImplementationIndex(value);
+        case CompositeIndex::MemberForwarded:     return DecodeMemberForwardedIndex(value);
+        case CompositeIndex::MemberRefParent:     return DecodeMemberRefParentIndex(value);
+        case CompositeIndex::MethodDefOrRef:      return DecodeMethodDefOrRefIndex(value);
+        case CompositeIndex::ResolutionScope:     return DecodeResolutionScopeIndex(value);
+        case CompositeIndex::TypeDefOrRef:        return DecodeTypeDefOrRefIndex(value);
+        case CompositeIndex::TypeOrMethodDef:     return DecodeTypeOrMethodDefIndex(value);
+        default:  DebugFail("Invalid index");     return TableReference();
+        }
+    }
+
+    template <TableId TSourceId, TableId TTargetId, typename TFirstFunction>
+    TableReference ComputeLastTableReference(Database       const& database,
+                                             ByteIterator   const  data,
+                                             TFirstFunction const  first)
+    {
+        SizeType const byteOffset(data - database.GetTables().GetTable(TSourceId).Begin());
+        SizeType const rowSize(database.GetTables().GetTable(TSourceId).GetRowSize());
+        SizeType const logicalIndex(byteOffset / rowSize);
+
+        if (logicalIndex == database.GetTables().GetRowCount(TSourceId))
+        {
+            return TableReference(TTargetId, database.GetTables().GetRowCount(TTargetId));
+        }
+        else
+        {
+            return (database.GetRow<TSourceId>(logicalIndex + 1).*first)();
+        }
     }
 }
 
@@ -564,76 +822,200 @@ namespace CxxReflect { namespace Metadata {
 
     void TableCollection::ComputeTableRowSizes()
     {
-        // These macros make the computations much easier to read and verify.  TI, CI, and HI get the
-        // size of a table index, a composite index, or a heap, respectively.  If you pick the wrong
-        // one, a compiler error will result.  When reading the list, it's easiest just to think of
-        // them all as "an index".
-        #define RS(x) _state._rowSizes[AsInteger(TableId::x)]
-        #define TI(x) GetTableIndexSize(TableId::x)
-        #define CI(x) GetCompositeIndexSize(CompositeIndex::x)
-        #define HI(x) _state._ ## x ## HeapIndexSize
+        #define CXXREFLECT_GENERATE(x, n, o)                              \
+            _state._columnOffsets[AsInteger(TableId::x)][n] =             \
+            _state._columnOffsets[AsInteger(TableId::x)][n - 1] + o
 
-        RS(Assembly)               = 16 + HI(blob) + (2 * HI(string));
-        RS(AssemblyOs)             = 12;
-        RS(AssemblyProcessor)      = 4;
-        RS(AssemblyRef)            = 12 + (2 * HI(blob)) + (2 * HI(string));
-        RS(AssemblyRefOs)          = 12 + TI(AssemblyRef);
-        RS(AssemblyRefProcessor)   = 4 + TI(AssemblyRef);
-        RS(ClassLayout)            = 6 + TI(TypeDef);
-        RS(Constant)               = 2 + HI(blob) + CI(HasConstant);
-        RS(CustomAttribute)        = CI(HasCustomAttribute) + CI(CustomAttributeType);
-        RS(DeclSecurity)           = 2 + HI(blob) + CI(HasDeclSecurity);
-        RS(EventMap)               = TI(TypeDef) + TI(TypeRef);
-        RS(Event)                  = 2 + HI(string) + CI(TypeDefOrRef);
-        RS(ExportedType)           = 8 + (2 * HI(string)) + CI(Implementation);
-        RS(Field)                  = 2 + HI(string) + HI(blob);
-        RS(FieldLayout)            = 4 + TI(Field);
-        RS(FieldMarshal)           = HI(blob) + CI(HasFieldMarshal);
-        RS(FieldRva)               = 4 + TI(Field);
-        RS(File)                   = 4 + HI(string) + HI(blob);
-        RS(GenericParam)           = 4 + HI(string) + CI(TypeOrMethodDef);
-        RS(GenericParamConstraint) = TI(GenericParam) + CI(TypeDefOrRef);
-        RS(ImplMap)                = 2 + HI(string) + CI(MemberForwarded) + TI(ModuleRef);
-        RS(InterfaceImpl)          = TI(TypeDef) + CI(TypeDefOrRef);
-        RS(ManifestResource)       = 8 + HI(string) + CI(Implementation);
-        RS(MemberRef)              = HI(string) + HI(blob) + CI(MemberRefParent);
-        RS(MethodDef)              = 8 + HI(string) + HI(blob) + TI(Param);
-        RS(MethodImpl)             = TI(TypeDef) + (2 * CI(MethodDefOrRef));
-        RS(MethodSemantics)        = 2 + TI(MethodDef) + CI(HasSemantics);
-        RS(MethodSpec)             = HI(blob) + CI(MethodDefOrRef);
-        RS(Module)                 = 2 + HI(string) + (3 * HI(guid));
-        RS(ModuleRef)              = HI(string);
-        RS(NestedClass)            = 2 * TI(TypeDef);
-        RS(Param)                  = 4 + HI(string);
-        RS(Property)               = 2 + HI(string) + HI(blob);
-        RS(PropertyMap)            = TI(TypeDef) + TI(Property);
-        RS(StandaloneSig)          = HI(blob);
-        RS(TypeDef)                = 4 + (2 * HI(string)) + CI(TypeDefOrRef) + TI(Field) + TI(MethodDef);
-        RS(TypeRef)                = (2 * HI(string)) + CI(ResolutionScope);
-        RS(TypeSpec)               = HI(blob);
+        CXXREFLECT_GENERATE(Assembly, 1, 4);
+        CXXREFLECT_GENERATE(Assembly, 2, 8);
+        CXXREFLECT_GENERATE(Assembly, 3, 4);
+        CXXREFLECT_GENERATE(Assembly, 4, GetBlobHeapIndexSize());
+        CXXREFLECT_GENERATE(Assembly, 5, GetStringHeapIndexSize());
+        CXXREFLECT_GENERATE(Assembly, 6, GetStringHeapIndexSize());
 
-        #undef HI
-        #undef CI
-        #undef TI
-        #undef RS
+        CXXREFLECT_GENERATE(AssemblyOs, 1, 4);
+        CXXREFLECT_GENERATE(AssemblyOs, 2, 4);
+        CXXREFLECT_GENERATE(AssemblyOs, 3, 4);
+
+        CXXREFLECT_GENERATE(AssemblyProcessor, 1, 4);
+        
+        CXXREFLECT_GENERATE(AssemblyRef, 1, 8);
+        CXXREFLECT_GENERATE(AssemblyRef, 2, 4);
+        CXXREFLECT_GENERATE(AssemblyRef, 3, GetBlobHeapIndexSize());
+        CXXREFLECT_GENERATE(AssemblyRef, 4, GetStringHeapIndexSize());
+        CXXREFLECT_GENERATE(AssemblyRef, 5, GetStringHeapIndexSize());
+        CXXREFLECT_GENERATE(AssemblyRef, 6, GetBlobHeapIndexSize());
+
+        CXXREFLECT_GENERATE(AssemblyRefOs, 1, 4);
+        CXXREFLECT_GENERATE(AssemblyRefOs, 2, 4);
+        CXXREFLECT_GENERATE(AssemblyRefOs, 3, 4);
+        CXXREFLECT_GENERATE(AssemblyRefOs, 4, GetTableIndexSize(TableId::AssemblyRef));
+
+        CXXREFLECT_GENERATE(AssemblyRefProcessor, 1, 4);
+        CXXREFLECT_GENERATE(AssemblyRefProcessor, 2, GetTableIndexSize(TableId::AssemblyRef));
+
+        CXXREFLECT_GENERATE(ClassLayout, 1, 2);
+        CXXREFLECT_GENERATE(ClassLayout, 2, 4);
+        CXXREFLECT_GENERATE(ClassLayout, 3, GetTableIndexSize(TableId::TypeDef));
+
+        CXXREFLECT_GENERATE(Constant, 1, 2);
+        CXXREFLECT_GENERATE(Constant, 2, GetCompositeIndexSize(CompositeIndex::HasConstant));
+        CXXREFLECT_GENERATE(Constant, 3, GetBlobHeapIndexSize());
+
+        CXXREFLECT_GENERATE(CustomAttribute, 1, GetCompositeIndexSize(CompositeIndex::HasCustomAttribute));
+        CXXREFLECT_GENERATE(CustomAttribute, 2, GetCompositeIndexSize(CompositeIndex::CustomAttributeType));
+        CXXREFLECT_GENERATE(CustomAttribute, 3, GetBlobHeapIndexSize());
+
+        CXXREFLECT_GENERATE(DeclSecurity, 1, 2);
+        CXXREFLECT_GENERATE(DeclSecurity, 2, GetCompositeIndexSize(CompositeIndex::HasDeclSecurity));
+        CXXREFLECT_GENERATE(DeclSecurity, 3, GetBlobHeapIndexSize());
+
+        CXXREFLECT_GENERATE(EventMap, 1, GetTableIndexSize(TableId::TypeDef));
+        CXXREFLECT_GENERATE(EventMap, 2, GetTableIndexSize(TableId::Event));
+
+        CXXREFLECT_GENERATE(Event, 1, 2);
+        CXXREFLECT_GENERATE(Event, 2, GetStringHeapIndexSize());
+        CXXREFLECT_GENERATE(Event, 3, GetCompositeIndexSize(CompositeIndex::TypeDefOrRef));
+
+        CXXREFLECT_GENERATE(ExportedType, 1, 4);
+        CXXREFLECT_GENERATE(ExportedType, 2, 4);
+        CXXREFLECT_GENERATE(ExportedType, 3, GetStringHeapIndexSize());
+        CXXREFLECT_GENERATE(ExportedType, 4, GetStringHeapIndexSize());
+        CXXREFLECT_GENERATE(ExportedType, 5, GetCompositeIndexSize(CompositeIndex::Implementation));
+
+        CXXREFLECT_GENERATE(Field, 1, 2);
+        CXXREFLECT_GENERATE(Field, 2, GetStringHeapIndexSize());
+        CXXREFLECT_GENERATE(Field, 3, GetBlobHeapIndexSize());
+
+        CXXREFLECT_GENERATE(FieldLayout, 1, 4);
+        CXXREFLECT_GENERATE(FieldLayout, 2, GetTableIndexSize(TableId::Field));
+
+        CXXREFLECT_GENERATE(FieldMarshal, 1, GetCompositeIndexSize(CompositeIndex::HasFieldMarshal));
+        CXXREFLECT_GENERATE(FieldMarshal, 2, GetBlobHeapIndexSize());
+
+        CXXREFLECT_GENERATE(FieldRva, 1, 4);
+        CXXREFLECT_GENERATE(FieldRva, 2, GetTableIndexSize(TableId::Field));
+
+        CXXREFLECT_GENERATE(File, 1, 4);
+        CXXREFLECT_GENERATE(File, 2, GetStringHeapIndexSize());
+        CXXREFLECT_GENERATE(File, 3, GetBlobHeapIndexSize());
+
+        CXXREFLECT_GENERATE(GenericParam, 1, 2);
+        CXXREFLECT_GENERATE(GenericParam, 2, 2);
+        CXXREFLECT_GENERATE(GenericParam, 3, GetCompositeIndexSize(CompositeIndex::TypeOrMethodDef));
+        CXXREFLECT_GENERATE(GenericParam, 4, GetStringHeapIndexSize());
+
+        CXXREFLECT_GENERATE(GenericParamConstraint, 1, GetTableIndexSize(TableId::GenericParam));
+        CXXREFLECT_GENERATE(GenericParamConstraint, 2, GetCompositeIndexSize(CompositeIndex::TypeDefOrRef));
+
+        CXXREFLECT_GENERATE(ImplMap, 1, 2);
+        CXXREFLECT_GENERATE(ImplMap, 2, GetCompositeIndexSize(CompositeIndex::MemberForwarded));
+        CXXREFLECT_GENERATE(ImplMap, 3, GetStringHeapIndexSize());
+        CXXREFLECT_GENERATE(ImplMap, 4, GetTableIndexSize(TableId::ModuleRef));
+
+        CXXREFLECT_GENERATE(InterfaceImpl, 1, GetTableIndexSize(TableId::TypeDef));
+        CXXREFLECT_GENERATE(InterfaceImpl, 2, GetCompositeIndexSize(CompositeIndex::TypeDefOrRef));
+
+        CXXREFLECT_GENERATE(ManifestResource, 1, 4);
+        CXXREFLECT_GENERATE(ManifestResource, 2, 4);
+        CXXREFLECT_GENERATE(ManifestResource, 3, GetStringHeapIndexSize());
+        CXXREFLECT_GENERATE(ManifestResource, 4, GetCompositeIndexSize(CompositeIndex::Implementation));
+
+        CXXREFLECT_GENERATE(MemberRef, 1, GetCompositeIndexSize(CompositeIndex::MemberRefParent));
+        CXXREFLECT_GENERATE(MemberRef, 2, GetStringHeapIndexSize());
+        CXXREFLECT_GENERATE(MemberRef, 3, GetBlobHeapIndexSize());
+
+        CXXREFLECT_GENERATE(MethodDef, 1, 4);
+        CXXREFLECT_GENERATE(MethodDef, 2, 2);
+        CXXREFLECT_GENERATE(MethodDef, 3, 2);
+        CXXREFLECT_GENERATE(MethodDef, 4, GetStringHeapIndexSize());
+        CXXREFLECT_GENERATE(MethodDef, 5, GetBlobHeapIndexSize());
+        CXXREFLECT_GENERATE(MethodDef, 6, GetTableIndexSize(TableId::Param));
+
+        CXXREFLECT_GENERATE(MethodImpl, 1, GetTableIndexSize(TableId::TypeDef));
+        CXXREFLECT_GENERATE(MethodImpl, 2, GetCompositeIndexSize(CompositeIndex::MethodDefOrRef));
+        CXXREFLECT_GENERATE(MethodImpl, 3, GetCompositeIndexSize(CompositeIndex::MethodDefOrRef));
+
+        CXXREFLECT_GENERATE(MethodSemantics, 1, 2);
+        CXXREFLECT_GENERATE(MethodSemantics, 2, GetTableIndexSize(TableId::MethodDef));
+        CXXREFLECT_GENERATE(MethodSemantics, 3, GetCompositeIndexSize(CompositeIndex::HasSemantics));
+
+        CXXREFLECT_GENERATE(MethodSpec, 1, GetCompositeIndexSize(CompositeIndex::MethodDefOrRef));
+        CXXREFLECT_GENERATE(MethodSpec, 2, GetBlobHeapIndexSize());
+
+        CXXREFLECT_GENERATE(Module, 1, 2);
+        CXXREFLECT_GENERATE(Module, 2, GetStringHeapIndexSize());
+        CXXREFLECT_GENERATE(Module, 3, GetGuidHeapIndexSize());
+        CXXREFLECT_GENERATE(Module, 4, GetGuidHeapIndexSize());
+        CXXREFLECT_GENERATE(Module, 5, GetGuidHeapIndexSize());
+
+        CXXREFLECT_GENERATE(ModuleRef, 1, GetStringHeapIndexSize());
+
+        CXXREFLECT_GENERATE(NestedClass, 1, GetTableIndexSize(TableId::TypeDef));
+        CXXREFLECT_GENERATE(NestedClass, 2, GetTableIndexSize(TableId::TypeDef));
+
+        CXXREFLECT_GENERATE(Param, 1, 2);
+        CXXREFLECT_GENERATE(Param, 2, 2);
+        CXXREFLECT_GENERATE(Param, 3, GetStringHeapIndexSize());
+
+        CXXREFLECT_GENERATE(Property, 1, 2);
+        CXXREFLECT_GENERATE(Property, 2, GetStringHeapIndexSize());
+        CXXREFLECT_GENERATE(Property, 3, GetBlobHeapIndexSize());
+
+        CXXREFLECT_GENERATE(PropertyMap, 1, GetTableIndexSize(TableId::TypeDef));
+        CXXREFLECT_GENERATE(PropertyMap, 2, GetTableIndexSize(TableId::Property));
+
+        CXXREFLECT_GENERATE(StandaloneSig, 1, GetBlobHeapIndexSize());
+
+        CXXREFLECT_GENERATE(TypeDef, 1, 4);
+        CXXREFLECT_GENERATE(TypeDef, 2, GetStringHeapIndexSize());
+        CXXREFLECT_GENERATE(TypeDef, 3, GetStringHeapIndexSize());
+        CXXREFLECT_GENERATE(TypeDef, 4, GetCompositeIndexSize(CompositeIndex::TypeDefOrRef));
+        CXXREFLECT_GENERATE(TypeDef, 5, GetTableIndexSize(TableId::Field));
+        CXXREFLECT_GENERATE(TypeDef, 5, GetTableIndexSize(TableId::MethodDef));
+
+        CXXREFLECT_GENERATE(TypeRef, 1, GetCompositeIndexSize(CompositeIndex::ResolutionScope));
+        CXXREFLECT_GENERATE(TypeRef, 2, GetStringHeapIndexSize());
+        CXXREFLECT_GENERATE(TypeRef, 3, GetStringHeapIndexSize());
+
+        CXXREFLECT_GENERATE(TypeSpec, 1, GetBlobHeapIndexSize());
+
+        #undef CXXREFLECT_GENERATE
+
+        // Finally, compute the complete row sizes:
+        std::transform(_state._columnOffsets.begin(),
+                       _state._columnOffsets.end(),
+                       _state._rowSizes.begin(),
+                       [](ColumnOffsetSequence const& x) -> SizeType
+        {
+            auto const it(std::find_if(x.rbegin(), x.rend(), [](SizeType n) { return n != 0; }));
+            return it != x.rend() ? *it : 0;
+        });
     }
 
-    SizeType TableCollection::GetCompositeIndexSize(CompositeIndex index) const
+    SizeType TableCollection::GetCompositeIndexSize(CompositeIndex const index) const
     {
         return _state._compositeIndexSizes[AsInteger(index)];
     }
 
-    SizeType TableCollection::GetRowCount(TableId id) const
+    SizeType TableCollection::GetTableColumnOffset(TableId const table, SizeType const column) const
+    {
+        Utility::DebugVerify([&] { return column < MaximumColumnCount; }, "Invalid column identifier");
+        // TODO Check table-specific offset
+        return _state._columnOffsets[AsInteger(table)][column];
+    }
+
+    SizeType TableCollection::GetRowCount(TableId const id) const
     {
         return _state._rowCounts[AsInteger(id)];
     }
 
-    Table const& TableCollection::GetTable(TableId id) const
+    Table const& TableCollection::GetTable(TableId const id) const
     {
         return _state._tables[AsInteger(id)];
     }
 
-    SizeType TableCollection::GetTableIndexSize(TableId id) const
+    SizeType TableCollection::GetTableIndexSize(TableId const id) const
     {
         return _state._rowCounts[AsInteger(id)] < (1 << 16) ? 2 : 4;
     }
@@ -687,117 +1069,604 @@ namespace CxxReflect { namespace Metadata {
 
     AssemblyHashAlgorithm AssemblyRow::GetHashAlgorithm() const
     {
-        return static_cast<AssemblyHashAlgorithm>(ReadAs<std::uint32_t>(_data, 0));
+        return ReadAs<AssemblyHashAlgorithm>(_data, GetColumnOffset(0));
     }
-    /* TODO
+
     Version AssemblyRow::GetVersion() const
     {
-        std::uint16_t const major   (ReadAs<std::uint16_t>(_data, 4 ));
-        std::uint16_t const minor   (ReadAs<std::uint16_t>(_data, 6 ));
-        std::uint16_t const build   (Readas<std::uint16_t>(_data, 8 ));
-        std::uint16_t const revision(ReadAs<std::uint16_t>(_data, 10));
-        return Version(major, minor, build, revision);
+        FourComponentVersion const version(ReadAs<FourComponentVersion>(_data, GetColumnOffset(1)));
+        return Version(version._major, version._minor, version._build, version._revision);
     }
-    */
-    AssemblyFlags AssemblyRow::GetFlags()     const { return AssemblyFlags(ReadAs<std::uint32_t>(_data, 12)); }
-    BlobIndex     AssemblyRow::GetPublicKey() const { return ReadBlobHeapIndex(_database, _data, 16);         }
+
+    AssemblyFlags AssemblyRow::GetFlags() const
+    {
+        return ReadAs<AssemblyAttribute>(_data, GetColumnOffset(2));
+    }
+
+    BlobIndex     AssemblyRow::GetPublicKey() const
+    {
+        return ReadBlobHeapIndex(*_database, _data, GetColumnOffset(3));
+    }
 
     String AssemblyRow::GetName() const
     {
-        SizeType const offset(16 + _database->GetTables().GetBlobHeapIndexSize());
-        return _database->GetStrings().At(ReadStringHeapIndex(_database, _data, offset));
+        return ReadString(*_database, _data, GetColumnOffset(4));
     }
 
     String AssemblyRow::GetCulture() const
     {
-        SizeType const offset(16
-                            + _database->GetTables().GetBlobHeapIndexSize()
-                            + _database->GetTables().GetStringHeapIndexSize());
-        return _database->GetStrings().At(ReadStringHeapIndex(_database, _data, offset));
+        return ReadString(*_database, _data, GetColumnOffset(5));
     }
 
-    std::uint32_t AssemblyOsRow::GetOsPlatformId()   const { return ReadAs<std::uint32_t>(_data, 0); }
-    std::uint32_t AssemblyOsRow::GetOsMajorVersion() const { return ReadAs<std::uint32_t>(_data, 4); }
-    std::uint32_t AssemblyOsRow::GetOsMinorVersion() const { return ReadAs<std::uint32_t>(_data, 8); }
+    std::uint32_t AssemblyOsRow::GetOsPlatformId()   const
+    {
+        return ReadAs<std::uint32_t>(_data, GetColumnOffset(0));
+    }
+
+    std::uint32_t AssemblyOsRow::GetOsMajorVersion() const
+    {
+        return ReadAs<std::uint32_t>(_data, GetColumnOffset(1));
+    }
+
+    std::uint32_t AssemblyOsRow::GetOsMinorVersion() const
+    {
+        return ReadAs<std::uint32_t>(_data, GetColumnOffset(2));
+    }
 
     std::uint32_t AssemblyProcessorRow::GetProcessor() const
     {
-        return ReadAs<std::uint32_t>(_data, 0);
+        return ReadAs<std::uint32_t>(_data, GetColumnOffset(0));
     }
-    /*TODO
+
     Version AssemblyRefRow::GetVersion() const
     {
-        std::uint16_t const major   (ReadAs<std::uint16_t>(_data, 0));
-        std::uint16_t const minor   (ReadAs<std::uint16_t>(_data, 2));
-        std::uint16_t const build   (Readas<std::uint16_t>(_data, 4));
-        std::uint16_t const revision(ReadAs<std::uint16_t>(_data, 6));
-        return Version(major, minor, build, revision);
+        FourComponentVersion const version(ReadAs<FourComponentVersion>(_data, GetColumnOffset(0)));
+        return Version(version._major, version._minor, version._build, version._revision);
     }
-    */
+
     AssemblyFlags AssemblyRefRow::GetFlags() const
     {
-        return AssemblyFlags(ReadAs<std::uint32_t>(_data, 8));
+        return ReadAs<AssemblyAttribute>(_data, GetColumnOffset(1));
     }
 
     BlobIndex AssemblyRefRow::GetPublicKeyOrToken() const
     {
-        return ReadBlobHeapIndex(_database, _data, 12);
+        return ReadBlobHeapIndex(*_database, _data, GetColumnOffset(2));
     }
 
     String AssemblyRefRow::GetName() const
     {
-        SizeType const offset(12 + _database->GetTables().GetBlobHeapIndexSize());
-        return _database->GetStrings().At(ReadStringHeapIndex(_database, _data, offset));
+        return ReadString(*_database, _data, GetColumnOffset(3));
     }
 
     String AssemblyRefRow::GetCulture() const
     {
-        SizeType const offset(12
-                            + _database->GetTables().GetBlobHeapIndexSize()
-                            + _database->GetTables().GetStringHeapIndexSize());
-        return _database->GetStrings().At(ReadStringHeapIndex(_database, _data, offset));
+        return ReadString(*_database, _data, GetColumnOffset(4));
     }
 
     BlobIndex AssemblyRefRow::GetHashValue() const
     {
-        SizeType const offset(12
-                            + _database->GetTables().GetBlobHeapIndexSize()
-                            + (2 * _database->GetTables().GetStringHeapIndexSize()));
-        return ReadBlobHeapIndex(_database, _data, offset);
+        return ReadBlobHeapIndex(*_database, _data, GetColumnOffset(5));
     }
 
-    std::uint32_t AssemblyRefOsRow::GetOsPlatformId()   const { return ReadAs<std::uint32_t>(_data, 0); }
-    std::uint32_t AssemblyRefOsRow::GetOsMajorVersion() const { return ReadAs<std::uint32_t>(_data, 4); }
-    std::uint32_t AssemblyRefOsRow::GetOsMinorVersion() const { return ReadAs<std::uint32_t>(_data, 8); }
+    std::uint32_t AssemblyRefOsRow::GetOsPlatformId()   const
+    {
+        return ReadAs<std::uint32_t>(_data, GetColumnOffset(0));
+    }
+
+    std::uint32_t AssemblyRefOsRow::GetOsMajorVersion() const
+    {
+        return ReadAs<std::uint32_t>(_data, GetColumnOffset(1));
+    }
+
+    std::uint32_t AssemblyRefOsRow::GetOsMinorVersion() const
+    {
+        return ReadAs<std::uint32_t>(_data, GetColumnOffset(2));
+    }
 
     TableReference AssemblyRefOsRow::GetAssemblyRef() const
     {
-        return TableReference(TableId::AssemblyRef, ReadTableIndex(_database, _data, TableId::AssemblyRef, 12));
+        return ReadTableReference(*_database, _data, TableId::AssemblyRef, GetColumnOffset(3));
     }
 
     std::uint32_t AssemblyRefProcessorRow::GetProcessor() const
     {
-        return ReadAs<std::uint32_t>(_data, 0);
+        return ReadAs<std::uint32_t>(_data, GetColumnOffset(0));
     }
 
     TableReference AssemblyRefProcessorRow::GetAssemblyRef() const
     {
-        return TableReference(TableId::AssemblyRef, ReadTableIndex(_database, _data, TableId::AssemblyRef, 4));
+        return ReadTableReference(*_database, _data, TableId::AssemblyRef, GetColumnOffset(1));
+    }
+
+    std::uint16_t ClassLayoutRow::GetPackingSize() const
+    {
+        return ReadAs<std::uint16_t>(_data, GetColumnOffset(0));
+    }
+
+    std::uint32_t ClassLayoutRow::GetClassSize() const
+    {
+        return ReadAs<std::uint32_t>(_data, GetColumnOffset(1));
+    }
+
+    TableReference ClassLayoutRow::GetParentTypeDef() const
+    {
+        return ReadTableReference(*_database, _data, TableId::TypeDef, GetColumnOffset(2));
+    }
+
+    std::uint8_t ConstantRow::GetType() const
+    {
+        return ReadAs<std::uint8_t>(_data, GetColumnOffset(0));
+    }
+
+    TableReference ConstantRow::GetParent() const
+    {
+        return ReadTableReference(*_database, _data, CompositeIndex::HasConstant, GetColumnOffset(1));
+    }
+
+    BlobIndex ConstantRow::GetValue() const
+    {
+        return ReadBlobHeapIndex(*_database, _data, GetColumnOffset(2));
+    }
+
+    TableReference CustomAttributeRow::GetParent() const
+    {
+        return ReadTableReference(*_database, _data, CompositeIndex::HasCustomAttribute, GetColumnOffset(0));
+    }
+
+    TableReference CustomAttributeRow::GetType() const
+    {
+        return ReadTableReference(*_database, _data, CompositeIndex::CustomAttributeType, GetColumnOffset(1));
+    }
+
+    BlobIndex CustomAttributeRow::GetValue() const
+    {
+        return ReadBlobHeapIndex(*_database, _data, GetColumnOffset(2));
+    }
+
+    std::uint16_t DeclSecurityRow::GetAction() const
+    {
+        return ReadAs<std::uint16_t>(_data, GetColumnOffset(0));
+    }
+
+    TableReference DeclSecurityRow::GetParent() const
+    {
+        return ReadTableReference(*_database, _data, CompositeIndex::HasDeclSecurity, GetColumnOffset(1));
+    }
+
+    BlobIndex DeclSecurityRow::GetPermissionSet() const
+    {
+        return ReadBlobHeapIndex(*_database, _data, GetColumnOffset(2));
+    }
+
+    TableReference EventMapRow::GetParent() const
+    {
+        return ReadTableReference(*_database, _data, TableId::TypeDef, GetColumnOffset(0));
+    }
+
+    TableReference EventMapRow::GetFirstEvent() const
+    {
+        return ReadTableReference(*_database, _data, TableId::Event, GetColumnOffset(1));
+    }
+
+    TableReference EventMapRow::GetLastEvent() const
+    {
+        return ComputeLastTableReference<
+            TableId::EventMap,
+            TableId::Event
+        >(*_database, _data, &EventMapRow::GetLastEvent);
+    }
+
+    EventFlags EventRow::GetFlags() const
+    {
+        return ReadAs<EventAttribute>(_data, GetColumnOffset(0));
+    }
+
+    String EventRow::GetName() const
+    {
+        return ReadString(*_database, _data, GetColumnOffset(1));
+    }
+
+    TableReference EventRow::GetType() const
+    {
+        return ReadTableReference(*_database, _data, CompositeIndex::TypeDefOrRef, GetColumnOffset(2));
+    }
+
+    TypeFlags ExportedTypeRow::GetFlags() const
+    {
+        return ReadAs<TypeAttribute>(_data, GetColumnOffset(0));
+    }
+
+    std::uint32_t ExportedTypeRow::GetTypeDefId() const
+    {
+        return ReadAs<std::uint32_t>(_data, GetColumnOffset(1));
+    }
+
+    String ExportedTypeRow::GetName() const
+    {
+        return ReadString(*_database, _data, GetColumnOffset(2));
+    }
+
+    String ExportedTypeRow::GetNamespace() const
+    {
+        return ReadString(*_database, _data, GetColumnOffset(3));
+    }
+
+    TableReference ExportedTypeRow::GetImplementation() const
+    {
+        return ReadTableReference(*_database, _data, CompositeIndex::Implementation, GetColumnOffset(4));
+    }
+
+    FieldFlags FieldRow::GetFlags() const
+    {
+        return ReadAs<FieldAttribute>(_data, GetColumnOffset(0));
+    }
+
+    String FieldRow::GetName() const
+    {
+        return ReadString(*_database, _data, GetColumnOffset(1));
+    }
+
+    BlobIndex FieldRow::GetSignature() const
+    {
+        return ReadBlobHeapIndex(*_database, _data, GetColumnOffset(2));
+    }
+
+    std::uint32_t FieldLayoutRow::GetOffset() const
+    {
+        return ReadAs<std::uint32_t>(_data, GetColumnOffset(0));
+    }
+
+    TableReference FieldLayoutRow::GetField() const
+    {
+        return ReadTableReference(*_database, _data, TableId::Field, GetColumnOffset(1));
+    }
+
+    TableReference FieldMarshalRow::GetParent() const
+    {
+        return ReadTableReference(*_database, _data, CompositeIndex::HasFieldMarshal, GetColumnOffset(0));
+    }
+
+    BlobIndex FieldMarshalRow::GetNativeType() const
+    {
+        return ReadBlobHeapIndex(*_database, _data, GetColumnOffset(1));
+    }
+
+    std::uint32_t FieldRvaRow::GetRva() const
+    {
+        return ReadAs<std::uint32_t>(_data, GetColumnOffset(0));
+    }
+
+    TableReference FieldRvaRow::GetField() const
+    {
+        return ReadTableReference(*_database, _data, TableId::Field, GetColumnOffset(1));
+    }
+
+    FileFlags FileRow::GetFlags() const
+    {
+        return ReadAs<FileAttribute>(_data, GetColumnOffset(0));
+    }
+
+    String FileRow::GetName() const
+    {
+        return ReadString(*_database, _data, GetColumnOffset(1));
+    }
+
+    BlobIndex FileRow::GetHashValue() const
+    {
+        return ReadBlobHeapIndex(*_database, _data, GetColumnOffset(2));
+    }
+
+    std::uint16_t GenericParamRow::GetNumber() const
+    {
+        return ReadAs<std::uint16_t>(_data, GetColumnOffset(0));
+    }
+
+    GenericParameterFlags GenericParamRow::GetFlags() const
+    {
+        return ReadAs<GenericParameterAttribute>(_data, GetColumnOffset(1));
+    }
+
+    TableReference GenericParamRow::GetOwner() const
+    {
+        return ReadTableReference(*_database, _data, CompositeIndex::TypeOrMethodDef, GetColumnOffset(2));
+    }
+
+    String GenericParamRow::GetName() const
+    {
+        return ReadString(*_database, _data, GetColumnOffset(3));
+    }
+
+    TableReference GenericParamConstraintRow::GetOwner() const
+    {
+        return ReadTableReference(*_database, _data, TableId::GenericParam, GetColumnOffset(0));
+    }
+
+    TableReference GenericParamConstraintRow::GetConstraint() const
+    {
+        return ReadTableReference(*_database, _data, CompositeIndex::TypeDefOrRef, GetColumnOffset(1));
+    }
+
+    PInvokeFlags ImplMapRow::GetMappingFlags() const
+    {
+        return ReadAs<PInvokeAttribute>(_data, GetColumnOffset(0));
+    }
+
+    TableReference ImplMapRow::GetMemberForwarded() const
+    {
+        return ReadTableReference(*_database, _data, CompositeIndex::MemberForwarded, GetColumnOffset(1));
+    }
+
+    String ImplMapRow::GetImportName() const
+    {
+        return ReadString(*_database, _data, GetColumnOffset(2));
+    }
+
+    TableReference ImplMapRow::GetImportScope() const
+    {
+        return ReadTableReference(*_database, _data, TableId::ModuleRef, GetColumnOffset(3));
+    }
+
+    TableReference InterfaceImplRow::GetClass() const
+    {
+        return ReadTableReference(*_database, _data, TableId::TypeDef, GetColumnOffset(0));
+    }
+
+    TableReference InterfaceImplRow::GetInterface() const
+    {
+        return ReadTableReference(*_database, _data, CompositeIndex::TypeDefOrRef, GetColumnOffset(1));
+    }
+
+    std::uint32_t ManifestResourceRow::GetOffset() const
+    {
+        return ReadAs<std::uint32_t>(_data, GetColumnOffset(0));
+    }
+
+    ManifestResourceFlags ManifestResourceRow::GetFlags() const
+    {
+        return ReadAs<ManifestResourceAttribute>(_data, GetColumnOffset(1));
+    }
+
+    String ManifestResourceRow::GetName() const
+    {
+        return ReadString(*_database, _data, GetColumnOffset(2));
+    }
+
+    TableReference ManifestResourceRow::GetImplementation() const
+    {
+        return ReadTableReference(*_database, _data, CompositeIndex::Implementation, GetColumnOffset(3));
+    }
+
+    TableReference MemberRefRow::GetClass() const
+    {
+        return ReadTableReference(*_database, _data, CompositeIndex::MemberRefParent, GetColumnOffset(0));
+    }
+
+    String MemberRefRow::GetName() const
+    {
+        return ReadString(*_database, _data, GetColumnOffset(1));
+    }
+
+    BlobIndex MemberRefRow::GetSignature() const
+    {
+        return ReadBlobHeapIndex(*_database, _data, GetColumnOffset(2));
+    }
+
+    std::uint32_t MethodDefRow::GetRva() const
+    {
+        return ReadAs<std::uint32_t>(_data, GetColumnOffset(0));
+    }
+
+    MethodImplementationFlags MethodDefRow::GetImplementationFlags() const
+    {
+        return ReadAs<MethodImplementationAttribute>(_data, GetColumnOffset(1));
+    }
+
+    MethodFlags MethodDefRow::GetFlags() const
+    {
+        return ReadAs<MethodAttribute>(_data, GetColumnOffset(2));
+    }
+
+    String MethodDefRow::GetName() const
+    {
+        return ReadString(*_database, _data, GetColumnOffset(3));
+    }
+
+    BlobIndex MethodDefRow::GetSignature() const
+    {
+        return ReadBlobHeapIndex(*_database, _data, GetColumnOffset(4));
+    }
+
+    TableReference MethodDefRow::GetFirstParameter() const
+    {
+        return ReadTableReference(*_database, _data, TableId::Param, GetColumnOffset(5));
+    }
+
+    TableReference MethodDefRow::GetLastParameter() const
+    {
+        return ComputeLastTableReference<
+            TableId::MethodDef,
+            TableId::Param
+        >(*_database, _data, &MethodDefRow::GetLastParameter);
+    }
+
+    TableReference MethodImplRow::GetClass() const
+    {
+        return ReadTableReference(*_database, _data, TableId::TypeDef, GetColumnOffset(0));
+    }
+
+    TableReference MethodImplRow::GetMethodBody() const
+    {
+        return ReadTableReference(*_database, _data, CompositeIndex::MethodDefOrRef, GetColumnOffset(1));
+    }
+
+    TableReference MethodImplRow::GetMethodDeclaration() const
+    {
+        return ReadTableReference(*_database, _data, CompositeIndex::MethodDefOrRef, GetColumnOffset(2));
+    }
+
+    MethodSemanticsFlags MethodSemanticsRow::GetSemantics() const
+    {
+        return ReadAs<MethodSemanticsAttribute>(_data, GetColumnOffset(0));
+    }
+
+    TableReference MethodSemanticsRow::GetMethod() const
+    {
+        return ReadTableReference(*_database, _data, TableId::MethodDef, GetColumnOffset(1));
+    }
+
+    TableReference MethodSemanticsRow::GetAssociation() const
+    {
+        return ReadTableReference(*_database, _data, CompositeIndex::HasSemantics, GetColumnOffset(2));
+    }
+
+    TableReference MethodSpecRow::GetMethod() const
+    {
+        return ReadTableReference(*_database, _data, CompositeIndex::MethodDefOrRef, GetColumnOffset(0));
+    }
+
+    BlobIndex MethodSpecRow::GetInstantiation() const
+    {
+        return ReadBlobHeapIndex(*_database, _data, GetColumnOffset(1));
     }
 
     String ModuleRow::GetName() const
     {
-        return _database->GetStrings().At(ReadStringHeapIndex(_database, _data, 2));
+        return ReadString(*_database, _data, GetColumnOffset(1));
+    }
+
+    String ModuleRefRow::GetName() const
+    {
+        return ReadString(*_database, _data, GetColumnOffset(0));
+    }
+
+    TableReference NestedClassRow::GetNestedClass() const
+    {
+        return ReadTableReference(*_database, _data, TableId::TypeDef, GetColumnOffset(0));
+    }
+
+    TableReference NestedClassRow::GetEnclosingClass() const
+    {
+        return ReadTableReference(*_database, _data, TableId::TypeDef, GetColumnOffset(1));
+    }
+
+    ParameterFlags ParamRow::GetFlags() const
+    {
+        return ReadAs<ParameterAttribute>(_data, GetColumnOffset(0));
+    }
+
+    std::uint16_t ParamRow::GetSequence() const
+    {
+        return ReadAs<std::uint16_t>(_data, GetColumnOffset(1));
+    }
+
+    String ParamRow::GetName() const
+    {
+        return ReadString(*_database, _data, GetColumnOffset(2));
+    }
+
+    PropertyFlags PropertyRow::GetFlags() const
+    {
+        return ReadAs<PropertyAttribute>(_data, GetColumnOffset(0));
+    }
+
+    String PropertyRow::GetName() const
+    {
+        return ReadString(*_database, _data, GetColumnOffset(1));
+    }
+
+    BlobIndex PropertyRow::GetSignature() const
+    {
+        return ReadBlobHeapIndex(*_database, _data, GetColumnOffset(2));
+    }
+
+    TableReference PropertyMapRow::GetParent() const
+    {
+        return ReadTableReference(*_database, _data, TableId::TypeDef, GetColumnOffset(0));
+    }
+
+    TableReference PropertyMapRow::GetFirstProperty() const
+    {
+        return ReadTableReference(*_database, _data, TableId::Property, GetColumnOffset(1));
+    }
+
+    TableReference PropertyMapRow::GetLastProperty() const
+    {
+        return ComputeLastTableReference<
+            TableId::PropertyMap,
+            TableId::Property
+        >(*_database, _data, &PropertyMapRow::GetFirstProperty);
+    }
+
+    BlobIndex StandaloneSigRow::GetSignature() const
+    {
+        return ReadBlobHeapIndex(*_database, _data, GetColumnOffset(0));
+    }
+
+    TypeFlags TypeDefRow::GetFlags() const
+    {
+        return ReadAs<TypeAttribute>(_data, GetColumnOffset(0));
     }
 
     String TypeDefRow::GetName() const
     {
-        return _database->GetStrings().At(ReadStringHeapIndex(_database, _data, 4));
+        return ReadString(*_database, _data, GetColumnOffset(1));
+    }
+
+    String TypeDefRow::GetNamespace() const
+    {
+        return ReadString(*_database, _data, GetColumnOffset(2));
+    }
+
+    TableReference TypeDefRow::GetExtends() const
+    {
+        return ReadTableReference(*_database, _data, CompositeIndex::TypeDefOrRef, GetColumnOffset(3));
+    }
+
+    TableReference TypeDefRow::GetFirstField() const
+    {
+        return ReadTableReference(*_database, _data, TableId::Field, GetColumnOffset(4));
+    }
+
+    TableReference TypeDefRow::GetLastField() const
+    {
+        return ComputeLastTableReference<
+            TableId::TypeDef,
+            TableId::Field
+        >(*_database, _data, &TypeDefRow::GetFirstField);
+    }
+
+    TableReference TypeDefRow::GetFirstMethod() const
+    {
+        return ReadTableReference(*_database, _data, TableId::MethodDef, GetColumnOffset(5));
+    }
+
+    TableReference TypeDefRow::GetLastMethod() const
+    {
+        return ComputeLastTableReference<
+            TableId::TypeDef,
+            TableId::MethodDef
+        >(*_database, _data, &TypeDefRow::GetFirstMethod);
+    }
+
+    TableReference TypeRefRow::GetResolutionScope() const
+    {
+        return ReadTableReference(*_database, _data, CompositeIndex::ResolutionScope, GetColumnOffset(0));
+    }
+
+    String TypeRefRow::GetName() const
+    {
+        return ReadString(*_database, _data, GetColumnOffset(1));
+    }
+
+    String TypeRefRow::GetNamespace() const
+    {
+        return ReadString(*_database, _data, GetColumnOffset(2));
     }
 
     std::uint32_t TypeSpecRow::GetSignature() const
     {
-        return ReadBlobHeapIndex(_database, _data, 0);
+        return ReadBlobHeapIndex(*_database, _data, 0);
     }
 
 } }

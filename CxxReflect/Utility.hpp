@@ -216,6 +216,8 @@ namespace CxxReflect { namespace Utility {
     {
     public:
 
+        static_assert(std::is_enum<TEnumeration>::value, "TEnumeration must be an enumeration");
+
         typedef TEnumeration                                      EnumerationType;
         typedef typename std::underlying_type<TEnumeration>::type IntegerType;
 
@@ -224,22 +226,25 @@ namespace CxxReflect { namespace Utility {
         {
         }
 
-        explicit FlagSet(EnumerationType const value)
+        FlagSet(EnumerationType const value)
+            : _value(static_cast<IntegerType>(value))
+        {
+        }
+
+        FlagSet(IntegerType const value)
             : _value(value)
         {
         }
 
-        explicit FlagSet(IntegerType const value)
-            : _value(static_cast<EnumerationType>(value))
-        {
-        }
+        EnumerationType Get()        const { return static_cast<EnumerationType>(_value); }
+        IntegerType     GetInteger() const { return _value;                               }
 
-        EnumerationType Get()        const { return _value; }
-        IntegerType     GetInteger() const { return static_cast<IntegerType>(_value); }
+        FlagSet WithMask(EnumerationType const mask) { return WithMask(static_cast<IntegerType>(mask)); }
+        FlagSet WithMask(IntegerType     const mask) { return FlagSet(_value & mask);                   }
 
     private:
 
-        TEnumeration _value;
+        IntegerType _value;
     };
 
     // A linear allocator for arrays; this is most useful for the allocation of strings.

@@ -2,8 +2,13 @@
 //                   Distributed under the Boost Software License, Version 1.0.                   //
 //     (See accompanying file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)    //
 
-// This is an internal header; it is not intended to be included by clients.  It defines all of the
-// classes used for reading and interpreting the raw metadata from an assembly.
+// The MetadataDatabase and its supporting classes provide a physical layer implementation for
+// reading metadata.  It maps heaps and tables into a more usable, somewhat queriable format; it
+// provides UTF-8 to UTF-16 string transformation and caching of transformed strings; and it
+// includes various utilities for working with the metadata.
+//
+// Most CxxReflect clients should not need to include this header or use the MetadataDatabase
+// directly; the logical layer (MetadataLoader, Assembly, etc.) provide a more familiar interface.
 #ifndef CXXREFLECT_METADATADATABASE_HPP_
 #define CXXREFLECT_METADATADATABASE_HPP_
 
@@ -356,12 +361,22 @@ namespace CxxReflect { namespace Metadata {
         SizeType GetGuidHeapIndexSize()   const { return _state._guidHeapIndexSize;   }
         SizeType GetBlobHeapIndexSize()   const { return _state._blobHeapIndexSize;   }
 
+        SizeType GetTableColumnOffset(TableId table, SizeType column) const;
+
     private:
 
         TableCollection(TableCollection const&);
         TableCollection& operator=(TableCollection const&);
 
         typedef std::array<Table, TableIdCount> TableSequence;
+
+        enum { MaximumColumnCount = 8 };
+
+        typedef std::array<SizeType, MaximumColumnCount>       ColumnOffsetSequence;
+        typedef std::array<ColumnOffsetSequence, TableIdCount> TableColumnOffsetSequence;
+
+        // TODO Add a _columnOffsets to allow us to quickly look up indices of specific columns
+        // in each table.
 
         void ComputeCompositeIndexSizes();
         void ComputeTableRowSizes();
@@ -378,6 +393,8 @@ namespace CxxReflect { namespace Metadata {
 
             TableIdSizeArray _rowCounts;
             TableIdSizeArray _rowSizes;
+
+            TableColumnOffsetSequence _columnOffsets;
 
             CompositeIndexSizeArray _compositeIndexSizes;
 
@@ -563,20 +580,20 @@ namespace CxxReflect { namespace Metadata {
         EnableJitCompileTracking   = 0x8000
     };
 
-    enum class AssemblyHashAlgorithm : std::uint16_t
+    enum class AssemblyHashAlgorithm : std::uint32_t
     {
         None     = 0x0000,
         MD5      = 0x8003,
         SHA1     = 0x8004
     };
 
-    enum class EventAttribute
+    enum class EventAttribute : std::uint16_t
     {
         SpecialName        = 0x0200,
         RuntimeSpecialName = 0x0400
     };
 
-    enum class FieldAttribute
+    enum class FieldAttribute : std::uint16_t
     {
         FieldAccessMask    = 0x0007,
 
@@ -602,13 +619,13 @@ namespace CxxReflect { namespace Metadata {
         HasFieldRva        = 0x0100
     };
 
-    enum class FileAttribute
+    enum class FileAttribute : std::uint32_t
     {
         ContainsMetadata   = 0x0000,
         ContainsNoMetadata = 0x0001
     };
 
-    enum class GenericParameterAttribute
+    enum class GenericParameterAttribute : std::uint16_t
     {
         VarianceMask                   = 0x0003,
         None                           = 0x0000,
@@ -621,14 +638,14 @@ namespace CxxReflect { namespace Metadata {
         DefaultConstructorConstraint   = 0x0010
     };
 
-    enum class ManifestResourceAttribute
+    enum class ManifestResourceAttribute : std::uint32_t
     {
         VisibilityMask = 0x0007,
         Public         = 0x0001,
         Private        = 0x0002
     };
 
-    enum class MethodAttribute
+    enum class MethodAttribute : std::uint16_t
     {
         MemberAccessMask      = 0x0007,
         CompilerControlled    = 0x0000,
@@ -658,7 +675,7 @@ namespace CxxReflect { namespace Metadata {
         RequireSecurityObject = 0x8000
     };
 
-    enum class MethodImplementationAttribute
+    enum class MethodImplementationAttribute : std::uint16_t
     {
         CodeTypeMask   = 0x0003,
         IL             = 0x0000,
@@ -677,7 +694,7 @@ namespace CxxReflect { namespace Metadata {
         NoOptimization = 0x0040
     };
 
-    enum class MethodSemanticsAttribute
+    enum class MethodSemanticsAttribute : std::uint16_t
     {
         Setter   = 0x0001,
         Getter   = 0x0002,
@@ -687,7 +704,7 @@ namespace CxxReflect { namespace Metadata {
         Fire     = 0x0020
     };
 
-    enum class ParameterAttribute
+    enum class ParameterAttribute : std::uint16_t
     {
         In              = 0x0001,
         Out             = 0x0002,
@@ -696,7 +713,7 @@ namespace CxxReflect { namespace Metadata {
         HasFieldMarshal = 0x2000
     };
 
-    enum class PInvokeAttribute
+    enum class PInvokeAttribute : std::uint16_t
     {
         NoMangle                     = 0x0001,
 
@@ -716,14 +733,14 @@ namespace CxxReflect { namespace Metadata {
         CallingConventionFastCall    = 0x0500
     };
 
-    enum class PropertyAttribute
+    enum class PropertyAttribute : std::uint16_t
     {
         SpecialName        = 0x0200,
         RuntimeSpecialName = 0x0400,
         HasDefault         = 0x1000
     };
 
-    enum class TypeAttribute
+    enum class TypeAttribute : std::uint32_t
     {
         VisibilityMask          = 0x00000007,
         NotPublic               = 0x00000000,
@@ -779,7 +796,7 @@ namespace CxxReflect { namespace Metadata {
     typedef Utility::FlagSet<PropertyAttribute>             PropertyFlags;
     typedef Utility::FlagSet<TypeAttribute>                 TypeFlags;
 
-    enum class ElementType
+    enum class ElementType : std::uint8_t
     {
         End                         = 0x00,
         Void                        = 0x01,
@@ -870,7 +887,14 @@ namespace CxxReflect { namespace Metadata {
                 return TableReference(tableId, index);                                                  \
             }                                                                                           \
                                                                                                         \
-        private:
+        private:                                                                                        \
+                                                                                                        \
+            SizeType GetColumnOffset(SizeType const column) const                                       \
+            {                                                                                           \
+                return _database->GetTables().GetTableColumnOffset(                                     \
+                    static_cast<TableId>(RowTypeToTableId<name>::Value),                                \
+                    column);                                                                            \
+            }
 
     class AssemblyRow
     {
