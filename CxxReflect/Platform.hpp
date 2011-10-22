@@ -21,6 +21,8 @@ namespace CxxReflect { namespace Platform {
     // Computes the 20 byte SHA1 hash for the bytes in the range [first, last).
     Sha1Hash ComputeSha1Hash(std::uint8_t const* first, std::uint8_t const* last);
 
+    bool FileExists(wchar_t const* filePath);
+
 } }
 
 #endif

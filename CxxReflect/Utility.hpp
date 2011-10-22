@@ -31,39 +31,6 @@ namespace CxxReflect { namespace Utility {
         return iss.str();
     }
 
-    #ifdef CXXREFLECT_DEBUG
-
-    template <typename T>
-    void DebugVerifyNotNull(T const& x)
-    {
-        if (!x) 
-            throw std::logic_error("wtf");
-    }
-
-    template <typename TCallable>
-    void DebugVerify(TCallable const& callable, char const* const message)
-    {
-        if (!callable())
-            throw VerificationFailure(message);
-    }
-
-    inline void DebugFail(char const* const message)
-    {
-        throw VerificationFailure(message);
-    }
-
-    #else
-
-    template <typename T>
-    void DebugVerifyNotNull(T const&) { }
-
-    template <typename TCallable>
-    void DebugVerify(TCallable const&, char const*) { }
-
-    inline void DebugFail(char const*) { }
-
-    #endif
-
     template <typename TEnumeration>
     typename std::underlying_type<TEnumeration>::type AsInteger(TEnumeration value)
     {
@@ -81,118 +48,6 @@ namespace CxxReflect { namespace Utility {
         if (hr < 0) { throw HResultException(hr); }
     }
 
-    template <typename T>
-    class Dereferenceable
-    {
-    public:
-
-        Dereferenceable(T const& value)
-            : _value(value)
-        {
-        }
-
-        T& Get() const { return _value; }
-
-        T* operator->() const { return &_value; }
-
-    private:
-
-        T _value;
-    };
-
-    struct FileReadException : std::runtime_error
-    {
-        FileReadException(char const* const message) : std::runtime_error(message) { }
-    };
-
-    // A lightweight RAII and interface wrapper around the <cstdio> file I/O interface
-    class FileHandle
-    {
-    public:
-
-        enum Origin
-        {
-            Begin,   // SEEK_SET
-            Current, // SEEK_CUR
-            End      // SEEK_END
-        };
-
-        FileHandle(wchar_t const* const fileName, wchar_t const* const mode = L"rb")
-        {
-            errno_t const result(_wfopen_s(&_handle, fileName, mode));
-            if (result != 0)
-                throw FileReadException("Failed to open file");
-        }
-
-        ~FileHandle()
-        {
-            fclose(_handle);
-        }
-
-        void Seek(std::int64_t const position, Origin const origin)
-        {
-            int realOrigin(0);
-            switch (origin)
-            {
-            case Begin:   realOrigin = SEEK_SET; break;
-            case Current: realOrigin = SEEK_CUR; break;
-            case End:     realOrigin = SEEK_END; break;
-            default:      throw std::logic_error("Unexpected origin provided");
-            }
-            if (_fseeki64(_handle, position, origin) != 0)
-                throw FileReadException("Failed to read file");
-        }
-
-        void Read(void* const buffer, std::size_t const size, std::size_t const count)
-        {
-            if (fread(buffer, size, count, _handle) != count)
-                throw FileReadException("Failed to seek file");
-        }
-
-    private:
-
-        FileHandle(FileHandle const&);
-        FileHandle& operator=(FileHandle const&);
-
-        FILE* _handle;
-    };
-
-    template <typename TEnumeration>
-    class FlagSet
-    {
-    public:
-
-        static_assert(std::is_enum<TEnumeration>::value, "TEnumeration must be an enumeration");
-
-        typedef TEnumeration                                      EnumerationType;
-        typedef typename std::underlying_type<TEnumeration>::type IntegerType;
-
-        FlagSet()
-            : _value()
-        {
-        }
-
-        FlagSet(EnumerationType const value)
-            : _value(static_cast<IntegerType>(value))
-        {
-        }
-
-        FlagSet(IntegerType const value)
-            : _value(value)
-        {
-        }
-
-        EnumerationType Get()        const { return static_cast<EnumerationType>(_value); }
-        IntegerType     GetInteger() const { return _value;                               }
-
-        FlagSet WithMask(EnumerationType const mask) { return WithMask(static_cast<IntegerType>(mask)); }
-        FlagSet WithMask(IntegerType     const mask) { return FlagSet(_value & mask);                   }
-
-    private:
-
-        IntegerType _value;
-    };
-
     // A simple, non-thread-safe, intrusive reference-counted base class.
     class RefCounted
     {
@@ -209,7 +64,8 @@ namespace CxxReflect { namespace Utility {
 
     private:
 
-        CXXREFLECT_NONCOPYABLE(RefCounted);
+        RefCounted(RefCounted const&);
+        RefCounted& operator=(RefCounted const&);
 
         template <typename T>
         friend class RefPointer;

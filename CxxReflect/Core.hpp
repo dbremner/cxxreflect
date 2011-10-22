@@ -10,16 +10,60 @@
 #include <cstdint>
 #include <functional>
 #include <memory>
+#include <stdexcept>
 #include <vector>
 
-// These are a set of core utilities that are used throughout the library.  Unlike the rest of the
-// CxxReflect library, they use the C++ Standard Library naming convention of names_with_undescores.
+#ifdef _DEBUG
+#define CXXREFLECT_LOGIC_CHECKS
+#endif
+
+// #define CXXREFLECT_ENABLE_WINRT_RESOLVER
+
 namespace CxxReflect { namespace detail {
+
+    struct verification_failure : std::logic_error
+    {
+        verification_failure(char const* const message = "")
+            : std::logic_error(message)
+        {
+        }
+    };
+
+    #ifdef CXXREFLECT_LOGIC_CHECKS
+
+    inline void verify_fail(char const* const message = "")
+    {
+        throw verification_failure(message);
+    }
+
+    inline void verify_not_null(void const* const p)
+    {
+        if (p == nullptr)
+            throw verification_failure("Unexpected null pointer");
+    }
+
+    template <typename TCallable>
+    void verify(TCallable&& callable, char const* const message = "")
+    {
+        if (!callable())
+             throw verification_failure(message);
+    }
+
+    #else
+
+    inline void verify_fail(char const*) { }
+
+    inline void verify_not_null(void const*, char const* = "") { }
+
+    template <typename TCallable>
+    void verify(TCallable&&) { }
+
+    #endif
 
     // A handful of useful algorithms that we use throughout the library.
 
     template <typename TInIt0, typename TInIt1>
-    bool range_checked_equal(TInIt0 first0, TInIt0 last0, TInIt1 first1, TInIt1 last1)
+    bool range_checked_equal(TInIt0 first0, TInIt0 const last0, TInIt1 first1, TInIt1 const last1)
     {
         while (first0 != last0 && first1 != last1 && *first0 == *first1)
         {
@@ -149,6 +193,59 @@ namespace CxxReflect { namespace detail {
         return os;
     }
 
+    /*
+    template <typename T>
+    class ownable_string
+    {
+    public:
+
+        typedef enhanced_cstring<T>  nonowned_string;
+        typedef std::basic_string<T> owned_string;
+
+        ownable_string(nonowned_string const& s)
+            : _kind(kind::nonowned)
+        {
+            new (&_data) nonowned_string(s);
+        }
+
+        ownable_string(owned_string const& s)
+            : _kind(kind::owned)
+        {
+            new (&_data) owned_string(s);
+        }
+
+        void own_copy()
+        {
+            if (_kind != kind::nonowned)
+                return;
+
+            nonowned_string s(get_nonowned());
+
+            get_nonowned().~nonowned_string();
+
+            _kind = kind::owned;
+            scope_guard reset_kind([&] { _kind = kind::none; });
+            new (&_data) owned_string(s.c_str());
+            reset_kind.unset();
+        }
+
+    private:
+
+        enum class kind { none, owned, nonowned };
+
+        typedef typename std::aligned_union<0, nonowned_string, owned_string>::type storage_type;
+
+        owned_string      & get_owned()       { return reinterpret_cast<owned_string      &>(_data); }
+        owned_string const& get_owned() const { return reinterpret_cast<owned_string const&>(_data); }
+
+        nonowned_string      & get_nonowned()       { return reinterpret_cast<nonowned_string      &>(_data); }
+        nonowned_string const& get_nonowned() const { return reinterpret_cast<nonowned_string const&>(_data); }
+
+        kind         _kind;
+        storage_type _data;
+    };
+    */
+
     // Utility types and functions for encapsulating reinterpretation of an object as a char[].
     // These help reduce the occurrence of reinterpret_cast in the code and make it easier to
     // copy data into and out of POD-struct types.
@@ -236,6 +333,91 @@ namespace CxxReflect { namespace detail {
     private:
 
         function_type _f;
+    };
+
+    // A basic RAII wrapper around the cstdio file interfaces; this allows us to get the performance
+    // of the C runtime APIs wih the convenience of the C++ iostream interfaces.
+
+    struct file_read_exception : std::runtime_error
+    {
+        file_read_exception(char const* const message)
+            : std::runtime_error(message)
+        {
+        }
+    };
+
+    class file_handle
+    {
+    public:
+
+        typedef std::int64_t position_type;
+        typedef std::size_t  size_type;
+
+        enum origin_type
+        {
+            begin,   // SEEK_SET
+            current, // SEEK_CUR
+            end      // SEEK_END
+        };
+
+        file_handle(wchar_t const* const fileName, wchar_t const* const mode = L"rb")
+        {
+            // TODO PORTABILITY
+            errno_t const result(_wfopen_s(&_handle, fileName, mode));
+            if (result != 0)
+                throw file_read_exception("File open failed");
+        }
+
+        file_handle(file_handle&& other)
+            : _handle(other._handle)
+        {
+            other._handle = nullptr;
+        }
+
+        file_handle& operator=(file_handle&& other)
+        {
+            swap(other);
+        }
+
+        ~file_handle()
+        {
+            if (_handle != nullptr)
+                fclose(_handle);
+        }
+
+        void swap(file_handle& other)
+        {
+            std::swap(_handle, other._handle);
+        }
+
+        void seek(position_type const position, origin_type const whence)
+        {
+            int seek_whence(0);
+            switch (whence)
+            {
+            case begin:   seek_whence = SEEK_SET; break;
+            case current: seek_whence = SEEK_CUR; break;
+            case end:     seek_whence = SEEK_END; break;
+            default:      verify_fail("Invalid origin specified");
+            }
+
+            // TODO PORTABILITY
+            if (_fseeki64(_handle, position, seek_whence) != 0)
+                throw file_read_exception("File seek failed");
+        }
+
+        void read(void* const buffer, size_type const size, size_type const count)
+        {
+            if (fread(buffer, size, count, _handle) != count)
+                throw file_read_exception("File seek failed");
+        }
+
+    private:
+
+        file_handle(file_handle const&);
+        file_handle& operator=(file_handle const&);
+
+        FILE* _handle;
     };
 
     // A flag set, similar to std::bitset, but with implicit conversions to and from an enumeration
@@ -449,13 +631,6 @@ namespace CxxReflect {
 
 namespace CxxReflect { namespace Detail {
 
-    // When we use a "noncopyable" base class and accidentally use one of the copy operations, 
-    // Visual C++ fails to report the location where the invalid use occurs (it points to the
-    // derive class, which is not helpful).  Instead, we use a macro.
-    #define CXXREFLECT_NONCOPYABLE(c) \
-        c(c const&);                  \
-        c& operator=(c const&)
-
     template <typename T, typename TAllocator = std::allocator<T>>
     class AllocatorBasedArray
     {
@@ -527,7 +702,8 @@ namespace CxxReflect { namespace Detail {
 
     private:
 
-        CXXREFLECT_NONCOPYABLE(AllocatorBasedArray);
+        AllocatorBasedArray(AllocatorBasedArray const&);
+        AllocatorBasedArray& operator=(AllocatorBasedArray const&);
 
         void VerifyAvailable() const
         {
@@ -538,25 +714,6 @@ namespace CxxReflect { namespace Detail {
         T*                 _data;
         std::size_t        _capacity;
         std::size_t        _size;
-    };
-
-    template <typename T>
-    class FlagSet
-    {
-    public:
-
-        FlagSet()
-            : value_()
-        {
-        }
-
-        void Set(T x)         { value_ = static_cast<T>(value_ | x); }
-        void Unset(T x)       { value_ = static_cast<T>(value_ ^ x); }
-        bool IsSet(T x) const { return (value_ & x) != 0;            }
-
-    private:
-
-        T value_;
     };
 
 } }

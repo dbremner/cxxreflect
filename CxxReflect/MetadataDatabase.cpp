@@ -13,10 +13,7 @@
 #include <numeric>
 #include <vector>
 
-using CxxReflect::Utility::AsInteger;
-using CxxReflect::Utility::DebugFail;
-using CxxReflect::Utility::DebugVerify;
-using CxxReflect::Utility::FileHandle;
+namespace cdx = CxxReflect::detail;
 
 using namespace CxxReflect;
 using namespace CxxReflect::Metadata;
@@ -207,22 +204,22 @@ namespace {
         std::size_t _rva;
     };
 
-    PeSectionsAndCliHeader ReadPeSectionsAndCliHeader(FileHandle& file)
+    PeSectionsAndCliHeader ReadPeSectionsAndCliHeader(cdx::file_handle& file)
     {
         // The index of the PE Header is located at index 0x3c of the DOS header
-        file.Seek(0x3c, FileHandle::Begin);
+        file.seek(0x3c, cdx::file_handle::begin);
         
         std::uint32_t fileHeaderOffset(0);
-        file.Read(&fileHeaderOffset, sizeof fileHeaderOffset, 1);
-        file.Seek(fileHeaderOffset, FileHandle::Begin);
+        file.read(&fileHeaderOffset, sizeof fileHeaderOffset, 1);
+        file.seek(fileHeaderOffset, cdx::file_handle::begin);
 
         PeFileHeader fileHeader = { 0 };
-        file.Read(&fileHeader, sizeof fileHeader, 1);
+        file.read(&fileHeader, sizeof fileHeader, 1);
         if (fileHeader._sectionCount == 0 || fileHeader._sectionCount > 100)
             throw ReadException("PE section count is out of range");
 
         PeSectionHeaderSequence sections(fileHeader._sectionCount);
-        file.Read(sections.data(), sizeof *sections.begin(), sections.size());
+        file.read(sections.data(), sizeof *sections.begin(), sections.size());
 
         auto cliHeaderSectionIt(std::find_if(
             sections.begin(), sections.end(),
@@ -235,10 +232,10 @@ namespace {
             *cliHeaderSectionIt,
             fileHeader._cliHeaderTable));
 
-        file.Seek(cliHeaderTableOffset, FileHandle::Begin);
+        file.seek(cliHeaderTableOffset, cdx::file_handle::begin);
 
         PeCliHeader cliHeader = { 0 };
-        file.Read(&cliHeader, sizeof cliHeader, 1);
+        file.read(&cliHeader, sizeof cliHeader, 1);
 
         PeSectionsAndCliHeader result;
         result._sections = std::move(sections);
@@ -246,7 +243,7 @@ namespace {
         return result;
     }
 
-    PeCliStreamHeaderSequence ReadPeCliStreamHeaders(FileHandle& file,
+    PeCliStreamHeaderSequence ReadPeCliStreamHeaders(cdx::file_handle& file,
                                                      PeSectionsAndCliHeader const& peHeader)
     {
         auto metadataSectionIt(std::find_if(
@@ -261,40 +258,40 @@ namespace {
             *metadataSectionIt,
             peHeader._cliHeader._metadata));
 
-        file.Seek(metadataOffset, FileHandle::Begin);
+        file.seek(metadataOffset, cdx::file_handle::begin);
 
         std::uint32_t magicSignature(0);
-        file.Read(&magicSignature, sizeof magicSignature, 1);
+        file.read(&magicSignature, sizeof magicSignature, 1);
         if (magicSignature != 0x424a5342)
             throw ReadException("Magic signature does not match required value 0x424a5342");
 
-        file.Seek(8, FileHandle::Current);
+        file.seek(8, cdx::file_handle::current);
 
         std::uint32_t versionLength(0);
-        file.Read(&versionLength, sizeof versionLength, 1);
-        file.Seek(versionLength + 2, FileHandle::Current); // Add 2 to account for unused flags
+        file.read(&versionLength, sizeof versionLength, 1);
+        file.seek(versionLength + 2, cdx::file_handle::current); // Add 2 to account for unused flags
 
         std::uint16_t streamCount(0);
-        file.Read(&streamCount, sizeof streamCount, 1);
+        file.read(&streamCount, sizeof streamCount, 1);
 
         PeCliStreamHeaderSequence streamHeaders = { 0 };
         for (std::uint16_t i(0); i < streamCount; ++i)
         {
             PeCliStreamHeader header;
             header._metadataOffset = metadataOffset;
-            file.Read(&header._streamOffset, sizeof header._streamOffset, 1);
-            file.Read(&header._streamSize,   sizeof header._streamSize,   1);
+            file.read(&header._streamOffset, sizeof header._streamOffset, 1);
+            file.read(&header._streamSize,   sizeof header._streamSize,   1);
 
             std::array<char, 12> currentName = { 0 };
-            file.Read(currentName.data(), sizeof *currentName.begin(), currentName.size());
+            file.read(currentName.data(), sizeof *currentName.begin(), currentName.size());
 
-            #define CXXREFLECT_GENERATE(name, id, reset)                                \
-                if (std::strcmp(currentName.data(), name) == 0 &&                       \
-                    streamHeaders[AsInteger(PeCliStreamKind::id)]._metadataOffset == 0) \
-                {                                                                       \
-                    streamHeaders[AsInteger(PeCliStreamKind::id)] = header;             \
-                    file.Seek(reset, FileHandle::Current);                              \
-                    used = true;                                                        \
+            #define CXXREFLECT_GENERATE(name, id, reset)                                      \
+                if (std::strcmp(currentName.data(), name) == 0 &&                             \
+                    streamHeaders[cdx::as_integer(PeCliStreamKind::id)]._metadataOffset == 0) \
+                {                                                                             \
+                    streamHeaders[cdx::as_integer(PeCliStreamKind::id)] = header;             \
+                    file.seek(reset, cdx::file_handle::current);                              \
+                    used = true;                                                              \
                 }
 
             bool used(false);
@@ -317,9 +314,9 @@ namespace {
         2, 2, 5, 1, 2, 3, 1, 1, 1, 2, 3, 2, 1
     };
 
-    #define CXXREFLECT_GENERATE(x, y)                                         \
-        (tableSizes[AsInteger(TableId::y)] <                                  \
-        (1ull << (16 - CompositeIndexTagSize[AsInteger(CompositeIndex::x)])))
+    #define CXXREFLECT_GENERATE(x, y)                                               \
+        (tableSizes[cdx::as_integer(TableId::y)] <                                  \
+        (1ull << (16 - CompositeIndexTagSize[cdx::as_integer(CompositeIndex::x)])))
 
     std::size_t ComputeTypeDefOrRefIndexSize(TableIdSizeArray const& tableSizes)
     {
@@ -444,7 +441,7 @@ namespace {
         {
         case 2:  return ReadAs<std::uint16_t>(data, offset);
         case 4:  return ReadAs<std::uint32_t>(data, offset);
-        default: DebugFail("Invalid table index size");
+        default: cdx::verify_fail("Invalid table index size");
         }
 
         return 0;
@@ -459,7 +456,7 @@ namespace {
         {
             case 2:  return ReadAs<std::uint16_t>(data, offset);
             case 4:  return ReadAs<std::uint32_t>(data, offset);
-            default: DebugFail("Invalid composite index size");
+            default: cdx::verify_fail("Invalid composite index size");
         }
         
         return 0;
@@ -471,7 +468,7 @@ namespace {
         {
         case 2:  return ReadAs<std::uint16_t>(data, offset);
         case 4:  return ReadAs<std::uint32_t>(data, offset);
-        default: DebugFail("Invalid blob heap index size");
+        default: cdx::verify_fail("Invalid blob heap index size");
         }
 
         return 0;
@@ -483,7 +480,7 @@ namespace {
         {
         case 2:  return ReadAs<std::uint16_t>(data, offset);
         case 4:  return ReadAs<std::uint32_t>(data, offset);
-        default: DebugFail("Invalid string heap index size");
+        default: cdx::verify_fail("Invalid string heap index size");
         }
 
         return 0;
@@ -506,7 +503,7 @@ namespace {
 
     TagIndexPair SplitCompositeIndex(CompositeIndex const index, std::uint32_t const value)
     {
-        std::uint32_t const tagBits(CompositeIndexTagSize[AsInteger(index)]);
+        std::uint32_t const tagBits(CompositeIndexTagSize[cdx::as_integer(index)]);
         return std::make_pair(
             value & ((static_cast<std::uint32_t>(1u) << tagBits) - 1),
             value >> tagBits
@@ -586,7 +583,7 @@ namespace {
         {
         case 0:  return TableReference(TableId::Field, split.second);
         case 1:  return TableReference(TableId::Param, split.second);
-        default: DebugFail("Too many bits!"); return TableReference();
+        default: cdx::verify_fail("Too many bits!"); return TableReference();
         }
     }
 
@@ -597,7 +594,7 @@ namespace {
         {
         case 0:  return TableReference(TableId::Event,    split.second);
         case 1:  return TableReference(TableId::Property, split.second);
-        default: DebugFail("Too many bits!"); return TableReference();
+        default: cdx::verify_fail("Too many bits!"); return TableReference();
         }
     }
 
@@ -620,7 +617,7 @@ namespace {
         {
         case 0:  return TableReference(TableId::Field,     split.second);
         case 1:  return TableReference(TableId::MethodDef, split.second);
-        default: DebugFail("Too many bits!"); return TableReference();
+        default: cdx::verify_fail("Too many bits!"); return TableReference();
         }
     }
 
@@ -645,7 +642,7 @@ namespace {
         {
         case 0:  return TableReference(TableId::MethodDef, split.second);
         case 1:  return TableReference(TableId::MemberRef, split.second);
-        default: DebugFail("Too many bits!"); return TableReference();
+        default: cdx::verify_fail("Too many bits!"); return TableReference();
         }
     }
 
@@ -658,7 +655,7 @@ namespace {
         case 1:  return TableReference(TableId::ModuleRef,   split.second);
         case 2:  return TableReference(TableId::AssemblyRef, split.second);
         case 3:  return TableReference(TableId::TypeRef,     split.second);
-        default: DebugFail("Too many bits!"); return TableReference();
+        default: cdx::verify_fail("Too many bits!"); return TableReference();
         }
     }
 
@@ -681,7 +678,7 @@ namespace {
         {
         case 0:  return TableReference(TableId::TypeDef,   split.second);
         case 1:  return TableReference(TableId::MethodDef, split.second);
-        default: DebugFail("Too many bits!"); return TableReference();
+        default: cdx::verify_fail("Too many bits!"); return TableReference();
         }
     }
 
@@ -706,7 +703,7 @@ namespace {
         case CompositeIndex::ResolutionScope:     return DecodeResolutionScopeIndex(value);
         case CompositeIndex::TypeDefOrRef:        return DecodeTypeDefOrRefIndex(value);
         case CompositeIndex::TypeOrMethodDef:     return DecodeTypeOrMethodDefIndex(value);
-        default:  DebugFail("Invalid index");     return TableReference();
+        default:  cdx::verify_fail("Invalid index");     return TableReference();
         }
     }
 
@@ -749,15 +746,15 @@ namespace CxxReflect { namespace Metadata {
         return _index.insert(std::make_pair(index, String(range.begin(), range.end()))).first->second;
     }
 
-    Stream::Stream(FileHandle& file,
+    Stream::Stream(cdx::file_handle& file,
                    SizeType const metadataOffset,
                    SizeType const streamOffset,
                    SizeType const streamSize)
         : _size(streamSize)
     {
         _data.reset(new Byte[streamSize]);
-        file.Seek(metadataOffset + streamOffset, FileHandle::Begin);
-        file.Read(_data.get(), streamSize, 1);
+        file.seek(metadataOffset + streamOffset, cdx::file_handle::begin);
+        file.read(_data.get(), streamSize, 1);
     }
 
     TableCollection::TableCollection(Stream&& stream)
@@ -804,8 +801,8 @@ namespace CxxReflect { namespace Metadata {
 
     void TableCollection::ComputeCompositeIndexSizes()
     {
-        #define CXXREFLECT_GENERATE(x)                                     \
-            _state._compositeIndexSizes[AsInteger(CompositeIndex::x)] =    \
+        #define CXXREFLECT_GENERATE(x)                                        \
+            _state._compositeIndexSizes[cdx::as_integer(CompositeIndex::x)] = \
                 Compute ## x ## IndexSize(_state._rowCounts)
         
         CXXREFLECT_GENERATE(TypeDefOrRef       );
@@ -828,8 +825,8 @@ namespace CxxReflect { namespace Metadata {
     void TableCollection::ComputeTableRowSizes()
     {
         #define CXXREFLECT_GENERATE(x, n, o)                              \
-            _state._columnOffsets[AsInteger(TableId::x)][n] =             \
-            _state._columnOffsets[AsInteger(TableId::x)][n - 1] + o
+            _state._columnOffsets[cdx::as_integer(TableId::x)][n] =       \
+            _state._columnOffsets[cdx::as_integer(TableId::x)][n - 1] + o
 
         CXXREFLECT_GENERATE(Assembly, 1, 4);
         CXXREFLECT_GENERATE(Assembly, 2, 8);
@@ -1000,30 +997,30 @@ namespace CxxReflect { namespace Metadata {
 
     SizeType TableCollection::GetCompositeIndexSize(CompositeIndex const index) const
     {
-        return _state._compositeIndexSizes[AsInteger(index)];
+        return _state._compositeIndexSizes[cdx::as_integer(index)];
     }
 
     SizeType TableCollection::GetTableColumnOffset(TableId const table, SizeType const column) const
     {
-        Utility::DebugVerify([&] { return column < MaximumColumnCount; }, "Invalid column identifier");
+        cdx::verify([&] { return column < MaximumColumnCount; }, "Invalid column identifier");
         // TODO Check table-specific offset
-        return _state._columnOffsets[AsInteger(table)][column];
+        return _state._columnOffsets[cdx::as_integer(table)][column];
     }
 
     Table const& TableCollection::GetTable(TableId const id) const
     {
-        return _state._tables[AsInteger(id)];
+        return _state._tables[cdx::as_integer(id)];
     }
 
     SizeType TableCollection::GetTableIndexSize(TableId const id) const
     {
-        return _state._rowCounts[AsInteger(id)] < (1 << 16) ? 2 : 4;
+        return _state._rowCounts[cdx::as_integer(id)] < (1 << 16) ? 2 : 4;
     }
 
     Database::Database(wchar_t const* const fileName)
         : _fileName(fileName)
     {
-        FileHandle file(fileName);
+        cdx::file_handle file(fileName);
 
         PeSectionsAndCliHeader const peSectionsAndCliHeader(ReadPeSectionsAndCliHeader(file));
         PeCliStreamHeaderSequence const streamHeaders(ReadPeCliStreamHeaders(file, peSectionsAndCliHeader));

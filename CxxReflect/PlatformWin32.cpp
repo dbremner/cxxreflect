@@ -12,15 +12,15 @@ namespace CxxReflect { namespace Platform {
 
     unsigned ComputeUtf16LengthOfUtf8String(char const* source)
     {
-        Utility::DebugVerifyNotNull(source);
+        detail::verify_not_null(source);
 
         return MultiByteToWideChar(CP_UTF8, 0, source, -1, nullptr, 0);
     }
 
     bool ConvertUtf8ToUtf16(char const* source, wchar_t* target, unsigned targetLength)
     {
-        Utility::DebugVerifyNotNull(source);
-        Utility::DebugVerifyNotNull(target);
+        detail::verify_not_null(source);
+        detail::verify_not_null(target);
 
         int const actualLength(MultiByteToWideChar(CP_UTF8, 0, source, -1, target, targetLength));
         return actualLength >= 0 &&  static_cast<unsigned>(actualLength) == targetLength;
@@ -28,8 +28,8 @@ namespace CxxReflect { namespace Platform {
 
     Sha1Hash ComputeSha1Hash(std::uint8_t const* const first, std::uint8_t const* const last)
     {
-        Utility::DebugVerifyNotNull(first);
-        Utility::DebugVerifyNotNull(last);
+        detail::verify_not_null(first);
+        detail::verify_not_null(last);
 
         HCRYPTPROV provider(0);
         detail::scope_guard cleanupProvider([&](){ if (provider) { CryptReleaseContext(provider, 0); } });
