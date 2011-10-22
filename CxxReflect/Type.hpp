@@ -9,6 +9,14 @@
 
 namespace CxxReflect {
 
+    class Type
+    {
+    public:
+
+    private:
+
+    };
+
 }
 
 #endif

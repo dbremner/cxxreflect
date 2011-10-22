@@ -16,10 +16,10 @@
 #include <iterator>
 #include <sstream>
 
-namespace CxxReflect { namespace Utility {
+namespace CxxReflect { namespace LegacyUtility {
 
     template <typename T>
-    String ToString(T const& x)
+    std::wstring ToString(T const& x)
     {
         std::wostringstream iss;
         if (!(iss << x))

@@ -20,7 +20,8 @@ namespace CxxReflect {
         virtual ~IMetadataResolver();
 
         virtual std::wstring ResolveAssembly(AssemblyName const& assemblyName) const = 0;
-        virtual std::wstring ResolveType(AssemblyName const& assemblyName, std::wstring const& typeFullName) const = 0;
+        virtual std::wstring ResolveAssembly(AssemblyName const& assemblyName,
+                                             String       const& typeFullName) const = 0;
     };
 
     #ifdef CXXREFLECT_ENABLE_WINRT_RESOLVER
@@ -33,7 +34,8 @@ namespace CxxReflect {
         ~WinRTMetadataResolver();
 
         std::wstring ResolveAssembly(AssemblyName const& assemblyName) const;
-        std::wstring ResolveAssembly(AssemblyName const& assemblyName, std::wstring const& typeFullName) const;
+        std::wstring ResolveAssembly(AssemblyName const& assemblyName,
+                                     String       const& typeFullName) const;
 
     private:
 
@@ -46,7 +48,7 @@ namespace CxxReflect {
     {
     public:
 
-        typedef std::set<std::wstring> DirectorySet;
+        typedef std::set<String> DirectorySet;
 
         DirectoryBasedMetadataResolver(DirectorySet directories)
             : _directories(std::move(directories))
@@ -74,7 +76,7 @@ namespace CxxReflect {
             return L"";
         }
 
-        std::wstring ResolveAssembly(AssemblyName const& assemblyName, std::wstring const&) const
+        std::wstring ResolveAssembly(AssemblyName const& assemblyName, String const&) const
         {
             return ResolveAssembly(assemblyName);
         }
@@ -90,15 +92,15 @@ namespace CxxReflect {
 
         MetadataLoader(std::unique_ptr<IMetadataResolver> resolver);
 
-        // Assembly LoadAssembly(std::wstring const& filePath);
+        Assembly LoadAssembly(String const& filePath) const;
 
     private:
 
         MetadataLoader(MetadataLoader const&);
         MetadataLoader& operator=(MetadataLoader const&);
 
-        std::unique_ptr<IMetadataResolver>         _resolver;
-        std::map<std::wstring, Metadata::Database> _databases;
+        std::unique_ptr<IMetadataResolver>   _resolver;
+        mutable std::map<String, Metadata::Database> _databases;
     };
 
 }

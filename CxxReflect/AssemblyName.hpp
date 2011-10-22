@@ -25,7 +25,10 @@ namespace CxxReflect {
 
         explicit Version(String const& version);
 
-        Version(std::uint16_t major, std::uint16_t minor, std::uint16_t build = 0, std::uint16_t revision = 0)
+        Version(std::uint16_t const major,
+                std::uint16_t const minor,
+                std::uint16_t const build = 0,
+                std::uint16_t const revision = 0)
             : _major(major), _minor(minor), _build(build), _revision(revision)
         {
         }
@@ -71,22 +74,6 @@ namespace CxxReflect {
     std::wostream& operator<<(std::wostream& os, Version const& v);
     std::wistream& operator>>(std::wistream& is, Version& v);
 
-    enum struct AssemblyNameFlags : std::uint16_t
-    {
-        None                       = 0x0000,
-
-        // PublicKey is not supported; we always hash the public key before storing it.
-
-        EnableJITCompileTracking   = 0x8000,
-        DisableJITCompileOptimizer = 0x4000,
-
-        Retargetable               = 0x0100,
-
-        DefaultContentType         = 0x0000,
-        WindowsRuntimeContentType  = 0x0200,
-        ContentTypeMask            = 0x0E00
-    };
-
     typedef std::array<std::uint8_t, 8> PublicKeyToken;
 
     class AssemblyName
@@ -105,34 +92,33 @@ namespace CxxReflect {
         {
         }
 
-        AssemblyName(String            const& simpleName,
-                     Version           const& version,
-                     String            const& cultureInfo,
-                     PublicKeyToken    const& publicKeyToken,
-                     AssemblyNameFlags const& flags,
-                     String            const& path = L"")
+        AssemblyName(String         const& simpleName,
+                     Version        const  version,
+                     String         const& cultureInfo,
+                     PublicKeyToken const  publicKeyToken,
+                     AssemblyFlags  const  flags,
+                     String         const& path = L"")
             : _simpleName(simpleName), _version(version), _cultureInfo(cultureInfo),
               _publicKeyToken(publicKeyToken), _flags(flags), _path(path)
         {
         }
 
-        String            const& GetName()           const { return _simpleName;     }
-        Version           const& GetVersion()        const { return _version;        }
-        String            const& GetCultureInfo()    const { return _cultureInfo;    }
-        PublicKeyToken    const& GetPublicKeyToken() const { return _publicKeyToken; }    
-        AssemblyNameFlags        GetFlags()          const { return _flags;          }
-        String            const& GetPath()           const { return _path;           }
-
-        String GetFullName() const;
+        String         const& GetName()           const { return _simpleName;     }
+        Version        const& GetVersion()        const { return _version;        }
+        String         const& GetCultureInfo()    const { return _cultureInfo;    }
+        PublicKeyToken const& GetPublicKeyToken() const { return _publicKeyToken; }
+        AssemblyFlags         GetFlags()          const { return _flags;          }
+        String         const& GetPath()           const { return _path;           }
+        String                GetFullName()       const;
 
     private:
 
-        String            _simpleName;
-        Version           _version;
-        String            _cultureInfo;
-        PublicKeyToken    _publicKeyToken;
-        AssemblyNameFlags _flags;
-        String            _path;
+        String         _simpleName;
+        Version        _version;
+        String         _cultureInfo;
+        PublicKeyToken _publicKeyToken;
+        AssemblyFlags  _flags;
+        String         _path;
     };
 
     inline bool operator==(AssemblyName const& lhs, AssemblyName const& rhs)
@@ -143,7 +129,7 @@ namespace CxxReflect {
             && lhs.GetPublicKeyToken() == rhs.GetPublicKeyToken();
     }
 
-    inline bool operator<(AssemblyName const& lhs, AssemblyName const& rhs)
+    inline bool operator< (AssemblyName const& lhs, AssemblyName const& rhs)
     {
         if (lhs.GetName()           < rhs.GetName())           { return true;  }
         if (rhs.GetName()           < lhs.GetName())           { return false; }
@@ -161,7 +147,7 @@ namespace CxxReflect {
     inline bool operator<=(AssemblyName const& lhs, AssemblyName const& rhs) { return !(rhs <  lhs); }
 
     std::wostream& operator<<(std::wostream& os, AssemblyName const& an);
-    std::wistream& operator>>(std::wistream& os, AssemblyName & an);      // TODO
+    std::wistream& operator>>(std::wistream& os, AssemblyName& an);      // TODO
 }
 
 #endif

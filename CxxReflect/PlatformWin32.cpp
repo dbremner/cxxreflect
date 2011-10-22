@@ -51,4 +51,9 @@ namespace CxxReflect { namespace Detail {
         return result;
     }
 
+    bool FileExists(wchar_t const* path)
+    {
+        return GetFileAttributes(path) != INVALID_FILE_ATTRIBUTES;
+    }
+
 } }

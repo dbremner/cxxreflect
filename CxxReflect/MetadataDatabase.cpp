@@ -3,7 +3,6 @@
 //     (See accompanying file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)    //
 
 #include "CxxReflect/AssemblyName.hpp"
-#include "CxxReflect/Core.hpp"
 #include "CxxReflect/MetadataDatabase.hpp"
 
 #include <algorithm>
@@ -483,7 +482,7 @@ namespace {
         return 0;
     }
 
-    String ReadString(Database const& database, ByteIterator const data, SizeType const offset)
+    StringReference ReadString(Database const& database, ByteIterator const data, SizeType const offset)
     {
         return database.GetStrings().At(ReadStringHeapIndex(database, data, offset));
     }
@@ -727,7 +726,7 @@ namespace {
 
 namespace CxxReflect { namespace Metadata {
 
-    String StringCollection::At(SizeType const index) const
+    StringReference StringCollection::At(SizeType const index) const
     {
         auto const existingIt(_index.find(index));
         if (existingIt != _index.end())
@@ -740,7 +739,7 @@ namespace CxxReflect { namespace Metadata {
         if (!Detail::ConvertUtf8ToUtf16(pointer, range.Begin(), required))
             throw std::logic_error("wtf");
 
-        return _index.insert(std::make_pair(index, String(range.Begin(), range.End()))).first->second;
+        return _index.insert(std::make_pair(index, StringReference(range.Begin(), range.End()))).first->second;
     }
 
     Stream::Stream(Detail::FileHandle& file,
@@ -1081,12 +1080,12 @@ namespace CxxReflect { namespace Metadata {
         return ReadBlobHeapIndex(*_database, _data, GetColumnOffset(3));
     }
 
-    String AssemblyRow::GetName() const
+    StringReference AssemblyRow::GetName() const
     {
         return ReadString(*_database, _data, GetColumnOffset(4));
     }
 
-    String AssemblyRow::GetCulture() const
+    StringReference AssemblyRow::GetCulture() const
     {
         return ReadString(*_database, _data, GetColumnOffset(5));
     }
@@ -1127,12 +1126,12 @@ namespace CxxReflect { namespace Metadata {
         return ReadBlobHeapIndex(*_database, _data, GetColumnOffset(2));
     }
 
-    String AssemblyRefRow::GetName() const
+    StringReference AssemblyRefRow::GetName() const
     {
         return ReadString(*_database, _data, GetColumnOffset(3));
     }
 
-    String AssemblyRefRow::GetCulture() const
+    StringReference AssemblyRefRow::GetCulture() const
     {
         return ReadString(*_database, _data, GetColumnOffset(4));
     }
@@ -1255,7 +1254,7 @@ namespace CxxReflect { namespace Metadata {
         return ReadAs<EventAttribute>(_data, GetColumnOffset(0));
     }
 
-    String EventRow::GetName() const
+    StringReference EventRow::GetName() const
     {
         return ReadString(*_database, _data, GetColumnOffset(1));
     }
@@ -1275,12 +1274,12 @@ namespace CxxReflect { namespace Metadata {
         return ReadAs<std::uint32_t>(_data, GetColumnOffset(1));
     }
 
-    String ExportedTypeRow::GetName() const
+    StringReference ExportedTypeRow::GetName() const
     {
         return ReadString(*_database, _data, GetColumnOffset(2));
     }
 
-    String ExportedTypeRow::GetNamespace() const
+    StringReference ExportedTypeRow::GetNamespace() const
     {
         return ReadString(*_database, _data, GetColumnOffset(3));
     }
@@ -1295,7 +1294,7 @@ namespace CxxReflect { namespace Metadata {
         return ReadAs<FieldAttribute>(_data, GetColumnOffset(0));
     }
 
-    String FieldRow::GetName() const
+    StringReference FieldRow::GetName() const
     {
         return ReadString(*_database, _data, GetColumnOffset(1));
     }
@@ -1340,7 +1339,7 @@ namespace CxxReflect { namespace Metadata {
         return ReadAs<FileAttribute>(_data, GetColumnOffset(0));
     }
 
-    String FileRow::GetName() const
+    StringReference FileRow::GetName() const
     {
         return ReadString(*_database, _data, GetColumnOffset(1));
     }
@@ -1365,7 +1364,7 @@ namespace CxxReflect { namespace Metadata {
         return ReadTableReference(*_database, _data, CompositeIndex::TypeOrMethodDef, GetColumnOffset(2));
     }
 
-    String GenericParamRow::GetName() const
+    StringReference GenericParamRow::GetName() const
     {
         return ReadString(*_database, _data, GetColumnOffset(3));
     }
@@ -1390,7 +1389,7 @@ namespace CxxReflect { namespace Metadata {
         return ReadTableReference(*_database, _data, CompositeIndex::MemberForwarded, GetColumnOffset(1));
     }
 
-    String ImplMapRow::GetImportName() const
+    StringReference ImplMapRow::GetImportName() const
     {
         return ReadString(*_database, _data, GetColumnOffset(2));
     }
@@ -1420,7 +1419,7 @@ namespace CxxReflect { namespace Metadata {
         return ReadAs<ManifestResourceAttribute>(_data, GetColumnOffset(1));
     }
 
-    String ManifestResourceRow::GetName() const
+    StringReference ManifestResourceRow::GetName() const
     {
         return ReadString(*_database, _data, GetColumnOffset(2));
     }
@@ -1435,7 +1434,7 @@ namespace CxxReflect { namespace Metadata {
         return ReadTableReference(*_database, _data, CompositeIndex::MemberRefParent, GetColumnOffset(0));
     }
 
-    String MemberRefRow::GetName() const
+    StringReference MemberRefRow::GetName() const
     {
         return ReadString(*_database, _data, GetColumnOffset(1));
     }
@@ -1460,7 +1459,7 @@ namespace CxxReflect { namespace Metadata {
         return ReadAs<MethodAttribute>(_data, GetColumnOffset(2));
     }
 
-    String MethodDefRow::GetName() const
+    StringReference MethodDefRow::GetName() const
     {
         return ReadString(*_database, _data, GetColumnOffset(3));
     }
@@ -1523,12 +1522,12 @@ namespace CxxReflect { namespace Metadata {
         return ReadBlobHeapIndex(*_database, _data, GetColumnOffset(1));
     }
 
-    String ModuleRow::GetName() const
+    StringReference ModuleRow::GetName() const
     {
         return ReadString(*_database, _data, GetColumnOffset(1));
     }
 
-    String ModuleRefRow::GetName() const
+    StringReference ModuleRefRow::GetName() const
     {
         return ReadString(*_database, _data, GetColumnOffset(0));
     }
@@ -1553,7 +1552,7 @@ namespace CxxReflect { namespace Metadata {
         return ReadAs<std::uint16_t>(_data, GetColumnOffset(1));
     }
 
-    String ParamRow::GetName() const
+    StringReference ParamRow::GetName() const
     {
         return ReadString(*_database, _data, GetColumnOffset(2));
     }
@@ -1563,7 +1562,7 @@ namespace CxxReflect { namespace Metadata {
         return ReadAs<PropertyAttribute>(_data, GetColumnOffset(0));
     }
 
-    String PropertyRow::GetName() const
+    StringReference PropertyRow::GetName() const
     {
         return ReadString(*_database, _data, GetColumnOffset(1));
     }
@@ -1601,12 +1600,12 @@ namespace CxxReflect { namespace Metadata {
         return ReadAs<TypeAttribute>(_data, GetColumnOffset(0));
     }
 
-    String TypeDefRow::GetName() const
+    StringReference TypeDefRow::GetName() const
     {
         return ReadString(*_database, _data, GetColumnOffset(1));
     }
 
-    String TypeDefRow::GetNamespace() const
+    StringReference TypeDefRow::GetNamespace() const
     {
         return ReadString(*_database, _data, GetColumnOffset(2));
     }
@@ -1647,12 +1646,12 @@ namespace CxxReflect { namespace Metadata {
         return ReadTableReference(*_database, _data, CompositeIndex::ResolutionScope, GetColumnOffset(0));
     }
 
-    String TypeRefRow::GetName() const
+    StringReference TypeRefRow::GetName() const
     {
         return ReadString(*_database, _data, GetColumnOffset(1));
     }
 
-    String TypeRefRow::GetNamespace() const
+    StringReference TypeRefRow::GetNamespace() const
     {
         return ReadString(*_database, _data, GetColumnOffset(2));
     }

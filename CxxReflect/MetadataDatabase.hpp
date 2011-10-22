@@ -9,9 +9,7 @@
 #ifndef CXXREFLECT_METADATADATABASE_HPP_
 #define CXXREFLECT_METADATADATABASE_HPP_
 
-#include "CxxReflect/AssemblyName.hpp"
 #include "CxxReflect/Core.hpp"
-#include "CxxReflect/Utility.hpp"
 
 #include <array>
 #include <bitset>
@@ -429,18 +427,53 @@ namespace CxxReflect { namespace Metadata {
             std::swap(other._index,  _index);
         }
 
-        String At(SizeType index) const;
+        StringReference At(SizeType index) const;
 
     private:
 
         typedef Detail::LinearArrayAllocator<Character, (1 << 16)> Allocator;
+        typedef std::map<SizeType, StringReference>                StringMap;
 
         StringCollection(StringCollection const&);
         StringCollection& operator=(StringCollection const&);
 
-        Stream                             _stream;
-        mutable Allocator                  _buffer;
-        mutable std::map<SizeType, String> _index;
+        Stream            _stream;
+        mutable Allocator _buffer;
+        mutable StringMap _index;
+    };
+
+    // TODO We've hacked this up for one-byte-size
+    class Blob
+    {
+    public:
+
+        Blob()
+            : _pointer(nullptr)
+        {
+        }
+
+        explicit Blob(ByteIterator pointer)
+            : _size(*pointer), _pointer(pointer + 1)
+        {
+            Detail::VerifyNotNull(pointer);
+        }
+
+        ByteIterator Begin() const { return _pointer;         }
+        ByteIterator End()   const { return _pointer + _size; }
+
+        SizeType GetSize() const { VerifyInitialized(); return _size; }
+
+        bool IsInitialized() const { return _pointer != nullptr; }
+
+    private:
+
+        void VerifyInitialized() const
+        {
+            Detail::Verify([&] { return IsInitialized(); }, "Blob is not initialized");
+        }
+
+        SizeType     _size;
+        ByteIterator _pointer;
     };
 
     template <TableId TId>
@@ -451,6 +484,21 @@ namespace CxxReflect { namespace Metadata {
     public:
 
         Database(wchar_t const* fileName);
+
+        Database(Database&& other)
+            : _fileName(std::move(other._fileName)),
+              _blobStream(std::move(other._blobStream)),
+              _guidStream(std::move(other._guidStream)),
+              _strings(std::move(other._strings)),
+              _tables(std::move(other._tables))
+        {
+        }
+
+        Database& operator=(Database&& other)
+        {
+            Swap(other);
+            return *this;
+        }
 
         template <TableId TId>
         RowIterator<TId> Begin() const
@@ -465,18 +513,32 @@ namespace CxxReflect { namespace Metadata {
         }
 
         template <TableId TId>
-        typename TableIdToRowType<TId>::Type GetRow(SizeType index) const
+        typename TableIdToRowType<TId>::Type GetRow(SizeType const index) const
         {
             typedef typename TableIdToRowType<TId>::Type ReturnType;
             return ReturnType(this, _tables.GetTable(TId).At(index));
         }
 
+        Blob GetBlob(BlobIndex const index) const
+        {
+            return Blob(_blobStream.At(index));
+        }
+
         TableCollection  const& GetTables()  const { return _tables;  }
         StringCollection const& GetStrings() const { return _strings; }
 
+        void Swap(Database& other)
+        {
+            std::swap(_fileName,   other._fileName  );
+            std::swap(_blobStream, other._blobStream);
+            std::swap(_guidStream, other._guidStream);
+            std::swap(_strings,    other._strings   );
+            std::swap(_tables,     other._tables    );
+        }
+
     private:
 
-        std::wstring  _fileName;
+        String  _fileName;
 
         Stream _blobStream;
         Stream _guidStream;
@@ -561,230 +623,6 @@ namespace CxxReflect { namespace Metadata {
         Database const* _database;
         SizeType        _index;
     };
-
-    enum class AssemblyAttribute : std::uint32_t
-    {
-        PublicKey                  = 0x0001,
-        Retargetable               = 0x0100,
-        DisableJitCompileOptimizer = 0x4000,
-        EnableJitCompileTracking   = 0x8000
-    };
-
-    enum class AssemblyHashAlgorithm : std::uint32_t
-    {
-        None     = 0x0000,
-        MD5      = 0x8003,
-        SHA1     = 0x8004
-    };
-
-    enum class EventAttribute : std::uint16_t
-    {
-        SpecialName        = 0x0200,
-        RuntimeSpecialName = 0x0400
-    };
-
-    enum class FieldAttribute : std::uint16_t
-    {
-        FieldAccessMask    = 0x0007,
-
-        CompilerControlled = 0x0000,
-        Private            = 0x0001,
-        FamilyAndAssembly  = 0x0002,
-        Assembly           = 0x0003,
-        Family             = 0x0004,
-        FamilyOrAssembly   = 0x0005,
-        Public             = 0x0006,
-
-        Static             = 0x0010,
-        InitOnly           = 0x0020,
-        Literal            = 0x0040,
-        NotSerialized      = 0x0080,
-        SpecialName        = 0x0200,
-
-        PInvokeImpl        = 0x2000,
-
-        RuntimeSpecialName = 0x0400,
-        HasFieldMarshal    = 0x1000,
-        HasDefault         = 0x8000,
-        HasFieldRva        = 0x0100
-    };
-
-    enum class FileAttribute : std::uint32_t
-    {
-        ContainsMetadata   = 0x0000,
-        ContainsNoMetadata = 0x0001
-    };
-
-    enum class GenericParameterAttribute : std::uint16_t
-    {
-        VarianceMask                   = 0x0003,
-        None                           = 0x0000,
-        Covariant                      = 0x0001,
-        Contravariant                  = 0x0002,
-
-        SpecialConstraintMask          = 0x001c,
-        ReferenceTypeConstraint        = 0x0004,
-        NotNullableValueTypeConstraint = 0x0008,
-        DefaultConstructorConstraint   = 0x0010
-    };
-
-    enum class ManifestResourceAttribute : std::uint32_t
-    {
-        VisibilityMask = 0x0007,
-        Public         = 0x0001,
-        Private        = 0x0002
-    };
-
-    enum class MethodAttribute : std::uint16_t
-    {
-        MemberAccessMask      = 0x0007,
-        CompilerControlled    = 0x0000,
-        Private               = 0x0001,
-        FamilyAndAssembly     = 0x0002,
-        Assembly              = 0x0003,
-        Family                = 0x0004,
-        FamilyOrAssembly      = 0x0005,
-        Public                = 0x0006,
-
-        Static                = 0x0010,
-        Final                 = 0x0020,
-        Virtual               = 0x0040,
-        HideBySig             = 0x0080,
-
-        VTableLayoutMask      = 0x0100,
-        ReuseSlot             = 0x0000,
-        NewSlot               = 0x0100,
-
-        Strict                = 0x0200,
-        Abstract              = 0x0400,
-        SpecialName           = 0x0800,
-
-        PInvokeImpl           = 0x2000,
-        RuntimeSpecialName    = 0x1000,
-        HasSecurity           = 0x4000,
-        RequireSecurityObject = 0x8000
-    };
-
-    enum class MethodImplementationAttribute : std::uint16_t
-    {
-        CodeTypeMask   = 0x0003,
-        IL             = 0x0000,
-        Native         = 0x0001,
-        Runtime        = 0x0003,
-
-        ManagedMask    = 0x0004,
-        Unmanaged      = 0x0004,
-        Managed        = 0x0000,
-
-        ForwardRef     = 0x0010,
-        PreserveSig    = 0x0080,
-        InternalCall   = 0x1000,
-        Synchronized   = 0x0020,
-        NoInlining     = 0x0008,
-        NoOptimization = 0x0040
-    };
-
-    enum class MethodSemanticsAttribute : std::uint16_t
-    {
-        Setter   = 0x0001,
-        Getter   = 0x0002,
-        Other    = 0x0004,
-        AddOn    = 0x0008,
-        RemoveOn = 0x0010,
-        Fire     = 0x0020
-    };
-
-    enum class ParameterAttribute : std::uint16_t
-    {
-        In              = 0x0001,
-        Out             = 0x0002,
-        Optional        = 0x0010,
-        HasDefault      = 0x1000,
-        HasFieldMarshal = 0x2000
-    };
-
-    enum class PInvokeAttribute : std::uint16_t
-    {
-        NoMangle                     = 0x0001,
-
-        CharacterSetMask             = 0x0006,
-        CharacterSetNotSpecified     = 0x0000,
-        CharacterSetAnsi             = 0x0002,
-        CharacterSetUnicode          = 0x0004,
-        CharacterSetAuto             = 0x0006,
-
-        SupportsLastError            = 0x0040,
-
-        CallingConventionMask        = 0x0700,
-        CallingConventionPlatformApi = 0x0100,
-        CallingConventionCDecl       = 0x0200,
-        CallingConventionStdCall     = 0x0300,
-        CallingConventionThisCall    = 0x0400,
-        CallingConventionFastCall    = 0x0500
-    };
-
-    enum class PropertyAttribute : std::uint16_t
-    {
-        SpecialName        = 0x0200,
-        RuntimeSpecialName = 0x0400,
-        HasDefault         = 0x1000
-    };
-
-    enum class TypeAttribute : std::uint32_t
-    {
-        VisibilityMask          = 0x00000007,
-        NotPublic               = 0x00000000,
-        Public                  = 0x00000001,
-        NestedPublic            = 0x00000002,
-        NestedPrivate           = 0x00000003,
-        NestedFamily            = 0x00000004,
-        NestedAssembly          = 0x00000005,
-        NestedFamilyAndAssembly = 0x00000006,
-        NestedFamilyOrAssembly  = 0x00000007,
-
-        LayoutMask              = 0x00000018,
-        AutoLayout              = 0x00000000,
-        SequentialLayout        = 0x00000008,
-        ExplicitLayout          = 0x00000010,
-
-        ClassSemanticsMask      = 0x00000020,
-        Class                   = 0x00000000,
-        Interface               = 0x00000020,
-
-        Abstract                = 0x00000080,
-        Sealed                  = 0x00000100,
-        SpecialName             = 0x00000400,
-
-        Import                  = 0x00001000,
-        Serializable            = 0x00002000,
-
-        StringFormatMask        = 0x00030000,
-        AnsiClass               = 0x00000000,
-        UnicodeClass            = 0x00010000,
-        AutoClass               = 0x00020000,
-        CustomFormatClass       = 0x00030000,
-        CustomStringFormatMask  = 0x00c00000,
-
-        BeforeFieldInit         = 0x00100000,
-
-        RuntimeSpecialName      = 0x00000800,
-        HasSecurity             = 0x00040000,
-        IsTypeForwarder         = 0x00200000
-    };
-
-    typedef Detail::FlagSet<AssemblyAttribute>             AssemblyFlags;
-    typedef Detail::FlagSet<EventAttribute>                EventFlags;
-    typedef Detail::FlagSet<FieldAttribute>                FieldFlags;
-    typedef Detail::FlagSet<FileAttribute>                 FileFlags;
-    typedef Detail::FlagSet<GenericParameterAttribute>     GenericParameterFlags;
-    typedef Detail::FlagSet<ManifestResourceAttribute>     ManifestResourceFlags;
-    typedef Detail::FlagSet<MethodAttribute>               MethodFlags;
-    typedef Detail::FlagSet<MethodImplementationAttribute> MethodImplementationFlags;
-    typedef Detail::FlagSet<MethodSemanticsAttribute>      MethodSemanticsFlags;
-    typedef Detail::FlagSet<ParameterAttribute>            ParameterFlags;
-    typedef Detail::FlagSet<PInvokeAttribute>              PInvokeFlags;
-    typedef Detail::FlagSet<PropertyAttribute>             PropertyFlags;
-    typedef Detail::FlagSet<TypeAttribute>                 TypeFlags;
 
     enum class ElementType : std::uint8_t
     {
@@ -896,8 +734,8 @@ namespace CxxReflect { namespace Metadata {
         Version               GetVersion()       const;
         AssemblyFlags         GetFlags()         const;
         BlobIndex             GetPublicKey()     const;
-        String                GetName()          const;
-        String                GetCulture()       const;
+        StringReference       GetName()          const;
+        StringReference       GetCulture()       const;
     };
 
     class AssemblyOsRow
@@ -926,12 +764,12 @@ namespace CxxReflect { namespace Metadata {
 
     public:
 
-        Version       GetVersion()          const;
-        AssemblyFlags GetFlags()            const;
-        BlobIndex     GetPublicKeyOrToken() const;
-        String        GetName()             const;
-        String        GetCulture()          const;
-        BlobIndex     GetHashValue()        const;
+        Version         GetVersion()          const;
+        AssemblyFlags   GetFlags()            const;
+        BlobIndex       GetPublicKeyOrToken() const;
+        StringReference GetName()             const;
+        StringReference GetCulture()          const;
+        BlobIndex       GetHashValue()        const;
     };
 
     class AssemblyRefOsRow
@@ -1017,9 +855,9 @@ namespace CxxReflect { namespace Metadata {
 
     public:
 
-        EventFlags     GetFlags() const;
-        String         GetName()  const;
-        TableReference GetType()  const;
+        EventFlags      GetFlags() const;
+        StringReference GetName()  const;
+        TableReference  GetType()  const;
     };
 
     class ExportedTypeRow
@@ -1028,11 +866,11 @@ namespace CxxReflect { namespace Metadata {
 
     public:
 
-        TypeFlags      GetFlags()          const;
-        std::uint32_t  GetTypeDefId()      const;
-        String         GetName()           const;
-        String         GetNamespace()      const;
-        TableReference GetImplementation() const;
+        TypeFlags       GetFlags()          const;
+        std::uint32_t   GetTypeDefId()      const;
+        StringReference GetName()           const;
+        StringReference GetNamespace()      const;
+        TableReference  GetImplementation() const;
     };
 
     class FieldRow
@@ -1041,9 +879,9 @@ namespace CxxReflect { namespace Metadata {
 
     public:
 
-        FieldFlags GetFlags()     const;
-        String     GetName()      const;
-        BlobIndex  GetSignature() const;
+        FieldFlags      GetFlags()     const;
+        StringReference GetName()      const;
+        BlobIndex       GetSignature() const;
     };
 
     class FieldLayoutRow
@@ -1082,9 +920,9 @@ namespace CxxReflect { namespace Metadata {
 
     public:
 
-        FileFlags GetFlags()     const;
-        String    GetName()      const;
-        BlobIndex GetHashValue() const;
+        FileFlags       GetFlags()     const;
+        StringReference GetName()      const;
+        BlobIndex       GetHashValue() const;
     };
 
     class GenericParamRow
@@ -1096,7 +934,7 @@ namespace CxxReflect { namespace Metadata {
         std::uint16_t         GetNumber() const;
         GenericParameterFlags GetFlags()  const;
         TableReference        GetOwner()  const;
-        String                GetName()   const;
+        StringReference       GetName()   const;
     };
 
     class GenericParamConstraintRow
@@ -1115,10 +953,10 @@ namespace CxxReflect { namespace Metadata {
 
     public:
 
-        PInvokeFlags   GetMappingFlags()    const;
-        TableReference GetMemberForwarded() const;
-        String         GetImportName()      const;
-        TableReference GetImportScope()     const;
+        PInvokeFlags    GetMappingFlags()    const;
+        TableReference  GetMemberForwarded() const;
+        StringReference GetImportName()      const;
+        TableReference  GetImportScope()     const;
     };
 
     class InterfaceImplRow
@@ -1139,7 +977,7 @@ namespace CxxReflect { namespace Metadata {
 
         std::uint32_t         GetOffset()         const;
         ManifestResourceFlags GetFlags()          const;
-        String                GetName()           const;
+        StringReference       GetName()           const;
         TableReference        GetImplementation() const;
     };
 
@@ -1149,9 +987,9 @@ namespace CxxReflect { namespace Metadata {
 
     public:
 
-        TableReference GetClass()     const;
-        String         GetName()      const;
-        BlobIndex      GetSignature() const;
+        TableReference  GetClass()     const;
+        StringReference GetName()      const;
+        BlobIndex       GetSignature() const;
     };
 
     class MethodDefRow
@@ -1163,7 +1001,7 @@ namespace CxxReflect { namespace Metadata {
         std::uint32_t             GetRva()                 const;
         MethodImplementationFlags GetImplementationFlags() const;
         MethodFlags               GetFlags()               const;
-        String                    GetName()                const;
+        StringReference           GetName()                const;
         BlobIndex                 GetSignature()           const;
 
         TableReference            GetFirstParameter()      const;
@@ -1208,7 +1046,7 @@ namespace CxxReflect { namespace Metadata {
 
     public:
 
-        String GetName() const;
+        StringReference GetName() const;
     };
 
     class ModuleRefRow
@@ -1217,7 +1055,7 @@ namespace CxxReflect { namespace Metadata {
 
     public:
 
-        String GetName() const;
+        StringReference GetName() const;
     };
 
     class NestedClassRow
@@ -1236,9 +1074,9 @@ namespace CxxReflect { namespace Metadata {
 
     public:
 
-        ParameterFlags GetFlags()    const;
-        std::uint16_t  GetSequence() const;
-        String         GetName()     const;
+        ParameterFlags  GetFlags()    const;
+        std::uint16_t   GetSequence() const;
+        StringReference GetName()     const;
     };
 
     class PropertyRow
@@ -1247,9 +1085,9 @@ namespace CxxReflect { namespace Metadata {
 
     public:
 
-        PropertyFlags GetFlags()     const;
-        String        GetName()      const;
-        BlobIndex     GetSignature() const;
+        PropertyFlags   GetFlags()     const;
+        StringReference GetName()      const;
+        BlobIndex       GetSignature() const;
     };
 
     class PropertyMapRow
@@ -1278,16 +1116,16 @@ namespace CxxReflect { namespace Metadata {
 
     public:
 
-        TypeFlags      GetFlags()       const;
-        String         GetName()        const;
-        String         GetNamespace()   const;
-        TableReference GetExtends()     const;
+        TypeFlags       GetFlags()       const;
+        StringReference GetName()        const;
+        StringReference GetNamespace()   const;
+        TableReference  GetExtends()     const;
 
-        TableReference GetFirstField()  const;
-        TableReference GetLastField()   const;
+        TableReference  GetFirstField()  const;
+        TableReference  GetLastField()   const;
 
-        TableReference GetFirstMethod() const;
-        TableReference GetLastMethod()  const;
+        TableReference  GetFirstMethod() const;
+        TableReference  GetLastMethod()  const;
     };
 
     class TypeRefRow
@@ -1296,9 +1134,9 @@ namespace CxxReflect { namespace Metadata {
 
     public:
 
-        TableReference GetResolutionScope() const;
-        String         GetName()            const;
-        String         GetNamespace()       const;
+        TableReference  GetResolutionScope() const;
+        StringReference GetName()            const;
+        StringReference GetNamespace()       const;
     };
 
     class TypeSpecRow

@@ -14,15 +14,9 @@ namespace CxxReflect {
 
     Version::Version(String const& version)
     {
-        Version v;
         std::wistringstream iss(version.c_str());
-        if (!(iss >> v >> std::ws) || !iss.eof())
+        if (!(iss >> *this >> std::ws) || !iss.eof())
             throw std::logic_error("wtf");
-        
-        _major = v.GetMajor();
-        _minor = v.GetMinor();
-        _build = v.GetBuild();
-        _revision = v.GetRevision();
     }
 
     std::wostream& operator<<(std::wostream& os, Version const& v)

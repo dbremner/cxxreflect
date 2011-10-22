@@ -8,7 +8,8 @@
 // to validate that the CxxReflect library is functionally equivalent (where appropriate) to the
 // .NET Reflection API. 
 
-#include "CxxReflect/MetadataDatabase.hpp"
+#include "CxxReflect/MetadataLoader.hpp"
+#include "CxxReflect/Assembly.hpp"
 
 #include <combaseapi.h>
 
@@ -85,9 +86,20 @@ int main()
     using namespace CxxReflect;
     using namespace CxxReflect::Metadata;
 
+    DirectoryBasedMetadataResolver::DirectorySet directories;
+    directories.insert(L"C:\\Windows\\Microsoft.NET\\Framework\\v4.0.30319");
+
+    std::unique_ptr<IMetadataResolver> resolver(new DirectoryBasedMetadataResolver(directories));
+
+    MetadataLoader loader(std::move(resolver));
+
+    Assembly ass = loader.LoadAssembly(L"C:\\Windows\\Microsoft.NET\\Framework\\v4.0.30319\\mscorlib.dll");
+    AssemblyName an = ass.GetName();
+    return 0;
+
     Database db(L"C:\\Windows\\Microsoft.NET\\Framework\\v4.0.30319\\mscorlib.dll");
 
-    String moduleName(db.GetRow<TableId::Module>(0).GetName());
+    StringReference moduleName(db.GetRow<TableId::Module>(0).GetName());
 
     std::vector<std::wstring> names;
     std::transform(db.Begin<TableId::TypeDef>(),
@@ -108,5 +120,3 @@ int main()
         return r.GetName().c_str();
     });
 }
-
-
