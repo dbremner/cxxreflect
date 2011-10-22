@@ -39,9 +39,6 @@
     <ClInclude Include="BlobMetadata.hpp">
       <Filter>Headers</Filter>
     </ClInclude>
-    <ClInclude Include="CorEnumIterator.hpp">
-      <Filter>Headers</Filter>
-    </ClInclude>
     <ClInclude Include="CustomAttribute.hpp">
       <Filter>Headers</Filter>
     </ClInclude>
@@ -49,9 +46,6 @@
       <Filter>Headers</Filter>
     </ClInclude>
     <ClInclude Include="Event.hpp">
-      <Filter>Headers</Filter>
-    </ClInclude>
-    <ClInclude Include="Exceptions.hpp">
       <Filter>Headers</Filter>
     </ClInclude>
     <ClInclude Include="Field.hpp">
@@ -79,9 +73,6 @@
       <Filter>Headers</Filter>
     </ClInclude>
     <ClInclude Include="CoreDeclarations.hpp" />
-    <ClInclude Include="Platform.hpp">
-      <Filter>Headers</Filter>
-    </ClInclude>
     <ClInclude Include="Core.hpp">
       <Filter>Headers</Filter>
     </ClInclude>

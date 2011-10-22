@@ -33,7 +33,7 @@ namespace CxxReflect { namespace Metadata {
     {
     public:
 
-        Stream(detail::file_handle& file, SizeType metadataOffset, SizeType streamOffset, SizeType streamSize);
+        Stream(Detail::FileHandle& file, SizeType metadataOffset, SizeType streamOffset, SizeType streamSize);
 
         Stream()
             : _size()
@@ -67,7 +67,7 @@ namespace CxxReflect { namespace Metadata {
         ByteIterator At(SizeType const index) const
         {
             VerifyInitialized();
-            detail::verify([&] { return index <= _size; }, "Index out of range");
+            Detail::Verify([&] { return index <= _size; }, "Index out of range");
             return _data.get() + index;
         }
 
@@ -75,7 +75,7 @@ namespace CxxReflect { namespace Metadata {
         T const& ReadAs(SizeType const index) const
         {
             VerifyInitialized();
-            detail::verify([&] { return (index + sizeof (T)) <= _size; }, "Index out of range");
+            Detail::Verify([&] { return (index + sizeof (T)) <= _size; }, "Index out of range");
             return *reinterpret_cast<T const*>(_data.get() + index);
         }
 
@@ -83,7 +83,7 @@ namespace CxxReflect { namespace Metadata {
         T const* ReinterpretAs(SizeType const index) const
         {
             VerifyInitialized();
-            detail::verify([&] { return index <= _size; }, "Index out of range");
+            Detail::Verify([&] { return index <= _size; }, "Index out of range");
             return reinterpret_cast<T const*>(_data.get() + index);
         }
 
@@ -96,7 +96,7 @@ namespace CxxReflect { namespace Metadata {
 
         void VerifyInitialized() const
         {
-            detail::verify([&] { return IsInitialized(); }, "Stream is not initialized");
+            Detail::Verify([&] { return IsInitialized(); }, "Stream is not initialized");
         }
 
         OwnedPointer    _data;
@@ -295,7 +295,7 @@ namespace CxxReflect { namespace Metadata {
         ByteIterator At(SizeType const index) const
         {
             VerifyInitialized();
-            detail::verify([&] { return index < _rowCount; }, "Index out of range");
+            Detail::Verify([&] { return index < _rowCount; }, "Index out of range");
             return _data + _rowSize * index;
         }
 
@@ -303,7 +303,7 @@ namespace CxxReflect { namespace Metadata {
 
         void VerifyInitialized() const
         {
-            detail::verify([&] { return IsInitialized(); }, "Table is not initialized");
+            Detail::Verify([&] { return IsInitialized(); }, "Table is not initialized");
         }
 
         ByteIterator  _data;
@@ -433,7 +433,7 @@ namespace CxxReflect { namespace Metadata {
 
     private:
 
-        typedef detail::linear_array_allocator<Character, (1 << 16)> Allocator;
+        typedef Detail::LinearArrayAllocator<Character, (1 << 16)> Allocator;
 
         StringCollection(StringCollection const&);
         StringCollection& operator=(StringCollection const&);
@@ -496,7 +496,7 @@ namespace CxxReflect { namespace Metadata {
         typedef std::ptrdiff_t                           difference_type;
         typedef typename TableIdToRowType<TId>::Type     value_type;
         typedef value_type                               reference;
-        typedef detail::dereferenceable<value_type>      pointer;
+        typedef Detail::Dereferenceable<value_type>      pointer;
 
         typedef std::size_t                              SizeType;
         typedef difference_type                          DifferenceType;
@@ -772,19 +772,19 @@ namespace CxxReflect { namespace Metadata {
         IsTypeForwarder         = 0x00200000
     };
 
-    typedef detail::flag_set<AssemblyAttribute>             AssemblyFlags;
-    typedef detail::flag_set<EventAttribute>                EventFlags;
-    typedef detail::flag_set<FieldAttribute>                FieldFlags;
-    typedef detail::flag_set<FileAttribute>                 FileFlags;
-    typedef detail::flag_set<GenericParameterAttribute>     GenericParameterFlags;
-    typedef detail::flag_set<ManifestResourceAttribute>     ManifestResourceFlags;
-    typedef detail::flag_set<MethodAttribute>               MethodFlags;
-    typedef detail::flag_set<MethodImplementationAttribute> MethodImplementationFlags;
-    typedef detail::flag_set<MethodSemanticsAttribute>      MethodSemanticsFlags;
-    typedef detail::flag_set<ParameterAttribute>            ParameterFlags;
-    typedef detail::flag_set<PInvokeAttribute>              PInvokeFlags;
-    typedef detail::flag_set<PropertyAttribute>             PropertyFlags;
-    typedef detail::flag_set<TypeAttribute>                 TypeFlags;
+    typedef Detail::FlagSet<AssemblyAttribute>             AssemblyFlags;
+    typedef Detail::FlagSet<EventAttribute>                EventFlags;
+    typedef Detail::FlagSet<FieldAttribute>                FieldFlags;
+    typedef Detail::FlagSet<FileAttribute>                 FileFlags;
+    typedef Detail::FlagSet<GenericParameterAttribute>     GenericParameterFlags;
+    typedef Detail::FlagSet<ManifestResourceAttribute>     ManifestResourceFlags;
+    typedef Detail::FlagSet<MethodAttribute>               MethodFlags;
+    typedef Detail::FlagSet<MethodImplementationAttribute> MethodImplementationFlags;
+    typedef Detail::FlagSet<MethodSemanticsAttribute>      MethodSemanticsFlags;
+    typedef Detail::FlagSet<ParameterAttribute>            ParameterFlags;
+    typedef Detail::FlagSet<PInvokeAttribute>              PInvokeFlags;
+    typedef Detail::FlagSet<PropertyAttribute>             PropertyFlags;
+    typedef Detail::FlagSet<TypeAttribute>                 TypeFlags;
 
     enum class ElementType : std::uint8_t
     {
@@ -863,7 +863,7 @@ namespace CxxReflect { namespace Metadata {
                                                                                                         \
             void VerifyInitialized() const                                                              \
             {                                                                                           \
-                detail::verify([&] { return IsInitialized(); }, # name " is not initialized");          \
+                Detail::Verify([&] { return IsInitialized(); }, # name " is not initialized");          \
             }                                                                                           \
                                                                                                         \
             TableReference GetSelfReference() const                                                     \

@@ -19,51 +19,77 @@
 
 // #define CXXREFLECT_ENABLE_WINRT_RESOLVER
 
-namespace CxxReflect { namespace detail {
+namespace CxxReflect {
 
-    struct verification_failure : std::logic_error
+    struct VerificationFailure : std::logic_error
     {
-        verification_failure(char const* const message = "")
+        explicit VerificationFailure(char const* const message = "")
             : std::logic_error(message)
         {
         }
     };
 
+    struct RuntimeError : std::runtime_error
+    {
+        explicit RuntimeError(char const* const message = "")
+            : std::runtime_error(message)
+        {
+        }
+    };
+
+    struct HResultException : RuntimeError
+    {
+        explicit HResultException(int hresult, char const* const message = "")
+            : RuntimeError(message), _hresult(hresult)
+        {
+        }
+
+        int GetHResult() const { return _hresult; }
+
+    private:
+
+        int _hresult;
+    };
+
+}
+
+namespace CxxReflect { namespace Detail {
+
     #ifdef CXXREFLECT_LOGIC_CHECKS
 
-    inline void verify_fail(char const* const message = "")
+    inline void VerifyFail(char const* const message = "")
     {
-        throw verification_failure(message);
+        throw VerificationFailure(message);
     }
 
-    inline void verify_not_null(void const* const p)
+    inline void VerifyNotNull(void const* const p)
     {
         if (p == nullptr)
-            throw verification_failure("Unexpected null pointer");
+            throw VerificationFailure("Unexpected null pointer");
     }
 
     template <typename TCallable>
-    void verify(TCallable&& callable, char const* const message = "")
+    void Verify(TCallable&& callable, char const* const message = "")
     {
         if (!callable())
-             throw verification_failure(message);
+             throw VerificationFailure(message);
     }
 
     #else
 
-    inline void verify_fail(char const*) { }
+    inline void VerifyFail(char const*) { }
 
-    inline void verify_not_null(void const*, char const* = "") { }
+    inline void VerifyNotNull(void const*, char const* = "") { }
 
     template <typename TCallable>
-    void verify(TCallable&&) { }
+    void Verify(TCallable&&) { }
 
     #endif
 
     // A handful of useful algorithms that we use throughout the library.
 
     template <typename TInIt0, typename TInIt1>
-    bool range_checked_equal(TInIt0 first0, TInIt0 const last0, TInIt1 first1, TInIt1 const last1)
+    bool RangeCheckedEqual(TInIt0 first0, TInIt0 const last0, TInIt1 first1, TInIt1 const last1)
     {
         while (first0 != last0 && first1 != last1 && *first0 == *first1)
         {
@@ -79,7 +105,7 @@ namespace CxxReflect { namespace detail {
     // terminated string;.  the creator is responsible for managing the memory of the underlying data.
 
     template <typename T>
-    class enhanced_cstring
+    class EnhancedCString
     {
     public:
 
@@ -98,12 +124,12 @@ namespace CxxReflect { namespace detail {
         typedef std::reverse_iterator<iterator>       reverse_iterator;
         typedef std::reverse_iterator<const_iterator> const_reverse_iterator;
 
-        enhanced_cstring()
+        EnhancedCString()
             : _first(nullptr), _last(nullptr)
         {
         }
 
-        explicit enhanced_cstring(pointer const first)
+        explicit EnhancedCString(pointer const first)
             : _first(first), _last(first)
         {
             if (first == nullptr)
@@ -115,13 +141,13 @@ namespace CxxReflect { namespace detail {
             ++_last; // One-past-the-end of the null terminator
         }
 
-        enhanced_cstring(pointer const first, pointer const last)
+        EnhancedCString(pointer const first, pointer const last)
             : _first(first), _last(last)
         {
         }
 
         template <size_type N>
-        enhanced_cstring(value_type const (&data)[N])
+        EnhancedCString(value_type const (&data)[N])
             : _first(data), _last(data + N)
         {
         }
@@ -163,20 +189,20 @@ namespace CxxReflect { namespace detail {
         const_pointer c_str() const { return _first; }
         const_pointer data()  const { return _first; }
 
-        friend bool operator==(enhanced_cstring const& lhs, enhanced_cstring const& rhs)
+        friend bool operator==(EnhancedCString const& lhs, EnhancedCString const& rhs)
         {
-            return range_checked_equal(lhs.begin(), lhs.end(), rhs.begin(), rhs.end());
+            return RangeCheckedEqual(lhs.begin(), lhs.end(), rhs.begin(), rhs.end());
         }
 
-        friend bool operator<(enhanced_cstring const& lhs, enhanced_cstring const& rhs)
+        friend bool operator<(EnhancedCString const& lhs, EnhancedCString const& rhs)
         {
             return std::lexicographical_compare(lhs.begin(), lhs.end(), rhs.begin(), rhs.end());
         }
         
-        friend bool operator!=(enhanced_cstring const& lhs, enhanced_cstring const& rhs) { return !(lhs == rhs); }
-        friend bool operator> (enhanced_cstring const& lhs, enhanced_cstring const& rhs) { return   rhs <  lhs ; }
-        friend bool operator<=(enhanced_cstring const& lhs, enhanced_cstring const& rhs) { return !(rhs <  lhs); }
-        friend bool operator>=(enhanced_cstring const& lhs, enhanced_cstring const& rhs) { return !(lhs <  rhs); }
+        friend bool operator!=(EnhancedCString const& lhs, EnhancedCString const& rhs) { return !(lhs == rhs); }
+        friend bool operator> (EnhancedCString const& lhs, EnhancedCString const& rhs) { return   rhs <  lhs ; }
+        friend bool operator<=(EnhancedCString const& lhs, EnhancedCString const& rhs) { return !(rhs <  lhs); }
+        friend bool operator>=(EnhancedCString const& lhs, EnhancedCString const& rhs) { return !(lhs <  rhs); }
 
         // TODO Consider implementing some of the rest of the std::string interface
 
@@ -187,235 +213,173 @@ namespace CxxReflect { namespace detail {
     };
 
     template <typename T>
-    std::basic_ostream<T>& operator<<(std::basic_ostream<T>& os, enhanced_cstring<T> const& s)
+    std::basic_ostream<T>& operator<<(std::basic_ostream<T>& os, EnhancedCString<T> const& s)
     {
         os << s.c_str();
         return os;
     }
 
-    /*
-    template <typename T>
-    class ownable_string
-    {
-    public:
-
-        typedef enhanced_cstring<T>  nonowned_string;
-        typedef std::basic_string<T> owned_string;
-
-        ownable_string(nonowned_string const& s)
-            : _kind(kind::nonowned)
-        {
-            new (&_data) nonowned_string(s);
-        }
-
-        ownable_string(owned_string const& s)
-            : _kind(kind::owned)
-        {
-            new (&_data) owned_string(s);
-        }
-
-        void own_copy()
-        {
-            if (_kind != kind::nonowned)
-                return;
-
-            nonowned_string s(get_nonowned());
-
-            get_nonowned().~nonowned_string();
-
-            _kind = kind::owned;
-            scope_guard reset_kind([&] { _kind = kind::none; });
-            new (&_data) owned_string(s.c_str());
-            reset_kind.unset();
-        }
-
-    private:
-
-        enum class kind { none, owned, nonowned };
-
-        typedef typename std::aligned_union<0, nonowned_string, owned_string>::type storage_type;
-
-        owned_string      & get_owned()       { return reinterpret_cast<owned_string      &>(_data); }
-        owned_string const& get_owned() const { return reinterpret_cast<owned_string const&>(_data); }
-
-        nonowned_string      & get_nonowned()       { return reinterpret_cast<nonowned_string      &>(_data); }
-        nonowned_string const& get_nonowned() const { return reinterpret_cast<nonowned_string const&>(_data); }
-
-        kind         _kind;
-        storage_type _data;
-    };
-    */
-
     // Utility types and functions for encapsulating reinterpretation of an object as a char[].
     // These help reduce the occurrence of reinterpret_cast in the code and make it easier to
     // copy data into and out of POD-struct types.
 
-    typedef std::uint8_t                               byte;
-    typedef std::uint8_t*                              byte_iterator;
-    typedef std::uint8_t const*                        const_byte_iterator;
-    typedef std::reverse_iterator<byte_iterator>       reverse_byte_iterator;
-    typedef std::reverse_iterator<const_byte_iterator> const_reverse_byte_iterator;
+    typedef std::uint8_t                             Byte;
+    typedef std::uint8_t*                            ByteIterator;
+    typedef std::uint8_t const*                      ConstByteIterator;
+    typedef std::reverse_iterator<ByteIterator>      ReverseByteIterator;
+    typedef std::reverse_iterator<ConstByteIterator> ConstReverseByteIterator;
 
     template <typename T>
-    byte_iterator begin_bytes(T& x)
+    ByteIterator BeginBytes(T& x)
     {
-        return reinterpret_cast<byte_iterator>(&x);
+        return reinterpret_cast<ByteIterator>(&x);
     }
 
     template <typename T>
-    byte_iterator end_bytes(T& x)
+    ByteIterator EndBytes(T& x)
     {
-        return reinterpret_cast<byte_iterator>(&x + 1);
+        return reinterpret_cast<ByteIterator>(&x + 1);
     }
 
     template <typename T>
-    const_byte_iterator begin_bytes(T const& x)
+    ConstByteIterator BeginBytes(T const& x)
     {
-        return reinterpret_cast<const_byte_iterator>(&x);
+        return reinterpret_cast<ConstByteIterator>(&x);
     }
 
     template <typename T>
-    const_byte_iterator end_bytes(T const& x)
+    ConstByteIterator EndBytes(T const& x)
     {
-        return reinterpret_cast<const_byte_iterator>(&x + 1);
+        return reinterpret_cast<ConstByteIterator>(&x + 1);
     }
 
     template <typename T>
-    reverse_byte_iterator rbegin_bytes(T& p)
+    ReverseByteIterator ReverseBeginBytes(T& p)
     {
-        return reverse_byte_iterator(end_bytes(p));
+        return ReverseByteIterator(EndBytes(p));
     }
 
     template <typename T>
-    reverse_byte_iterator rend_bytes(T& p)
+    ReverseByteIterator ReverseEndBytes(T& p)
     {
-        return reverse_byte_iterator(begin_bytes(p));
+        return ReverseByteIterator(BeginBytes(p));
     }
 
     template <typename T>
-    const_reverse_byte_iterator rbegin_bytes(T const& p)
+    ConstReverseByteIterator ReverseBeginBytes(T const& p)
     {
-        return const_reverse_byte_iterator(end_bytes(p));
+        return ConstReverseByteIterator(EndBytes(p));
     }
 
     template <typename T>
-    const_reverse_byte_iterator rend_bytes(T const& p)
+    ConstReverseByteIterator ReverseEndBytes(T const& p)
     {
-        return const_reverse_byte_iterator(begin_bytes(p));
+        return ConstReverseByteIterator(BeginBytes(p));
     }
 
     // A scope-guard class that performs an operation on destruction.  The implementation is "good
     // enough" for most uses, though its use of std::function, which may itself perform dynamic
     // allocation, makes it unsuitable for "advanced" use.
 
-    class scope_guard
+    class ScopeGuard
     {
     public:
 
-        typedef std::function<void()> function_type;
+        typedef std::function<void()> FunctionType;
 
-        explicit scope_guard(function_type const f)
+        explicit ScopeGuard(FunctionType const f)
             : _f(f)
         {
         }
 
-        ~scope_guard()
+        ~ScopeGuard()
         {
             if (_f != nullptr)
                 _f();
         }
 
-        void unset()
+        void Unset()
         {
             _f = nullptr;
         }
 
     private:
 
-        function_type _f;
+        FunctionType _f;
     };
 
     // A basic RAII wrapper around the cstdio file interfaces; this allows us to get the performance
     // of the C runtime APIs wih the convenience of the C++ iostream interfaces.
 
-    struct file_read_exception : std::runtime_error
+    struct FileReadException : std::runtime_error
     {
-        file_read_exception(char const* const message)
+        FileReadException(char const* const message)
             : std::runtime_error(message)
         {
         }
     };
 
-    class file_handle
+    class FileHandle
     {
     public:
 
-        typedef std::int64_t position_type;
-        typedef std::size_t  size_type;
+        typedef std::int64_t PositionType;
+        typedef std::size_t  SizeType;
 
-        enum origin_type
+        enum OriginType
         {
-            begin,   // SEEK_SET
-            current, // SEEK_CUR
-            end      // SEEK_END
+            Begin   = SEEK_SET,
+            Current = SEEK_CUR,
+            End     = SEEK_END
         };
 
-        file_handle(wchar_t const* const fileName, wchar_t const* const mode = L"rb")
+        FileHandle(wchar_t const* const fileName, wchar_t const* const mode = L"rb")
         {
             // TODO PORTABILITY
             errno_t const result(_wfopen_s(&_handle, fileName, mode));
             if (result != 0)
-                throw file_read_exception("File open failed");
+                throw FileReadException("File open failed");
         }
 
-        file_handle(file_handle&& other)
+        FileHandle(FileHandle&& other)
             : _handle(other._handle)
         {
             other._handle = nullptr;
         }
 
-        file_handle& operator=(file_handle&& other)
+        FileHandle& operator=(FileHandle&& other)
         {
-            swap(other);
+            Swap(other);
         }
 
-        ~file_handle()
+        ~FileHandle()
         {
             if (_handle != nullptr)
                 fclose(_handle);
         }
 
-        void swap(file_handle& other)
+        void Swap(FileHandle& other)
         {
             std::swap(_handle, other._handle);
         }
 
-        void seek(position_type const position, origin_type const whence)
+        void Seek(PositionType const position, OriginType const origin)
         {
-            int seek_whence(0);
-            switch (whence)
-            {
-            case begin:   seek_whence = SEEK_SET; break;
-            case current: seek_whence = SEEK_CUR; break;
-            case end:     seek_whence = SEEK_END; break;
-            default:      verify_fail("Invalid origin specified");
-            }
-
             // TODO PORTABILITY
-            if (_fseeki64(_handle, position, seek_whence) != 0)
-                throw file_read_exception("File seek failed");
+            if (_fseeki64(_handle, position, origin) != 0)
+                throw FileReadException("File seek failed");
         }
 
-        void read(void* const buffer, size_type const size, size_type const count)
+        void Read(void* const buffer, SizeType const size, SizeType const count)
         {
             if (fread(buffer, size, count, _handle) != count)
-                throw file_read_exception("File seek failed");
+                throw FileReadException("File seek failed");
         }
 
     private:
 
-        file_handle(file_handle const&);
-        file_handle& operator=(file_handle const&);
+        FileHandle(FileHandle const&);
+        FileHandle& operator=(FileHandle const&);
 
         FILE* _handle;
     };
@@ -425,59 +389,59 @@ namespace CxxReflect { namespace detail {
     // conversions to and from their underlying integral type.
 
     template <typename TEnumeration>
-    class flag_set
+    class FlagSet
     {
     public:
 
         static_assert(std::is_enum<TEnumeration>::value, "TEnumeration must be an enumeration");
 
-        typedef TEnumeration                                      enumeration_type;
-        typedef typename std::underlying_type<TEnumeration>::type integral_type;
+        typedef TEnumeration                                      EnumerationType;
+        typedef typename std::underlying_type<TEnumeration>::type IntegralType;
 
-        flag_set()
+        FlagSet()
             : _value()
         {
         }
 
-        flag_set(enumeration_type const value)
-            : _value(static_cast<integral_type>(value))
+        FlagSet(EnumerationType const value)
+            : _value(static_cast<IntegralType>(value))
         {
         }
 
-        flag_set(integral_type const value)
+        FlagSet(IntegralType const value)
             : _value(value)
         {
         }
 
-        enumeration_type get_enum() const
+        EnumerationType GetEnum() const
         {
-            return static_cast<enumeration_type>(_value);
+            return static_cast<EnumerationType>(_value);
         }
 
-        integral_type get_integral() const
+        IntegralType GetIntegral() const
         {
             return _value;
         }
 
-        flag_set with_mask(enumeration_type const mask) const
+        FlagSet with_mask(EnumerationType const mask) const
         {
-            return with_mask(static_cast<integral_type>(mask));
+            return WithMask(static_cast<IntegralType>(mask));
         }
 
-        flag_set with_mask(integral_type const mask) const
+        FlagSet WithMask(IntegralType const mask) const
         {
-            return flag_set(_value & mask);
+            return FlagSet(_value & mask);
         }
 
         // TODO This is lacking a lot of functionality
 
     private:
 
-        integral_type _value;
+        IntegralType _value;
     };
 
     template <typename TEnumeration>
-    typename std::underlying_type<TEnumeration>::type as_integer(TEnumeration value)
+    typename std::underlying_type<TEnumeration>::type AsInteger(TEnumeration value)
     {
         return static_cast<typename std::underlying_type<TEnumeration>::type>(value);
     }
@@ -488,129 +452,143 @@ namespace CxxReflect { namespace detail {
     // iterator materializes elements, and where the iterator's reference is not a reference type).
 
     template <typename T>
-    class dereferenceable
+    class Dereferenceable
     {
     public:
 
-        typedef T        value_type;
-        typedef T&       reference;
-        typedef T const& const_reference;
-        typedef T*       pointer;
-        typedef T const* const_pointer;
+        typedef T        ValueType;
+        typedef T&       Reference;
+        typedef T const& ConstReference;
+        typedef T*       Pointer;
+        typedef T const* ConstPointer;
 
-        dereferenceable(const_reference value)
+        Dereferenceable(ConstReference value)
             : _value(value)
         {
         }
 
-        reference       get()              { return _value;  }
-        const_reference get()        const { return _value;  }
+        Reference      Get()              { return _value;  }
+        ConstReference Get()        const { return _value;  }
 
-        pointer         operator->()       { return &_value; }
-        const_pointer   operator->() const { return &_value; }
+        Pointer        operator->()       { return &_value; }
+        ConstPointer   operator->() const { return &_value; }
 
     private:
 
-        value_type _value;
+        ValueType _value;
     };
 
     // A linear allocator for arrays; this is most useful for the allocation of strings.
     template <typename T, std::size_t TBlockSize>
-    class linear_array_allocator
+    class LinearArrayAllocator
     {
     public:
 
-        typedef std::size_t size_type;
-        typedef T           value_type;
-        typedef T*          pointer;
+        typedef std::size_t SizeType;
+        typedef T           ValueType;
+        typedef T*          Pointer;
 
-        enum { block_size = TBlockSize };
+        enum { BlockSize = TBlockSize };
 
-        class range
+        class Range
         {
         public:
 
-            range()
+            Range()
                 : _begin(nullptr), _end(nullptr)
             {
             }
 
-            range(pointer const begin, pointer const end)
+            Range(Pointer const begin, Pointer const end)
                 : _begin(begin), _end(end)
             {
             }
 
-            pointer begin() const { return _begin; }
-            pointer end()   const { return _end;   }
+            Pointer Begin() const { return _begin; }
+            Pointer End()   const { return _end;   }
 
         private:
 
-            pointer _begin;
-            pointer _end;
+            Pointer _begin;
+            Pointer _end;
         };
 
-        linear_array_allocator()
+        LinearArrayAllocator()
         {
         }
 
-        linear_array_allocator(linear_array_allocator&& other)
+        LinearArrayAllocator(LinearArrayAllocator&& other)
             : _blocks(std::move(other._blocks)),
               _current(std::move(other._current))
         {
-            other._current = block_iterator();
+            other._current = BlockIterator();
         }
 
-        linear_array_allocator& operator=(linear_array_allocator&& other)
+        LinearArrayAllocator& operator=(LinearArrayAllocator&& other)
         {
-            swap(other);
+            Swap(other);
             return *this;
         }
 
-        void swap(linear_array_allocator& other)
+        void Swap(LinearArrayAllocator& other)
         {
             std::swap(other._blocks,  _blocks);
             std::swap(other._current, _current);
         }
 
-        range allocate(size_type const n)
+        Range Allocate(SizeType const n)
         {
-            ensure_available(n);
+            EnsureAvailable(n);
 
-            range const r(&*_current, &*_current + n);
+            Range const r(&*_current, &*_current + n);
             _current += n;
             return r;
         }
 
     private:
 
-        typedef std::array<value_type, block_size> block;
-        typedef typename block::iterator           block_iterator;
-        typedef std::unique_ptr<block>             block_pointer;
-        typedef std::vector<block_pointer>         block_sequence;
+        typedef std::array<ValueType, BlockSize> Block;
+        typedef typename Block::iterator         BlockIterator;
+        typedef std::unique_ptr<Block>           BlockPointer;
+        typedef std::vector<BlockPointer>        BlockSequence;
         
 
         // Noncopyable
-        linear_array_allocator(linear_array_allocator const&);
-        linear_array_allocator& operator=(linear_array_allocator const&);
+        LinearArrayAllocator(LinearArrayAllocator const&);
+        LinearArrayAllocator& operator=(LinearArrayAllocator const&);
 
-        void ensure_available(size_type const n)
+        void EnsureAvailable(SizeType const n)
         {
-            if (n > block_size)
+            if (n > BlockSize)
                 throw std::out_of_range("n");
 
             if (_blocks.size() > 0)
             {
-                if (static_cast<size_type>(std::distance(_current, _blocks.back()->end())) >= n)
+                if (static_cast<SizeType>(std::distance(_current, _blocks.back()->end())) >= n)
                     return;
             }
 
-            _blocks.emplace_back(new block);
+            _blocks.emplace_back(new Block);
             _current = _blocks.back()->begin();
         }
 
-        block_sequence _blocks;
-        block_iterator _current;
+        BlockSequence _blocks;
+        BlockIterator _current;
     };
+
+    // Platform functionality wrappers:  these functions use platform-specific, third-party, or non-
+    // standard types and functions; we encapsulate these functions here to make it easier to port
+    // the library.
+
+    unsigned ComputeUtf16LengthOfUtf8String(char const* source);
+    bool ConvertUtf8ToUtf16(char const* source, wchar_t* target, unsigned targetLength);
+
+    typedef std::array<std::uint8_t, 20> Sha1Hash;
+
+    // Computes the 20 byte SHA1 hash for the bytes in the range [first, last).
+    Sha1Hash ComputeSha1Hash(std::uint8_t const* first, std::uint8_t const* last);
+
+    bool FileExists(wchar_t const* filePath);
 
 } }
 
@@ -620,102 +598,13 @@ namespace CxxReflect {
     // a UTF-16 string representation, as is the case on Windows.  We should make that more general
     // and allow multiple encodings in the public interface and support platforms that use other
     // encodings by default for wchar_t.
-    typedef wchar_t                             Character;
-    typedef std::size_t                         SizeType;
-    typedef std::uint8_t                        Byte;
-    typedef std::uint8_t const*                 ByteIterator;
+    typedef wchar_t                            Character;
+    typedef std::size_t                        SizeType;
+    typedef std::uint8_t                       Byte;
+    typedef std::uint8_t const*                ByteIterator;
 
-    typedef detail::enhanced_cstring<Character> String;
+    typedef Detail::EnhancedCString<Character> String;
 
 }
-
-namespace CxxReflect { namespace Detail {
-
-    template <typename T, typename TAllocator = std::allocator<T>>
-    class AllocatorBasedArray
-    {
-    public:
-
-        AllocatorBasedArray()
-            : _data(nullptr), _capacity(0), _size(0)
-        {
-        }
-
-        ~AllocatorBasedArray()
-        {
-            if (_data == nullptr) { return; }
-
-            for (std::size_t i(_size - 1); i != static_cast<std::size_t>(-1); --i)
-            {
-                TAllocator().destroy(_data + i);
-            }
-
-            TAllocator().deallocate(_data, _capacity);
-        }
-
-        T*          Get()         const { return _data;         }
-        std::size_t GetCapacity() const { return _capacity;     }
-        std::size_t GetSize()     const { return _size;         }
-
-        T*          Begin()       const { return _data;         }
-        T*          End()         const { return _data + _size; }
-
-        void Allocate(std::size_t capacity)
-        {
-            if (_data != nullptr)
-                throw std::logic_error("The array has already been allocated.");
-
-            _data = TAllocator().allocate(capacity);
-            _capacity = capacity;
-        }
-
-        void EmplaceBack()
-        {
-            VerifyAvailable();
-            TAllocator().construct(_data + _size);
-            ++_size;
-        }
-
-        template <typename A0>
-        void EmplaceBack(A0&& a0)
-        {
-            VerifyAvailable();
-            TAllocator().construct(_data + _size, std::move(a0));
-            ++_size;
-        }
-
-        template <typename A0, typename A1>
-        void EmplaceBack(A0&& a0, A1&& a1)
-        {
-            VerifyAvailable();
-            TAllocator().construct(_data + _size, std::move(a0), std::move(a1));
-            ++_size;
-        }
-
-        template <typename A0, typename A1, typename A2>
-        void EmplaceBack(A0&& a0, A1&& a1, A2&& a2)
-        {
-            VerifyAvailable();
-            TAllocator().construct(_data + _size, std::move(a0), std::move(a1), std::move(a2));
-            ++_size;
-        }
-
-    private:
-
-        AllocatorBasedArray(AllocatorBasedArray const&);
-        AllocatorBasedArray& operator=(AllocatorBasedArray const&);
-
-        void VerifyAvailable() const
-        {
-            if (_data == nullptr || _capacity - _size == 0)
-                throw std::logic_error("There is insufficient space avalilable in the array.");
-        }
-
-        T*                 _data;
-        std::size_t        _capacity;
-        std::size_t        _size;
-    };
-
-} }
 
 #endif

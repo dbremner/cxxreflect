@@ -7,7 +7,6 @@
 
 #include "CxxReflect/Core.hpp"
 #include "CxxReflect/MetadataDatabase.hpp"
-#include "CxxReflect/Platform.hpp"
 
 #include <set>
 #include <utility>
@@ -65,7 +64,7 @@ namespace CxxReflect {
                 for (auto ext_it(begin(extensions)); ext_it != end(extensions); ++ext_it)
                 {
                     std::wstring path(*dir_it + L"/" + /*assemblyName.GetName() + */*ext_it);
-                    if (Platform::FileExists(path.c_str()))
+                    if (Detail::FileExists(path.c_str()))
                     {
                         return path;
                     }

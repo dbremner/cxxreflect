@@ -3,7 +3,6 @@
 //     (See accompanying file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)    //
 
 #include "CxxReflect/Guid.hpp"
-#include "CxxReflect/Utility.hpp"
 
 #include <algorithm>
 #include <cstdio>
@@ -20,9 +19,9 @@ namespace CxxReflect {
 
     Guid::Guid(Element0 m0, Element1 m1, Element2 m2)
     {
-        std::copy(detail::rbegin_bytes(m0), detail::rend_bytes(m0), _data.data());
-        std::copy(detail::rbegin_bytes(m1.data() + m1.size()),
-                  detail::rend_bytes(m1.data()),
+        std::copy(Detail::ReverseBeginBytes(m0), Detail::ReverseEndBytes(m0), _data.data());
+        std::copy(Detail::ReverseBeginBytes(m1.data() + m1.size()),
+                  Detail::ReverseEndBytes(m1.data()),
                   _data.data() + 4);
 
         std::copy(m2.begin(), m2.end(), _data.data() + 8);
@@ -30,9 +29,9 @@ namespace CxxReflect {
 
     Guid::Guid(U4 m0, U2 m1a, U2 m1b, U1 m2a, U1 m2b, U1 m2c, U1 m2d, U1 m2e, U1 m2f, U1 m2g, U1 m2h)
     {
-        std::copy(detail::rbegin_bytes(m0),  detail::rend_bytes(m0),  _data.data());
-        std::copy(detail::rbegin_bytes(m1a), detail::rend_bytes(m1a), _data.data() + 4);
-        std::copy(detail::rbegin_bytes(m1b), detail::rend_bytes(m1b), _data.data() + 6);
+        std::copy(Detail::ReverseBeginBytes(m0),  Detail::ReverseEndBytes(m0),  _data.data());
+        std::copy(Detail::ReverseBeginBytes(m1a), Detail::ReverseEndBytes(m1a), _data.data() + 4);
+        std::copy(Detail::ReverseBeginBytes(m1b), Detail::ReverseEndBytes(m1b), _data.data() + 6);
 
         _data[0x8] = m2a; _data[0x9] = m2b; _data[0xA] = m2c; _data[0xB] = m2d;
         _data[0xC] = m2e; _data[0xD] = m2f; _data[0xE] = m2g; _data[0xF] = m2h;

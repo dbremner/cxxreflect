@@ -77,15 +77,12 @@
     <ClInclude Include="Event.hpp" />
     <ClInclude Include="Field.hpp" />
     <ClInclude Include="BlobMetadata.hpp" />
-    <ClInclude Include="CorEnumIterator.hpp" />
     <ClInclude Include="CxxReflect.hpp" />
-    <ClInclude Include="Exceptions.hpp" />
     <ClInclude Include="Guid.hpp" />
     <ClInclude Include="MetadataDatabase.hpp" />
     <ClInclude Include="MetadataLoader.hpp" />
     <ClInclude Include="Method.hpp" />
     <ClInclude Include="Parameter.hpp" />
-    <ClInclude Include="Platform.hpp" />
     <ClInclude Include="Property.hpp" />
     <ClInclude Include="Type.hpp" />
     <ClInclude Include="Utility.hpp" />

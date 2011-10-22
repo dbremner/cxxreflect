@@ -8,7 +8,6 @@
 #define CXXREFLECT_UTILITY_HPP_
 
 #include "CxxReflect/Core.hpp"
-#include "CxxReflect/Exceptions.hpp"
 
 #include <array>
 #include <cstdint>
@@ -16,8 +15,6 @@
 #include <functional>
 #include <iterator>
 #include <sstream>
-
-#define CXXREFLECT_DEBUG
 
 namespace CxxReflect { namespace Utility {
 
@@ -48,7 +45,7 @@ namespace CxxReflect { namespace Utility {
         if (hr < 0) { throw HResultException(hr); }
     }
 
-    // A simple, non-thread-safe, intrusive reference-counted base class.
+    // A simple, non-thread-safe, intrusive reference-counted base class and smart pointer
     class RefCounted
     {
     protected:
