@@ -9,7 +9,7 @@ using namespace CxxReflect;
 
 namespace {
 
-    PublicKeyToken ComputePublicKeyToken(Metadata::Blob const blob, bool const isFullPublicKey)
+    PublicKeyToken ComputePublicKeyToken(Metadata::BlobReference const blob, bool const isFullPublicKey)
     {
         PublicKeyToken result;
 
@@ -33,6 +33,18 @@ namespace {
 
 namespace CxxReflect {
 
+    Assembly::TypeIterator Assembly::BeginTypes() const
+    {
+        return Assembly::TypeIterator(*this, Metadata::TableReference(Metadata::TableId::TypeDef, 0));
+    }
+
+    Assembly::TypeIterator Assembly::EndTypes() const
+    {
+        return Assembly::TypeIterator(*this, Metadata::TableReference(
+            Metadata::TableId::TypeDef,
+            _database->GetTables().GetTable(Metadata::TableId::TypeDef).GetRowCount()));
+    }
+
     AssemblyName Assembly::GetName() const
     {
         Metadata::AssemblyRow const assemblyRow(GetAssemblyRow());
@@ -40,8 +52,8 @@ namespace CxxReflect {
         AssemblyFlags const flags(assemblyRow.GetFlags());
 
         PublicKeyToken const publicKeyToken(ComputePublicKeyToken(
-            _database->GetBlob(assemblyRow.GetPublicKey()),
-            flags.WithMask(AssemblyAttribute::PublicKey) != 0));
+            assemblyRow.GetPublicKey(),
+            flags.IsSet(AssemblyAttribute::PublicKey)));
 
         return AssemblyName(
             assemblyRow.GetName().c_str(),

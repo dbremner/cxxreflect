@@ -184,7 +184,7 @@ namespace {
     {
     public:
 
-        PeSectionContainsRva(std::size_t rva)
+        explicit PeSectionContainsRva(std::uint32_t rva)
             : _rva(rva)
         {
         }
@@ -197,7 +197,7 @@ namespace {
 
     private:
 
-        std::size_t _rva;
+        std::uint32_t _rva;
     };
 
     PeSectionsAndCliHeader ReadPeSectionsAndCliHeader(Detail::FileHandle& file)
@@ -239,7 +239,7 @@ namespace {
         return result;
     }
 
-    PeCliStreamHeaderSequence ReadPeCliStreamHeaders(Detail::FileHandle& file,
+    PeCliStreamHeaderSequence ReadPeCliStreamHeaders(Detail::FileHandle          & file,
                                                      PeSectionsAndCliHeader const& peHeader)
     {
         auto metadataSectionIt(std::find_if(
@@ -428,25 +428,28 @@ namespace {
         return *reinterpret_cast<T const*>(data + index);
     }
 
-    std::uint32_t ReadTableIndex(Database const&       database,
-                                 ByteIterator    const data,
-                                 TableId         const table,
-                                 SizeType        const offset)
+    std::uint32_t ReadTableIndex(Database     const& database,
+                                 ByteIterator const  data,
+                                 TableId      const  table,
+                                 SizeType     const  offset)
     {
+        // Table indexes are one-based, to allow zero to be used as a null reference value.  In
+        // order to simplify row offset calculations, we subtract one from all table indices to
+        // make them zero-based, with -1 (0xffffffff) representing a null reference.
         switch (database.GetTables().GetTableIndexSize(table))
         {
-        case 2:  return ReadAs<std::uint16_t>(data, offset);
-        case 4:  return ReadAs<std::uint32_t>(data, offset);
+        case 2:  return ReadAs<std::uint16_t>(data, offset) - 1;
+        case 4:  return ReadAs<std::uint32_t>(data, offset) - 1;
         default: Detail::VerifyFail("Invalid table index size");
         }
 
         return 0;
     }
 
-    std::uint32_t ReadCompositeIndex(Database const&       database,
-                                     ByteIterator    const data,
-                                     CompositeIndex  const index,
-                                     SizeType        const offset)
+    std::uint32_t ReadCompositeIndex(Database       const& database,
+                                     ByteIterator   const  data,
+                                     CompositeIndex const  index,
+                                     SizeType       const  offset)
     {
         switch (database.GetTables().GetCompositeIndexSize(index))
         {
@@ -470,6 +473,11 @@ namespace {
         return 0;
     }
 
+    BlobReference ReadBlob(Database const& database, ByteIterator const data, SizeType const offset)
+    {
+        return database.GetBlob(ReadBlobHeapIndex(database, data, offset));
+    }
+
     std::uint32_t ReadStringHeapIndex(Database const& database, ByteIterator const data, SizeType const offset)
     {
         switch (database.GetTables().GetStringHeapIndexSize())
@@ -484,7 +492,7 @@ namespace {
 
     StringReference ReadString(Database const& database, ByteIterator const data, SizeType const offset)
     {
-        return database.GetStrings().At(ReadStringHeapIndex(database, data, offset));
+        return database.GetString(ReadStringHeapIndex(database, data, offset));
     }
 
     TableReference ReadTableReference(Database     const& database,
@@ -678,10 +686,10 @@ namespace {
         }
     }
 
-    TableReference ReadTableReference(Database const&       database,
-                                      ByteIterator    const data,
-                                      CompositeIndex  const index,
-                                      SizeType        const offset)
+    TableReference ReadTableReference(Database       const& database,
+                                      ByteIterator   const  data,
+                                      CompositeIndex const  index,
+                                      SizeType       const  offset)
     {
         std::uint32_t const value(ReadCompositeIndex(database, data, index, offset));
         switch (index)
@@ -1013,10 +1021,10 @@ namespace CxxReflect { namespace Metadata {
         return _state._rowCounts[Detail::AsInteger(id)] < (1 << 16) ? 2 : 4;
     }
 
-    Database::Database(wchar_t const* const fileName)
-        : _fileName(fileName)
+    Database::Database(Detail::NonNull<wchar_t const*> const fileName)
+        : _fileName(fileName.Get())
     {
-        Detail::FileHandle file(fileName);
+        Detail::FileHandle file(fileName.Get());
 
         PeSectionsAndCliHeader const peSectionsAndCliHeader(ReadPeSectionsAndCliHeader(file));
         PeCliStreamHeaderSequence const streamHeaders(ReadPeCliStreamHeaders(file, peSectionsAndCliHeader));
@@ -1075,9 +1083,9 @@ namespace CxxReflect { namespace Metadata {
         return ReadAs<AssemblyAttribute>(_data, GetColumnOffset(2));
     }
 
-    BlobIndex AssemblyRow::GetPublicKey() const
+    BlobReference AssemblyRow::GetPublicKey() const
     {
-        return ReadBlobHeapIndex(*_database, _data, GetColumnOffset(3));
+        return ReadBlob(*_database, _data, GetColumnOffset(3));
     }
 
     StringReference AssemblyRow::GetName() const
@@ -1121,9 +1129,9 @@ namespace CxxReflect { namespace Metadata {
         return ReadAs<AssemblyAttribute>(_data, GetColumnOffset(1));
     }
 
-    BlobIndex AssemblyRefRow::GetPublicKeyOrToken() const
+    BlobReference AssemblyRefRow::GetPublicKeyOrToken() const
     {
-        return ReadBlobHeapIndex(*_database, _data, GetColumnOffset(2));
+        return ReadBlob(*_database, _data, GetColumnOffset(2));
     }
 
     StringReference AssemblyRefRow::GetName() const
@@ -1136,9 +1144,9 @@ namespace CxxReflect { namespace Metadata {
         return ReadString(*_database, _data, GetColumnOffset(4));
     }
 
-    BlobIndex AssemblyRefRow::GetHashValue() const
+    BlobReference AssemblyRefRow::GetHashValue() const
     {
-        return ReadBlobHeapIndex(*_database, _data, GetColumnOffset(5));
+        return ReadBlob(*_database, _data, GetColumnOffset(5));
     }
 
     std::uint32_t AssemblyRefOsRow::GetOsPlatformId()   const
@@ -1196,9 +1204,9 @@ namespace CxxReflect { namespace Metadata {
         return ReadTableReference(*_database, _data, CompositeIndex::HasConstant, GetColumnOffset(1));
     }
 
-    BlobIndex ConstantRow::GetValue() const
+    BlobReference ConstantRow::GetValue() const
     {
-        return ReadBlobHeapIndex(*_database, _data, GetColumnOffset(2));
+        return ReadBlob(*_database, _data, GetColumnOffset(2));
     }
 
     TableReference CustomAttributeRow::GetParent() const
@@ -1211,9 +1219,9 @@ namespace CxxReflect { namespace Metadata {
         return ReadTableReference(*_database, _data, CompositeIndex::CustomAttributeType, GetColumnOffset(1));
     }
 
-    BlobIndex CustomAttributeRow::GetValue() const
+    BlobReference CustomAttributeRow::GetValue() const
     {
-        return ReadBlobHeapIndex(*_database, _data, GetColumnOffset(2));
+        return ReadBlob(*_database, _data, GetColumnOffset(2));
     }
 
     std::uint16_t DeclSecurityRow::GetAction() const
@@ -1226,9 +1234,9 @@ namespace CxxReflect { namespace Metadata {
         return ReadTableReference(*_database, _data, CompositeIndex::HasDeclSecurity, GetColumnOffset(1));
     }
 
-    BlobIndex DeclSecurityRow::GetPermissionSet() const
+    BlobReference DeclSecurityRow::GetPermissionSet() const
     {
-        return ReadBlobHeapIndex(*_database, _data, GetColumnOffset(2));
+        return ReadBlob(*_database, _data, GetColumnOffset(2));
     }
 
     TableReference EventMapRow::GetParent() const
@@ -1299,9 +1307,9 @@ namespace CxxReflect { namespace Metadata {
         return ReadString(*_database, _data, GetColumnOffset(1));
     }
 
-    BlobIndex FieldRow::GetSignature() const
+    BlobReference FieldRow::GetSignature() const
     {
-        return ReadBlobHeapIndex(*_database, _data, GetColumnOffset(2));
+        return ReadBlob(*_database, _data, GetColumnOffset(2));
     }
 
     std::uint32_t FieldLayoutRow::GetOffset() const
@@ -1319,9 +1327,9 @@ namespace CxxReflect { namespace Metadata {
         return ReadTableReference(*_database, _data, CompositeIndex::HasFieldMarshal, GetColumnOffset(0));
     }
 
-    BlobIndex FieldMarshalRow::GetNativeType() const
+    BlobReference FieldMarshalRow::GetNativeType() const
     {
-        return ReadBlobHeapIndex(*_database, _data, GetColumnOffset(1));
+        return ReadBlob(*_database, _data, GetColumnOffset(1));
     }
 
     std::uint32_t FieldRvaRow::GetRva() const
@@ -1344,9 +1352,9 @@ namespace CxxReflect { namespace Metadata {
         return ReadString(*_database, _data, GetColumnOffset(1));
     }
 
-    BlobIndex FileRow::GetHashValue() const
+    BlobReference FileRow::GetHashValue() const
     {
-        return ReadBlobHeapIndex(*_database, _data, GetColumnOffset(2));
+        return ReadBlob(*_database, _data, GetColumnOffset(2));
     }
 
     std::uint16_t GenericParamRow::GetNumber() const
@@ -1439,9 +1447,9 @@ namespace CxxReflect { namespace Metadata {
         return ReadString(*_database, _data, GetColumnOffset(1));
     }
 
-    BlobIndex MemberRefRow::GetSignature() const
+    BlobReference MemberRefRow::GetSignature() const
     {
-        return ReadBlobHeapIndex(*_database, _data, GetColumnOffset(2));
+        return ReadBlob(*_database, _data, GetColumnOffset(2));
     }
 
     std::uint32_t MethodDefRow::GetRva() const
@@ -1464,9 +1472,9 @@ namespace CxxReflect { namespace Metadata {
         return ReadString(*_database, _data, GetColumnOffset(3));
     }
 
-    BlobIndex MethodDefRow::GetSignature() const
+    BlobReference MethodDefRow::GetSignature() const
     {
-        return ReadBlobHeapIndex(*_database, _data, GetColumnOffset(4));
+        return ReadBlob(*_database, _data, GetColumnOffset(4));
     }
 
     TableReference MethodDefRow::GetFirstParameter() const
@@ -1517,9 +1525,9 @@ namespace CxxReflect { namespace Metadata {
         return ReadTableReference(*_database, _data, CompositeIndex::MethodDefOrRef, GetColumnOffset(0));
     }
 
-    BlobIndex MethodSpecRow::GetInstantiation() const
+    BlobReference MethodSpecRow::GetInstantiation() const
     {
-        return ReadBlobHeapIndex(*_database, _data, GetColumnOffset(1));
+        return ReadBlob(*_database, _data, GetColumnOffset(1));
     }
 
     StringReference ModuleRow::GetName() const
@@ -1567,9 +1575,9 @@ namespace CxxReflect { namespace Metadata {
         return ReadString(*_database, _data, GetColumnOffset(1));
     }
 
-    BlobIndex PropertyRow::GetSignature() const
+    BlobReference PropertyRow::GetSignature() const
     {
-        return ReadBlobHeapIndex(*_database, _data, GetColumnOffset(2));
+        return ReadBlob(*_database, _data, GetColumnOffset(2));
     }
 
     TableReference PropertyMapRow::GetParent() const
@@ -1590,9 +1598,9 @@ namespace CxxReflect { namespace Metadata {
         >(*_database, _data, &PropertyMapRow::GetFirstProperty);
     }
 
-    BlobIndex StandaloneSigRow::GetSignature() const
+    BlobReference StandaloneSigRow::GetSignature() const
     {
-        return ReadBlobHeapIndex(*_database, _data, GetColumnOffset(0));
+        return ReadBlob(*_database, _data, GetColumnOffset(0));
     }
 
     TypeFlags TypeDefRow::GetFlags() const
@@ -1656,9 +1664,9 @@ namespace CxxReflect { namespace Metadata {
         return ReadString(*_database, _data, GetColumnOffset(2));
     }
 
-    std::uint32_t TypeSpecRow::GetSignature() const
+    BlobReference TypeSpecRow::GetSignature() const
     {
-        return ReadBlobHeapIndex(*_database, _data, 0);
+        return ReadBlob(*_database, _data, 0);
     }
 
 } }

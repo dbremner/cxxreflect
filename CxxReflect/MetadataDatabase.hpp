@@ -20,8 +20,6 @@
 
 namespace CxxReflect { namespace Metadata {
 
-    typedef std::uint32_t BlobIndex;
-
     struct ReadException : std::runtime_error
     {
         ReadException(char const* const message) : std::runtime_error(message) { }
@@ -186,7 +184,7 @@ namespace CxxReflect { namespace Metadata {
     public:
 
         TableReference()
-            : _table(), _index(0)
+            : _table(), _index(static_cast<std::uint32_t>(-1))
         {
         }
 
@@ -338,9 +336,9 @@ namespace CxxReflect { namespace Metadata {
 
         void Swap(TableCollection& other)
         {
-            std::swap(other._stream,      _stream);
+            std::swap(other._stream,      _stream     );
             std::swap(other._initialized, _initialized);
-            std::swap(other._state,       _state);
+            std::swap(other._state,       _state      );
         }
 
         Table const& GetTable(TableId id) const;
@@ -424,7 +422,7 @@ namespace CxxReflect { namespace Metadata {
         {
             std::swap(other._stream, _stream);
             std::swap(other._buffer, _buffer);
-            std::swap(other._index,  _index);
+            std::swap(other._index,  _index );
         }
 
         StringReference At(SizeType index) const;
@@ -443,27 +441,25 @@ namespace CxxReflect { namespace Metadata {
     };
 
     // TODO We've hacked this up for one-byte-size
-    class Blob
+    class BlobReference
     {
     public:
 
-        Blob()
+        BlobReference()
             : _pointer(nullptr)
         {
         }
 
-        explicit Blob(ByteIterator pointer)
+        explicit BlobReference(ByteIterator const pointer)
             : _size(*pointer), _pointer(pointer + 1)
         {
             Detail::VerifyNotNull(pointer);
         }
 
-        ByteIterator Begin() const { return _pointer;         }
-        ByteIterator End()   const { return _pointer + _size; }
-
-        SizeType GetSize() const { VerifyInitialized(); return _size; }
-
-        bool IsInitialized() const { return _pointer != nullptr; }
+        ByteIterator Begin()         const { VerifyInitialized(); return _pointer;         }
+        ByteIterator End()           const { VerifyInitialized(); return _pointer + _size; }
+        SizeType     GetSize()       const { VerifyInitialized(); return _size;            }
+        bool         IsInitialized() const { return _pointer != nullptr;                   }
 
     private:
 
@@ -483,7 +479,7 @@ namespace CxxReflect { namespace Metadata {
     {
     public:
 
-        Database(wchar_t const* fileName);
+        Database(Detail::NonNull<wchar_t const*> fileName);
 
         Database(Database&& other)
             : _fileName(std::move(other._fileName)),
@@ -519,9 +515,14 @@ namespace CxxReflect { namespace Metadata {
             return ReturnType(this, _tables.GetTable(TId).At(index));
         }
 
-        Blob GetBlob(BlobIndex const index) const
+        BlobReference GetBlob(SizeType const index) const
         {
-            return Blob(_blobStream.At(index));
+            return BlobReference(_blobStream.At(index));
+        }
+
+        StringReference GetString(SizeType const index) const
+        {
+            return StringReference(_strings.At(index));
         }
 
         TableCollection  const& GetTables()  const { return _tables;  }
@@ -538,7 +539,7 @@ namespace CxxReflect { namespace Metadata {
 
     private:
 
-        String  _fileName;
+        String _fileName;
 
         Stream _blobStream;
         Stream _guidStream;
@@ -733,7 +734,7 @@ namespace CxxReflect { namespace Metadata {
         AssemblyHashAlgorithm GetHashAlgorithm() const;
         Version               GetVersion()       const;
         AssemblyFlags         GetFlags()         const;
-        BlobIndex             GetPublicKey()     const;
+        BlobReference         GetPublicKey()     const;
         StringReference       GetName()          const;
         StringReference       GetCulture()       const;
     };
@@ -766,10 +767,10 @@ namespace CxxReflect { namespace Metadata {
 
         Version         GetVersion()          const;
         AssemblyFlags   GetFlags()            const;
-        BlobIndex       GetPublicKeyOrToken() const;
+        BlobReference   GetPublicKeyOrToken() const;
         StringReference GetName()             const;
         StringReference GetCulture()          const;
-        BlobIndex       GetHashValue()        const;
+        BlobReference   GetHashValue()        const;
     };
 
     class AssemblyRefOsRow
@@ -813,7 +814,7 @@ namespace CxxReflect { namespace Metadata {
 
         std::uint8_t   GetType()   const;
         TableReference GetParent() const;
-        BlobIndex      GetValue()  const;
+        BlobReference  GetValue()  const;
     };
 
     class CustomAttributeRow
@@ -824,7 +825,7 @@ namespace CxxReflect { namespace Metadata {
 
         TableReference GetParent() const;
         TableReference GetType()   const;
-        BlobIndex      GetValue()  const;
+        BlobReference  GetValue()  const;
     };
 
     class DeclSecurityRow
@@ -835,7 +836,7 @@ namespace CxxReflect { namespace Metadata {
 
         std::uint16_t  GetAction()        const;
         TableReference GetParent()        const;
-        BlobIndex      GetPermissionSet() const;
+        BlobReference  GetPermissionSet() const;
     };
 
     class EventMapRow
@@ -881,7 +882,7 @@ namespace CxxReflect { namespace Metadata {
 
         FieldFlags      GetFlags()     const;
         StringReference GetName()      const;
-        BlobIndex       GetSignature() const;
+        BlobReference   GetSignature() const;
     };
 
     class FieldLayoutRow
@@ -901,7 +902,7 @@ namespace CxxReflect { namespace Metadata {
     public:
 
         TableReference GetParent()     const;
-        BlobIndex      GetNativeType() const;
+        BlobReference  GetNativeType() const;
     };
 
     class FieldRvaRow
@@ -922,7 +923,7 @@ namespace CxxReflect { namespace Metadata {
 
         FileFlags       GetFlags()     const;
         StringReference GetName()      const;
-        BlobIndex       GetHashValue() const;
+        BlobReference   GetHashValue() const;
     };
 
     class GenericParamRow
@@ -989,7 +990,7 @@ namespace CxxReflect { namespace Metadata {
 
         TableReference  GetClass()     const;
         StringReference GetName()      const;
-        BlobIndex       GetSignature() const;
+        BlobReference   GetSignature() const;
     };
 
     class MethodDefRow
@@ -1002,7 +1003,7 @@ namespace CxxReflect { namespace Metadata {
         MethodImplementationFlags GetImplementationFlags() const;
         MethodFlags               GetFlags()               const;
         StringReference           GetName()                const;
-        BlobIndex                 GetSignature()           const;
+        BlobReference             GetSignature()           const;
 
         TableReference            GetFirstParameter()      const;
         TableReference            GetLastParameter()       const;
@@ -1037,7 +1038,7 @@ namespace CxxReflect { namespace Metadata {
     public:
 
         TableReference GetMethod()        const;
-        BlobIndex      GetInstantiation() const;
+        BlobReference  GetInstantiation() const;
     };
 
     class ModuleRow
@@ -1087,7 +1088,7 @@ namespace CxxReflect { namespace Metadata {
 
         PropertyFlags   GetFlags()     const;
         StringReference GetName()      const;
-        BlobIndex       GetSignature() const;
+        BlobReference   GetSignature() const;
     };
 
     class PropertyMapRow
@@ -1107,7 +1108,7 @@ namespace CxxReflect { namespace Metadata {
 
     public:
 
-        BlobIndex GetSignature() const;
+        BlobReference GetSignature() const;
     };
 
     class TypeDefRow
@@ -1145,7 +1146,7 @@ namespace CxxReflect { namespace Metadata {
 
     public:
 
-        BlobIndex GetSignature() const;
+        BlobReference GetSignature() const;
     };
 
     #undef CXXREFLECT_GENERATE

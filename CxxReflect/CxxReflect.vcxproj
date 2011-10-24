@@ -47,7 +47,6 @@
       <WarningLevel>Level4</WarningLevel>
       <Optimization>Disabled</Optimization>
       <AdditionalIncludeDirectories>../</AdditionalIncludeDirectories>
-      <AdditionalOptions>-D_SCL_SECURE_NO_WARNINGS %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
@@ -78,10 +77,12 @@
     <ClInclude Include="Field.hpp" />
     <ClInclude Include="BlobMetadata.hpp" />
     <ClInclude Include="CxxReflect.hpp" />
+    <ClInclude Include="File.hpp" />
     <ClInclude Include="Guid.hpp" />
     <ClInclude Include="MetadataDatabase.hpp" />
     <ClInclude Include="MetadataLoader.hpp" />
     <ClInclude Include="Method.hpp" />
+    <ClInclude Include="Module.hpp" />
     <ClInclude Include="Parameter.hpp" />
     <ClInclude Include="Property.hpp" />
     <ClInclude Include="Type.hpp" />

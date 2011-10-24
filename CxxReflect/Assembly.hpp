@@ -15,16 +15,15 @@ namespace CxxReflect {
     public:
 
         Assembly()
-            : _loader(nullptr), _database(nullptr)
         {
         }
 
-        Assembly(StringReference path, MetadataLoader const* loader, Metadata::Database const* database)
+        Assembly(StringReference                            const path,
+                 Detail::NonNull<MetadataLoader     const*> const loader,
+                 Detail::NonNull<Metadata::Database const*> const database)
             : _path(path.c_str()), _loader(loader), _database(database)
         {
             Detail::Verify([&] { return !path.empty(); });
-            Detail::VerifyNotNull(loader);
-            Detail::VerifyNotNull(database);
         }
 
         bool IsInitialized() const
@@ -34,7 +33,27 @@ namespace CxxReflect {
 
         AssemblyName GetName() const;
 
-        Type GetType() const;
+        typedef Detail::TableTransformIterator<Metadata::TableReference, File,   Assembly> FileIterator;
+        typedef Detail::TableTransformIterator<Metadata::TableReference, Module, Assembly> ModuleIterator;
+        typedef Detail::TableTransformIterator<Metadata::TableReference, Type,   Assembly> TypeIterator;
+
+        FileIterator BeginFiles() const;
+        FileIterator EndFiles()   const;
+
+        File GetFile(StringReference name) const;
+
+        ModuleIterator BeginModules() const;
+        ModuleIterator EndModules()   const;
+
+        Module GetModule(StringReference name) const;
+
+        TypeIterator BeginTypes() const;
+        TypeIterator EndTypes()   const;
+
+        Type GetType(StringReference name, bool ignoreCase) const;
+
+
+        Metadata::Database const& GetDatabase() const { VerifyInitialized(); return *_database; }
 
         // EntryPoint
         // ImageRuntimeVersion
@@ -43,16 +62,10 @@ namespace CxxReflect {
         // [static] CreateQualifiedName
         // GetCustomAttributes
         // GetExportedTypes
-        // GetFile
-        // GetFiles
         // GetManifestResourceInfo
         // GetManifestResourceNames
         // GetManifestResourceStream
-        // GetModule
-        // GetModules
         // GetReferencedAssemblies
-        // GetType
-        // GetTypes
         // IsDefined
 
         // -- These members are not implemented --
@@ -102,9 +115,9 @@ namespace CxxReflect {
 
         Metadata::AssemblyRow GetAssemblyRow() const;
 
-        String                    _path;
-        MetadataLoader     const* _loader;
-        Metadata::Database const* _database;
+        String                                     _path;
+        Detail::NonNull<MetadataLoader     const*> _loader;
+        Detail::NonNull<Metadata::Database const*> _database;
     };
 
 }

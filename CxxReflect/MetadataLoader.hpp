@@ -50,36 +50,10 @@ namespace CxxReflect {
 
         typedef std::set<String> DirectorySet;
 
-        DirectoryBasedMetadataResolver(DirectorySet directories)
-            : _directories(std::move(directories))
-        {
-        }
+        DirectoryBasedMetadataResolver(DirectorySet const& directories);
 
-        std::wstring ResolveAssembly(AssemblyName const& assemblyName) const
-        {
-            using std::begin;
-            using std::end;
-
-            wchar_t const* extensions[] = { L".dll", L".exe" };
-            for (auto dir_it(begin(_directories)); dir_it != end(_directories); ++dir_it)
-            {
-                for (auto ext_it(begin(extensions)); ext_it != end(extensions); ++ext_it)
-                {
-                    std::wstring path(*dir_it + L"/" + /*assemblyName.GetName() + */*ext_it);
-                    if (Detail::FileExists(path.c_str()))
-                    {
-                        return path;
-                    }
-                }
-            }
-
-            return L"";
-        }
-
-        std::wstring ResolveAssembly(AssemblyName const& assemblyName, String const&) const
-        {
-            return ResolveAssembly(assemblyName);
-        }
+        String ResolveAssembly(AssemblyName const& name) const;
+        String ResolveAssembly(AssemblyName const& assemblyName, String const& typeFullName) const;
 
     private:
 

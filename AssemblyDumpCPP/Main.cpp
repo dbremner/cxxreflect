@@ -8,8 +8,11 @@
 // to validate that the CxxReflect library is functionally equivalent (where appropriate) to the
 // .NET Reflection API. 
 
-#include "CxxReflect/MetadataLoader.hpp"
 #include "CxxReflect/Assembly.hpp"
+#include "CxxReflect/AssemblyName.hpp"
+#include "CxxReflect/MetadataLoader.hpp"
+#include "CxxReflect/Type.hpp"
+
 
 #include <combaseapi.h>
 
@@ -95,7 +98,16 @@ int main()
 
     Assembly ass = loader.LoadAssembly(L"C:\\Windows\\Microsoft.NET\\Framework\\v4.0.30319\\mscorlib.dll");
     AssemblyName an = ass.GetName();
-    return 0;
+
+    std::vector<Type> types(ass.BeginTypes(), ass.EndTypes());
+
+    std::vector<String> typeNames;
+    std::transform(types.begin(), types.end(), std::back_inserter(typeNames), [&](Type const& t)
+    {
+        return t.GetName().c_str();
+    });
+
+    //return 0;
 
     Database db(L"C:\\Windows\\Microsoft.NET\\Framework\\v4.0.30319\\mscorlib.dll");
 
@@ -112,11 +124,12 @@ int main()
 
     TypeDefRow object(db.GetRow<TableId::TypeDef>(1));
     std::vector<std::wstring> functions;
-    std::transform(db.Begin<TableId::MethodDef>() + (object.GetFirstMethod().GetIndex() - 1),
-                   db.Begin<TableId::MethodDef>() + (object.GetLastMethod().GetIndex() - 1),
+    std::transform(db.Begin<TableId::MethodDef>() + object.GetFirstMethod().GetIndex(),
+                   db.Begin<TableId::MethodDef>() + object.GetLastMethod().GetIndex(),
                    std::back_inserter(functions),
                    [&](MethodDefRow const& r)
     {
         return r.GetName().c_str();
     });
+
 }

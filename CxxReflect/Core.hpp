@@ -11,6 +11,7 @@
 #include <functional>
 #include <memory>
 #include <stdexcept>
+#include <type_traits>
 #include <vector>
 
 #ifdef _DEBUG
@@ -21,6 +22,9 @@
 
 namespace CxxReflect {
 
+    // VerificationFailure exceptions are thrown only when CXXREFLECT_LOGIC_CHECKS is set.  It should
+    // only be thrown when the error is an actual logic error, never when the error is something that
+    // could conceivably occur at runtime if the code is correct.
     struct VerificationFailure : std::logic_error
     {
         explicit VerificationFailure(char const* const message = "")
@@ -88,6 +92,17 @@ namespace CxxReflect { namespace Detail {
 
     // A handful of useful algorithms that we use throughout the library.
 
+    template <typename TInIt, typename TOutIt>
+    void RangeCheckedCopy(TInIt first0, TInIt const last0, TOutIt first1, TOutIt const last1)
+    {
+        while (first0 != last0 && first1 != last1)
+        {
+            *first1 = *first0;
+            ++first0;
+            ++first1;
+        }
+    }
+
     template <typename TInIt0, typename TInIt1>
     bool RangeCheckedEqual(TInIt0 first0, TInIt0 const last0, TInIt1 first1, TInIt1 const last1)
     {
@@ -113,7 +128,9 @@ namespace CxxReflect { namespace Detail {
         typedef std::size_t       size_type;
         typedef std::ptrdiff_t    difference_type;
 
-        // We only provide read-only access to the encapsulated data.
+        // We only provide read-only access to the encapsulated data, so all of these are const; we
+        // provide the full set of typedefs though so this is a drop-in replacement for std::string
+        // (at least for core sceanrios).
         typedef value_type const& reference;
         typedef value_type const& const_reference;
         typedef value_type const* pointer;
@@ -164,6 +181,7 @@ namespace CxxReflect { namespace Detail {
         const_reverse_iterator crbegin() const { return reverse_iterator(_last);  }
         const_reverse_iterator crend()   const { return reverse_iterator(_first); }
 
+        // Note that unlike std::string, the size of an EnhancedCString includes its null terminator
         size_type size()     const { return _last - _first;                          }
         size_type length()   const { return size();                                  }
         size_type max_size() const { return std::numeric_limits<std::size_t>::max(); }
@@ -423,6 +441,9 @@ namespace CxxReflect { namespace Detail {
             return _value;
         }
 
+        bool IsSet(EnumerationType const mask) const { return WithMask(mask) != 0; }
+        bool IsSet(IntegralType    const mask) const { return WithMask(mask) != 0; }
+
         FlagSet WithMask(EnumerationType const mask) const
         {
             return WithMask(static_cast<IntegralType>(mask));
@@ -433,14 +454,13 @@ namespace CxxReflect { namespace Detail {
             return FlagSet(_value & mask);
         }
 
-        friend bool operator==(FlagSet const& lhs, FlagSet const& rhs)
-        {
-            return lhs.GetIntegral() == rhs.GetIntegral();
-        }
+        friend bool operator==(FlagSet const& lhs, FlagSet const& rhs) { return lhs._value == rhs._value; }
+        friend bool operator< (FlagSet const& lhs, FlagSet const& rhs) { return lhs._value <  rhs._value; }
 
         friend bool operator!=(FlagSet const& lhs, FlagSet const& rhs) { return !(lhs == rhs); }
-
-        // TODO This is lacking a lot of functionality
+        friend bool operator> (FlagSet const& lhs, FlagSet const& rhs) { return   rhs <  lhs ; }
+        friend bool operator<=(FlagSet const& lhs, FlagSet const& rhs) { return !(rhs <  lhs); }
+        friend bool operator>=(FlagSet const& lhs, FlagSet const& rhs) { return !(lhs <  rhs); }
 
     private:
 
@@ -484,6 +504,70 @@ namespace CxxReflect { namespace Detail {
 
         ValueType _value;
     };
+
+    // A "smart" pointer that is guaranteed to be either not initialized or not null.  If it is
+    // default-initialized, then it is flagged as being "uninitialized" (meaning it is null);
+    // however, it cannot be constructed with a null pointer.
+
+    template <typename T>
+    class NonNull
+    {
+    public:
+
+        typedef typename std::remove_pointer<T>::type ValueType;
+        typedef ValueType*                            Pointer;
+        typedef ValueType&                            Reference;
+
+        NonNull()
+            : _pointer(nullptr)
+        {
+        }
+
+        NonNull(Pointer const pointer)
+            : _pointer(pointer)
+        {
+            VerifyInitialized();
+        }
+
+        template <typename U>
+        NonNull(U const pointer)
+            : _pointer(pointer)
+        {
+            VerifyInitialized();
+        }
+
+        Pointer   Get()        const { VerifyInitialized(); return _pointer;  }
+        Pointer   operator->() const { VerifyInitialized(); return _pointer;  }
+        Reference operator*()  const { VerifyInitialized(); return *_pointer; }
+
+        bool IsInitialized() const { return _pointer != nullptr; }
+
+    private:
+
+        void VerifyInitialized() const
+        {
+            Verify([&] { return IsInitialized(); });
+        }
+
+        Pointer _pointer;
+    };
+
+    template <typename T, typename U> bool operator==(NonNull<T> const& lhs, NonNull<U> const& rhs) { return lhs.Get() == rhs.Get(); }
+    template <typename T, typename U> bool operator==(NonNull<T> const& lhs, U*                rhs) { return lhs.Get() == rhs;       }
+    template <typename T, typename U> bool operator==(T*                lhs, NonNull<U> const& rhs) { return lhs       == rhs.Get(); }
+    template <typename T>             bool operator==(NonNull<T> const& lhs, std::nullptr_t       ) { return lhs.Get() == nullptr;   }
+    template <typename T>             bool operator==(std::nullptr_t,        NonNull<T> const& rhs) { return rhs.Get() == nullptr;   }
+
+    template <typename T, typename U> bool operator!=(NonNull<T> const& lhs, NonNull<U> const& rhs) { return !(lhs == rhs);          }
+    template <typename T, typename U> bool operator!=(NonNull<T> const& lhs, U*                rhs) { return !(lhs == rhs);          }
+    template <typename T, typename U> bool operator!=(T*                lhs, NonNull<U> const& rhs) { return !(lhs == rhs);          }
+    template <typename T>             bool operator!=(NonNull<T> const& lhs, std::nullptr_t       ) { return lhs.Get() != nullptr;   }
+    template <typename T>             bool operator!=(std::nullptr_t,        NonNull<T> const& rhs) { return rhs.Get() != nullptr;   }
+
+    template <typename T, typename U> bool operator< (NonNull<T> const& lhs, NonNull<U> const& rhs) { return lhs.Get() <  rhs.Get(); }
+    template <typename T, typename U> bool operator> (NonNull<T> const& lhs, NonNull<U> const& rhs) { return lhs.Get() >  rhs.Get(); }
+    template <typename T, typename U> bool operator<=(NonNull<T> const& lhs, NonNull<U> const& rhs) { return lhs.Get() <= rhs.Get(); }
+    template <typename T, typename U> bool operator>=(NonNull<T> const& lhs, NonNull<U> const& rhs) { return lhs.Get() >= rhs.Get(); }
 
     // A linear allocator for arrays; this is most useful for the allocation of strings.
     template <typename T, std::size_t TBlockSize>
@@ -558,9 +642,7 @@ namespace CxxReflect { namespace Detail {
         typedef typename Block::iterator         BlockIterator;
         typedef std::unique_ptr<Block>           BlockPointer;
         typedef std::vector<BlockPointer>        BlockSequence;
-        
 
-        // Noncopyable
         LinearArrayAllocator(LinearArrayAllocator const&);
         LinearArrayAllocator& operator=(LinearArrayAllocator const&);
 
@@ -582,6 +664,85 @@ namespace CxxReflect { namespace Detail {
         BlockSequence _blocks;
         BlockIterator _current;
     };
+
+    template <typename TTableReference, typename TResult, typename TParameter>
+    class TableTransformIterator
+    {
+    public:
+
+        typedef std::random_access_iterator_tag iterator_category;
+        typedef TResult                         value_type;
+        typedef TResult                         reference;
+        typedef Dereferenceable<TResult>        pointer;
+        typedef std::ptrdiff_t                  difference_type;
+
+        typedef value_type                      ValueType;
+        typedef reference                       Reference;
+        typedef pointer                         Pointer;
+        typedef difference_type                 DifferenceType;
+
+        TableTransformIterator()
+        {
+        }
+
+        TableTransformIterator(TParameter const parameter, TTableReference const current)
+            : _parameter(parameter), _current(current)
+        {
+        }
+
+        Reference Get()        const { return ValueType(_parameter, _current); }
+        Reference operator*()  const { return ValueType(_parameter, _current); }
+        Pointer   operator->() const { return ValueType(_parameter, _current); }
+
+        TableTransformIterator& operator++()    { *this += 1; return *this;                    }
+        TableTransformIterator  operator++(int) { auto const it(*this); *this += 1; return it; }
+
+        TableTransformIterator& operator--()    { *this -= 1; return *this;                    }
+        TableTransformIterator  operator--(int) { auto const it(*this); *this -= 1; return it; }
+
+        TableTransformIterator& operator+=(DifferenceType const n)
+        {
+            _current = TTableReference(_current.GetTable(), _current.GetIndex() + n);
+            return *this;
+        }
+
+        TableTransformIterator& operator-=(DifferenceType const n) { return *this += -n; }
+
+        Reference operator[](DifferenceType const n) const
+        {
+            return ValueType(_parameter, TTableReference(_current.GetTable(), _current.GetIndex() + n));
+        }
+
+        friend TableTransformIterator operator+(TableTransformIterator it, DifferenceType n) { return it += n; }
+        friend TableTransformIterator operator+(DifferenceType n, TableTransformIterator it) { return it += n; }
+        friend TableTransformIterator operator-(TableTransformIterator it, DifferenceType n) { return it -= n; }
+
+        friend DifferenceType operator-(TableTransformIterator const& lhs, TableTransformIterator const& rhs)
+        {
+            return DifferenceType(lhs._current.GetIndex()) - DifferenceType(rhs._current.GetIndex());
+        }
+
+        friend bool operator==(TableTransformIterator const& lhs, TableTransformIterator const& rhs)
+        {
+            return lhs._current.GetIndex() == rhs._current.GetIndex();
+        }
+
+        friend bool operator< (TableTransformIterator const& lhs, TableTransformIterator const& rhs)
+        {
+            return lhs._current.GetIndex() < rhs._current.GetIndex();
+        }
+
+        friend bool operator!=(TableTransformIterator const& lhs, TableTransformIterator const& rhs) { return !(lhs == rhs); }
+        friend bool operator> (TableTransformIterator const& lhs, TableTransformIterator const& rhs) { return   rhs <  lhs ; }
+        friend bool operator<=(TableTransformIterator const& lhs, TableTransformIterator const& rhs) { return !(rhs <  lhs); }
+        friend bool operator>=(TableTransformIterator const& lhs, TableTransformIterator const& rhs) { return !(lhs <  rhs); }
+
+    private:
+
+        TParameter      _parameter;
+        TTableReference _current;
+    };
+
 
     // Platform functionality wrappers:  these functions use platform-specific, third-party, or non-
     // standard types and functions; we encapsulate these functions here to make it easier to port
@@ -615,7 +776,10 @@ namespace CxxReflect {
 
     class Assembly;
     class AssemblyName;
+    class File;
+    class IMetadataResolver;
     class MetadataLoader;
+    class Module;
     class Type;
     class Version;
 
