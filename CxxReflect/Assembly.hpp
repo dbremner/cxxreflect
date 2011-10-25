@@ -55,7 +55,7 @@ namespace CxxReflect {
         TypeIterator BeginTypes() const;
         TypeIterator EndTypes()   const;
 
-        Type GetType(StringReference name, bool ignoreCase) const;
+        Type GetType(StringReference name, bool ignoreCase = false) const;
 
 
         Metadata::Database const& GetDatabase() const { VerifyInitialized(); return *_database; }

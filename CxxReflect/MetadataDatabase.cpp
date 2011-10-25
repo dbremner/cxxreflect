@@ -510,7 +510,7 @@ namespace {
         std::uint32_t const tagBits(CompositeIndexTagSize[Detail::AsInteger(index)]);
         return std::make_pair(
             value & ((static_cast<std::uint32_t>(1u) << tagBits) - 1),
-            value >> tagBits
+            (value >> tagBits) - 1
             );
     }
 

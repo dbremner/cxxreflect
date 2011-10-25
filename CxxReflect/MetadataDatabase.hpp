@@ -179,6 +179,8 @@ namespace CxxReflect { namespace Metadata {
 
     typedef std::array<SizeType, CompositeIndexCount> CompositeIndexSizeArray;
 
+    enum : std::size_t { InvalidTableIndex = static_cast<std::size_t>(-1) };
+
     class TableReference
     {
     public:

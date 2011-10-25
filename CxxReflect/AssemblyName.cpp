@@ -162,6 +162,59 @@ namespace CxxReflect {
 
     std::wistream& operator>>(std::wistream& is, AssemblyName& an)
     {
+        enum class Kind { Label, Name, Version, Culture, PublicKeyToken };
+
+        std::map<Kind, String> components;
+
+        Kind kind = Kind::Name;
+        String term;
+
+        wchar_t current;
+        while (is >> current)
+        {
+            if (current == L',')
+            {
+                if (kind == Kind::Label)
+                    throw std::logic_error("wtf");
+
+                if (!components.insert(std::make_pair(kind, term)).second)
+                    throw std::logic_error("wtf");
+
+                term.clear();
+                kind = Kind::Label;
+                continue;
+            }
+            else if (current == L'=')
+            {
+                if (kind != Kind::Label)
+                    throw std::logic_error("wtf");
+
+                if      (term == L"Version")        { kind = Kind::Version;        }
+                else if (term == L"Culture")        { kind = Kind::Culture;        }
+                else if (term == L"PublicKeyToken") { kind = Kind::PublicKeyToken; }
+                else throw std::logic_error("wtf");
+
+                continue;
+            }
+            else if (current == L' ')
+            {
+                // TODO IS THIS ACTUALLY CORRECT TO IGNORE WHITESPACE ALL THE TIME?
+                continue;
+            }
+            else
+            {
+                term.push_back(current);
+            }
+        }
+
+        an = AssemblyName(
+            components[Kind::Name],
+            Version(components[Kind::Version]),
+            components[Kind::Culture],
+            PublicKeyToken(),
+            AssemblyFlags()); // TODO THIS IS NOT CORRECT
+
+
         // TODO BUILD THIS FUNCTION
         return is;
     }

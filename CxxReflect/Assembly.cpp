@@ -4,6 +4,7 @@
 
 #include "CxxReflect/Assembly.hpp"
 #include "CxxReflect/AssemblyName.hpp"
+#include "CxxReflect/Type.hpp"
 
 using namespace CxxReflect;
 
@@ -19,6 +20,19 @@ namespace CxxReflect {
         return Assembly::TypeIterator(*this, Metadata::TableReference(
             Metadata::TableId::TypeDef,
             _database->GetTables().GetTable(Metadata::TableId::TypeDef).GetRowCount()));
+    }
+
+    Type Assembly::GetType(StringReference const name, bool const ignoreCase) const
+    {
+        typedef int (*Comparer)(wchar_t const*, wchar_t const*);
+        Comparer compare(ignoreCase ? _wcsicmp : wcscmp);
+
+        auto const it(std::find_if(BeginTypes(), EndTypes(), [&](Type const& t)
+        {
+            return compare(t.GetFullName().c_str(), name.c_str()) == 0;
+        }));
+
+        return it != EndTypes() ? *it : Type();
     }
 
     Assembly::AssemblyNameIterator Assembly::BeginReferencedAssemblyNames() const

@@ -23,12 +23,15 @@ namespace CxxReflect {
         Type(Assembly const& assembly, Metadata::TableReference const& type)
             : _assembly(assembly), _type(type)
         {
-            Detail::Verify([&] { return assembly.IsInitialized();             });
-            Detail::Verify([&] { return type.GetIndex() != std::uint32_t(-1); });
-            Detail::Verify([&] { return IsTypeDef() || IsTypeSpec();          });
+            // Note that a null type index is valid here:  it indicates no type
+            Detail::Verify([&] { return assembly.IsInitialized();    });
+            Detail::Verify([&] { return IsTypeDef() || IsTypeSpec(); });
         }
 
         Assembly GetAssembly() const { return _assembly; }
+
+        bool HasBaseType() const;
+        Type GetBaseType() const;
 
         String          GetFullName()  const;
         StringReference GetName()      const;
@@ -72,11 +75,14 @@ namespace CxxReflect {
 
         // TODO This interface is very incomplete
 
-        bool IsInitialized() const { return _assembly.IsInitialized(); }
+        bool IsInitialized() const
+        {
+            return _assembly.IsInitialized()
+                && _type.GetIndex() != Metadata::InvalidTableIndex;
+        }
 
         // AssemblyQualifiedName
         // Attributes
-        // BaseType
         // ContainsGenericParameters
         // DeclaringMethod
         // DeclaringType

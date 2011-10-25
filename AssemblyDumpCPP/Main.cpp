@@ -96,7 +96,7 @@ int main()
 
     MetadataLoader loader(std::move(resolver));
 
-    Assembly ass = loader.LoadAssembly(L"C:\\Windows\\Microsoft.NET\\Framework\\v4.0.30319\\System.Core.dll");
+    Assembly ass = loader.LoadAssembly(L"C:\\Windows\\Microsoft.NET\\Framework\\v4.0.30319\\mscorlib.dll");
     AssemblyName an = ass.GetName();
 
     std::vector<Type> types(ass.BeginTypes(), ass.EndTypes());
@@ -114,6 +114,16 @@ int main()
     {
         return an.GetFullName();
     });
+
+    std::vector<String> lattice;
+    Type t = ass.GetType(L"System.NullReferenceException");
+    
+    while(t.IsInitialized())
+    {
+        lattice.push_back(t.GetFullName());
+
+        t = t.GetBaseType();
+    }
 
     //return 0;
 

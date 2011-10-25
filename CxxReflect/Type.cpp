@@ -24,9 +24,34 @@ namespace CxxReflect {
 
     bool const TodoNotYetImplementedFlag = false;
 
+    bool Type::HasBaseType() const
+    {
+        return !TodoNotYetImplementedFlag;
+    }
+
+    Type Type::GetBaseType() const
+    {
+        return ResolveTypeDefAndCall([&](Metadata::TypeDefRow const& r) -> Type
+        {
+            Metadata::TableReference extends(r.GetExtends());
+            switch (extends.GetTable())
+            {
+            case Metadata::TableId::TypeDef:
+            case Metadata::TableId::TypeRef:
+            case Metadata::TableId::TypeSpec:
+                // TODO DO WE WANT TO RESOLVE TYPEREFS HERE OR DEFER RESOLUTION?
+                return Type(_assembly, extends);
+
+            default:
+                throw std::logic_error("wtf");
+            }
+
+        }, Type());
+    }
+
     String Type::GetFullName() const
     {
-        return L"";
+        return String(GetNamespace().c_str()) + L"." + GetName().c_str(); // TODO HANDLE GENERIC AND NESTED TYPES
     }
 
     StringReference Type::GetName() const
