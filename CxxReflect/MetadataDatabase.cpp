@@ -1129,7 +1129,7 @@ namespace CxxReflect { namespace Metadata {
         return ReadAs<AssemblyAttribute>(_data, GetColumnOffset(1));
     }
 
-    BlobReference AssemblyRefRow::GetPublicKeyOrToken() const
+    BlobReference AssemblyRefRow::GetPublicKey() const
     {
         return ReadBlob(*_database, _data, GetColumnOffset(2));
     }

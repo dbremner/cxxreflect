@@ -31,11 +31,16 @@ namespace CxxReflect {
             return _loader != nullptr && _database != nullptr;
         }
 
-        AssemblyName GetName() const;
+        AssemblyName  GetName() const;
+        String const& GetPath() const;
 
-        typedef Detail::TableTransformIterator<Metadata::TableReference, File,   Assembly> FileIterator;
-        typedef Detail::TableTransformIterator<Metadata::TableReference, Module, Assembly> ModuleIterator;
-        typedef Detail::TableTransformIterator<Metadata::TableReference, Type,   Assembly> TypeIterator;
+        typedef Detail::TableTransformIterator<Metadata::TableReference, File,   Assembly>       FileIterator;
+        typedef Detail::TableTransformIterator<Metadata::TableReference, Module, Assembly>       ModuleIterator;
+        typedef Detail::TableTransformIterator<Metadata::TableReference, Type,   Assembly>       TypeIterator;
+        typedef Detail::TableTransformIterator<Metadata::TableReference, AssemblyName, Assembly> AssemblyNameIterator;
+
+        AssemblyNameIterator BeginReferencedAssemblyNames() const;
+        AssemblyNameIterator EndReferencedAssemblyNames()   const;
 
         FileIterator BeginFiles() const;
         FileIterator EndFiles()   const;

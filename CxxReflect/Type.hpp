@@ -20,7 +20,7 @@ namespace CxxReflect {
         {
         }
 
-        Type(Assembly const assembly, Metadata::TableReference const type)
+        Type(Assembly const& assembly, Metadata::TableReference const& type)
             : _assembly(assembly), _type(type)
         {
             Detail::Verify([&] { return assembly.IsInitialized();             });
@@ -30,15 +30,9 @@ namespace CxxReflect {
 
         Assembly GetAssembly() const { return _assembly; }
 
-        StringReference GetName() const
-        {
-            if (IsTypeDef())
-            {
-                return GetTypeDefRow().GetName();
-            }
-
-            return L""; // TODO
-        }
+        String          GetFullName()  const;
+        StringReference GetName()      const;
+        StringReference GetNamespace() const;
 
         bool IsAbstract()                const;
         bool IsAnsiClass()               const;
@@ -95,8 +89,6 @@ namespace CxxReflect {
         // MemberType
         // MetadataToken
         // Module
-        // Name
-        // Namespace
         // ReflectedType
         // StructLayoutAttribute
         // TypeHandle
@@ -108,26 +100,6 @@ namespace CxxReflect {
         // IsSecurityTransparent
 
     private:
-
-        #define CXXREFLECT_GENERATE decltype(std::declval<TCallback>()(std::declval<Metadata::TypeDefRow>()))
-
-        template <typename TCallback>
-        auto ResolveTypeDefAndCall(
-            TCallback callback,
-            CXXREFLECT_GENERATE defaultResult = std::declval<CXXREFLECT_GENERATE>()
-        ) const -> CXXREFLECT_GENERATE
-        {
-            // If this type is itself a TypeDef, we can directly call the callback and return:
-            if (IsTypeDef())
-                return callback(GetTypeDefRow());
-
-            // Otherwise, we need to visit the TypeSpec to find the primary TypeDef or TypeRef
-            // to which it refers; if it refers to a TypeRef, we must resolve it.
-
-            return defaultResult; // TODO TYPESPEC FIRST
-        }
-
-        #undef CXXREFLECT_GENERATE
 
         void VerifyInitialized() const
         {
@@ -148,6 +120,28 @@ namespace CxxReflect {
             Detail::Verify([&] { return IsTypeSpec(); });
             return _assembly.GetDatabase().GetRow<Metadata::TableId::TypeSpec>(_type.GetIndex());
         }
+
+        #define CXXREFLECT_GENERATE decltype(std::declval<TCallback>()(std::declval<Metadata::TypeDefRow>()))
+
+        template <typename TCallback>
+        auto ResolveTypeDefAndCall(
+            TCallback callback,
+            CXXREFLECT_GENERATE defaultResult = std::declval<CXXREFLECT_GENERATE>()
+        ) const -> CXXREFLECT_GENERATE
+        {
+            VerifyInitialized();
+
+            // If this type is itself a TypeDef, we can directly call the callback and return:
+            if (IsTypeDef())
+                return callback(GetTypeDefRow());
+
+            // Otherwise, we need to visit the TypeSpec to find the primary TypeDef or TypeRef
+            // to which it refers; if it refers to a TypeRef, we must resolve it.
+
+            return defaultResult; // TODO TYPESPEC FIRST
+        }
+
+        #undef CXXREFLECT_GENERATE
 
         Assembly                 _assembly;
         Metadata::TableReference _type;

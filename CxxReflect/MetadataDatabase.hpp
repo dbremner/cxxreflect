@@ -272,7 +272,6 @@ namespace CxxReflect { namespace Metadata {
     public:
 
         Table()
-            : _data(nullptr), _rowSize(0), _rowCount(0), _isSorted(false)
         {
         }
 
@@ -281,31 +280,24 @@ namespace CxxReflect { namespace Metadata {
         {
         }
 
-        ByteIterator  Begin()         const { VerifyInitialized(); return _data;                        }
-        ByteIterator  End()           const { VerifyInitialized(); return _data + _rowCount * _rowSize; }
-        bool          IsSorted()      const { VerifyInitialized(); return _isSorted;                    }
-        bool          IsInitialized() const {                      return _data != nullptr;             }
-        SizeType      GetRowCount()   const { VerifyInitialized(); return _rowCount;                    }
-        SizeType      GetRowSize()    const { VerifyInitialized(); return _rowSize;                     }
+        ByteIterator Begin()       const { return _data.Get();                                    }
+        ByteIterator End()         const { return _data.Get() + _rowCount.Get() * _rowSize.Get(); }
+        bool         IsSorted()    const { return _isSorted.Get();                                }
+        SizeType     GetRowCount() const { return _rowCount.Get();                                }
+        SizeType     GetRowSize()  const { return _rowSize.Get();                                 }
 
         ByteIterator At(SizeType const index) const
         {
-            VerifyInitialized();
-            Detail::Verify([&] { return index < _rowCount; }, "Index out of range");
-            return _data + _rowSize * index;
+            Detail::Verify([&] { return index < _rowCount.Get(); }, "Index out of range");
+            return _data.Get() + _rowSize.Get() * index;
         }
 
     private:
 
-        void VerifyInitialized() const
-        {
-            Detail::Verify([&] { return IsInitialized(); }, "Table is not initialized");
-        }
-
-        ByteIterator  _data;
-        SizeType      _rowSize;
-        SizeType      _rowCount;
-        bool          _isSorted;
+        Detail::ValueInitialized<ByteIterator> _data;
+        Detail::ValueInitialized<SizeType>     _rowSize;
+        Detail::ValueInitialized<SizeType>     _rowCount;
+        Detail::ValueInitialized<bool>         _isSorted;
     };
 
     class TableCollection
@@ -572,7 +564,7 @@ namespace CxxReflect { namespace Metadata {
         {
         }
 
-        explicit RowIterator(Database const* const database, SizeType const index)
+        explicit RowIterator(Detail::NonNull<Database const*> const database, SizeType const index)
             : _database(database), _index(index)
         {
         }
@@ -621,8 +613,8 @@ namespace CxxReflect { namespace Metadata {
 
     private:
 
-        Database const* _database;
-        SizeType        _index;
+        Detail::NonNull<Database const*> _database;
+        SizeType                         _index;
     };
 
     enum class ElementType : std::uint8_t
@@ -765,12 +757,12 @@ namespace CxxReflect { namespace Metadata {
 
     public:
 
-        Version         GetVersion()          const;
-        AssemblyFlags   GetFlags()            const;
-        BlobReference   GetPublicKeyOrToken() const;
-        StringReference GetName()             const;
-        StringReference GetCulture()          const;
-        BlobReference   GetHashValue()        const;
+        Version         GetVersion()   const;
+        AssemblyFlags   GetFlags()     const;
+        BlobReference   GetPublicKey() const;
+        StringReference GetName()      const;
+        StringReference GetCulture()   const;
+        BlobReference   GetHashValue() const;
     };
 
     class AssemblyRefOsRow

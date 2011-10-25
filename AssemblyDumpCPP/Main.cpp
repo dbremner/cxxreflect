@@ -96,7 +96,7 @@ int main()
 
     MetadataLoader loader(std::move(resolver));
 
-    Assembly ass = loader.LoadAssembly(L"C:\\Windows\\Microsoft.NET\\Framework\\v4.0.30319\\mscorlib.dll");
+    Assembly ass = loader.LoadAssembly(L"C:\\Windows\\Microsoft.NET\\Framework\\v4.0.30319\\System.Core.dll");
     AssemblyName an = ass.GetName();
 
     std::vector<Type> types(ass.BeginTypes(), ass.EndTypes());
@@ -105,6 +105,14 @@ int main()
     std::transform(types.begin(), types.end(), std::back_inserter(typeNames), [&](Type const& t)
     {
         return t.GetName().c_str();
+    });
+
+    std::vector<AssemblyName> refs(ass.BeginReferencedAssemblyNames(), ass.EndReferencedAssemblyNames());
+
+    std::vector<String> refNames;
+    std::transform(refs.begin(), refs.end(), std::back_inserter(refNames), [&](AssemblyName const& an)
+    {
+        return an.GetFullName();
     });
 
     //return 0;

@@ -2,13 +2,60 @@
 //                   Distributed under the Boost Software License, Version 1.0.                   //
 //     (See accompanying file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)    //
 
+#include "CxxReflect/Assembly.hpp"
 #include "CxxReflect/AssemblyName.hpp"
+#include "CxxReflect/MetadataDatabase.hpp"
 
 #include <cctype>
 #include <cstring>
 #include <iostream>
 #include <map>
 #include <sstream>
+
+using namespace CxxReflect;
+
+namespace {
+
+    PublicKeyToken ComputePublicKeyToken(Metadata::BlobReference const blob, bool const isFullPublicKey)
+    {
+        PublicKeyToken result;
+
+        if (isFullPublicKey)
+        {
+            Detail::Sha1Hash const hash(Detail::ComputeSha1Hash(blob.Begin(), blob.End()));
+            std::copy(hash.rbegin(), hash.rbegin() + 8, result.begin());
+        }
+        else
+        {
+            if (blob.GetSize() != 8)
+                throw std::runtime_error("wtf");
+
+            std::copy(blob.Begin(), blob.End(), result.begin());
+        }
+
+        return result;
+    }
+
+    template <Metadata::TableId TTableKind>
+    void BuildAssemblyName(AssemblyName& name, Metadata::Database const& database, SizeType index)
+    {
+        auto const row(database.GetRow<TTableKind>(index));
+
+        AssemblyFlags const flags(row.GetFlags());
+
+        PublicKeyToken const publicKeyToken(ComputePublicKeyToken(
+            row.GetPublicKey(),
+            flags.IsSet(AssemblyAttribute::PublicKey)));
+
+        name = CxxReflect::AssemblyName(
+            row.GetName().c_str(),
+            row.GetVersion(),
+            row.GetCulture().c_str(),
+            publicKeyToken,
+            flags);
+    }
+
+}
 
 namespace CxxReflect {
 
@@ -46,10 +93,77 @@ namespace CxxReflect {
         return is;
     }
 
+    AssemblyName::AssemblyName(Assembly const& assembly, Metadata::TableReference const& reference)
+    {
+        Metadata::Database const& database(assembly.GetDatabase());
+        switch (reference.GetTable())
+        {
+        case Metadata::TableId::Assembly:
+            BuildAssemblyName<Metadata::TableId::Assembly>(*this, database, reference.GetIndex());
+            _path = assembly.GetPath();
+            break;
+
+        case Metadata::TableId::AssemblyRef:
+            BuildAssemblyName<Metadata::TableId::AssemblyRef>(*this, database, reference.GetIndex());
+            break;
+
+        default:
+            Detail::VerifyFail("TableReference references unsupported table");
+        }
+    }
+
+    AssemblyName::AssemblyName(String const& fullName)
+    {
+        std::wistringstream iss(fullName.c_str());
+        if (!(iss >> *this >> std::ws) || !iss.eof())
+            throw std::logic_error("wtf");
+    }
+
+    String AssemblyName::GetFullName() const
+    {
+        // TODO MAKE SURE THIS WORKS FOR NULL AND NONEXISTENT COMPONENTS
+        std::wostringstream buffer;
+        buffer << _simpleName << L", Version=" << _version;
+
+        buffer << L", Culture=";
+        if (!_cultureInfo.empty())
+            buffer << _cultureInfo;
+        else
+            buffer << L"neutral";
+
+        buffer << L", PublicKeyToken=";
+        bool const publicKeyIsNull(
+            std::find_if(begin(_publicKeyToken.Get()), end(_publicKeyToken.Get()), [](Byte x)
+            {
+                return x != 0;
+            }) ==  end(_publicKeyToken.Get()));
+
+        if (!publicKeyIsNull)
+        {
+            std::array<Character, 17> publicKeyString = { 0 };
+            for (SizeType n(0); n < _publicKeyToken.Get().size(); n += 1)
+            {
+                std::swprintf(publicKeyString.data() + (n * 2), 3, L"%02x", _publicKeyToken.Get()[n]);
+            }
+            buffer << publicKeyString.data();
+        }
+        else
+        {
+            buffer << L"null";
+        }
+
+        return buffer.str();
+    }
+
     std::wostream& operator<<(std::wostream& os, AssemblyName const& an)
     {
-        os << an.GetFullName();
-        return os;
+        return os << an.GetFullName();
+    }
+
+    std::wistream& operator>>(std::wistream& is, AssemblyName& an)
+    {
+        // TODO BUILD THIS FUNCTION
+        return is;
     }
 
 }

@@ -4,9 +4,48 @@
 
 #include "CxxReflect/Type.hpp"
 
+namespace {
+
+    bool IsSystemAssembly(CxxReflect::Assembly const& assembly)
+    {
+        // The system assembly has no assembly references; it is usually mscorlib.dll, but it could
+        // be named something else (e.g., Platform.winmd in WinRT?)
+        return std::distance(assembly.BeginReferencedAssemblyNames(), assembly.EndReferencedAssemblyNames()) != 0;
+    }
+
+    bool IsSystemType(CxxReflect::Type const& type, CxxReflect::StringReference const& name)
+    {
+        return IsSystemAssembly(type.GetAssembly()) && type.GetFullName() == name;
+    }
+
+}
+
 namespace CxxReflect {
 
     bool const TodoNotYetImplementedFlag = false;
+
+    String Type::GetFullName() const
+    {
+        return L"";
+    }
+
+    StringReference Type::GetName() const
+    {
+        VerifyInitialized();
+
+        if (IsTypeDef())
+            return GetTypeDefRow().GetName();
+
+        return L""; // TODO
+    }
+
+    StringReference Type::GetNamespace() const
+    {
+        return ResolveTypeDefAndCall([](Metadata::TypeDefRow const& r)
+        {
+            return r.GetNamespace();
+        }, StringReference());
+    }
 
     bool Type::IsAbstract() const
     {
@@ -26,6 +65,7 @@ namespace CxxReflect {
 
     bool Type::IsArray() const
     {
+        VerifyInitialized();
         if (IsTypeDef()) { return false; }
 
         return TodoNotYetImplementedFlag;
@@ -49,6 +89,8 @@ namespace CxxReflect {
 
     bool Type::IsByRef() const
     {
+        VerifyInitialized();
+
         if (IsTypeDef()) { return false; }
 
         return TodoNotYetImplementedFlag;
@@ -56,6 +98,8 @@ namespace CxxReflect {
 
     bool Type::IsClass() const
     {
+        VerifyInitialized();
+
         return !IsInterface() && !IsValueType();
     }
 

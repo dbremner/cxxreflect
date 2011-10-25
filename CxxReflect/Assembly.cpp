@@ -7,30 +7,6 @@
 
 using namespace CxxReflect;
 
-namespace {
-
-    PublicKeyToken ComputePublicKeyToken(Metadata::BlobReference const blob, bool const isFullPublicKey)
-    {
-        PublicKeyToken result;
-
-        if (isFullPublicKey)
-        {
-            Detail::Sha1Hash const hash(Detail::ComputeSha1Hash(blob.Begin(), blob.End()));
-            std::copy(hash.rbegin(), hash.rbegin() + 8, result.begin());
-        }
-        else
-        {
-            if (blob.GetSize() != 8)
-                throw std::runtime_error("wtf");
-
-            std::copy(blob.Begin(), blob.End(), result.begin());
-        }
-
-        return result;
-    }
-
-}
-
 namespace CxxReflect {
 
     Assembly::TypeIterator Assembly::BeginTypes() const
@@ -45,23 +21,26 @@ namespace CxxReflect {
             _database->GetTables().GetTable(Metadata::TableId::TypeDef).GetRowCount()));
     }
 
+    Assembly::AssemblyNameIterator Assembly::BeginReferencedAssemblyNames() const
+    {
+        return Assembly::AssemblyNameIterator(*this, Metadata::TableReference(Metadata::TableId::AssemblyRef, 0));
+    }
+
+    Assembly::AssemblyNameIterator Assembly::EndReferencedAssemblyNames() const
+    {
+        return Assembly::AssemblyNameIterator(*this, Metadata::TableReference(
+            Metadata::TableId::AssemblyRef,
+            _database->GetTables().GetTable(Metadata::TableId::AssemblyRef).GetRowCount()));
+    }
+
     AssemblyName Assembly::GetName() const
     {
-        Metadata::AssemblyRow const assemblyRow(GetAssemblyRow());
+        return AssemblyName(*this, Metadata::TableReference(Metadata::TableId::Assembly, 0));
+    }
 
-        AssemblyFlags const flags(assemblyRow.GetFlags());
-
-        PublicKeyToken const publicKeyToken(ComputePublicKeyToken(
-            assemblyRow.GetPublicKey(),
-            flags.IsSet(AssemblyAttribute::PublicKey)));
-
-        return AssemblyName(
-            assemblyRow.GetName().c_str(),
-            assemblyRow.GetVersion(),
-            assemblyRow.GetCulture().c_str(),
-            publicKeyToken,
-            flags,
-            _path);
+    String const& Assembly::GetPath() const
+    {
+        return _path;
     }
 
     Metadata::AssemblyRow Assembly::GetAssemblyRow() const

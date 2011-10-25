@@ -230,6 +230,30 @@ namespace CxxReflect { namespace Detail {
         pointer _last;
     };
 
+    template <typename T, typename U>
+    bool operator==(EnhancedCString<T> const& lhs, std::basic_string<U> const& rhs)
+    {
+        return RangeCheckedEqual(lhs.begin(), lhs.end(), rhs.begin(), rhs.end());
+    }
+
+    template <typename T, typename U>
+    bool operator==(std::basic_string<T> const& lhs, EnhancedCString<U> const& rhs)
+    {
+        return RangeCheckedEqual(lhs.begin(), lhs.end(), rhs.begin(), rhs.end());
+    }
+
+    template <typename T, typename U>
+    bool operator< (EnhancedCString<T> const& lhs, std::basic_string<U> const& rhs)
+    {
+        return std::lexicographical_compare(lhs.begin(), lhs.end(), rhs.begin(), rhs.end());
+    }
+
+    template <typename T, typename U>
+    bool operator< (std::basic_string<T> const& lhs, EnhancedCString<U> const& rhs)
+    {
+        return std::lexicographical_compare(lhs.begin(), lhs.end(), rhs.begin(), rhs.end());
+    }
+
     template <typename T>
     std::basic_ostream<T>& operator<<(std::basic_ostream<T>& os, EnhancedCString<T> const& s)
     {
@@ -569,6 +593,32 @@ namespace CxxReflect { namespace Detail {
     template <typename T, typename U> bool operator<=(NonNull<T> const& lhs, NonNull<U> const& rhs) { return lhs.Get() <= rhs.Get(); }
     template <typename T, typename U> bool operator>=(NonNull<T> const& lhs, NonNull<U> const& rhs) { return lhs.Get() >= rhs.Get(); }
 
+
+    template <typename T>
+    class ValueInitialized
+    {
+    public:
+
+        typedef T ValueType;
+
+        ValueInitialized()
+            : _x()
+        {
+        }
+
+        explicit ValueInitialized(ValueType const& x)
+            : _x(x)
+        {
+        }
+
+        ValueType      & Get()       { return _x; }
+        ValueType const& Get() const { return _x; }
+
+    private:
+
+        ValueType _x;
+    };
+
     // A linear allocator for arrays; this is most useful for the allocation of strings.
     template <typename T, std::size_t TBlockSize>
     class LinearArrayAllocator
@@ -665,6 +715,8 @@ namespace CxxReflect { namespace Detail {
         BlockIterator _current;
     };
 
+    // TTableReference is always Metadata::TableReference.  We use a template parameter to make it
+    // dependent so that we don't need it defined when we define the template.
     template <typename TTableReference, typename TResult, typename TParameter>
     class TableTransformIterator
     {
@@ -757,6 +809,60 @@ namespace CxxReflect { namespace Detail {
     Sha1Hash ComputeSha1Hash(std::uint8_t const* first, std::uint8_t const* last);
 
     bool FileExists(wchar_t const* filePath);
+
+} }
+
+// We forward declare all of physical metadata types so that we don't need to include the
+// MetadataDatabase header everywhere; in many cases, declarations are enough.  These types should
+// be treated as internal and should not be used by clients of the CxxReflect library.
+namespace CxxReflect { namespace Metadata {
+
+    class Database;
+    class Stream;
+    class StringCollection;
+    class BlobReference;
+    class TableCollection;
+    class Table;
+    class TableReference;
+
+    class AssemblyRow;
+    class AssemblyOsRow;
+    class AssemblyProcessorRow;
+    class AssemblyRefRow;
+    class AssemblyRefOsRow;
+    class AssemblyRefProcessorRow;
+    class ClassLayoutRow;
+    class ConstantRow;
+    class CustomAttributeRow;
+    class DeclSecurityRow;
+    class EventMapRow;
+    class EventRow;
+    class ExportedTypeRow;
+    class FieldRow;
+    class FieldLayoutRow;
+    class FieldMarshalRow;
+    class FieldRvaRow;
+    class FileRow;
+    class GenericParamRow;
+    class GenericParamConstraintRow;
+    class ImplMapRow;
+    class InterfaceImplRow;
+    class ManifestResourceRow;
+    class MemberRefRow;
+    class MethodDefRow;
+    class MethodImplRow;
+    class MethodSemanticsRow;
+    class MethodSpecRow;
+    class ModuleRow;
+    class ModuleRefRow;
+    class NestedClassRow;
+    class ParamRow;
+    class PropertyRow;
+    class PropertyMapRow;
+    class StandaloneSigRow;
+    class TypeDefRow;
+    class TypeRefRow;
+    class TypeSpecRow;
 
 } }
 
