@@ -10,7 +10,7 @@
 
 namespace CxxReflect {
 
-    class Assembly
+    class Assembly : Detail::SafeBoolConvertible<Assembly>
     {
     public:
 
@@ -30,6 +30,8 @@ namespace CxxReflect {
         {
             return _loader != nullptr && _database != nullptr;
         }
+
+        bool operator!() const { return !IsInitialized(); }
 
         AssemblyName  GetName() const;
         String const& GetPath() const;

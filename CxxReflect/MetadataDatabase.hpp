@@ -195,8 +195,33 @@ namespace CxxReflect { namespace Metadata {
         {
         }
 
-        TableId       GetTable() const { return _table; }
-        std::uint32_t GetIndex() const { return _index; }
+        TableId  GetTable() const { return _table; }
+        SizeType GetIndex() const { return _index; }
+
+        SizeType GetToken() const
+        {
+            // Remember that we subtract 1 from the index, so we have to add one back when we create
+            // the metadata token to match the real interface.
+            // TODO CHECK RANGE HERE (THOUGH IT SHOULD BE VALID)
+            return (Detail::AsInteger(_table) << 24) | (_index + 1);
+        }
+
+
+
+        friend bool operator==(TableReference const& lhs, TableReference const& rhs)
+        {
+            return lhs._table == rhs._table && lhs._index == rhs._index;
+        }
+
+        friend bool operator<(TableReference const& lhs, TableReference const& rhs)
+        {
+            return lhs._table < rhs._table || (lhs._table == rhs._table && lhs._index < rhs._index);
+        }
+
+        friend bool operator!=(TableReference const& lhs, TableReference const& rhs) { return !(lhs == rhs); }
+        friend bool operator> (TableReference const& lhs, TableReference const& rhs) { return   rhs <  lhs ; }
+        friend bool operator>=(TableReference const& lhs, TableReference const& rhs) { return !(lhs <  rhs); }
+        friend bool operator<=(TableReference const& lhs, TableReference const& rhs) { return !(rhs <  lhs); }
 
     private:
 

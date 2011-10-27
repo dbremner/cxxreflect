@@ -13,15 +13,13 @@
 #include "CxxReflect/MetadataLoader.hpp"
 #include "CxxReflect/Type.hpp"
 
-
-#include <combaseapi.h>
-
 #include <algorithm>
 #include <fstream>
 #include <iostream>
 
+using namespace CxxReflect;
 using namespace CxxReflect::Metadata;
-/*
+
 namespace
 {
     void Dump(std::wostream& os, Assembly const& a);
@@ -31,7 +29,7 @@ namespace
     {
         os << L"Assembly [" << a.GetName().GetFullName() << L"]\n";
         os << L"!!BeginAssemblyReferences\n";
-        std::for_each(a.BeginReferencedAssemblies(), a.EndReferencedAssemblies(), [&](AssemblyName const& x)
+        std::for_each(a.BeginReferencedAssemblyNames(), a.EndReferencedAssemblyNames(), [&](AssemblyName const& x)
         {
             os << L" -- AssemblyName [" << x.GetFullName() << L"]\n";
         });
@@ -46,14 +44,14 @@ namespace
 
     void Dump(std::wostream& os, Type const& t)
     {
-        os << L" -- Type [" << t.GetFullName() << L"] [$" << t.GetMetadataToken().Get() << L"]\n";
+        os << L" -- Type [" << t.GetFullName() << L"] [$" << t.GetMetadataToken() << L"]\n";
         os << L"     -- AssemblyQualifiedName [" << t.GetAssemblyQualifiedName() << L"]\n";
-        os << L"     -- BaseType [" << (t.GetBaseType() ? t.GetBaseType()->GetFullName() : L"NO BASE TYPE") << L"]\n";
-        os << L"         -- AssemblyQualifiedName [" << (t.GetBaseType() ? t.GetBaseType()->GetAssemblyQualifiedName() : L"NO BASE TYPE") << L"]\n"; // TODO DO WE NEED TO DUMP FULL TYPE INFO?
+        os << L"     -- BaseType [" << (t.GetBaseType() ? t.GetBaseType().GetFullName() : L"NO BASE TYPE") << L"]\n";
+        os << L"         -- AssemblyQualifiedName [" << (t.GetBaseType() ? t.GetBaseType().GetAssemblyQualifiedName() : L"NO BASE TYPE") << L"]\n"; // TODO DO WE NEED TO DUMP FULL TYPE INFO?
 
         #define F(n) (t.n() ? 1 : 0)
         os << L"     -- IsTraits [" 
-           << F(IsAbstract) << F(IsAnsiClass) << F(IsArray) << F(IsAutoClass) << F(IsAutoLayout) << F(IsByRef) << F(IsClass) << F(IsCOMObject) << L"] ["
+           << F(IsAbstract) << F(IsAnsiClass) << F(IsArray) << F(IsAutoClass) << F(IsAutoLayout) << F(IsByRef) << F(IsClass) << F(IsComObject) << L"] ["
            << F(IsContextful) << F(IsEnum) << F(IsExplicitLayout) << F(IsGenericParameter) << F(IsGenericType) << F(IsGenericTypeDefinition) << F(IsImport) << F(IsInterface) << L"] ["
            << F(IsLayoutSequential) << F(IsMarshalByRef) << F(IsNested) << F(IsNestedAssembly) << F(IsNestedFamilyAndAssembly) << F(IsNestedFamily) << F(IsNestedFamilyOrAssembly) << F(IsNestedPrivate) << L"] ["
            << F(IsNestedPublic) << F(IsNotPublic) << F(IsPointer) << F(IsPrimitive) << F(IsPublic) << F(IsSealed) << F(IsSerializable) << F(IsSpecialName) << L"] ["
@@ -64,25 +62,44 @@ namespace
         os << L"     -- Namespace [" << t.GetNamespace() << L"]\n";
     }
 }
-*//*
+
 int main()
 {
-    CoInitializeEx(0, COINIT_APARTMENTTHREADED);
+    DirectoryBasedMetadataResolver::DirectorySet directories;
+    directories.insert(L"C:\\Windows\\Microsoft.NET\\Framework\\v4.0.30319");
 
-    auto frameworkResolver([](AssemblyName name)
-    {
-        return String(L"C:\\Windows\\Microsoft.NET\\Framework\\v4.0.30319\\") + name.GetName() + L".dll";
-    });
+    std::unique_ptr<IMetadataResolver> resolver(new DirectoryBasedMetadataResolver(directories));
 
-    MetadataReader reader(frameworkResolver);
+    MetadataLoader loader(std::move(resolver));
 
-    Assembly const* a(reader.GetAssemblyByName(AssemblyName(L"mscorlib")));
+    Assembly a(loader.LoadAssembly(L"C:\\Windows\\Microsoft.NET\\Framework\\v4.0.30319\\mscorlib.dll"));
 
     std::wofstream os("d:\\jm\\mscorlib.cpp.txt");
-    Dump(os, *a);
+    Dump(os, a);
 }
-*/
 
+
+/*
+// My light-on-dark color scheme test file
+#include <algorithm>
+#include <iostream>
+#include <iterator>
+#include <vector>
+
+int main(int argc, char** argv)
+{
+    std::vector<int> data;
+    data.push_back(0x54545454);
+    data.push_back(0x00000000);
+    data.push_back(0xffffffff);
+
+    std::sort(begin(data), end(data));
+
+    std::copy(data.begin(), data.end(), std::ostream_iterator<int>(std::cout, ", "));
+
+    return 0;
+}
+*
 
 int main()
 {
@@ -102,8 +119,9 @@ int main()
     std::vector<Type> types(ass.BeginTypes(), ass.EndTypes());
 
     std::vector<String> typeNames;
-    std::transform(types.begin(), types.end(), std::back_inserter(typeNames), [&](Type const& t)
+    std::transform(types.begin(), types.end(), std::back_inserter(typeNames), [&](Type const& t) -> String
     {
+        Type tx = t.GetDeclaringType();
         return t.GetName().c_str();
     });
 
@@ -118,7 +136,7 @@ int main()
     std::vector<String> lattice;
     Type t = ass.GetType(L"System.NullReferenceException");
     
-    while(t.IsInitialized())
+    while (t)
     {
         lattice.push_back(t.GetFullName());
 
@@ -151,3 +169,34 @@ int main()
     });
 
 }
+*/
+
+/*
+template <typename T> struct remove_reference      { typedef T type; };
+template <typename T> struct remove_reference<T&>  { typedef T type; };
+template <typename T> struct remove_reference<T&&> { typedef T type; };
+
+template <typename T>
+struct add_rvalue_reference
+{
+    typedef typename remove_reference<T>::type&& type;
+};
+
+template <typename T>
+struct add_rvalue_reference<T&> { typedef T& type; };
+
+template <typename T>
+typename add_rvalue_reference<T>::type declval(); // not implemented
+
+struct S { };
+
+int    f(S) { return 42;   }
+double g(S) { return 42.0; }
+
+template <typename Callable>
+auto call_if_true(
+    bool test,
+    Callable callable, 
+    decltype(declval<Callable>()(declval<S>())) default_value = 
+        declval<decltype(declval<Callable>()(declval<S>()))>
+        */

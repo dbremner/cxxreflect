@@ -2,7 +2,10 @@
 //                   Distributed under the Boost Software License, Version 1.0.                   //
 //     (See accompanying file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)    //
 
+#include "CxxReflect/AssemblyName.hpp"
 #include "CxxReflect/Type.hpp"
+
+#include <sstream>
 
 namespace {
 
@@ -10,7 +13,7 @@ namespace {
     {
         // The system assembly has no assembly references; it is usually mscorlib.dll, but it could
         // be named something else (e.g., Platform.winmd in WinRT?)
-        return std::distance(assembly.BeginReferencedAssemblyNames(), assembly.EndReferencedAssemblyNames()) != 0;
+        return std::distance(assembly.BeginReferencedAssemblyNames(), assembly.EndReferencedAssemblyNames()) == 0;
     }
 
     bool IsSystemType(CxxReflect::Type const& type, CxxReflect::StringReference const& name)
@@ -24,9 +27,30 @@ namespace CxxReflect {
 
     bool const TodoNotYetImplementedFlag = false;
 
-    bool Type::HasBaseType() const
+    void Type::AccumulateFullNameInto(std::wostream& os) const
     {
-        return !TodoNotYetImplementedFlag;
+        // TODO ENSURE WE ESCAPE THE TYPE NAME CORRECTLY
+
+        if (IsTypeDef())
+        {
+            if (IsNested())
+            {
+                GetDeclaringType().AccumulateFullNameInto(os);
+                os << L'+' << GetName();
+            }
+            else
+            {
+                os << GetNamespace() << L'.' << GetName();
+            }
+        }
+
+        // TODO TYPESPEC SUPPORT
+    }
+
+    void Type::AccumulateAssemblyQualifiedNameInto(std::wostream& os) const
+    {
+        AccumulateFullNameInto(os);
+        os << L", " << _assembly.GetName().GetFullName();
     }
 
     Type Type::GetBaseType() const
@@ -46,12 +70,50 @@ namespace CxxReflect {
                 throw std::logic_error("wtf");
             }
 
-        }, Type());
+        });
+    }
+
+    Type Type::GetDeclaringType() const
+    {
+        if (IsNested())
+        {
+            Metadata::Database const& database(_assembly.GetDatabase());
+            auto const it(std::lower_bound(
+                database.Begin<Metadata::TableId::NestedClass>(),
+                database.End<Metadata::TableId::NestedClass>(),
+                _type,
+                [](Metadata::NestedClassRow const& r, Metadata::TableReference const index)
+            {
+                return r.GetNestedClass() < index;
+            }));
+
+            if (it == database.End<Metadata::TableId::NestedClass>() || it->GetNestedClass() != _type)
+                throw std::logic_error("wtf");
+
+            // TODO IS THE TYPE DEF CHECK DONE AT THE PHYSICAL LAYER?
+            Metadata::TableReference const enclosingType(it->GetEnclosingClass());
+            if (enclosingType.GetTable() != Metadata::TableId::TypeDef)
+                throw std::logic_error("wtf");
+
+            return Type(_assembly, enclosingType);
+        }
+
+        // TODO OTHER KINDS OF DECLARING TYPES
+        return Type();
+    }
+
+    String Type::GetAssemblyQualifiedName() const
+    {
+        std::wostringstream oss;
+        AccumulateAssemblyQualifiedNameInto(oss);
+        return oss.str();
     }
 
     String Type::GetFullName() const
     {
-        return String(GetNamespace().c_str()) + L"." + GetName().c_str(); // TODO HANDLE GENERIC AND NESTED TYPES
+        std::wostringstream oss;
+        AccumulateFullNameInto(oss);
+        return oss.str();
     }
 
     StringReference Type::GetName() const
@@ -66,6 +128,11 @@ namespace CxxReflect {
 
     StringReference Type::GetNamespace() const
     {
+        if (IsNested())
+        {
+            return GetDeclaringType().GetNamespace();
+        }
+        
         return ResolveTypeDefAndCall([](Metadata::TypeDefRow const& r)
         {
             return r.GetNamespace();
@@ -77,7 +144,7 @@ namespace CxxReflect {
         return ResolveTypeDefAndCall([](Metadata::TypeDefRow const& r)
         {
             return r.GetFlags().IsSet(TypeAttribute::Abstract);
-        }, false);
+        });
     }
 
     bool Type::IsAnsiClass() const
@@ -85,7 +152,7 @@ namespace CxxReflect {
         return ResolveTypeDefAndCall([](Metadata::TypeDefRow const& r)
         {
             return r.GetFlags().WithMask(TypeAttribute::StringFormatMask) == TypeAttribute::AnsiClass;
-        }, false);
+        });
     }
 
     bool Type::IsArray() const
@@ -101,7 +168,7 @@ namespace CxxReflect {
         return ResolveTypeDefAndCall([](Metadata::TypeDefRow const& r)
         {
             return r.GetFlags().WithMask(TypeAttribute::StringFormatMask) == TypeAttribute::AutoClass;
-        }, false);
+        });
     }
 
     bool Type::IsAutoLayout() const
@@ -109,7 +176,7 @@ namespace CxxReflect {
         return ResolveTypeDefAndCall([](Metadata::TypeDefRow const& r)
         {
             return r.GetFlags().WithMask(TypeAttribute::LayoutMask) == TypeAttribute::AutoLayout;
-        }, false);
+        });
     }
 
     bool Type::IsByRef() const
@@ -148,7 +215,7 @@ namespace CxxReflect {
         return ResolveTypeDefAndCall([](Metadata::TypeDefRow const& r)
         {
             return r.GetFlags().WithMask(TypeAttribute::LayoutMask) == TypeAttribute::ExplicitLayout;
-        }, false);
+        });
     }
 
     bool Type::IsGenericParameter() const
@@ -158,12 +225,15 @@ namespace CxxReflect {
 
     bool Type::IsGenericType() const
     {
-        return TodoNotYetImplementedFlag;
+        // TODO THIS IS WRONG
+        StringReference const name(GetName());
+        return std::find(name.begin(), name.end(), L'`') != name.end();
     }
 
     bool Type::IsGenericTypeDefinition() const
     {
-        return TodoNotYetImplementedFlag;
+        // TODO THIS IS WRONG
+        return IsGenericType();
     }
 
     bool Type::IsImport() const
@@ -171,7 +241,7 @@ namespace CxxReflect {
         return ResolveTypeDefAndCall([](Metadata::TypeDefRow const& r)
         {
             return r.GetFlags().IsSet(TypeAttribute::Import);
-        }, false);
+        });
     }
 
     bool Type::IsInterface() const
@@ -179,7 +249,7 @@ namespace CxxReflect {
         return ResolveTypeDefAndCall([](Metadata::TypeDefRow const& r)
         {
             return r.GetFlags().WithMask(TypeAttribute::ClassSemanticsMask) == TypeAttribute::Interface;
-        }, false);
+        });
     }
 
     bool Type::IsLayoutSequential() const
@@ -187,7 +257,7 @@ namespace CxxReflect {
         return ResolveTypeDefAndCall([](Metadata::TypeDefRow const& r)
         {
             return r.GetFlags().WithMask(TypeAttribute::LayoutMask) == TypeAttribute::SequentialLayout;
-        }, false);
+        });
     }
 
     bool Type::IsMarshalByRef() const
@@ -200,7 +270,7 @@ namespace CxxReflect {
         return ResolveTypeDefAndCall([](Metadata::TypeDefRow const& r)
         {
             return r.GetFlags().WithMask(TypeAttribute::VisibilityMask) > TypeAttribute::Public;
-        }, false);
+        });
     }
 
     bool Type::IsNestedAssembly() const
@@ -208,7 +278,7 @@ namespace CxxReflect {
         return ResolveTypeDefAndCall([](Metadata::TypeDefRow const& r)
         {
             return r.GetFlags().WithMask(TypeAttribute::VisibilityMask) == TypeAttribute::NestedAssembly;
-        }, false);
+        });
     }
 
     bool Type::IsNestedFamilyAndAssembly() const
@@ -216,7 +286,7 @@ namespace CxxReflect {
         return ResolveTypeDefAndCall([](Metadata::TypeDefRow const& r)
         {
             return r.GetFlags().WithMask(TypeAttribute::VisibilityMask) == TypeAttribute::NestedFamilyAndAssembly;
-        }, false);
+        });
 
     }
     bool Type::IsNestedFamily() const
@@ -224,7 +294,7 @@ namespace CxxReflect {
         return ResolveTypeDefAndCall([](Metadata::TypeDefRow const& r)
         {
             return r.GetFlags().WithMask(TypeAttribute::VisibilityMask) == TypeAttribute::NestedFamily;
-        }, false);
+        });
     }
 
     bool Type::IsNestedFamilyOrAssembly() const
@@ -232,7 +302,7 @@ namespace CxxReflect {
         return ResolveTypeDefAndCall([](Metadata::TypeDefRow const& r)
         {
             return r.GetFlags().WithMask(TypeAttribute::VisibilityMask) == TypeAttribute::NestedFamilyOrAssembly;
-        }, false);
+        });
     }
 
     bool Type::IsNestedPrivate() const
@@ -240,7 +310,7 @@ namespace CxxReflect {
         return ResolveTypeDefAndCall([](Metadata::TypeDefRow const& r)
         {
             return r.GetFlags().WithMask(TypeAttribute::VisibilityMask) == TypeAttribute::NestedPrivate;
-        }, false);
+        });
     }
 
     bool Type::IsNestedPublic() const
@@ -248,7 +318,7 @@ namespace CxxReflect {
         return ResolveTypeDefAndCall([](Metadata::TypeDefRow const& r)
         {
             return r.GetFlags().WithMask(TypeAttribute::VisibilityMask) == TypeAttribute::NestedPublic;
-        }, false);
+        });
     }
 
     bool Type::IsNotPublic() const
@@ -256,7 +326,7 @@ namespace CxxReflect {
         return ResolveTypeDefAndCall([](Metadata::TypeDefRow const& r)
         {
             return r.GetFlags().WithMask(TypeAttribute::VisibilityMask) == TypeAttribute::NotPublic;
-        }, false);
+        });
     }
 
     bool Type::IsPointer() const
@@ -268,7 +338,24 @@ namespace CxxReflect {
 
     bool Type::IsPrimitive() const
     {
-        return TodoNotYetImplementedFlag;
+        if (!IsTypeDef()) { return false; }
+
+        if (!IsSystemAssembly(_assembly)) { return false; }
+
+        if (GetTypeDefRow().GetNamespace() != L"System") { return false; }
+
+        StringReference const& name(GetTypeDefRow().GetName());
+        switch (name[0])
+        {
+        case L'B': return name == L"Boolean" || name == L"Byte";
+        case L'C': return name == L"Char";
+        case L'D': return name == L"Double";
+        case L'I': return name == L"Int16" || name == L"Int32" || name == L"Int64" || name == L"IntPtr";
+        case L'S': return name == L"SByte" || name == L"Single";
+        case L'U': return name == L"UInt16" || name == L"UInt32" || name == L"UInt64" || name == L"UIntPtr";
+        }
+
+        return false;
     }
 
     bool Type::IsPublic() const
@@ -276,7 +363,7 @@ namespace CxxReflect {
         return ResolveTypeDefAndCall([](Metadata::TypeDefRow const& r)
         {
             return r.GetFlags().WithMask(TypeAttribute::VisibilityMask) == TypeAttribute::Public;
-        }, false);
+        });
     }
 
     bool Type::IsSealed() const
@@ -284,7 +371,7 @@ namespace CxxReflect {
         return ResolveTypeDefAndCall([](Metadata::TypeDefRow const& r)
         {
             return r.GetFlags().IsSet(TypeAttribute::Sealed);
-        }, false);
+        });
     }
 
     bool Type::IsSerializable() const
@@ -292,7 +379,7 @@ namespace CxxReflect {
         return ResolveTypeDefAndCall([](Metadata::TypeDefRow const& r)
         {
             return r.GetFlags().IsSet(TypeAttribute::Serializable);
-        }, false);
+        });
     }
 
     bool Type::IsSpecialName() const
@@ -300,7 +387,7 @@ namespace CxxReflect {
         return ResolveTypeDefAndCall([](Metadata::TypeDefRow const& r)
         {
             return r.GetFlags().IsSet(TypeAttribute::SpecialName);
-        }, false);
+        });
     }
 
     bool Type::IsUnicodeClass() const
@@ -308,7 +395,7 @@ namespace CxxReflect {
         return ResolveTypeDefAndCall([](Metadata::TypeDefRow const& r)
         {
             return r.GetFlags().WithMask(TypeAttribute::StringFormatMask) == TypeAttribute::UnicodeClass;
-        }, false);
+        });
     }
 
     bool Type::IsValueType() const
@@ -318,6 +405,15 @@ namespace CxxReflect {
 
     bool Type::IsVisible() const
     {
+        if (IsTypeDef())
+        {
+            if (IsNested() && !GetDeclaringType().IsVisible())
+                return false;
+
+            return GetTypeDefRow().GetFlags().WithMask(TypeAttribute::VisibilityMask) > TypeAttribute::NotPublic;
+        }
+        // TODO CHECK BEHAVIOR FOR TYPESPECS
+
         return TodoNotYetImplementedFlag;
     }
 

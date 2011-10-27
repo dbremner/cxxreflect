@@ -2,6 +2,14 @@
 //                   Distributed under the Boost Software License, Version 1.0.                   //
 //     (See accompanying file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)    //
 
+// This header contains declarations and definitions of core types, functions, and constants used
+// throughout the CxxReflect library.
+//
+// The CxxReflect library is divided into several namespaces:
+// * ::CxxReflect              The public API
+// * ::CxxReflect::Detail      Implementation details that are not part of the public API
+// * ::CxxReflect::Metadata    The physical layer metatadata reader for parsing metadata files
+
 #ifndef CXXREFLECT_CORE_HPP_
 #define CXXREFLECT_CORE_HPP_
 
@@ -91,6 +99,18 @@ namespace CxxReflect { namespace Detail {
     #endif
 
     // A handful of useful algorithms that we use throughout the library.
+
+    template <typename TRanIt, typename TValue, typename TComparer>
+    TRanIt BinarySearch(TRanIt first, TRanIt last, TValue const& value, TComparer const comparer)
+    {
+        TRanIt const it(std::lower_bound(first, last, value, comparer));
+        if (it == last || *it != value)
+        {
+            return last;
+        }
+
+        return it;
+    }
 
     template <typename TInIt, typename TOutIt>
     void RangeCheckedCopy(TInIt first0, TInIt const last0, TOutIt first1, TOutIt const last1)
@@ -240,6 +260,20 @@ namespace CxxReflect { namespace Detail {
     bool operator==(std::basic_string<T> const& lhs, EnhancedCString<U> const& rhs)
     {
         return RangeCheckedEqual(lhs.begin(), lhs.end(), rhs.begin(), rhs.end());
+    }
+
+    template <typename T, typename U>
+    bool operator==(EnhancedCString<T> const& lhs, U const* const rhs)
+    {
+        StringReference const temporaryRhs(rhs);
+        return RangeCheckedEqual(lhs.begin(), lhs.end(), temporaryRhs.begin(), temporaryRhs.end());
+    }
+
+    template <typename T, typename U>
+    bool operator==(U const* const lhs, EnhancedCString<U> const& rhs)
+    {
+        StringReference const temporaryLhs(lhs);
+        return RangeCheckedEqual(temporaryLhs.begin(), temporaryLhs.end(), rhs.begin(), rhs.end());
     }
 
     template <typename T, typename U>
@@ -618,6 +652,58 @@ namespace CxxReflect { namespace Detail {
 
         ValueType _x;
     };
+
+    template <typename T>
+    struct Identity
+    {
+        typedef T Type;
+    };
+
+    // A safe-bool implementation based largely on Bjorn Karlsson's canonical implementation, found
+    // at http://www.artima.com/cppsource/safebool.html.
+
+    template <typename TDerived>
+    class SafeBoolConvertible
+    {
+    private:
+
+        typedef void (SafeBoolConvertible::*FauxBoolType)() const;
+
+        void ThisTypeDoesNotSupportComparisons() const { }
+
+    protected:
+
+        SafeBoolConvertible() { }
+        SafeBoolConvertible(SafeBoolConvertible const&) { }
+        SafeBoolConvertible& operator=(SafeBoolConvertible const&) { return *this; }
+        ~SafeBoolConvertible() { }
+
+    public:
+
+        operator FauxBoolType() const
+        {
+            // !! is no good because if we forget to implement operator! in the derived class, the !!
+            // will find this conversion and we will recurse infinitely.  The explicit .operator!()
+            // call requires that the conversion operator is present.
+            return !static_cast<TDerived const&>(*this).operator!()
+                ? &SafeBoolConvertible::ThisTypeDoesNotSupportComparisons
+                : 0;
+        }
+    };
+
+    // Suppress unwanted equatability
+    template <typename T, typename U>
+    void operator==(SafeBoolConvertible<T> const& lhs, SafeBoolConvertible<U> const&)
+    {
+        lhs.ThisTypeDoesNotSupportComparisons();
+    }
+
+    template <typename T, typename U>
+    void operator!=(SafeBoolConvertible<T> const& lhs, SafeBoolConvertible<U> const&)
+    {
+        lhs.ThisTypeDoesNotSupportComparisons();
+    }
+
 
     // A linear allocator for arrays; this is most useful for the allocation of strings.
     template <typename T, std::size_t TBlockSize>

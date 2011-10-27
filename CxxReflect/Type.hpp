@@ -11,7 +11,7 @@
 
 namespace CxxReflect {
 
-    class Type
+    class Type : public Detail::SafeBoolConvertible<Type>
     {
     public:
 
@@ -28,14 +28,16 @@ namespace CxxReflect {
             Detail::Verify([&] { return IsTypeDef() || IsTypeSpec(); });
         }
 
-        Assembly GetAssembly() const { return _assembly; }
+        Assembly GetAssembly()      const { return _assembly;        }
+        SizeType GetMetadataToken() const { return _type.GetToken(); }
 
-        bool HasBaseType() const;
         Type GetBaseType() const;
+        Type GetDeclaringType() const;
 
-        String          GetFullName()  const;
-        StringReference GetName()      const;
-        StringReference GetNamespace() const;
+        String          GetAssemblyQualifiedName() const;
+        String          GetFullName()              const;
+        StringReference GetName()                  const;
+        StringReference GetNamespace()             const;
 
         bool IsAbstract()                const;
         bool IsAnsiClass()               const;
@@ -81,7 +83,8 @@ namespace CxxReflect {
                 && _type.GetIndex() != Metadata::InvalidTableIndex;
         }
 
-        // AssemblyQualifiedName
+        bool operator!() const { return !IsInitialized(); }
+
         // Attributes
         // ContainsGenericParameters
         // DeclaringMethod
@@ -93,7 +96,6 @@ namespace CxxReflect {
         // GUID
         // HasElementType
         // MemberType
-        // MetadataToken
         // Module
         // ReflectedType
         // StructLayoutAttribute
@@ -129,10 +131,14 @@ namespace CxxReflect {
 
         #define CXXREFLECT_GENERATE decltype(std::declval<TCallback>()(std::declval<Metadata::TypeDefRow>()))
 
+        // Resolves the TypeDef associated with this type.  If this type is itself a TypeDef, it
+        // returns itself.  If this type is a TypeSpect, it parses the TypeSpec to find the
+        // primary TypeDef referenced by the TypeSpec; note that in this case the TypeDef may be
+        // in a different module or assembly.
         template <typename TCallback>
         auto ResolveTypeDefAndCall(
             TCallback callback,
-            CXXREFLECT_GENERATE defaultResult = std::declval<CXXREFLECT_GENERATE>()
+            CXXREFLECT_GENERATE defaultResult = Detail::Identity<CXXREFLECT_GENERATE>::Type()
         ) const -> CXXREFLECT_GENERATE
         {
             VerifyInitialized();
@@ -149,9 +155,39 @@ namespace CxxReflect {
 
         #undef CXXREFLECT_GENERATE
 
+        void AccumulateFullNameInto(std::wostream& os) const;
+        void AccumulateAssemblyQualifiedNameInto(std::wostream& os) const;
+
+
         Assembly                 _assembly;
         Metadata::TableReference _type;
     };
+
+    inline bool operator==(Type const& lhs, Type const& rhs)
+    {
+        return lhs.GetAssembly() == rhs.GetAssembly()
+            && lhs.GetMetadataToken() == rhs.GetMetadataToken();
+    }
+
+    inline bool operator< (Type const& lhs, Type const& rhs)
+    {
+        if (lhs.GetAssembly() < rhs.GetAssembly())
+            return true;
+
+        return lhs.GetAssembly() == rhs.GetAssembly()
+            && lhs.GetMetadataToken() == rhs.GetMetadataToken();
+    }
+
+    inline bool operator!=(Type const& lhs, Type const& rhs) { return !(lhs == rhs); }
+    inline bool operator> (Type const& lhs, Type const& rhs) { return   rhs <  lhs ; }
+    inline bool operator<=(Type const& lhs, Type const& rhs) { return !(rhs <  lhs); }
+    inline bool operator>=(Type const& lhs, Type const& rhs) { return !(lhs <  rhs); }
+
+    // Allow "t == nullptr" and "t != nullptr":
+    inline bool operator==(Type const& t, std::nullptr_t) { return !t.IsInitialized(); }
+    inline bool operator==(std::nullptr_t, Type const& t) { return !t.IsInitialized(); }
+    inline bool operator!=(Type const& t, std::nullptr_t) { return  t.IsInitialized(); }
+    inline bool operator!=(std::nullptr_t, Type const& t) { return  t.IsInitialized(); }
 
 }
 
