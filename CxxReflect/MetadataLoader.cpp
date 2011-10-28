@@ -51,6 +51,24 @@ namespace CxxReflect {
         Detail::VerifyNotNull(_resolver.get());
     }
 
+
+
+    AssemblyName const& MetadataLoader::GetAssemblyName(Assembly const& assembly) const
+    {
+        if (!assembly)
+            return AssemblyName();
+
+        Metadata::Database const& database(assembly.GetDatabase());
+
+        auto const it(_assemblyNames.find(&database));
+        if (it != _assemblyNames.end())
+            return it->second;
+
+        return _assemblyNames.insert(std::make_pair(
+            &database,
+            AssemblyName(assembly, Metadata::TableReference(Metadata::TableId::Assembly, 0)))).first->second;
+    }
+
     Assembly MetadataLoader::LoadAssembly(String const& path) const
     {
         // TODO PATH NORMALIZATION?
@@ -58,7 +76,7 @@ namespace CxxReflect {
         if (it == _databases.end())
             it = _databases.insert(std::make_pair(path, Metadata::Database(path.c_str()))).first;
 
-        return Assembly(it->first.c_str(), this, &it->second);
+        return Assembly(StringReference(it->first.c_str()), this, &it->second);
     }
 
 }

@@ -91,10 +91,10 @@ namespace CxxReflect { namespace Detail {
 
     inline void VerifyFail(char const*) { }
 
-    inline void VerifyNotNull(void const*, char const* = "") { }
+    inline void VerifyNotNull(void const*) { }
 
     template <typename TCallable>
-    void Verify(TCallable&&) { }
+    void Verify(TCallable&&, char const* = "") { }
 
     #endif
 
@@ -166,7 +166,7 @@ namespace CxxReflect { namespace Detail {
         {
         }
 
-        EnhancedCString(pointer const first)
+        explicit EnhancedCString(pointer const first)
             : _first(first), _last(first)
         {
             if (first == nullptr)
@@ -185,6 +185,12 @@ namespace CxxReflect { namespace Detail {
 
         template <size_type N>
         EnhancedCString(value_type const (&data)[N])
+            : _first(data), _last(data + N)
+        {
+        }
+
+        template <size_type N>
+        EnhancedCString(value_type (&data)[N])
             : _first(data), _last(data + N)
         {
         }
@@ -619,8 +625,8 @@ namespace CxxReflect { namespace Detail {
     template <typename T, typename U> bool operator!=(NonNull<T> const& lhs, NonNull<U> const& rhs) { return !(lhs == rhs);          }
     template <typename T, typename U> bool operator!=(NonNull<T> const& lhs, U*                rhs) { return !(lhs == rhs);          }
     template <typename T, typename U> bool operator!=(T*                lhs, NonNull<U> const& rhs) { return !(lhs == rhs);          }
-    template <typename T>             bool operator!=(NonNull<T> const& lhs, std::nullptr_t       ) { return lhs.Get() != nullptr;   }
-    template <typename T>             bool operator!=(std::nullptr_t,        NonNull<T> const& rhs) { return rhs.Get() != nullptr;   }
+    template <typename T>             bool operator!=(NonNull<T> const& lhs, std::nullptr_t       ) { return lhs.IsInitialized();    }
+    template <typename T>             bool operator!=(std::nullptr_t,        NonNull<T> const& rhs) { return rhs.IsInitialized();    }
 
     template <typename T, typename U> bool operator< (NonNull<T> const& lhs, NonNull<U> const& rhs) { return lhs.Get() <  rhs.Get(); }
     template <typename T, typename U> bool operator> (NonNull<T> const& lhs, NonNull<U> const& rhs) { return lhs.Get() >  rhs.Get(); }

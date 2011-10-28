@@ -14,18 +14,72 @@
 #include "CxxReflect/Type.hpp"
 
 #include <algorithm>
-#include <fstream>
-#include <iostream>
+#include <cstdio>
 
 using namespace CxxReflect;
 using namespace CxxReflect::Metadata;
 
 namespace
 {
-    void Dump(std::wostream& os, Assembly const& a);
-    void Dump(std::wostream& os, Type const& t);
+    // An ostream-like wrapper around the <cstdio> file API; the <iostream> implementation is
+    // RIDICULOUSLY slow and hampers performance verification. On Visual C++ 11 Developer Preview,
+    // this is over 10x faster than std::ofstream.
+    class fauxstream
+    {
+    public:
 
-    void Dump(std::wostream& os, Assembly const& a)
+        fauxstream(std::string path)
+        {
+            #pragma warning(push)
+            #pragma warning(disable: 4996)
+            _handle = ::fopen(path.c_str(), "w");
+            #pragma warning(pop)
+
+            if (_handle == nullptr)
+                throw std::runtime_error("Failed to open file");
+        }
+
+        ~fauxstream()
+        {
+            ::fclose(_handle);
+        }
+
+        fauxstream const& operator<<(wchar_t const* s) const
+        {
+            ::fprintf(_handle, "%ls", s);
+            return *this;
+        }
+
+        fauxstream const& operator<<(StringReference const& sr) const
+        {
+            ::fprintf(_handle, "%ls", sr.c_str());
+            return *this;
+        }
+
+        fauxstream const& operator<<(String const& s) const
+        {
+            ::fprintf(_handle, "%ls", s.c_str());
+            return *this;
+        }
+
+        fauxstream const& operator<<(SizeType const& x) const
+        {
+            ::fprintf(_handle, "%u", x);
+            return *this;
+        }
+
+    private:
+
+        fauxstream(fauxstream const&);
+        fauxstream& operator=(fauxstream const&);
+
+        FILE* _handle;
+    };
+
+    void Dump(fauxstream const& os, Assembly const& a);
+    void Dump(fauxstream const& os, Type const& t);
+
+    void Dump(fauxstream const& os, Assembly const& a)
     {
         os << L"Assembly [" << a.GetName().GetFullName() << L"]\n";
         os << L"!!BeginAssemblyReferences\n";
@@ -42,7 +96,7 @@ namespace
         os << L"!!EndTypes\n";
     }
 
-    void Dump(std::wostream& os, Type const& t)
+    void Dump(fauxstream const& os, Type const& t)
     {
         os << L" -- Type [" << t.GetFullName() << L"] [$" << t.GetMetadataToken() << L"]\n";
         os << L"     -- AssemblyQualifiedName [" << t.GetAssemblyQualifiedName() << L"]\n";
@@ -74,8 +128,8 @@ int main()
 
     Assembly a(loader.LoadAssembly(L"C:\\Windows\\Microsoft.NET\\Framework\\v4.0.30319\\mscorlib.dll"));
 
-    std::wofstream os("d:\\jm\\mscorlib.cpp.txt");
-    Dump(os, a);
+    fauxstream oh("d:\\jm\\mscorlib.cpp.txt");
+    Dump(oh, a);
 }
 
 

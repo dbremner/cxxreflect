@@ -21,7 +21,7 @@ namespace CxxReflect {
         Assembly(StringReference                            const path,
                  Detail::NonNull<MetadataLoader     const*> const loader,
                  Detail::NonNull<Metadata::Database const*> const database)
-            : _path(path.c_str()), _loader(loader), _database(database)
+            : /*TODO_path(path.c_str()),*/ _loader(loader), _database(database)
         {
             Detail::Verify([&] { return !path.empty(); });
         }
@@ -34,13 +34,14 @@ namespace CxxReflect {
         bool operator!() const { return !IsInitialized(); }
 
         AssemblyName  GetName() const;
-        String const& GetPath() const;
+        //TODO String const& GetPath() const;
 
         typedef Detail::TableTransformIterator<Metadata::TableReference, File,   Assembly>       FileIterator;
         typedef Detail::TableTransformIterator<Metadata::TableReference, Module, Assembly>       ModuleIterator;
         typedef Detail::TableTransformIterator<Metadata::TableReference, Type,   Assembly>       TypeIterator;
         typedef Detail::TableTransformIterator<Metadata::TableReference, AssemblyName, Assembly> AssemblyNameIterator;
 
+        SizeType             GetReferencedAssemblyCount()   const;
         AssemblyNameIterator BeginReferencedAssemblyNames() const;
         AssemblyNameIterator EndReferencedAssemblyNames()   const;
 
@@ -122,7 +123,7 @@ namespace CxxReflect {
 
         Metadata::AssemblyRow GetAssemblyRow() const;
 
-        String                                     _path;
+        //TODO String                                     _path;
         Detail::NonNull<MetadataLoader     const*> _loader;
         Detail::NonNull<Metadata::Database const*> _database;
     };

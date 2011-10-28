@@ -5,6 +5,7 @@
 #ifndef CXXREFLECT_METADATALOADER_HPP_
 #define CXXREFLECT_METADATALOADER_HPP_
 
+#include "CxxReflect/AssemblyName.hpp"
 #include "CxxReflect/Core.hpp"
 #include "CxxReflect/MetadataDatabase.hpp"
 
@@ -68,6 +69,8 @@ namespace CxxReflect {
 
         Assembly LoadAssembly(String const& filePath) const;
 
+        AssemblyName const& GetAssemblyName(Assembly const& assembly) const;
+
     private:
 
         MetadataLoader(MetadataLoader const&);
@@ -75,6 +78,7 @@ namespace CxxReflect {
 
         std::unique_ptr<IMetadataResolver>   _resolver;
         mutable std::map<String, Metadata::Database> _databases;
+        mutable std::map<Metadata::Database const*, AssemblyName> _assemblyNames;
     };
 
 }

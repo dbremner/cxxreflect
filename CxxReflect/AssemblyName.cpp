@@ -100,7 +100,7 @@ namespace CxxReflect {
         {
         case Metadata::TableId::Assembly:
             BuildAssemblyName<Metadata::TableId::Assembly>(*this, database, reference.GetIndex());
-            _path = assembly.GetPath();
+            // TODO _path = assembly.GetPath();
             break;
 
         case Metadata::TableId::AssemblyRef:
@@ -119,8 +119,11 @@ namespace CxxReflect {
             throw std::logic_error("wtf");
     }
 
-    String AssemblyName::GetFullName() const
+    String const& AssemblyName::GetFullName() const
     {
+        if (_fullName.size() > 0)
+            return _fullName; // TODO CHECK FOR VALIDITY OF NAME FIRST
+
         // TODO MAKE SURE THIS WORKS FOR NULL AND NONEXISTENT COMPONENTS
         std::wostringstream buffer;
         buffer << _simpleName << L", Version=" << _version;
@@ -152,7 +155,8 @@ namespace CxxReflect {
             buffer << L"null";
         }
 
-        return buffer.str();
+        _fullName = buffer.str();
+        return _fullName;
     }
 
     std::wostream& operator<<(std::wostream& os, AssemblyName const& an)

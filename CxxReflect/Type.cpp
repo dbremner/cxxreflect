@@ -13,12 +13,40 @@ namespace {
     {
         // The system assembly has no assembly references; it is usually mscorlib.dll, but it could
         // be named something else (e.g., Platform.winmd in WinRT?)
-        return std::distance(assembly.BeginReferencedAssemblyNames(), assembly.EndReferencedAssemblyNames()) == 0;
+        return assembly.GetReferencedAssemblyCount() == 0;
     }
 
-    bool IsSystemType(CxxReflect::Type const& type, CxxReflect::StringReference const& name)
+    bool IsSystemType(CxxReflect::Type const& type,
+                      CxxReflect::StringReference const& typeNamespace,
+                      CxxReflect::StringReference const& typeName)
     {
-        return IsSystemAssembly(type.GetAssembly()) && type.GetFullName() == name;
+        return IsSystemAssembly(type.GetAssembly())
+            && type.GetNamespace() == typeNamespace
+            && type.GetName() == typeName;
+    }
+
+    bool IsDerivedFromSystemType(CxxReflect::Type const& type,
+                                 CxxReflect::StringReference const& typeNamespace,
+                                 CxxReflect::StringReference const& typeName,
+                                 bool const includeSelf)
+    {
+        CxxReflect::Type currentType(type);
+        if (!includeSelf && currentType)
+        {
+            currentType = type.GetBaseType();
+        }
+
+        while (currentType)
+        {
+            if (IsSystemType(currentType, typeNamespace, typeName))
+            {
+                return true;
+            }
+
+            currentType = currentType.GetBaseType();
+        }
+
+        return false;
     }
 
 }
@@ -38,9 +66,13 @@ namespace CxxReflect {
                 GetDeclaringType().AccumulateFullNameInto(os);
                 os << L'+' << GetName();
             }
-            else
+            else if (GetNamespace().size() > 1)
             {
                 os << GetNamespace() << L'.' << GetName();
+            }
+            else
+            {
+                os << GetName();
             }
         }
 
@@ -50,14 +82,17 @@ namespace CxxReflect {
     void Type::AccumulateAssemblyQualifiedNameInto(std::wostream& os) const
     {
         AccumulateFullNameInto(os);
-        os << L", " << _assembly.GetName().GetFullName();
+        if (GetName().size() > 1)
+        {
+            os << L", " << _assembly.GetName().GetFullName();
+        }
     }
 
     Type Type::GetBaseType() const
     {
-        return ResolveTypeDefAndCall([&](Metadata::TypeDefRow const& r) -> Type
+        return ResolveTypeDefTypeAndCall([&](Type const& t) -> Type
         {
-            Metadata::TableReference extends(r.GetExtends());
+            Metadata::TableReference extends(t.GetTypeDefRow().GetExtends());
             switch (extends.GetTable())
             {
             case Metadata::TableId::TypeDef:
@@ -69,7 +104,6 @@ namespace CxxReflect {
             default:
                 throw std::logic_error("wtf");
             }
-
         });
     }
 
@@ -133,25 +167,26 @@ namespace CxxReflect {
             return GetDeclaringType().GetNamespace();
         }
         
-        return ResolveTypeDefAndCall([](Metadata::TypeDefRow const& r)
+        return ResolveTypeDefTypeAndCall([](Type const& t)
         {
-            return r.GetNamespace();
-        }, StringReference());
+            return t.GetTypeDefRow().GetNamespace();
+        });
     }
 
     bool Type::IsAbstract() const
     {
-        return ResolveTypeDefAndCall([](Metadata::TypeDefRow const& r)
+        return ResolveTypeDefTypeAndCall([](Type const& t)
         {
-            return r.GetFlags().IsSet(TypeAttribute::Abstract);
+            return t.GetTypeDefRow().GetFlags().IsSet(TypeAttribute::Abstract);
         });
     }
 
     bool Type::IsAnsiClass() const
     {
-        return ResolveTypeDefAndCall([](Metadata::TypeDefRow const& r)
+        return ResolveTypeDefTypeAndCall([](Type const& t)
         {
-            return r.GetFlags().WithMask(TypeAttribute::StringFormatMask) == TypeAttribute::AnsiClass;
+            return t.GetTypeDefRow().GetFlags().WithMask(TypeAttribute::StringFormatMask)
+                == TypeAttribute::AnsiClass;
         });
     }
 
@@ -165,17 +200,18 @@ namespace CxxReflect {
 
     bool Type::IsAutoClass() const
     {
-        return ResolveTypeDefAndCall([](Metadata::TypeDefRow const& r)
+        return ResolveTypeDefTypeAndCall([](Type const& t)
         {
-            return r.GetFlags().WithMask(TypeAttribute::StringFormatMask) == TypeAttribute::AutoClass;
+            return t.GetTypeDefRow().GetFlags().WithMask(TypeAttribute::StringFormatMask)
+                == TypeAttribute::AutoClass;
         });
     }
 
     bool Type::IsAutoLayout() const
     {
-        return ResolveTypeDefAndCall([](Metadata::TypeDefRow const& r)
+        return ResolveTypeDefTypeAndCall([](Type const& t)
         {
-            return r.GetFlags().WithMask(TypeAttribute::LayoutMask) == TypeAttribute::AutoLayout;
+            return t.GetTypeDefRow().GetFlags().WithMask(TypeAttribute::LayoutMask) == TypeAttribute::AutoLayout;
         });
     }
 
@@ -197,24 +233,33 @@ namespace CxxReflect {
 
     bool Type::IsComObject() const
     {
-        return TodoNotYetImplementedFlag;
+        return ResolveTypeDefTypeAndCall([](Type const& t)
+        {
+            return IsDerivedFromSystemType(t, L"System", L"__ComObject", true);
+        });
     }
 
     bool Type::IsContextful() const
     {
-        return TodoNotYetImplementedFlag;
+        return ResolveTypeDefTypeAndCall([](Type const& t)
+        {
+            return IsDerivedFromSystemType(t, L"System", L"ContextBoundObject", true);
+        });
     }
 
     bool Type::IsEnum() const
     {
-        return TodoNotYetImplementedFlag;
+        if (!IsTypeDef()) { return false; }
+
+        return IsDerivedFromSystemType(*this, L"System", L"Enum", false);
     }
 
     bool Type::IsExplicitLayout() const
     {
-        return ResolveTypeDefAndCall([](Metadata::TypeDefRow const& r)
+        return ResolveTypeDefTypeAndCall([](Type const& t)
         {
-            return r.GetFlags().WithMask(TypeAttribute::LayoutMask) == TypeAttribute::ExplicitLayout;
+            return t.GetTypeDefRow().GetFlags().WithMask(TypeAttribute::LayoutMask)
+                == TypeAttribute::ExplicitLayout;
         });
     }
 
@@ -226,6 +271,11 @@ namespace CxxReflect {
     bool Type::IsGenericType() const
     {
         // TODO THIS IS WRONG
+        if (IsNested() && GetDeclaringType().IsGenericType())
+        {
+            return true;
+        }
+
         StringReference const name(GetName());
         return std::find(name.begin(), name.end(), L'`') != name.end();
     }
@@ -238,94 +288,107 @@ namespace CxxReflect {
 
     bool Type::IsImport() const
     {
-        return ResolveTypeDefAndCall([](Metadata::TypeDefRow const& r)
+        return ResolveTypeDefTypeAndCall([](Type const& t)
         {
-            return r.GetFlags().IsSet(TypeAttribute::Import);
+            return t.GetTypeDefRow().GetFlags().IsSet(TypeAttribute::Import);
         });
     }
 
     bool Type::IsInterface() const
     {
-        return ResolveTypeDefAndCall([](Metadata::TypeDefRow const& r)
+        return ResolveTypeDefTypeAndCall([](Type const& t)
         {
-            return r.GetFlags().WithMask(TypeAttribute::ClassSemanticsMask) == TypeAttribute::Interface;
+            return t.GetTypeDefRow().GetFlags().WithMask(TypeAttribute::ClassSemanticsMask)
+                == TypeAttribute::Interface;
         });
     }
 
     bool Type::IsLayoutSequential() const
     {
-        return ResolveTypeDefAndCall([](Metadata::TypeDefRow const& r)
+        return ResolveTypeDefTypeAndCall([](Type const& t)
         {
-            return r.GetFlags().WithMask(TypeAttribute::LayoutMask) == TypeAttribute::SequentialLayout;
+            return t.GetTypeDefRow().GetFlags().WithMask(TypeAttribute::LayoutMask)
+                == TypeAttribute::SequentialLayout;
         });
     }
 
     bool Type::IsMarshalByRef() const
     {
-        return TodoNotYetImplementedFlag;
+        return ResolveTypeDefTypeAndCall([](Type const& t)
+        {
+            return IsDerivedFromSystemType(t, L"System", L"MarshalByRefObject", true);
+        });
     }
 
     bool Type::IsNested() const
     {
-        return ResolveTypeDefAndCall([](Metadata::TypeDefRow const& r)
+        return ResolveTypeDefTypeAndCall([](Type const& t)
         {
-            return r.GetFlags().WithMask(TypeAttribute::VisibilityMask) > TypeAttribute::Public;
+            return t.GetTypeDefRow().GetFlags().WithMask(TypeAttribute::VisibilityMask)
+                >  TypeAttribute::Public;
         });
     }
 
     bool Type::IsNestedAssembly() const
     {
-        return ResolveTypeDefAndCall([](Metadata::TypeDefRow const& r)
+        return ResolveTypeDefTypeAndCall([](Type const& t)
         {
-            return r.GetFlags().WithMask(TypeAttribute::VisibilityMask) == TypeAttribute::NestedAssembly;
+            return t.GetTypeDefRow().GetFlags().WithMask(TypeAttribute::VisibilityMask)
+                == TypeAttribute::NestedAssembly;
         });
     }
 
     bool Type::IsNestedFamilyAndAssembly() const
     {
-        return ResolveTypeDefAndCall([](Metadata::TypeDefRow const& r)
+        return ResolveTypeDefTypeAndCall([](Type const& t)
         {
-            return r.GetFlags().WithMask(TypeAttribute::VisibilityMask) == TypeAttribute::NestedFamilyAndAssembly;
+            return t.GetTypeDefRow().GetFlags().WithMask(TypeAttribute::VisibilityMask)
+                == TypeAttribute::NestedFamilyAndAssembly;
         });
 
     }
     bool Type::IsNestedFamily() const
     {
-        return ResolveTypeDefAndCall([](Metadata::TypeDefRow const& r)
+        return ResolveTypeDefTypeAndCall([](Type const& t)
         {
-            return r.GetFlags().WithMask(TypeAttribute::VisibilityMask) == TypeAttribute::NestedFamily;
+            return t.GetTypeDefRow().GetFlags().WithMask(TypeAttribute::VisibilityMask)
+                == TypeAttribute::NestedFamily;
         });
     }
 
     bool Type::IsNestedFamilyOrAssembly() const
     {
-        return ResolveTypeDefAndCall([](Metadata::TypeDefRow const& r)
+        return ResolveTypeDefTypeAndCall([](Type const& t)
         {
-            return r.GetFlags().WithMask(TypeAttribute::VisibilityMask) == TypeAttribute::NestedFamilyOrAssembly;
+            return t.GetTypeDefRow().GetFlags().WithMask(TypeAttribute::VisibilityMask)
+                == TypeAttribute::NestedFamilyOrAssembly;
         });
     }
 
     bool Type::IsNestedPrivate() const
     {
-        return ResolveTypeDefAndCall([](Metadata::TypeDefRow const& r)
+        return ResolveTypeDefTypeAndCall([](Type const& t)
         {
-            return r.GetFlags().WithMask(TypeAttribute::VisibilityMask) == TypeAttribute::NestedPrivate;
+            return t.GetTypeDefRow().GetFlags().WithMask(TypeAttribute::VisibilityMask)
+                == TypeAttribute::NestedPrivate;
         });
     }
 
     bool Type::IsNestedPublic() const
     {
-        return ResolveTypeDefAndCall([](Metadata::TypeDefRow const& r)
+        return ResolveTypeDefTypeAndCall([](Type const& t)
         {
-            return r.GetFlags().WithMask(TypeAttribute::VisibilityMask) == TypeAttribute::NestedPublic;
+            return t.GetTypeDefRow().GetFlags().WithMask(TypeAttribute::VisibilityMask)
+                == TypeAttribute::NestedPublic;
         });
     }
 
     bool Type::IsNotPublic() const
     {
-        return ResolveTypeDefAndCall([](Metadata::TypeDefRow const& r)
+        return ResolveTypeDefTypeAndCall([](Type const& t)
         {
-            return r.GetFlags().WithMask(TypeAttribute::VisibilityMask) == TypeAttribute::NotPublic;
+            return t.GetTypeDefRow().GetFlags().WithMask(TypeAttribute::VisibilityMask)
+                == TypeAttribute::NotPublic;
         });
     }
 
@@ -360,47 +423,51 @@ namespace CxxReflect {
 
     bool Type::IsPublic() const
     {
-        return ResolveTypeDefAndCall([](Metadata::TypeDefRow const& r)
+        return ResolveTypeDefTypeAndCall([](Type const& t)
         {
-            return r.GetFlags().WithMask(TypeAttribute::VisibilityMask) == TypeAttribute::Public;
+            return t.GetTypeDefRow().GetFlags().WithMask(TypeAttribute::VisibilityMask) == TypeAttribute::Public;
         });
     }
 
     bool Type::IsSealed() const
     {
-        return ResolveTypeDefAndCall([](Metadata::TypeDefRow const& r)
+        return ResolveTypeDefTypeAndCall([](Type const& t)
         {
-            return r.GetFlags().IsSet(TypeAttribute::Sealed);
+            return t.GetTypeDefRow().GetFlags().IsSet(TypeAttribute::Sealed);
         });
     }
 
     bool Type::IsSerializable() const
     {
-        return ResolveTypeDefAndCall([](Metadata::TypeDefRow const& r)
+        return ResolveTypeDefTypeAndCall([](Type const& t)
         {
-            return r.GetFlags().IsSet(TypeAttribute::Serializable);
+            return t.GetTypeDefRow().GetFlags().IsSet(TypeAttribute::Serializable)
+                || t.IsEnum()
+                || IsDerivedFromSystemType(t, L"System", L"MulticastDelegate", true);
         });
     }
 
     bool Type::IsSpecialName() const
     {
-        return ResolveTypeDefAndCall([](Metadata::TypeDefRow const& r)
+        return ResolveTypeDefTypeAndCall([](Type const& t)
         {
-            return r.GetFlags().IsSet(TypeAttribute::SpecialName);
+            return t.GetTypeDefRow().GetFlags().IsSet(TypeAttribute::SpecialName);
         });
     }
 
     bool Type::IsUnicodeClass() const
     {
-        return ResolveTypeDefAndCall([](Metadata::TypeDefRow const& r)
+        return ResolveTypeDefTypeAndCall([](Type const& t)
         {
-            return r.GetFlags().WithMask(TypeAttribute::StringFormatMask) == TypeAttribute::UnicodeClass;
+            return t.GetTypeDefRow().GetFlags().WithMask(TypeAttribute::StringFormatMask)
+                == TypeAttribute::UnicodeClass;
         });
     }
 
     bool Type::IsValueType() const
     {
-        return TodoNotYetImplementedFlag;
+        return IsDerivedFromSystemType(*this, L"System", L"ValueType", false)
+            && !IsSystemType(*this, L"System", L"Enum");
     }
 
     bool Type::IsVisible() const
@@ -410,7 +477,15 @@ namespace CxxReflect {
             if (IsNested() && !GetDeclaringType().IsVisible())
                 return false;
 
-            return GetTypeDefRow().GetFlags().WithMask(TypeAttribute::VisibilityMask) > TypeAttribute::NotPublic;
+            switch (GetTypeDefRow().GetFlags().WithMask(TypeAttribute::VisibilityMask).GetEnum())
+            {
+            case TypeAttribute::Public:
+            case TypeAttribute::NestedPublic:
+                return true;
+
+            default:
+                return false;
+            }
         }
         // TODO CHECK BEHAVIOR FOR TYPESPECS
 

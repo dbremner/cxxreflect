@@ -110,13 +110,15 @@ namespace CxxReflect {
         {
         }
 
+        // TODO CUSTOM COPY AND MOVE MEMBERS
+
         String         const& GetName()           const { return _simpleName;           }
         Version        const& GetVersion()        const { return _version;              }
         String         const& GetCultureInfo()    const { return _cultureInfo;          }
         PublicKeyToken const& GetPublicKeyToken() const { return _publicKeyToken.Get(); }
         AssemblyFlags         GetFlags()          const { return _flags;                }
         String         const& GetPath()           const { return _path;                 }
-        String                GetFullName()       const;
+        String         const& GetFullName()       const;
 
     private:
 
@@ -126,6 +128,7 @@ namespace CxxReflect {
         Detail::ValueInitialized<PublicKeyToken> _publicKeyToken;
         AssemblyFlags                            _flags;
         String                                   _path;
+        mutable String                           _fullName;
     };
 
     inline bool operator==(AssemblyName const& lhs, AssemblyName const& rhs)

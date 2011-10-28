@@ -28,8 +28,8 @@ namespace CxxReflect {
             Detail::Verify([&] { return IsTypeDef() || IsTypeSpec(); });
         }
 
-        Assembly GetAssembly()      const { return _assembly;        }
-        SizeType GetMetadataToken() const { return _type.GetToken(); }
+        Assembly const& GetAssembly()      const { return _assembly;        }
+        SizeType        GetMetadataToken() const { return _type.GetToken(); }
 
         Type GetBaseType() const;
         Type GetDeclaringType() const;
@@ -129,14 +129,14 @@ namespace CxxReflect {
             return _assembly.GetDatabase().GetRow<Metadata::TableId::TypeSpec>(_type.GetIndex());
         }
 
-        #define CXXREFLECT_GENERATE decltype(std::declval<TCallback>()(std::declval<Metadata::TypeDefRow>()))
+        #define CXXREFLECT_GENERATE decltype(std::declval<TCallback>()(std::declval<Type>()))
 
         // Resolves the TypeDef associated with this type.  If this type is itself a TypeDef, it
         // returns itself.  If this type is a TypeSpect, it parses the TypeSpec to find the
         // primary TypeDef referenced by the TypeSpec; note that in this case the TypeDef may be
         // in a different module or assembly.
         template <typename TCallback>
-        auto ResolveTypeDefAndCall(
+        auto ResolveTypeDefTypeAndCall(
             TCallback callback,
             CXXREFLECT_GENERATE defaultResult = Detail::Identity<CXXREFLECT_GENERATE>::Type()
         ) const -> CXXREFLECT_GENERATE
@@ -145,7 +145,7 @@ namespace CxxReflect {
 
             // If this type is itself a TypeDef, we can directly call the callback and return:
             if (IsTypeDef())
-                return callback(GetTypeDefRow());
+                return callback(*this);
 
             // Otherwise, we need to visit the TypeSpec to find the primary TypeDef or TypeRef
             // to which it refers; if it refers to a TypeRef, we must resolve it.

@@ -4,6 +4,7 @@
 
 #include "CxxReflect/Assembly.hpp"
 #include "CxxReflect/AssemblyName.hpp"
+#include "CxxReflect/MetadataLoader.hpp"
 #include "CxxReflect/Type.hpp"
 
 using namespace CxxReflect;
@@ -35,6 +36,11 @@ namespace CxxReflect {
         return it != EndTypes() ? *it : Type();
     }
 
+    SizeType Assembly::GetReferencedAssemblyCount() const
+    {
+        return _database->GetTables().GetTable(Metadata::TableId::AssemblyRef).GetRowCount();
+    }
+
     Assembly::AssemblyNameIterator Assembly::BeginReferencedAssemblyNames() const
     {
         return Assembly::AssemblyNameIterator(*this, Metadata::TableReference(Metadata::TableId::AssemblyRef, 0));
@@ -49,13 +55,15 @@ namespace CxxReflect {
 
     AssemblyName Assembly::GetName() const
     {
-        return AssemblyName(*this, Metadata::TableReference(Metadata::TableId::Assembly, 0));
+        VerifyInitialized();
+
+        return _loader->GetAssemblyName(*this);
     }
 
-    String const& Assembly::GetPath() const
+    /*String const& Assembly::GetPath() const
     {
-        return _path;
-    }
+        return L""; // TODO return _path;
+    }*/
 
     Metadata::AssemblyRow Assembly::GetAssemblyRow() const
     {
