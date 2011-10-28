@@ -11,7 +11,7 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "AssemblyDumpCPP", "Assembly
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{FF0B4992-AB90-42A3-AA05-74BF7EEA91F4}"
 	ProjectSection(SolutionItems) = preProject
-		Performance1.psess = Performance1.psess
+		PerformanceAnalysis.psess = PerformanceAnalysis.psess
 	EndProjectSection
 EndProject
 Global
