@@ -3,9 +3,9 @@
 //     (See accompanying file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)    //
 
 // The MetadataDatabase and its supporting classes provide a physical layer implementation for
-// reading metadata.  It maps heaps and tables into a more usable, somewhat queriable format; it
-// provides UTF-8 to UTF-16 string transformation and caching of transformed strings; and it
-// includes various utilities for working with the metadata.
+// reading metadata from an assembly.  This file contains the core MetadataDatabase functionality
+// for accessing tables and streams and for reading strings, GUIDs, and table rows.  The blob
+// parsing functionality is in MetadataBlob.
 #ifndef CXXREFLECT_METADATADATABASE_HPP_
 #define CXXREFLECT_METADATADATABASE_HPP_
 
@@ -20,84 +20,17 @@
 
 namespace CxxReflect { namespace Metadata {
 
-    struct ReadException : std::runtime_error
+    // This exception is thrown if any error occurs when reading metadata from an assembly.
+    struct ReadError : RuntimeError
     {
-        ReadException(char const* const message) : std::runtime_error(message) { }
+        ReadError(char const* const message)
+            : RuntimeError(message)
+        {
+        }
     };
 
-    class Stream
-    {
-    public:
 
-        Stream(Detail::FileHandle& file, SizeType metadataOffset, SizeType streamOffset, SizeType streamSize);
 
-        Stream()
-            : _size()
-        {
-        }
-
-        Stream(Stream&& other)
-            : _data(std::move(other._data)),
-              _size(std::move(other._size))
-        {
-            other._size = 0;
-        }
-
-        Stream& operator=(Stream&& other)
-        {
-            Swap(other);
-            return *this;
-        }
-
-        void Swap(Stream& other)
-        {
-            std::swap(other._data, _data);
-            std::swap(other._size, _size);
-        }
-
-        ByteIterator  Begin()         const { VerifyInitialized(); return _data.get();            }
-        ByteIterator  End()           const { VerifyInitialized(); return _data.get() + _size;    }
-        SizeType      Size()          const { VerifyInitialized(); return _size;                  }
-        bool          IsInitialized() const {                      return _data.get() != nullptr; }
-
-        ByteIterator At(SizeType const index) const
-        {
-            VerifyInitialized();
-            Detail::Verify([&] { return index <= _size; }, "Index out of range");
-            return _data.get() + index;
-        }
-
-        template <typename T>
-        T const& ReadAs(SizeType const index) const
-        {
-            VerifyInitialized();
-            Detail::Verify([&] { return (index + sizeof (T)) <= _size; }, "Index out of range");
-            return *reinterpret_cast<T const*>(_data.get() + index);
-        }
-
-        template <typename T>
-        T const* ReinterpretAs(SizeType const index) const
-        {
-            VerifyInitialized();
-            Detail::Verify([&] { return index <= _size; }, "Index out of range");
-            return reinterpret_cast<T const*>(_data.get() + index);
-        }
-
-    private:
-
-        typedef std::unique_ptr<Byte[]> OwnedPointer;
-
-        Stream(Stream const&);
-        Stream& operator=(Stream const&);
-
-        void VerifyInitialized() const
-        {
-            Detail::Verify([&] { return IsInitialized(); }, "Stream is not initialized");
-        }
-
-        OwnedPointer    _data;
-        SizeType        _size;
-    };
 
     enum class TableId : std::uint8_t
     {
@@ -154,7 +87,7 @@ namespace CxxReflect { namespace Metadata {
             1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0,
             0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
         };
-            
+
         return id < mask.size() && mask[id] == 1;
     }
 
@@ -179,43 +112,77 @@ namespace CxxReflect { namespace Metadata {
 
     typedef std::array<SizeType, CompositeIndexCount> CompositeIndexSizeArray;
 
-    enum : std::size_t { InvalidTableIndex = static_cast<std::size_t>(-1) };
 
+
+
+    // Represents a reference into a table.  This is effectively a metadata token, except we adjust
+    // the index so that it is zero-based instead of one-based.  We represent the invalid token
+    // using all bits one instead of all bits zero.
     class TableReference
     {
     public:
 
+        enum : std::uint32_t
+        {
+            InvalidValue     = static_cast<std::uint32_t>(-1),
+            InvalidIndex     = static_cast<std::uint32_t>(-1),
+
+            ValueTableIdMask = 0xff000000,
+            ValueIndexMask   = 0x00ffffff,
+
+            ValueTableIdBits = 8,
+            ValueIndexBits   = 24
+        };
+
+        typedef std::uint32_t ValueType;
+        typedef std::uint32_t TokenType;
+
         TableReference()
-            : _table(), _index(static_cast<std::uint32_t>(-1))
+            : _value(InvalidValue)
         {
         }
 
-        TableReference(TableId const table, std::uint32_t const index)
-            : _table(table), _index(index)
+        TableReference(TableId const tableId, IndexType const index)
+            : _value(ComposeValue(tableId, index))
         {
         }
 
-        TableId  GetTable() const { return _table; }
-        SizeType GetIndex() const { return _index; }
-
-        SizeType GetToken() const
+        TableId GetTable() const
         {
-            // Remember that we subtract 1 from the index, so we have to add one back when we create
-            // the metadata token to match the real interface.
-            // TODO CHECK RANGE HERE (THOUGH IT SHOULD BE VALID)
-            return (Detail::AsInteger(_table) << 24) | (_index + 1);
+            return static_cast<TableId>((_value & ValueTableIdMask) >> ValueIndexBits);
         }
 
+        IndexType GetIndex() const
+        {
+            return _value & ValueIndexMask;
+        }
 
+        TokenType GetToken() const
+        {
+            // The metadata token is the same as the value we store, except that it uses a one-based
+            // indexing scheme rather than a zero-based indexing scheme.  We check in ComposeValue
+            // to ensure that adding one here will not cause the index to overflow.
+            return _value + 1;
+        }
+
+        bool IsValid() const
+        {
+            return _value != InvalidValue;
+        }
+
+        bool IsInitialized() const
+        {
+            return _value != InvalidValue;
+        }
 
         friend bool operator==(TableReference const& lhs, TableReference const& rhs)
         {
-            return lhs._table == rhs._table && lhs._index == rhs._index;
+            return lhs._value == rhs._value;
         }
 
         friend bool operator<(TableReference const& lhs, TableReference const& rhs)
         {
-            return lhs._table < rhs._table || (lhs._table == rhs._table && lhs._index < rhs._index);
+            return lhs._value < rhs._value;
         }
 
         friend bool operator!=(TableReference const& lhs, TableReference const& rhs) { return !(lhs == rhs); }
@@ -225,19 +192,151 @@ namespace CxxReflect { namespace Metadata {
 
     private:
 
-        TableId          _table;
-        std::uint32_t    _index;
+        static ValueType ComposeValue(TableId const tableId, IndexType const index)
+        {
+            Detail::Verify([&]{ return IsValidTableId(Detail::AsInteger(tableId)); });
+            Detail::Verify([&]{ return Detail::AsInteger(tableId) < (1 << ValueTableIdBits); });
+            Detail::Verify([&]{ return index < ValueIndexMask; });
+
+            ValueType const tableIdValue(Detail::AsInteger(tableId) & (ValueTableIdMask >> ValueIndexBits));
+
+            ValueType const tableIdComponent(tableIdValue << ValueIndexBits);
+            ValueType const indexComponent(index & ValueIndexMask);
+
+            return tableIdComponent | indexComponent;
+        }
+
+        // The value is the composition of the table id in the high eight bits and the zero-based
+        // index in the remaining 24 bits.  This is similar to a metadata token, but metadata tokens
+        // use one-based indices.
+        ValueType _value;
     };
 
+
+
+
+    // Represents a reference into the blob stream.  TODO What functionality are we going to put
+    // in here, and how are we going to expose it?
+    class BlobReference
+    {
+    public:
+
+        BlobReference()
+            : _pointer(nullptr)
+        {
+        }
+
+        explicit BlobReference(ByteIterator const pointer)
+            : _size(*pointer), _pointer(pointer + 1)
+        {
+            Detail::VerifyNotNull(pointer);
+        }
+
+        ByteIterator Begin()         const { VerifyInitialized(); return _pointer;         }
+        ByteIterator End()           const { VerifyInitialized(); return _pointer + _size; }
+        SizeType     GetSize()       const { VerifyInitialized(); return _size;            }
+        bool         IsInitialized() const { return _pointer != nullptr;                   }
+
+    private:
+
+        void VerifyInitialized() const
+        {
+            Detail::Verify([&] { return IsInitialized(); }, "Blob is not initialized");
+        }
+
+        SizeType     _size;
+        ByteIterator _pointer;
+    };
+
+
+
+
+    // Represents a metadata stream.  A metadata stream is a sequence of bytes in the assembly that
+    // contains metadata.  When we are constructed, we bulk copy the entire sequence of bytes into
+    // an array in memory, then provide access to that data via offsets into the stream.
+    class Stream
+    {
+    public:
+
+        Stream()
+        {
+        }
+
+        Stream(Detail::FileHandle& file, SizeType metadataOffset, SizeType streamOffset, SizeType streamSize);
+
+        Stream(Stream&& other)
+            : _data(std::move(other._data)),
+              _size(std::move(other._size))
+        {
+            other._size.Reset();
+        }
+
+        Stream& operator=(Stream&& other)
+        {
+            Swap(other);
+            return *this;
+        }
+
+        void Swap(Stream& other)
+        {
+            std::swap(other._data, _data);
+            std::swap(other._size, _size);
+        }
+
+        ByteIterator  Begin()         const { VerifyInitialized(); return _data.get();               }
+        ByteIterator  End()           const { VerifyInitialized(); return _data.get() + _size.Get(); }
+        SizeType      Size()          const { VerifyInitialized(); return _size.Get();               }
+        bool          IsInitialized() const {                      return _data.get() != nullptr;    }
+
+        ByteIterator At(SizeType const index) const
+        {
+            VerifyInitialized();
+            Detail::Verify([&] { return index <= _size.Get(); });
+            return _data.get() + index;
+        }
+
+        template <typename T>
+        T const& ReadAs(SizeType const index) const
+        {
+            VerifyInitialized();
+            Detail::Verify([&] { return (index + sizeof (T)) <= _size.Get(); });
+            return *reinterpret_cast<T const*>(_data.get() + index);
+        }
+
+        template <typename T>
+        T const* ReinterpretAs(SizeType const index) const
+        {
+            VerifyInitialized();
+            Detail::Verify([&] { return index <= _size.Get(); });
+            return reinterpret_cast<T const*>(_data.get() + index);
+        }
+
+    private:
+
+        Stream(Stream const&);
+        Stream& operator=(Stream const&);
+
+        void VerifyInitialized() const
+        {
+            Detail::Verify([&] { return IsInitialized(); }, "Stream is not initialized");
+        }
+
+        std::unique_ptr<Byte[]>            _data;
+        Detail::ValueInitialized<SizeType> _size;
+    };
+
+
+
+
+    // This provides a mapping between enumerators of the TableId enumeration and their corresponding
+    // row types.  For each table, we forward-declare the row type, and specialize the two mapping
+    // templates.
     template <typename TRow>
     struct RowTypeToTableId;
 
     template <TableId TId>
     struct TableIdToRowType;
 
-    // We specialize the RowTypeToTableId and TableIdToRowType maps for each table; we declare the
-    // specializations before we define the classes so that functions defined inline in the classes
-    // can reference the transformations... we generate some of these inline members using macros.
     #define CXXREFLECT_GENERATE(t)        \
     class t ## Row;                       \
                                           \
@@ -294,6 +393,11 @@ namespace CxxReflect { namespace Metadata {
 
     #undef CXXREFLECT_GENERATE
 
+
+
+
+    // This provides general-purpose access to a metadata table; it does not own the table data, it
+    // is just a wrapper to provide convenient access for row offset computation and bounds checking.
     class Table
     {
     public:
@@ -305,6 +409,8 @@ namespace CxxReflect { namespace Metadata {
         Table(ByteIterator const data, SizeType const rowSize, SizeType const rowCount, bool const isSorted)
             : _data(data), _rowSize(rowSize), _rowCount(rowCount), _isSorted(isSorted)
         {
+            Detail::VerifyNotNull(data);
+            Detail::Verify([&]{ return rowSize != 0 && rowCount != 0; });
         }
 
         ByteIterator Begin()       const { return _data.Get();                                    }
@@ -315,11 +421,24 @@ namespace CxxReflect { namespace Metadata {
 
         ByteIterator At(SizeType const index) const
         {
-            Detail::Verify([&] { return index < _rowCount.Get(); }, "Index out of range");
+            VerifyInitialized();
+
+            // Row identifiers are one-based, not zero-based, so <= is correct here.
+            Detail::Verify([&] { return index <= _rowCount.Get(); }, "Index out of range");
             return _data.Get() + _rowSize.Get() * index;
         }
 
+        bool IsInitialized() const
+        {
+            return _data.Get() != nullptr;
+        }
+
     private:
+
+        void VerifyInitialized() const
+        {
+            Detail::Verify([&]{ return IsInitialized(); });
+        }
 
         Detail::ValueInitialized<ByteIterator> _data;
         Detail::ValueInitialized<SizeType>     _rowSize;
@@ -327,12 +446,16 @@ namespace CxxReflect { namespace Metadata {
         Detail::ValueInitialized<bool>         _isSorted;
     };
 
+
+
+
+    // This encapsulates the tables of the metadata database; it owns the stream in which the tables
+    // are stored and computes the offsets, row sizes, and other metadata about each table.
     class TableCollection
     {
     public:
 
         TableCollection()
-            : _initialized(false), _state()
         {
         }
 
@@ -343,8 +466,8 @@ namespace CxxReflect { namespace Metadata {
               _initialized(std::move(other._initialized)),
               _state(std::move(other._state))
         {
-            other._initialized = false;
-            other._state = State();
+            other._initialized.Reset();
+            other._state.Reset();
         }
 
         TableCollection& operator=(TableCollection&& other)
@@ -360,21 +483,23 @@ namespace CxxReflect { namespace Metadata {
             std::swap(other._state,       _state      );
         }
 
-        Table const& GetTable(TableId id) const;
+        Table const& GetTable(TableId tableId) const;
 
-        SizeType GetTableIndexSize(TableId id) const;
+        SizeType GetTableIndexSize(TableId tableId) const;
         SizeType GetCompositeIndexSize(CompositeIndex index) const;
 
-        SizeType GetStringHeapIndexSize() const { return _state._stringHeapIndexSize; }
-        SizeType GetGuidHeapIndexSize()   const { return _state._guidHeapIndexSize;   }
-        SizeType GetBlobHeapIndexSize()   const { return _state._blobHeapIndexSize;   }
+        SizeType GetStringHeapIndexSize() const { return _state.Get()._stringHeapIndexSize; }
+        SizeType GetGuidHeapIndexSize()   const { return _state.Get()._guidHeapIndexSize;   }
+        SizeType GetBlobHeapIndexSize()   const { return _state.Get()._blobHeapIndexSize;   }
 
-        SizeType GetTableColumnOffset(TableId table, SizeType column) const;
+        SizeType GetTableColumnOffset(TableId tableId, SizeType column) const;
+
+        bool IsInitialized() const
+        {
+            return _stream.IsInitialized();
+        }
 
     private:
-
-        TableCollection(TableCollection const&);
-        TableCollection& operator=(TableCollection const&);
 
         typedef std::array<Table, TableIdCount> TableSequence;
 
@@ -382,6 +507,14 @@ namespace CxxReflect { namespace Metadata {
 
         typedef std::array<SizeType, MaximumColumnCount>       ColumnOffsetSequence;
         typedef std::array<ColumnOffsetSequence, TableIdCount> TableColumnOffsetSequence;
+
+        TableCollection(TableCollection const&);
+        TableCollection& operator=(TableCollection const&);
+
+        void VerifyInitialized() const
+        {
+            Detail::Verify([&]{ return IsInitialized(); });
+        }
 
         void ComputeCompositeIndexSizes();
         void ComputeTableRowSizes();
@@ -406,11 +539,17 @@ namespace CxxReflect { namespace Metadata {
             TableSequence _tables;
         };
 
-        Stream _stream;
-        bool   _initialized;
-        State  _state;
+        Stream                           _stream;
+        Detail::ValueInitialized<bool>   _initialized;
+        Detail::ValueInitialized<State>  _state;
     };
 
+
+
+
+    // Encapsulates the strings stream, providing conversion from the raw UTF-8 strings to the
+    // more convenient UTF-16 used by Windows.  It caches the transformed strings so that we can
+    // just use references to the strings everywhere and not have to copy tons of data.
     class StringCollection
     {
     public:
@@ -446,6 +585,11 @@ namespace CxxReflect { namespace Metadata {
 
         StringReference At(SizeType index) const;
 
+        bool IsInitialized() const
+        {
+            return _stream.IsInitialized();
+        }
+
     private:
 
         typedef Detail::LinearArrayAllocator<Character, (1 << 16)> Allocator;
@@ -454,51 +598,32 @@ namespace CxxReflect { namespace Metadata {
         StringCollection(StringCollection const&);
         StringCollection& operator=(StringCollection const&);
 
-        Stream            _stream;
-        mutable Allocator _buffer;
-        mutable StringMap _index;
-    };
-
-    // TODO We've hacked this up for one-byte-size
-    class BlobReference
-    {
-    public:
-
-        BlobReference()
-            : _pointer(nullptr)
-        {
-        }
-
-        explicit BlobReference(ByteIterator const pointer)
-            : _size(*pointer), _pointer(pointer + 1)
-        {
-            Detail::VerifyNotNull(pointer);
-        }
-
-        ByteIterator Begin()         const { VerifyInitialized(); return _pointer;         }
-        ByteIterator End()           const { VerifyInitialized(); return _pointer + _size; }
-        SizeType     GetSize()       const { VerifyInitialized(); return _size;            }
-        bool         IsInitialized() const { return _pointer != nullptr;                   }
-
-    private:
-
         void VerifyInitialized() const
         {
-            Detail::Verify([&] { return IsInitialized(); }, "Blob is not initialized");
+            Detail::Verify([&]{ return IsInitialized(); });
         }
 
-        SizeType     _size;
-        ByteIterator _pointer;
+        Stream            _stream;
+        mutable Allocator _buffer; // Stores the transformed UTF-16 strings
+        mutable StringMap _index;  // Maps string heap indices into indices in the buffer
     };
+
+
+
 
     template <TableId TId>
     class RowIterator;
 
+
+
+
+    // The core metadata database interface.  This loads the database from the assembly file and
+    // initializes all of the data structures required for accessing the metadata.
     class Database
     {
     public:
 
-        Database(Detail::NonNull<wchar_t const*> fileName);
+        Database(String fileName);
 
         Database(Database&& other)
             : _fileName(std::move(other._fileName)),
@@ -513,6 +638,15 @@ namespace CxxReflect { namespace Metadata {
         {
             Swap(other);
             return *this;
+        }
+
+        void Swap(Database& other)
+        {
+            std::swap(_fileName,   other._fileName  );
+            std::swap(_blobStream, other._blobStream);
+            std::swap(_guidStream, other._guidStream);
+            std::swap(_strings,    other._strings   );
+            std::swap(_tables,     other._tables    );
         }
 
         template <TableId TId>
@@ -547,16 +681,23 @@ namespace CxxReflect { namespace Metadata {
         TableCollection  const& GetTables()  const { return _tables;  }
         StringCollection const& GetStrings() const { return _strings; }
 
-        void Swap(Database& other)
+        bool IsInitialized() const
         {
-            std::swap(_fileName,   other._fileName  );
-            std::swap(_blobStream, other._blobStream);
-            std::swap(_guidStream, other._guidStream);
-            std::swap(_strings,    other._strings   );
-            std::swap(_tables,     other._tables    );
+            return _blobStream.IsInitialized()
+                && _guidStream.IsInitialized()
+                && _strings.IsInitialized()
+                && _tables.IsInitialized();
         }
 
     private:
+
+        Database(Database const&);
+        Database& operator=(Database const&);
+
+        void VerifyInitialized() const
+        {
+            Detail::Verify([&]{ return IsInitialized(); });
+        }
 
         String _fileName;
 
@@ -567,6 +708,10 @@ namespace CxxReflect { namespace Metadata {
         TableCollection  _tables;
     };
 
+
+
+
+    // This iterator type provides a random access container interface for the metadata database.
     template <TableId TId>
     class RowIterator
     {
@@ -587,31 +732,32 @@ namespace CxxReflect { namespace Metadata {
         typedef pointer                                  Pointer;
 
         RowIterator()
-            : _database(nullptr), _index(0)
         {
         }
 
-        explicit RowIterator(Detail::NonNull<Database const*> const database, SizeType const index)
+        explicit RowIterator(Database const* const database, IndexType const index)
             : _database(database), _index(index)
         {
+            Detail::VerifyNotNull(database);
+            Detail::Verify([&]{ return index != static_cast<IndexType>(-1); });
         }
 
-        Reference    Get()           const { return _database->GetRow<TId>(_index); }
-        Reference    operator*()     const { return _database->GetRow<TId>(_index); }
-        Pointer      operator->()    const { return _database->GetRow<TId>(_index); }
+        Reference    Get()           const { return _database.Get()->GetRow<TId>(_index.Get()); }
+        Reference    operator*()     const { return _database.Get()->GetRow<TId>(_index.Get()); }
+        Pointer      operator->()    const { return _database.Get()->GetRow<TId>(_index.Get()); }
 
-        RowIterator& operator++()    { ++_index; return *this;                      }
+        RowIterator& operator++()    { ++_index.Get(); return *this;                }
         RowIterator  operator++(int) { RowIterator it(*this); ++*this; return it;   }
 
-        RowIterator& operator--()    { --_index; return *this;                      }
+        RowIterator& operator--()    { --_index.Get(); return *this;                }
         RowIterator  operator--(int) { RowIterator it(*this); --*this; return it;   }
 
-        RowIterator& operator+=(DifferenceType const n) { _index += n; return *this; }
-        RowIterator& operator-=(DifferenceType const n) { _index -= n; return *this; }
+        RowIterator& operator+=(DifferenceType const n) { _index.Get() += n; return *this; }
+        RowIterator& operator-=(DifferenceType const n) { _index.Get() -= n; return *this; }
 
         Reference operator[](DifferenceType const n) const
         {
-            return _database->GetRow<ValueType>(_index + n);
+            return _database->GetRow<ValueType>(_index.Get() + n);
         }
 
         friend RowIterator operator+(RowIterator it, DifferenceType const n) { return it +=  n; }
@@ -620,17 +766,20 @@ namespace CxxReflect { namespace Metadata {
 
         friend DifferenceType operator-(RowIterator const& lhs, RowIterator const& rhs)
         {
-            return lhs._index - rhs._index;
+            VerifyComparable(lhs, rhs);
+            return lhs._index.Get() - rhs._index.Get();
         }
 
         friend bool operator==(RowIterator const& lhs, RowIterator const& rhs)
         {
-            return lhs._index == rhs._index;
+            VerifyComparable(lhs, rhs);
+            return lhs._index.Get() == rhs._index.Get();
         }
 
         friend bool operator< (RowIterator const& lhs, RowIterator const& rhs)
         {
-            return lhs._index < rhs._index;
+            VerifyComparable(lhs, rhs);
+            return lhs._index.Get() < rhs._index.Get();
         }
 
         friend bool operator!=(RowIterator const& lhs, RowIterator const& rhs) { return !(lhs == rhs); }
@@ -640,61 +789,22 @@ namespace CxxReflect { namespace Metadata {
 
     private:
 
-        Detail::NonNull<Database const*> _database;
-        SizeType                         _index;
+        static void VerifyComparable(RowIterator const& lhs, RowIterator const& rhs)
+        {
+            Detail::Verify([&]{ return lhs._database.Get() == rhs._database.Get(); });
+        }
+
+        Detail::ValueInitialized<Database const*> _database;
+        Detail::ValueInitialized<IndexType>       _index;
     };
 
-    enum class ElementType : std::uint8_t
-    {
-        End                         = 0x00,
-        Void                        = 0x01,
-        Boolean                     = 0x02,
-        Char                        = 0x03,
-        I1                          = 0x04,
-        U1                          = 0x05,
-        I2                          = 0x06,
-        U2                          = 0x07,
-        I4                          = 0x08,
-        U4                          = 0x09,
-        I8                          = 0x0a,
-        U8                          = 0x0b,
-        R4                          = 0x0c,
-        R8                          = 0x0d,
-        String                      = 0x0e,
-        Ptr                         = 0x0f,
-        ByRef                       = 0x10,
-        ValueType                   = 0x11,
-        Class                       = 0x12,
-        Var                         = 0x13,
-        Array                       = 0x14,
-        GenericInst                 = 0x15,
-        TypedByRef                  = 0x16,
 
-        I                           = 0x18,
-        U                           = 0x19,
-        FnPtr                       = 0x1b,
-        Object                      = 0x1c,
-        SzArray                     = 0x1d,
-        MVar                        = 0x1e,
 
-        CustomModifierRequired      = 0x1f,
-        CustomModifierOptional      = 0x20,
 
-        Internal                    = 0x21,
-        Modifier                    = 0x40,
-        Sentinel                    = 0x41,
-        Pinned                      = 0x45,
-
-        Type                        = 0x50,
-        CustomAttributeBoxedObject  = 0x51,
-        CustomAttributeField        = 0x53,
-        CustomAttributeProperty     = 0x54,
-        CustomAttributeEnum         = 0x55
-    };
-
-    // IsInitialized, VerifyInitialized, and the data members could be hoisted into a base
-    // class, but the constructors cannot, so it's easier to just declare and define them
-    // all here, via a macro.
+    // These are the row types for each table in the database.  We use this macro to generate the
+    // members that are common to all of them (IsInitialized, VerifyInitialized, GetSelfReference,
+    // and GetColumnOffset); these could be hoisted into a base class, but the constructors cannot,
+    // so we declare them all via macro.
     #define CXXREFLECT_GENERATE(name)                                                                   \
         private:                                                                                        \
                                                                                                         \

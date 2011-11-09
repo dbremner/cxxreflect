@@ -55,11 +55,14 @@
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <ClCompile>
       <WarningLevel>Level4</WarningLevel>
-      <Optimization>MaxSpeed</Optimization>
+      <Optimization>Full</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <AdditionalIncludeDirectories>../</AdditionalIncludeDirectories>
       <AdditionalOptions>/D_CRT_SECURE_NO_WARNINGS %(AdditionalOptions)</AdditionalOptions>
+      <InlineFunctionExpansion>AnySuitable</InlineFunctionExpansion>
+      <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
+      <OmitFramePointers>true</OmitFramePointers>
     </ClCompile>
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
@@ -79,6 +82,7 @@
     <ClInclude Include="CxxReflect.hpp" />
     <ClInclude Include="File.hpp" />
     <ClInclude Include="Guid.hpp" />
+    <ClInclude Include="MetadataBlob.hpp" />
     <ClInclude Include="MetadataDatabase.hpp" />
     <ClInclude Include="MetadataLoader.hpp" />
     <ClInclude Include="Method.hpp" />
@@ -95,6 +99,7 @@
     <ClCompile Include="Guid.cpp" />
     <ClCompile Include="MetadataDatabase.cpp" />
     <ClCompile Include="MetadataLoader.cpp" />
+    <ClCompile Include="Method.cpp" />
     <ClCompile Include="PlatformWin32.cpp" />
     <ClCompile Include="Type.cpp" />
     <ClCompile Include="Utility.cpp" />

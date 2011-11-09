@@ -28,6 +28,9 @@
     <ClCompile Include="Utility.cpp">
       <Filter>Sources</Filter>
     </ClCompile>
+    <ClCompile Include="Method.cpp">
+      <Filter>Sources</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Assembly.hpp">
@@ -83,6 +86,9 @@
       <Filter>Headers</Filter>
     </ClInclude>
     <ClInclude Include="Module.hpp">
+      <Filter>Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="MetadataBlob.hpp">
       <Filter>Headers</Filter>
     </ClInclude>
   </ItemGroup>

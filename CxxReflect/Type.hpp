@@ -13,7 +13,28 @@ namespace CxxReflect {
 
     class Type : public Detail::SafeBoolConvertible<Type>
     {
+    private:
+
+        typedef std::tuple<
+            Type,
+            Metadata::TableReference,
+            Metadata::TableReference
+        > NextMethodScopeResult;
+
+        static NextMethodScopeResult InternalNextMethodScope(Type const& currentScope);
+        static bool InternalFilterMethod(Method const& method, BindingFlags const& flags);
+
     public:
+
+        typedef Detail::NestedTableTransformIterator<
+            Metadata::TableReference,
+            Method,
+            Type,
+            BindingFlags,
+            NextMethodScopeResult,
+            &Type::InternalNextMethodScope,
+            &Type::InternalFilterMethod
+        > MethodIterator;
 
         Type()
             : _assembly(), _type()
@@ -75,12 +96,14 @@ namespace CxxReflect {
         bool IsValueType()               const;
         bool IsVisible()                 const;
 
+        MethodIterator BeginMethods(BindingFlags flags = BindingAttribute::Default) const;
+        MethodIterator EndMethods()   const;
+
         // TODO This interface is very incomplete
 
         bool IsInitialized() const
         {
-            return _assembly.IsInitialized()
-                && _type.GetIndex() != Metadata::InvalidTableIndex;
+            return _assembly.IsInitialized() && _type.IsValid();
         }
 
         bool operator!() const { return !IsInitialized(); }
@@ -120,13 +143,13 @@ namespace CxxReflect {
         Metadata::TypeDefRow  GetTypeDefRow() const
         {
             Detail::Verify([&] { return IsTypeDef(); });
-            return _assembly.GetDatabase().GetRow<Metadata::TableId::TypeDef>(_type.GetIndex());
+            return _assembly.GetDatabase(InternalKey()).GetRow<Metadata::TableId::TypeDef>(_type.GetIndex());
         }
 
         Metadata::TypeSpecRow GetTypeSpecRow() const
         {
             Detail::Verify([&] { return IsTypeSpec(); });
-            return _assembly.GetDatabase().GetRow<Metadata::TableId::TypeSpec>(_type.GetIndex());
+            return _assembly.GetDatabase(InternalKey()).GetRow<Metadata::TableId::TypeSpec>(_type.GetIndex());
         }
 
         #define CXXREFLECT_GENERATE decltype(std::declval<TCallback>()(std::declval<Type>()))
@@ -158,9 +181,8 @@ namespace CxxReflect {
         void AccumulateFullNameInto(std::wostream& os) const;
         void AccumulateAssemblyQualifiedNameInto(std::wostream& os) const;
 
-
-        Assembly                 _assembly;
-        Metadata::TableReference _type;
+        Assembly                  _assembly;
+        Metadata::TableReference  _type;
     };
 
     inline bool operator==(Type const& lhs, Type const& rhs)

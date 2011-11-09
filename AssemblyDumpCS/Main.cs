@@ -35,7 +35,7 @@ class Program
 
     static void Dump(StringBuilder sb, Type t)
     {
-        sb.AppendLine(String.Format(" -- Type [{0}] [${1}]", t.FullName, t.MetadataToken));
+        sb.AppendLine(String.Format(" -- Type [{0}] [${1:x8}]", t.FullName, t.MetadataToken));
         // TODO t.Assembly
         sb.AppendLine(String.Format("     -- AssemblyQualifiedName [{0}]", t.AssemblyQualifiedName));
         // TODO t.Attributes
@@ -63,6 +63,24 @@ class Program
         // TODO ...
         sb.AppendLine(String.Format("     -- Name [{0}]", t.Name));
         sb.AppendLine(String.Format("     -- Namespace [{0}]", t.Namespace));
+
+        sb.AppendLine("    !!BeginMethods");
+        BindingFlags flags = 
+            BindingFlags.FlattenHierarchy |
+            BindingFlags.Instance         |
+            BindingFlags.NonPublic        |
+            BindingFlags.Public           |
+            BindingFlags.Static;
+        foreach (MethodInfo m in t.GetMethods(flags))
+        {
+            Dump(sb, m);
+        }
+        sb.AppendLine("    !!EndMethods");
+    }
+
+    static void Dump(StringBuilder sb, MethodInfo m)
+    {
+        sb.AppendLine(String.Format("     -- Method [{0}] [${1:x8}]", m.Name, m.MetadataToken));
     }
 
     static void Main(string[] args)

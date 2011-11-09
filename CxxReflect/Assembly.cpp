@@ -13,7 +13,8 @@ namespace CxxReflect {
 
     Assembly::TypeIterator Assembly::BeginTypes() const
     {
-        return Assembly::TypeIterator(*this, Metadata::TableReference(Metadata::TableId::TypeDef, 0));
+        // We skip the type at index 0, which is the internal <module> type containing module-scope things:
+        return Assembly::TypeIterator(*this, Metadata::TableReference(Metadata::TableId::TypeDef, 1));
     }
 
     Assembly::TypeIterator Assembly::EndTypes() const
@@ -53,11 +54,11 @@ namespace CxxReflect {
             _database->GetTables().GetTable(Metadata::TableId::AssemblyRef).GetRowCount()));
     }
 
-    AssemblyName Assembly::GetName() const
+    AssemblyName const& Assembly::GetName() const
     {
         VerifyInitialized();
 
-        return _loader->GetAssemblyName(*this);
+        return _loader->GetAssemblyName(*_database, InternalKey());
     }
 
     /*String const& Assembly::GetPath() const
@@ -73,6 +74,18 @@ namespace CxxReflect {
             throw std::runtime_error("wtf");
 
         return _database->GetRow<Metadata::TableId::Assembly>(0);
+    }
+
+    Metadata::Database const& Assembly::GetDatabase(InternalKey) const
+    {
+        VerifyInitialized();
+        return *_database;
+    }
+
+    MetadataLoader const& Assembly::GetLoader(InternalKey) const
+    {
+        VerifyInitialized();
+        return *_loader;
     }
 
 }

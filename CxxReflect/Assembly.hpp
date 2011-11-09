@@ -10,7 +10,7 @@
 
 namespace CxxReflect {
 
-    class Assembly : Detail::SafeBoolConvertible<Assembly>
+    class Assembly : public Detail::SafeBoolConvertible<Assembly>
     {
     public:
 
@@ -18,12 +18,11 @@ namespace CxxReflect {
         {
         }
 
-        Assembly(StringReference                            const path,
-                 Detail::NonNull<MetadataLoader     const*> const loader,
-                 Detail::NonNull<Metadata::Database const*> const database)
-            : /*TODO_path(path.c_str()),*/ _loader(loader), _database(database)
+        Assembly(MetadataLoader const* const loader, Metadata::Database const* const database, InternalKey)
+            : _loader(loader), _database(database)
         {
-            Detail::Verify([&] { return !path.empty(); });
+            Detail::VerifyNotNull(loader);
+            Detail::VerifyNotNull(database);
         }
 
         bool IsInitialized() const
@@ -33,8 +32,8 @@ namespace CxxReflect {
 
         bool operator!() const { return !IsInitialized(); }
 
-        AssemblyName  GetName() const;
-        //TODO String const& GetPath() const;
+        AssemblyName const& GetName() const;
+        String       const& GetPath() const;
 
         typedef Detail::TableTransformIterator<Metadata::TableReference, File,   Assembly>       FileIterator;
         typedef Detail::TableTransformIterator<Metadata::TableReference, Module, Assembly>       ModuleIterator;
@@ -61,7 +60,8 @@ namespace CxxReflect {
         Type GetType(StringReference name, bool ignoreCase = false) const;
 
 
-        Metadata::Database const& GetDatabase() const { VerifyInitialized(); return *_database; }
+        Metadata::Database const& GetDatabase(InternalKey) const;
+        MetadataLoader     const& GetLoader(InternalKey)   const;
 
         // EntryPoint
         // ImageRuntimeVersion
@@ -123,10 +123,15 @@ namespace CxxReflect {
 
         Metadata::AssemblyRow GetAssemblyRow() const;
 
-        //TODO String                                     _path;
-        Detail::NonNull<MetadataLoader     const*> _loader;
-        Detail::NonNull<Metadata::Database const*> _database;
+        MetadataLoader     const* _loader;
+        Metadata::Database const* _database;
     };
+
+    // Allow "t == nullptr" and "t != nullptr":
+    inline bool operator==(Assembly const& a, std::nullptr_t) { return !a.IsInitialized(); }
+    inline bool operator==(std::nullptr_t, Assembly const& a) { return !a.IsInitialized(); }
+    inline bool operator!=(Assembly const& a, std::nullptr_t) { return  a.IsInitialized(); }
+    inline bool operator!=(std::nullptr_t, Assembly const& a) { return  a.IsInitialized(); }
 
 }
 

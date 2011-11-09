@@ -22,6 +22,12 @@
 #include <type_traits>
 #include <vector>
 
+// The logic checks can be used to debug errors both in the CxxReflect implementation itself and in
+// the usage of the CxxReflect API.  The checks cause most invariants to be checked whenever a public
+// member function is called, and in many private member functions as well.  If a logic check fails,
+// a CxxReflect::VerificationFailure exception is thrown.  Do not handle this exception; if it is
+// thrown, it means that something is broken.  No harm will come if you enable this in non-debug
+// builds, but it does substantially impact performance.
 #ifdef _DEBUG
 #define CXXREFLECT_LOGIC_CHECKS
 #endif
@@ -51,7 +57,7 @@ namespace CxxReflect {
 
     struct HResultException : RuntimeError
     {
-        explicit HResultException(int hresult, char const* const message = "")
+        explicit HResultException(int const hresult, char const* const message = "")
             : RuntimeError(message), _hresult(hresult)
         {
         }
@@ -101,10 +107,10 @@ namespace CxxReflect { namespace Detail {
     // A handful of useful algorithms that we use throughout the library.
 
     template <typename TRanIt, typename TValue, typename TComparer>
-    TRanIt BinarySearch(TRanIt first, TRanIt last, TValue const& value, TComparer const comparer)
+    TRanIt BinarySearch(TRanIt const first, TRanIt const last, TValue const& value, TComparer const comparer)
     {
         TRanIt const it(std::lower_bound(first, last, value, comparer));
-        if (it == last || *it != value)
+        if (it == last || *it < value || value < *it)
         {
             return last;
         }
@@ -134,6 +140,74 @@ namespace CxxReflect { namespace Detail {
 
         return first0 == last0 && first1 == last1;
     }
+
+    // A high-performance, std::ofstream-like file stream.  std::ofstream has abysmal performance
+    // relative to the <cstdio> file I/O API, at least on Visual C++ 11 Developer Preview.
+
+    class HexFormat
+    {
+    public:
+
+        explicit HexFormat(unsigned int const x)
+            : _x(x)
+        {
+        }
+
+        unsigned int GetValue() const { return _x; }
+
+    private:
+
+        unsigned int _x;
+    };
+
+    class FastFileStream
+    {
+    public:
+
+        FastFileStream(std::string const path)
+        {
+            #pragma warning(push)
+            #pragma warning(disable: 4996)
+            _handle = fopen(path.c_str(), "w");
+            #pragma warning(pop)
+
+            if (_handle == nullptr)
+                throw RuntimeError("Failed to open file");
+        }
+
+        ~FastFileStream()
+        {
+            fclose(_handle);
+        }
+
+        #define CXXREFLECT_GENERATE(t, f)   \
+            FastFileStream& operator<<(t x) \
+            {                               \
+                fprintf(_handle, f, x);     \
+                return *this;               \
+            }
+
+        CXXREFLECT_GENERATE(char const* const,    "%s" )
+        CXXREFLECT_GENERATE(wchar_t const* const, "%ls")
+        CXXREFLECT_GENERATE(int const,            "%i" )
+        CXXREFLECT_GENERATE(unsigned int const,   "%u" )
+        CXXREFLECT_GENERATE(double const,         "%g" )
+
+        #undef CXXREFLECT_GENERATE
+
+        FastFileStream& operator<<(HexFormat const x)
+        {
+            fprintf(_handle, "%08x", x.GetValue());
+            return *this;
+        }
+
+    private:
+
+        FastFileStream(FastFileStream const&);
+        FastFileStream& operator=(FastFileStream const&);
+
+        FILE* _handle;
+    };
 
     // A string class that provides a simplified std::string-like interface around a C string.  This
     // class does not perform any memory management:  it simply has pointers into an existing null-
@@ -166,6 +240,9 @@ namespace CxxReflect { namespace Detail {
         {
         }
 
+        // We mark this explicit so that the constructor templates taking value_type[N] are
+        // preferred for string literals (and other arrays); that constructor is O(1) whereas
+        // this constructor is O(N) where N is the number of characters in the string.
         explicit EnhancedCString(pointer const first)
             : _first(first), _last(first)
         {
@@ -390,82 +467,6 @@ namespace CxxReflect { namespace Detail {
         FunctionType _f;
     };
 
-    // A basic RAII wrapper around the cstdio file interfaces; this allows us to get the performance
-    // of the C runtime APIs wih the convenience of the C++ iostream interfaces.
-
-    struct FileReadException : std::runtime_error
-    {
-        FileReadException(char const* const message)
-            : std::runtime_error(message)
-        {
-        }
-    };
-
-    class FileHandle
-    {
-    public:
-
-        typedef std::int64_t PositionType;
-        typedef std::size_t  SizeType;
-
-        enum OriginType
-        {
-            Begin   = SEEK_SET,
-            Current = SEEK_CUR,
-            End     = SEEK_END
-        };
-
-        FileHandle(wchar_t const* const fileName, wchar_t const* const mode = L"rb")
-        {
-            // TODO PORTABILITY
-            errno_t const result(_wfopen_s(&_handle, fileName, mode));
-            if (result != 0)
-                throw FileReadException("File open failed");
-        }
-
-        FileHandle(FileHandle&& other)
-            : _handle(other._handle)
-        {
-            other._handle = nullptr;
-        }
-
-        FileHandle& operator=(FileHandle&& other)
-        {
-            Swap(other);
-        }
-
-        ~FileHandle()
-        {
-            if (_handle != nullptr)
-                fclose(_handle);
-        }
-
-        void Swap(FileHandle& other)
-        {
-            std::swap(_handle, other._handle);
-        }
-
-        void Seek(PositionType const position, OriginType const origin)
-        {
-            // TODO PORTABILITY
-            if (_fseeki64(_handle, position, origin) != 0)
-                throw FileReadException("File seek failed");
-        }
-
-        void Read(void* const buffer, SizeType const size, SizeType const count)
-        {
-            if (fread(buffer, size, count, _handle) != count)
-                throw FileReadException("File seek failed");
-        }
-
-    private:
-
-        FileHandle(FileHandle const&);
-        FileHandle& operator=(FileHandle const&);
-
-        FILE* _handle;
-    };
-
     // A flag set, similar to std::bitset, but with implicit conversions to and from an enumeration
     // type.  This is essential for working with C++11 enum classes, which do not have implicit
     // conversions to and from their underlying integral type.
@@ -505,6 +506,11 @@ namespace CxxReflect { namespace Detail {
             return _value;
         }
 
+        void Set(EnumerationType const mask) { _value |= AsInteger(mask); }
+        void Set(IntegralType    const mask) { _value |= mask;            }
+
+        void Reset() { _value = 0; }
+
         bool IsSet(EnumerationType const mask) const { return WithMask(mask) != 0; }
         bool IsSet(IntegralType    const mask) const { return WithMask(mask) != 0; }
 
@@ -536,6 +542,291 @@ namespace CxxReflect { namespace Detail {
     {
         return static_cast<typename std::underlying_type<TEnumeration>::type>(value);
     }
+
+    // A basic RAII wrapper around the cstdio file interfaces; this allows us to get the performance
+    // of the C runtime APIs wih the convenience of the C++ iostream interfaces.
+
+    struct FileIOException : RuntimeError
+    {
+    public:
+
+        explicit FileIOException(char const* const message, int const error = 0)
+            : RuntimeError(message), _error(error)
+        {
+        }
+        
+        // 'strerror' is "unsafe" because it retains ownership of the buffer.  We immediately 
+        // construct a std::string from its value, so we can ignore the warning.
+        #pragma warning(push)
+        #pragma warning(disable: 4996)
+        explicit FileIOException(int const error = errno)
+            : RuntimeError(strerror(error)), _error(error)
+        {
+        }
+        #pragma warning(pop)
+
+    private:
+
+        int _error;
+    };
+
+    enum class FileMode : std::uint8_t
+    {
+        ReadWriteAppendMask = 0x03,
+        Read                = 0x01, // r
+        Write               = 0x02, // w
+        Append              = 0x03, // a
+
+        UpdateMask          = 0x04,
+        NonUpdate           = 0x00,
+        Update              = 0x04, // +
+
+        TextBinaryMask      = 0x08,
+        Text                = 0x00,
+        Binary              = 0x08  // b
+    };
+
+    typedef FlagSet<FileMode> FileModeFlags;
+
+    enum class FileOrigin : std::uint8_t
+    {
+        Begin   = SEEK_SET,
+        Current = SEEK_CUR,
+        End     = SEEK_END
+    };
+
+    class FileHandle
+    {
+    public:
+
+        typedef std::int64_t PositionType;
+        typedef std::size_t  SizeType;
+
+        // This is the mapping of <cstdio> functions to FileHandle member functions:
+        // fclose    Close
+        // feof      IsEof
+        // ferror    IsError
+        // fflush    Flush
+        // fgetc     GetChar
+        // fgetpos   GetPosition
+        // fgets
+        // fopen     [Constructor]
+        // fprintf
+        // fputc     PutChar
+        // fputs
+        // fread     Read
+        // freopen   [Not Implemented]
+        // fscanf
+        // fseek     Seek
+        // fsetpos   SetPosition
+        // ftell     Tell
+        // fwrite    Write
+        // getc      GetChar
+        // putc      PutChar
+        // puts
+        // rewind    [Not Implemented]
+
+        enum OriginType
+        {
+            Begin   = SEEK_SET,
+            Current = SEEK_CUR,
+            End     = SEEK_END
+        };
+
+        FileHandle(wchar_t const* const fileName, FileModeFlags const mode)
+            : _mode(mode)
+        {
+            // TODO PORTABILITY
+            errno_t const error(_wfopen_s(&_handle, fileName, TranslateMode(mode)));
+            if (error != 0)
+                throw FileIOException(error);
+        }
+
+        FileHandle(FileHandle&& other)
+            : _handle(other._handle)
+        {
+            other._handle = nullptr;
+        }
+
+        FileHandle& operator=(FileHandle&& other)
+        {
+            Swap(other);
+        }
+
+        ~FileHandle()
+        {
+            if (_handle != nullptr)
+                fclose(_handle);
+        }
+
+        void Swap(FileHandle& other)
+        {
+            std::swap(_handle, other._handle);
+        }
+
+        void Close()
+        {
+            // This is safe to call on a closed stream
+            FILE* localHandle(_handle);
+            _handle = nullptr;
+
+            if (localHandle != nullptr && fclose(localHandle) == EOF)
+                throw FileIOException();
+        }
+
+        void Flush()
+        {
+            VerifyOutputStream();
+            if (fflush(_handle) == EOF)
+                throw FileIOException();
+        }
+
+        int GetChar()
+        {
+            VerifyInputStream();
+            int const value(fgetc(_handle));
+            if (value == EOF)
+                throw FileIOException();
+
+            return value;
+        }
+
+        fpos_t GetPosition() const
+        {
+            VerifyInitialized();
+
+            fpos_t position((fpos_t()));
+            if (fgetpos(_handle, &position) != 0)
+                throw FileIOException();
+
+            return position;
+        }
+
+        bool IsEof() const
+        {
+            VerifyInitialized();
+            return feof(_handle) != 0;
+        }
+
+        bool IsError() const
+        {
+            VerifyInitialized();
+            return ferror(_handle) != 0;
+        }
+
+        void PutChar(unsigned char const character)
+        {
+            VerifyOutputStream();
+            if (fputc(character, _handle))
+                throw FileIOException();
+        }
+
+        void Read(void* const buffer, SizeType const size, SizeType const count)
+        {
+            VerifyInputStream();
+            if (fread(buffer, size, count, _handle) != count)
+                throw FileIOException();
+        }
+
+        void Seek(PositionType const position, OriginType const origin)
+        {
+            VerifyInitialized();
+            // TODO PORTABILITY
+            if (_fseeki64(_handle, position, origin) != 0)
+                throw FileIOException();
+        }
+
+        void SetPosition(fpos_t const position)
+        {
+            VerifyInitialized();
+            if (fsetpos(_handle, &position) != 0)
+                throw FileIOException();
+        }
+
+        PositionType Tell() const
+        {
+            VerifyInitialized();
+            // TODO PORTABILITY
+            return _ftelli64(_handle);
+        }
+
+        void UngetChar(unsigned char character)
+        {
+            VerifyInputStream();
+            // No errors are specified for ungetc, so if an error occurs, we don't know what it is:
+            if (ungetc(character, _handle) == EOF)
+                throw FileIOException("An unknown error occurred when ungetting");
+        }
+
+        void Write(void const* const data, SizeType const size, SizeType const count)
+        {
+            VerifyOutputStream();
+            if (fwrite(data, size, count, _handle) != count)
+                throw FileIOException();
+        }
+
+    private:
+
+        FileHandle(FileHandle const&);
+        FileHandle& operator=(FileHandle const&);
+
+        static wchar_t const* TranslateMode(FileModeFlags const mode)
+        {
+            #define CXXREFLECT_GENERATE(x, y, z)     \
+                static_cast<unsigned>(FileMode::x) | \
+                static_cast<unsigned>(FileMode::y) | \
+                static_cast<unsigned>(FileMode::z)
+
+            switch (mode.GetIntegral())
+            {
+            case CXXREFLECT_GENERATE(Read,   NonUpdate, Text)   : return L"r"  ;
+            case CXXREFLECT_GENERATE(Write,  NonUpdate, Text)   : return L"w"  ;
+            case CXXREFLECT_GENERATE(Append, NonUpdate, Text)   : return L"a"  ;
+            case CXXREFLECT_GENERATE(Read,   Update,    Text)   : return L"r+" ;
+            case CXXREFLECT_GENERATE(Write,  Update,    Text)   : return L"w+" ;
+            case CXXREFLECT_GENERATE(Append, Update,    Text)   : return L"a+" ;
+
+            case CXXREFLECT_GENERATE(Read,   NonUpdate, Binary) : return L"rb" ;
+            case CXXREFLECT_GENERATE(Write,  NonUpdate, Binary) : return L"wb" ;
+            case CXXREFLECT_GENERATE(Append, NonUpdate, Binary) : return L"ab" ;
+            case CXXREFLECT_GENERATE(Read,   Update,    Binary) : return L"rb+";
+            case CXXREFLECT_GENERATE(Write,  Update,    Binary) : return L"wb+";
+            case CXXREFLECT_GENERATE(Append, Update,    Binary) : return L"ab+";
+
+            default: throw FileIOException("Invalid mode specified");
+            }
+
+            #undef CXXREFLECT_GENERATE
+        }
+
+        void VerifyInputStream() const
+        {
+            VerifyInitialized();
+            Verify([&]
+            {
+                return _mode.IsSet(FileMode::Update)
+                    || _mode.WithMask(FileMode::ReadWriteAppendMask) != FileMode::Write;
+            });
+        }
+
+        void VerifyOutputStream() const
+        {
+            VerifyInitialized();
+            Verify([&]
+            {
+                return _mode.IsSet(FileMode::Update)
+                    || _mode.WithMask(FileMode::ReadWriteAppendMask) != FileMode::Read;
+            });
+        }
+
+        void VerifyInitialized() const
+        {
+            Verify([&]{ return _handle != nullptr; });
+        }
+
+        FileModeFlags _mode;
+        FILE*         _handle;
+    };
 
 
     // A fake dereferenceable type.  This is useful for implementing operator-> for an iterator
@@ -572,7 +863,7 @@ namespace CxxReflect { namespace Detail {
     // A "smart" pointer that is guaranteed to be either not initialized or not null.  If it is
     // default-initialized, then it is flagged as being "uninitialized" (meaning it is null);
     // however, it cannot be constructed with a null pointer.
-
+    /*
     template <typename T>
     class NonNull
     {
@@ -632,7 +923,7 @@ namespace CxxReflect { namespace Detail {
     template <typename T, typename U> bool operator> (NonNull<T> const& lhs, NonNull<U> const& rhs) { return lhs.Get() >  rhs.Get(); }
     template <typename T, typename U> bool operator<=(NonNull<T> const& lhs, NonNull<U> const& rhs) { return lhs.Get() <= rhs.Get(); }
     template <typename T, typename U> bool operator>=(NonNull<T> const& lhs, NonNull<U> const& rhs) { return lhs.Get() >= rhs.Get(); }
-
+    */
 
     template <typename T>
     class ValueInitialized
@@ -642,21 +933,27 @@ namespace CxxReflect { namespace Detail {
         typedef T ValueType;
 
         ValueInitialized()
-            : _x()
+            : _value()
         {
         }
 
-        explicit ValueInitialized(ValueType const& x)
-            : _x(x)
+        explicit ValueInitialized(ValueType const& value)
+            : _value(value)
         {
         }
 
-        ValueType      & Get()       { return _x; }
-        ValueType const& Get() const { return _x; }
+        ValueType      & Get()       { return _value; }
+        ValueType const& Get() const { return _value; }
+
+        void Reset()
+        {
+            _value.~ValueType();
+            new (&_value) ValueType();
+        }
 
     private:
 
-        ValueType _x;
+        ValueType _value;
     };
 
     template <typename T>
@@ -693,7 +990,7 @@ namespace CxxReflect { namespace Detail {
             // call requires that the conversion operator is present.
             return !static_cast<TDerived const&>(*this).operator!()
                 ? &SafeBoolConvertible::ThisTypeDoesNotSupportComparisons
-                : 0;
+                : nullptr;
         }
     };
 
@@ -887,6 +1184,116 @@ namespace CxxReflect { namespace Detail {
         TTableReference _current;
     };
 
+    template
+    <
+        typename TTableReference,
+        typename TResult,
+        typename TSource,
+        typename TFilterParameter,
+        typename TSourceProviderResult,
+        TSourceProviderResult (*FSourceProvider)(TSource const&),
+        bool (*FFilter)(TResult const&, TFilterParameter const&)
+    >
+    class NestedTableTransformIterator
+    {
+    public:
+
+        // TODO We could actually make this a bidirectional iterator, though computing the previous
+        // element could be rather expensive:  we'd need to trace sources forward from the original
+        // source until we find the source that owns the current range.
+        typedef std::forward_iterator_tag iterator_category;
+        typedef TResult                   value_type;
+        typedef TResult                   reference;
+        typedef Dereferenceable<TResult>  pointer;
+        typedef std::ptrdiff_t            difference_type;
+
+        typedef value_type                ValueType;
+        typedef reference                 Reference;
+        typedef pointer                   Pointer;
+        typedef difference_type           DifferenceType;
+
+        NestedTableTransformIterator()
+            : _originalSource(), _currentSource(), _currentElement(), _currentEndElement()
+        {
+        }
+
+        NestedTableTransformIterator(TSource const source,
+                                     TTableReference const current,
+                                     TTableReference const end,
+                                     TFilterParameter const& filter)
+            : _originalSource(source),
+              _currentSource(source),
+              _currentElement(current),
+              _currentEndElement(end),
+              _filter(filter)
+        {
+            if (current.GetIndex() == end.GetIndex())
+            {
+                _currentSource = TSource();
+                _currentElement = TTableReference();
+                _currentEndElement = TTableReference();
+            }
+            else
+            {
+                FilterAdvance();
+            }
+        }
+
+        Reference Get()        const { return ValueType(_currentSource, _originalSource, _currentElement); }
+        Reference operator*()  const { return ValueType(_currentSource, _originalSource, _currentElement); }
+        Pointer   operator->() const { return ValueType(_currentSource, _originalSource, _currentElement); }
+
+        NestedTableTransformIterator& operator++()
+        {
+            _currentElement = TTableReference(_currentElement.GetTable(), _currentElement.GetIndex() + 1);
+            FilterAdvance();
+            return *this;
+        }
+
+        NestedTableTransformIterator operator++(int)
+        {
+            auto const it(*this); ++*this; return it;
+        }
+
+        friend bool operator==(NestedTableTransformIterator const& lhs, NestedTableTransformIterator const& rhs)
+        {
+            return lhs._currentElement.GetIndex() == rhs._currentElement.GetIndex();
+        }
+
+        friend bool operator!=(NestedTableTransformIterator const& lhs, NestedTableTransformIterator const& rhs)
+        {
+            return !(lhs == rhs);
+        }
+
+    private:
+
+        void FilterAdvance()
+        {
+            if (_currentElement == _currentEndElement)
+            {
+                std::tie(_currentSource, _currentElement, _currentEndElement) = FSourceProvider(_currentSource);
+            }
+
+            while (_currentSource != nullptr
+                && !FFilter(ValueType(_currentSource, _originalSource, _currentElement), _filter))
+            {
+                _currentElement = TTableReference(_currentElement.GetTable(), _currentElement.GetIndex() + 1);
+
+                if (_currentElement == _currentEndElement)
+                {
+                    std::tie(_currentSource, _currentElement, _currentEndElement) = FSourceProvider(_currentSource);
+                }
+            }
+        }
+
+        TSource _originalSource;
+        TSource _currentSource;
+
+        TTableReference _currentElement;
+        TTableReference _currentEndElement;
+
+        TFilterParameter _filter;
+    };
 
     // Platform functionality wrappers:  these functions use platform-specific, third-party, or non-
     // standard types and functions; we encapsulate these functions here to make it easier to port
@@ -901,6 +1308,8 @@ namespace CxxReflect { namespace Detail {
     Sha1Hash ComputeSha1Hash(std::uint8_t const* first, std::uint8_t const* last);
 
     bool FileExists(wchar_t const* filePath);
+
+     class MethodReference;
 
 } }
 
@@ -968,6 +1377,7 @@ namespace CxxReflect {
     typedef std::size_t                        SizeType;
     typedef std::uint8_t                       Byte;
     typedef std::uint8_t const*                ByteIterator;
+    typedef std::uint32_t                      IndexType;
 
     typedef std::basic_string<Character>       String;
     typedef Detail::EnhancedCString<Character> StringReference;
@@ -977,9 +1387,32 @@ namespace CxxReflect {
     class File;
     class IMetadataResolver;
     class MetadataLoader;
+    class Method;
     class Module;
     class Type;
     class Version;
+
+    // There are many functions that should not be part of the public interface of the library, but
+    // which we need to be able to access from other parts of the CxxReflect library.  To do this,
+    // all "internal" member functions have a parameter of this "InternalKey" class type, which can
+    // only be constructed by a subset of the CxxReflect library types.  This is better than direct
+    // befriending, both because it is centralized and because it protects class invariants from
+    // bugs elsewhere in the library.
+    class InternalKey
+    {
+        InternalKey() { }
+
+        friend Detail::MethodReference;
+
+        friend Assembly;
+        friend AssemblyName;
+        friend File;
+        friend MetadataLoader;
+        friend Method;
+        friend Module;
+        friend Type;
+        friend Version;
+    };
 
     enum class AssemblyAttribute : std::uint32_t
     {
@@ -999,6 +1432,27 @@ namespace CxxReflect {
         None     = 0x0000,
         MD5      = 0x8003,
         SHA1     = 0x8004
+    };
+
+    // The subset of System.Reflection.BindingFlags that are useful for reflection-only
+    enum class BindingAttribute : std::uint32_t
+    {
+        Default          = 0x0000,
+        IgnoreCase       = 0x0001,
+        DeclaredOnly     = 0x0002,
+        Instance         = 0x0004,
+        Static           = 0x0008,
+        Public           = 0x0010,
+        NonPublic        = 0x0020,
+        FlattenHierarchy = 0x0040
+    };
+
+    enum class CallingConvention : std::uint8_t
+    {
+        Standard     = 0x00,
+        VarArgs      = 0x05,
+        HasThis      = 0x20,
+        ExplicitThis = 0x40
     };
 
     enum class EventAttribute : std::uint16_t
@@ -1197,6 +1651,7 @@ namespace CxxReflect {
     };
 
     typedef Detail::FlagSet<AssemblyAttribute>             AssemblyFlags;
+    typedef Detail::FlagSet<BindingAttribute>              BindingFlags;
     typedef Detail::FlagSet<EventAttribute>                EventFlags;
     typedef Detail::FlagSet<FieldAttribute>                FieldFlags;
     typedef Detail::FlagSet<FileAttribute>                 FileFlags;

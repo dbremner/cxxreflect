@@ -212,7 +212,7 @@ namespace {
         PeFileHeader fileHeader = { 0 };
         file.Read(&fileHeader, sizeof fileHeader, 1);
         if (fileHeader._sectionCount == 0 || fileHeader._sectionCount > 100)
-            throw ReadException("PE section count is out of range");
+            throw ReadError("PE section count is out of range");
 
         PeSectionHeaderSequence sections(fileHeader._sectionCount);
         file.Read(sections.data(), sizeof *sections.begin(), sections.size());
@@ -222,7 +222,7 @@ namespace {
             PeSectionContainsRva(fileHeader._cliHeaderTable._rva)));
 
         if (cliHeaderSectionIt == sections.end())
-            throw ReadException("Failed to locate PE file section containing CLI header");
+            throw ReadError("Failed to locate PE file section containing CLI header");
 
         std::size_t cliHeaderTableOffset(ComputeOffsetFromRva(
             *cliHeaderSectionIt,
@@ -248,7 +248,7 @@ namespace {
             PeSectionContainsRva(peHeader._cliHeader._metadata._rva)));
 
         if (metadataSectionIt == peHeader._sections.end())
-            throw ReadException("Failed to locate PE file section containing CLI metadata");
+            throw ReadError("Failed to locate PE file section containing CLI metadata");
 
         std::size_t metadataOffset(ComputeOffsetFromRva(
             *metadataSectionIt,
@@ -259,7 +259,7 @@ namespace {
         std::uint32_t magicSignature(0);
         file.Read(&magicSignature, sizeof magicSignature, 1);
         if (magicSignature != 0x424a5342)
-            throw ReadException("Magic signature does not match required value 0x424a5342");
+            throw ReadError("Magic signature does not match required value 0x424a5342");
 
         file.Seek(8, Detail::FileHandle::Current);
 
@@ -297,7 +297,7 @@ namespace {
             CXXREFLECT_GENERATE("#GUID",    GuidStream,       -4);
             CXXREFLECT_GENERATE("#~",       TableStream,      -8);
             if (!used)
-                throw ReadException("Unknown stream name encountered");
+                throw ReadError("Unknown stream name encountered");
 
             #undef CXXREFLECT_GENERATE
         }
@@ -521,7 +521,7 @@ namespace {
         {
         case 2:  return TableReference(TableId::MethodDef, split.second);
         case 3:  return TableReference(TableId::MemberRef, split.second);
-        default: throw ReadException("Invalid CustomAttributeType composite index value encountered");
+        default: throw ReadError("Invalid CustomAttributeType composite index value encountered");
         }
     }
 
@@ -533,7 +533,7 @@ namespace {
         case 0:  return TableReference(TableId::Field,    split.second);
         case 1:  return TableReference(TableId::Param,    split.second);
         case 2:  return TableReference(TableId::Property, split.second);
-        default: throw ReadException("Invalid HasConstant composite index value encountered");
+        default: throw ReadError("Invalid HasConstant composite index value encountered");
         }
     }
 
@@ -564,7 +564,7 @@ namespace {
         case 19: return TableReference(TableId::GenericParam,           split.second);
         case 20: return TableReference(TableId::GenericParamConstraint, split.second);
         case 21: return TableReference(TableId::MethodSpec,             split.second);
-        default: throw ReadException("Invalid HasCustomAttribute composite index value encountered");
+        default: throw ReadError("Invalid HasCustomAttribute composite index value encountered");
         }
     }
 
@@ -576,7 +576,7 @@ namespace {
         case 0:  return TableReference(TableId::TypeDef,   split.second);
         case 1:  return TableReference(TableId::MethodDef, split.second);
         case 2:  return TableReference(TableId::Assembly,  split.second);
-        default: throw ReadException("Invalid HasFieldMarshal composite index value encountered");
+        default: throw ReadError("Invalid HasFieldMarshal composite index value encountered");
         }
     }
 
@@ -610,7 +610,7 @@ namespace {
         case 0:  return TableReference(TableId::File,         split.second);
         case 1:  return TableReference(TableId::AssemblyRef,  split.second);
         case 2:  return TableReference(TableId::ExportedType, split.second);
-        default: throw ReadException("Invalid Implementation composite index value encountered");
+        default: throw ReadError("Invalid Implementation composite index value encountered");
         }
     }
 
@@ -635,7 +635,7 @@ namespace {
         case 2:  return TableReference(TableId::ModuleRef, split.second);
         case 3:  return TableReference(TableId::MethodDef, split.second);
         case 4:  return TableReference(TableId::TypeSpec,  split.second);
-        default: throw ReadException("Invalid MemberRefParent composite index value encountered");
+        default: throw ReadError("Invalid MemberRefParent composite index value encountered");
         }
     }
 
@@ -671,7 +671,7 @@ namespace {
         case 0:  return TableReference(TableId::TypeDef,  split.second);
         case 1:  return TableReference(TableId::TypeRef,  split.second);
         case 2:  return TableReference(TableId::TypeSpec, split.second);
-        default: throw ReadException("Invalid TypeDefOrRef composite index value encountered");
+        default: throw ReadError("Invalid TypeDefOrRef composite index value encountered");
         }
     }
 
@@ -692,6 +692,8 @@ namespace {
                                       SizeType       const  offset)
     {
         std::uint32_t const value(ReadCompositeIndex(database, data, index, offset));
+        if (value == 0)
+            return TableReference();
         switch (index)
         {
         case CompositeIndex::CustomAttributeType: return DecodeCustomAttributeTypeIndex(value);
@@ -720,8 +722,9 @@ namespace {
         SizeType const rowSize(database.GetTables().GetTable(TSourceId).GetRowSize());
         SizeType const logicalIndex(byteOffset / rowSize);
 
-        SizeType const targetTableRowCount(database.GetTables().GetTable(TSourceId).GetRowCount());
-        if (logicalIndex == targetTableRowCount)
+        SizeType const sourceTableRowCount(database.GetTables().GetTable(TSourceId).GetRowCount());
+        SizeType const targetTableRowCount(database.GetTables().GetTable(TTargetId).GetRowCount());
+        if (logicalIndex + 1 == sourceTableRowCount)
         {
             return TableReference(TTargetId, targetTableRowCount);
         }
@@ -763,27 +766,26 @@ namespace CxxReflect { namespace Metadata {
 
     TableCollection::TableCollection(Stream&& stream)
         : _stream(std::move(stream)),
-          _initialized(true),
-          _state()
+          _initialized(true)
     {
         std::bitset<8> heapSizes(_stream.ReadAs<std::uint8_t>(6));
-        _state._stringHeapIndexSize = heapSizes.test(0) ? 4 : 2;
-        _state._guidHeapIndexSize   = heapSizes.test(1) ? 4 : 2;
-        _state._blobHeapIndexSize   = heapSizes.test(2) ? 4 : 2;
+        _state.Get()._stringHeapIndexSize = heapSizes.test(0) ? 4 : 2;
+        _state.Get()._guidHeapIndexSize   = heapSizes.test(1) ? 4 : 2;
+        _state.Get()._blobHeapIndexSize   = heapSizes.test(2) ? 4 : 2;
 
-        _state._validBits  = _stream.ReadAs<std::uint64_t>(8);
-        _state._sortedBits = _stream.ReadAs<std::uint64_t>(16);
+        _state.Get()._validBits  = _stream.ReadAs<std::uint64_t>(8);
+        _state.Get()._sortedBits = _stream.ReadAs<std::uint64_t>(16);
 
         SizeType index(24);
         for (unsigned x(0); x < 64; ++x)
         {
-            if (!_state._validBits.test(x))
+            if (!_state.Get()._validBits.test(x))
                 continue;
 
             if (!IsValidTableId(x))
-                throw ReadException("Metadata table presence vector has invalid bits set");
+                throw ReadError("Metadata table presence vector has invalid bits set");
 
-            _state._rowCounts[x] = _stream.ReadAs<std::uint32_t>(index);
+            _state.Get()._rowCounts[x] = _stream.ReadAs<std::uint32_t>(index);
             index += 4;
         }
 
@@ -792,22 +794,22 @@ namespace CxxReflect { namespace Metadata {
 
         for (unsigned x(0); x < 64; ++x)
         {
-            if (!_state._validBits.test(x) || _state._rowCounts[x] == 0)
+            if (!_state.Get()._validBits.test(x) || _state.Get()._rowCounts[x] == 0)
                 continue;
 
-            _state._tables[x] = Table(_stream.At(index),
-                                      _state._rowSizes[x],
-                                      _state._rowCounts[x],
-                                      _state._sortedBits.test(x));
-            index += _state._rowSizes[x] * _state._rowCounts[x];
+            _state.Get()._tables[x] = Table(_stream.At(index),
+                                            _state.Get()._rowSizes[x],
+                                            _state.Get()._rowCounts[x],
+                                            _state.Get()._sortedBits.test(x));
+            index += _state.Get()._rowSizes[x] * _state.Get()._rowCounts[x];
         }
     }
 
     void TableCollection::ComputeCompositeIndexSizes()
     {
-        #define CXXREFLECT_GENERATE(x)                                          \
-            _state._compositeIndexSizes[Detail::AsInteger(CompositeIndex::x)] = \
-                Compute ## x ## IndexSize(_state._rowCounts)
+        #define CXXREFLECT_GENERATE(x)                                                \
+            _state.Get()._compositeIndexSizes[Detail::AsInteger(CompositeIndex::x)] = \
+                Compute ## x ## IndexSize(_state.Get()._rowCounts)
         
         CXXREFLECT_GENERATE(TypeDefOrRef       );
         CXXREFLECT_GENERATE(HasConstant        );
@@ -828,9 +830,9 @@ namespace CxxReflect { namespace Metadata {
 
     void TableCollection::ComputeTableRowSizes()
     {
-        #define CXXREFLECT_GENERATE(x, n, o)                                \
-            _state._columnOffsets[Detail::AsInteger(TableId::x)][n] =       \
-            _state._columnOffsets[Detail::AsInteger(TableId::x)][n - 1] + o
+        #define CXXREFLECT_GENERATE(x, n, o)                                      \
+            _state.Get()._columnOffsets[Detail::AsInteger(TableId::x)][n] =       \
+            _state.Get()._columnOffsets[Detail::AsInteger(TableId::x)][n - 1] + o
 
         CXXREFLECT_GENERATE(Assembly, 1, 4);
         CXXREFLECT_GENERATE(Assembly, 2, 8);
@@ -989,9 +991,9 @@ namespace CxxReflect { namespace Metadata {
         #undef CXXREFLECT_GENERATE
 
         // Finally, compute the complete row sizes:
-        std::transform(_state._columnOffsets.begin(),
-                       _state._columnOffsets.end(),
-                       _state._rowSizes.begin(),
+        std::transform(_state.Get()._columnOffsets.begin(),
+                       _state.Get()._columnOffsets.end(),
+                       _state.Get()._rowSizes.begin(),
                        [](ColumnOffsetSequence const& x) -> SizeType
         {
             auto const it(std::find_if(x.rbegin(), x.rend(), [](SizeType n) { return n != 0; }));
@@ -1001,30 +1003,33 @@ namespace CxxReflect { namespace Metadata {
 
     SizeType TableCollection::GetCompositeIndexSize(CompositeIndex const index) const
     {
-        return _state._compositeIndexSizes[Detail::AsInteger(index)];
+        return _state.Get()._compositeIndexSizes[Detail::AsInteger(index)];
     }
 
-    SizeType TableCollection::GetTableColumnOffset(TableId const table, SizeType const column) const
+    SizeType TableCollection::GetTableColumnOffset(TableId const tableId, SizeType const column) const
     {
         Detail::Verify([&] { return column < MaximumColumnCount; }, "Invalid column identifier");
         // TODO Check table-specific offset
-        return _state._columnOffsets[Detail::AsInteger(table)][column];
+        return _state.Get()._columnOffsets[Detail::AsInteger(tableId)][column];
     }
 
-    Table const& TableCollection::GetTable(TableId const id) const
+    Table const& TableCollection::GetTable(TableId const tableId) const
     {
-        return _state._tables[Detail::AsInteger(id)];
+        return _state.Get()._tables[Detail::AsInteger(tableId)];
     }
 
-    SizeType TableCollection::GetTableIndexSize(TableId const id) const
+    SizeType TableCollection::GetTableIndexSize(TableId const tableId) const
     {
-        return _state._rowCounts[Detail::AsInteger(id)] < (1 << 16) ? 2 : 4;
+        return _state.Get()._rowCounts[Detail::AsInteger(tableId)] < (1 << 16) ? 2 : 4;
     }
 
-    Database::Database(Detail::NonNull<wchar_t const*> const fileName)
-        : _fileName(fileName.Get())
+    Database::Database(String fileName)
+        : _fileName(std::move(fileName))
     {
-        Detail::FileHandle file(fileName.Get());
+        Detail::FileModeFlags const mode(
+            Detail::AsInteger(Detail::FileMode::Read) |
+            Detail::AsInteger(Detail::FileMode::Binary));
+        Detail::FileHandle file(_fileName.c_str(), mode);
 
         PeSectionsAndCliHeader const peSectionsAndCliHeader(ReadPeSectionsAndCliHeader(file));
         PeCliStreamHeaderSequence const streamHeaders(ReadPeCliStreamHeaders(file, peSectionsAndCliHeader));
@@ -1666,7 +1671,7 @@ namespace CxxReflect { namespace Metadata {
 
     BlobReference TypeSpecRow::GetSignature() const
     {
-        return ReadBlob(*_database, _data, 0);
+        return ReadBlob(*_database, _data, GetColumnOffset(0));
     }
 
 } }

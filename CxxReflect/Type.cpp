@@ -3,6 +3,7 @@
 //     (See accompanying file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)    //
 
 #include "CxxReflect/AssemblyName.hpp"
+#include "CxxReflect/Method.hpp"
 #include "CxxReflect/Type.hpp"
 
 #include <sstream>
@@ -66,7 +67,7 @@ namespace CxxReflect {
                 GetDeclaringType().AccumulateFullNameInto(os);
                 os << L'+' << GetName();
             }
-            else if (GetNamespace().size() > 1)
+            else if (GetNamespace().size() > 1) // TODO REMOVE NULL TERMINATOR FROM COUNT
             {
                 os << GetNamespace() << L'.' << GetName();
             }
@@ -88,11 +89,70 @@ namespace CxxReflect {
         }
     }
 
+    Type::MethodIterator Type::BeginMethods(BindingFlags flags) const
+    {
+        // TODO TYPESPEC SUPPORT
+        return MethodIterator(
+            *this,
+            GetTypeDefRow().GetFirstMethod(),
+            GetTypeDefRow().GetLastMethod(),
+            flags);
+    }
+
+    Type::MethodIterator Type::EndMethods() const
+    {
+        return MethodIterator();
+    }
+
+    Type::NextMethodScopeResult Type::InternalNextMethodScope(Type const& currentScope)
+    {
+        Type const baseType(currentScope.GetBaseType());
+        if (!baseType || !baseType.IsTypeDef()) // TODO HANDLE TYPESPECS
+        {
+            return NextMethodScopeResult();
+        }
+
+        return NextMethodScopeResult(
+            baseType,
+            baseType.GetTypeDefRow().GetFirstMethod(),
+            baseType.GetTypeDefRow().GetLastMethod());
+    }
+
+    bool Type::InternalFilterMethod(Method const& method, BindingFlags const& flags)
+    {
+        // Constructors are never returned during method iteration
+        if (method.GetName() == L".ctor" || method.GetName() == L".cctor")
+            return false;
+
+        if (method.GetAttributes().WithMask(MethodAttribute::MemberAccessMask) != MethodAttribute::Public &&
+            !flags.IsSet(BindingAttribute::NonPublic))
+            return false;
+
+        if (method.GetDeclaringType() != method.GetReflectedType())
+        {
+            MethodFlags const attributes(method.GetAttributes());
+            //if (attributes.IsSet(MethodAttribute::Static))
+            //    return false;
+
+            //if (attributes.IsSet(MethodAttribute::Virtual) &&
+            //    attributes.WithMask(MethodAttribute::VTableLayoutMask) == MethodAttribute::ReuseSlot)
+            //    return false;
+
+            if (attributes.WithMask(MethodAttribute::MemberAccessMask) == MethodAttribute::Private)
+                return false;
+        }
+
+        return true;
+    }
+
     Type Type::GetBaseType() const
     {
         return ResolveTypeDefTypeAndCall([&](Type const& t) -> Type
         {
             Metadata::TableReference extends(t.GetTypeDefRow().GetExtends());
+            if (!extends.IsValid())
+                return Type();
+
             switch (extends.GetTable())
             {
             case Metadata::TableId::TypeDef:
@@ -111,7 +171,7 @@ namespace CxxReflect {
     {
         if (IsNested())
         {
-            Metadata::Database const& database(_assembly.GetDatabase());
+            Metadata::Database const& database(_assembly.GetDatabase(InternalKey()));
             auto const it(std::lower_bound(
                 database.Begin<Metadata::TableId::NestedClass>(),
                 database.End<Metadata::TableId::NestedClass>(),
