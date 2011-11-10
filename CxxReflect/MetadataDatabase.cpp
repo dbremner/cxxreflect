@@ -475,7 +475,7 @@ namespace {
 
     BlobReference ReadBlob(Database const& database, ByteIterator const data, SizeType const offset)
     {
-        return database.GetBlob(ReadBlobHeapIndex(database, data, offset));
+        return BlobReference(ReadBlobHeapIndex(database, data, offset));
     }
 
     std::uint32_t ReadStringHeapIndex(Database const& database, ByteIterator const data, SizeType const offset)

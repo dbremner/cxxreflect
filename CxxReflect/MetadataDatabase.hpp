@@ -149,16 +149,26 @@ namespace CxxReflect { namespace Metadata {
 
         TableId GetTable() const
         {
+            VerifyInitialized();
             return static_cast<TableId>((_value & ValueTableIdMask) >> ValueIndexBits);
         }
 
         IndexType GetIndex() const
         {
+            VerifyInitialized();
             return _value & ValueIndexMask;
+        }
+
+        ValueType GetValue() const
+        {
+            VerifyInitialized();
+            return _value;
         }
 
         TokenType GetToken() const
         {
+            VerifyInitialized();
+
             // The metadata token is the same as the value we store, except that it uses a one-based
             // indexing scheme rather than a zero-based indexing scheme.  We check in ComposeValue
             // to ensure that adding one here will not cause the index to overflow.
@@ -206,6 +216,11 @@ namespace CxxReflect { namespace Metadata {
             return tableIdComponent | indexComponent;
         }
 
+        void VerifyInitialized() const
+        {
+            Detail::Verify([&]{ return IsInitialized(); });
+        }
+
         // The value is the composition of the table id in the high eight bits and the zero-based
         // index in the remaining 24 bits.  This is similar to a metadata token, but metadata tokens
         // use one-based indices.
@@ -221,31 +236,158 @@ namespace CxxReflect { namespace Metadata {
     {
     public:
 
+        enum : std::uint32_t
+        {
+            InvalidIndex = static_cast<std::uint32_t>(-1)
+        };
+
         BlobReference()
-            : _pointer(nullptr)
+            : _index(InvalidIndex)
         {
         }
 
-        explicit BlobReference(ByteIterator const pointer)
-            : _size(*pointer), _pointer(pointer + 1)
+        explicit BlobReference(IndexType const index)
+            : _index(index)
         {
-            Detail::VerifyNotNull(pointer);
+            VerifyInitialized();
         }
 
-        ByteIterator Begin()         const { VerifyInitialized(); return _pointer;         }
-        ByteIterator End()           const { VerifyInitialized(); return _pointer + _size; }
-        SizeType     GetSize()       const { VerifyInitialized(); return _size;            }
-        bool         IsInitialized() const { return _pointer != nullptr;                   }
+        IndexType GetIndex() const
+        {
+            VerifyInitialized();
+            return _index;
+        }
+
+        bool IsValid() const
+        {
+            return _index != InvalidIndex;
+        }
+
+        bool IsInitialized() const
+        {
+            return _index != InvalidIndex;
+        }
+
+        friend bool operator==(BlobReference const& lhs, BlobReference const& rhs)
+        {
+            return lhs._index == rhs._index;
+        }
+
+        friend bool operator<(BlobReference const& lhs, BlobReference const& rhs)
+        {
+            return lhs._index < rhs._index;
+        }
+
+        friend bool operator!=(BlobReference const& lhs, BlobReference const& rhs) { return !(lhs == rhs); }
+        friend bool operator> (BlobReference const& lhs, BlobReference const& rhs) { return   rhs <  lhs ; }
+        friend bool operator>=(BlobReference const& lhs, BlobReference const& rhs) { return !(lhs <  rhs); }
+        friend bool operator<=(BlobReference const& lhs, BlobReference const& rhs) { return !(rhs <  lhs); }
 
     private:
 
         void VerifyInitialized() const
         {
-            Detail::Verify([&] { return IsInitialized(); }, "Blob is not initialized");
+            Detail::Verify([&] { return IsInitialized(); });
         }
 
-        SizeType     _size;
-        ByteIterator _pointer;
+        IndexType _index;
+    };
+
+
+
+
+    // A space-efficient discriminated union that can hold a TableReference or a BlobReference.  It
+    // relies on the fact that the high bit in a table index or a blob index is never set, so we can
+    // store the "kind tag" in the high bit.
+    class TableOrBlobReference
+    {
+    public:
+
+        enum : std::uint32_t
+        {
+            InvalidIndex = static_cast<IndexType>(-1)
+        };
+
+        typedef std::uint32_t ValueType;
+
+        TableOrBlobReference()
+            : _index(InvalidIndex)
+        {
+        }
+
+        TableOrBlobReference(TableReference reference)
+            : _index((reference.GetIndex() & ~KindMask) | TableKindBit)
+        {
+            Detail::Verify([&]{ return (reference.GetIndex() & ~KindMask) == reference.GetIndex(); });
+        }
+
+        TableOrBlobReference(BlobReference reference)
+            : _index((reference.GetIndex() & ~KindMask) | BlobKindBit)
+        {
+            Detail::Verify([&]{ return (reference.GetIndex() & ~KindMask) == reference.GetIndex(); });
+        }
+
+        TableReference AsTableReference() const
+        {
+            Detail::Verify([&]{ return IsTableReference(); });
+            IndexType const value(_index & ~KindMask);
+            return TableReference(
+                static_cast<TableId>(
+                    (value & TableReference::ValueTableIdMask) >> TableReference::ValueIndexBits),
+                value & TableReference::ValueIndexMask);
+        }
+
+        BlobReference AsBlobReference() const
+        {
+            Detail::Verify([&]{ return IsBlobReference(); });
+            return BlobReference(_index & ~KindMask);
+        }
+
+        bool IsTableReference() const
+        {
+            return IsValid() && (_index & KindMask) == TableKindBit;
+        }
+
+        bool IsBlobReference() const
+        {
+            return IsValid() && (_index & KindMask) == BlobKindBit;
+        }
+
+        bool IsValid() const
+        {
+            return _index != InvalidIndex;
+        }
+
+        bool IsInitialized() const
+        {
+            return _index != InvalidIndex;
+        }
+
+        friend bool operator==(TableOrBlobReference const& lhs, TableOrBlobReference const& rhs)
+        {
+            return lhs._index == rhs._index;
+        }
+
+        friend bool operator<(TableOrBlobReference const& lhs, TableOrBlobReference const& rhs)
+        {
+            return lhs._index < rhs._index;
+        }
+
+        friend bool operator!=(TableOrBlobReference const& lhs, TableOrBlobReference const& rhs) { return !(lhs == rhs); }
+        friend bool operator> (TableOrBlobReference const& lhs, TableOrBlobReference const& rhs) { return   rhs <  lhs ; }
+        friend bool operator>=(TableOrBlobReference const& lhs, TableOrBlobReference const& rhs) { return !(lhs <  rhs); }
+        friend bool operator<=(TableOrBlobReference const& lhs, TableOrBlobReference const& rhs) { return !(rhs <  lhs); }
+
+    private:
+
+        enum : std::uint32_t
+        {
+            KindMask     = 0x80000000,
+            TableKindBit = 0x00000000,
+            BlobKindBit  = 0x80000000
+        };
+
+        IndexType _index;
     };
 
 
@@ -668,10 +810,10 @@ namespace CxxReflect { namespace Metadata {
             return ReturnType(this, _tables.GetTable(TId).At(index));
         }
 
-        BlobReference GetBlob(SizeType const index) const
-        {
-            return BlobReference(_blobStream.At(index));
-        }
+        //BlobReference GetBlob(SizeType const index) const
+        //{
+        //    return BlobReference(_blobStream.At(index));
+        //}
 
         StringReference GetString(SizeType const index) const
         {

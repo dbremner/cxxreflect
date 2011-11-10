@@ -16,21 +16,23 @@ using namespace CxxReflect;
 
 namespace {
 
-    PublicKeyToken ComputePublicKeyToken(Metadata::BlobReference const blob, bool const isFullPublicKey)
+    PublicKeyToken ComputePublicKeyToken(Metadata::BlobReference const, bool const isFullPublicKey)
     {
         PublicKeyToken result;
 
         if (isFullPublicKey)
         {
-            Detail::Sha1Hash const hash(Detail::ComputeSha1Hash(blob.Begin(), blob.End()));
-            std::copy(hash.rbegin(), hash.rbegin() + 8, result.begin());
+            // TODO WE NEED TO COMPLETE BLOB SUPPORT BEFORE THIS WILL WORK
+            //Detail::Sha1Hash const hash(Detail::ComputeSha1Hash(blob.Begin(), blob.End()));
+            //std::copy(hash.rbegin(), hash.rbegin() + 8, result.begin());
         }
         else
         {
-            if (blob.GetSize() != 8)
-                throw std::runtime_error("wtf");
+            // TODO WE NEED TO COMPLETE BLOB SUPPORT BEFORE THIS WILL WORK
+            //if (blob.GetSize() != 8)
+            //    throw std::runtime_error("wtf");
 
-            std::copy(blob.Begin(), blob.End(), result.begin());
+            //std::copy(blob.Begin(), blob.End(), result.begin());
         }
 
         return result;

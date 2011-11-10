@@ -176,7 +176,7 @@ namespace CxxReflect {
                 database.Begin<Metadata::TableId::NestedClass>(),
                 database.End<Metadata::TableId::NestedClass>(),
                 _type,
-                [](Metadata::NestedClassRow const& r, Metadata::TableReference const index)
+                [](Metadata::NestedClassRow const& r, Metadata::TableOrBlobReference const index)
             {
                 return r.GetNestedClass() < index;
             }));

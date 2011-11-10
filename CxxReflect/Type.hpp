@@ -42,15 +42,23 @@ namespace CxxReflect {
         }
 
         Type(Assembly const& assembly, Metadata::TableReference const& type)
-            : _assembly(assembly), _type(type)
+            : _assembly(assembly), _type(Metadata::TableOrBlobReference(type))
         {
-            // Note that a null type index is valid here:  it indicates no type
-            Detail::Verify([&] { return assembly.IsInitialized();    });
-            Detail::Verify([&] { return IsTypeDef() || IsTypeSpec(); });
+            Detail::Verify([&] { return assembly.IsInitialized(); });
         }
 
-        Assembly const& GetAssembly()      const { return _assembly;        }
-        SizeType        GetMetadataToken() const { return _type.GetToken(); }
+        Type(Assembly const& assembly, Metadata::BlobReference const& type)
+            : _assembly(assembly), _type(Metadata::TableOrBlobReference(type))
+        {
+            Detail::Verify([&] { return assembly.IsInitialized(); });
+        }
+
+        Assembly const& GetAssembly()      const { return _assembly; }
+
+        SizeType GetMetadataToken() const
+        {
+            return _type.IsTableReference() ? _type.AsTableReference().GetToken() : 0;
+        }
 
         Type GetBaseType() const;
         Type GetDeclaringType() const;
@@ -137,19 +145,33 @@ namespace CxxReflect {
             Detail::Verify([&] { return IsInitialized(); }, "Type is not initialized");
         }
 
-        bool IsTypeDef()  const { return _type.GetTable() == Metadata::TableId::TypeDef;  }
-        bool IsTypeSpec() const { return _type.GetTable() == Metadata::TableId::TypeSpec; }
+        bool IsTypeDef()  const
+        {
+            return _type.IsTableReference()
+                && _type.AsTableReference().GetTable() == Metadata::TableId::TypeDef;
+        }
+
+        bool IsTypeSpec() const
+        {
+            return _type.IsBlobReference()
+                || _type.AsTableReference().GetTable() == Metadata::TableId::TypeSpec;
+        }
 
         Metadata::TypeDefRow  GetTypeDefRow() const
         {
             Detail::Verify([&] { return IsTypeDef(); });
-            return _assembly.GetDatabase(InternalKey()).GetRow<Metadata::TableId::TypeDef>(_type.GetIndex());
+            return _assembly
+                .GetDatabase(InternalKey())
+                .GetRow<Metadata::TableId::TypeDef>(_type.AsTableReference().GetIndex());
         }
 
         Metadata::TypeSpecRow GetTypeSpecRow() const
         {
             Detail::Verify([&] { return IsTypeSpec(); });
-            return _assembly.GetDatabase(InternalKey()).GetRow<Metadata::TableId::TypeSpec>(_type.GetIndex());
+            // TODO HANDLE BLOB REFERENCES HERE
+            return _assembly
+                .GetDatabase(InternalKey())
+                .GetRow<Metadata::TableId::TypeSpec>(_type.AsTableReference().GetIndex());
         }
 
         #define CXXREFLECT_GENERATE decltype(std::declval<TCallback>()(std::declval<Type>()))
@@ -181,8 +203,8 @@ namespace CxxReflect {
         void AccumulateFullNameInto(std::wostream& os) const;
         void AccumulateAssemblyQualifiedNameInto(std::wostream& os) const;
 
-        Assembly                  _assembly;
-        Metadata::TableReference  _type;
+        Assembly                       _assembly;
+        Metadata::TableOrBlobReference _type;
     };
 
     inline bool operator==(Type const& lhs, Type const& rhs)
