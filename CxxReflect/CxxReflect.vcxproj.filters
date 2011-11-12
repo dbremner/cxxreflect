@@ -75,7 +75,6 @@
     <ClInclude Include="Utility.hpp">
       <Filter>Headers</Filter>
     </ClInclude>
-    <ClInclude Include="CoreDeclarations.hpp" />
     <ClInclude Include="Core.hpp">
       <Filter>Headers</Filter>
     </ClInclude>

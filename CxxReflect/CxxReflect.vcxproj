@@ -74,7 +74,6 @@
     <ClInclude Include="Assembly.hpp" />
     <ClInclude Include="AssemblyName.hpp" />
     <ClInclude Include="Core.hpp" />
-    <ClInclude Include="CoreDeclarations.hpp" />
     <ClInclude Include="CustomAttribute.hpp" />
     <ClInclude Include="Event.hpp" />
     <ClInclude Include="Field.hpp" />
