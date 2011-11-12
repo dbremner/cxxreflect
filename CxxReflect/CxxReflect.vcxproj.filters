@@ -25,10 +25,10 @@
     <ClCompile Include="Type.cpp">
       <Filter>Sources</Filter>
     </ClCompile>
-    <ClCompile Include="Utility.cpp">
+    <ClCompile Include="Method.cpp">
       <Filter>Sources</Filter>
     </ClCompile>
-    <ClCompile Include="Method.cpp">
+    <ClCompile Include="MetadataSignature.cpp">
       <Filter>Sources</Filter>
     </ClCompile>
   </ItemGroup>
@@ -88,7 +88,7 @@
     <ClInclude Include="Module.hpp">
       <Filter>Headers</Filter>
     </ClInclude>
-    <ClInclude Include="MetadataBlob.hpp">
+    <ClInclude Include="MetadataSignature.hpp">
       <Filter>Headers</Filter>
     </ClInclude>
   </ItemGroup>

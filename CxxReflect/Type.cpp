@@ -8,30 +8,32 @@
 
 #include <sstream>
 
-namespace {
+namespace { namespace Private {
 
-    bool IsSystemAssembly(CxxReflect::Assembly const& assembly)
+    using namespace CxxReflect;
+
+    bool IsSystemAssembly(Assembly const& assembly)
     {
         // The system assembly has no assembly references; it is usually mscorlib.dll, but it could
         // be named something else (e.g., Platform.winmd in WinRT?)
         return assembly.GetReferencedAssemblyCount() == 0;
     }
 
-    bool IsSystemType(CxxReflect::Type const& type,
-                      CxxReflect::StringReference const& typeNamespace,
-                      CxxReflect::StringReference const& typeName)
+    bool IsSystemType(Type const& type,
+                      StringReference const& typeNamespace,
+                      StringReference const& typeName)
     {
         return IsSystemAssembly(type.GetAssembly())
             && type.GetNamespace() == typeNamespace
             && type.GetName() == typeName;
     }
 
-    bool IsDerivedFromSystemType(CxxReflect::Type const& type,
-                                 CxxReflect::StringReference const& typeNamespace,
-                                 CxxReflect::StringReference const& typeName,
+    bool IsDerivedFromSystemType(Type const& type,
+                                 StringReference const& typeNamespace,
+                                 StringReference const& typeName,
                                  bool const includeSelf)
     {
-        CxxReflect::Type currentType(type);
+        Type currentType(type);
         if (!includeSelf && currentType)
         {
             currentType = type.GetBaseType();
@@ -50,7 +52,7 @@ namespace {
         return false;
     }
 
-}
+} }
 
 namespace CxxReflect {
 
@@ -295,7 +297,7 @@ namespace CxxReflect {
     {
         return ResolveTypeDefTypeAndCall([](Type const& t)
         {
-            return IsDerivedFromSystemType(t, L"System", L"__ComObject", true);
+            return Private::IsDerivedFromSystemType(t, L"System", L"__ComObject", true);
         });
     }
 
@@ -303,7 +305,7 @@ namespace CxxReflect {
     {
         return ResolveTypeDefTypeAndCall([](Type const& t)
         {
-            return IsDerivedFromSystemType(t, L"System", L"ContextBoundObject", true);
+            return Private::IsDerivedFromSystemType(t, L"System", L"ContextBoundObject", true);
         });
     }
 
@@ -311,7 +313,7 @@ namespace CxxReflect {
     {
         if (!IsTypeDef()) { return false; }
 
-        return IsDerivedFromSystemType(*this, L"System", L"Enum", false);
+        return Private::IsDerivedFromSystemType(*this, L"System", L"Enum", false);
     }
 
     bool Type::IsExplicitLayout() const
@@ -376,7 +378,7 @@ namespace CxxReflect {
     {
         return ResolveTypeDefTypeAndCall([](Type const& t)
         {
-            return IsDerivedFromSystemType(t, L"System", L"MarshalByRefObject", true);
+            return Private::IsDerivedFromSystemType(t, L"System", L"MarshalByRefObject", true);
         });
     }
 
@@ -463,7 +465,7 @@ namespace CxxReflect {
     {
         if (!IsTypeDef()) { return false; }
 
-        if (!IsSystemAssembly(_assembly)) { return false; }
+        if (!Private::IsSystemAssembly(_assembly)) { return false; }
 
         if (GetTypeDefRow().GetNamespace() != L"System") { return false; }
 
@@ -503,7 +505,7 @@ namespace CxxReflect {
         {
             return t.GetTypeDefRow().GetFlags().IsSet(TypeAttribute::Serializable)
                 || t.IsEnum()
-                || IsDerivedFromSystemType(t, L"System", L"MulticastDelegate", true);
+                || Private::IsDerivedFromSystemType(t, L"System", L"MulticastDelegate", true);
         });
     }
 
@@ -526,8 +528,8 @@ namespace CxxReflect {
 
     bool Type::IsValueType() const
     {
-        return IsDerivedFromSystemType(*this, L"System", L"ValueType", false)
-            && !IsSystemType(*this, L"System", L"Enum");
+        return Private::IsDerivedFromSystemType(*this, L"System", L"ValueType", false)
+            && !Private::IsSystemType(*this, L"System", L"Enum");
     }
 
     bool Type::IsVisible() const

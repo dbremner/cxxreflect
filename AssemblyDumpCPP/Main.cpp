@@ -64,11 +64,11 @@ namespace
         os << L"    !!BeginMethods\n";
         Type methodsType = t.IsEnum() ? t.GetBaseType() : t;
         BindingFlags const bindings(
-            Detail::AsInteger(BindingAttribute::FlattenHierarchy) |
-            Detail::AsInteger(BindingAttribute::Instance)         |
-            Detail::AsInteger(BindingAttribute::NonPublic)        |
-            Detail::AsInteger(BindingAttribute::Public)           |
-            Detail::AsInteger(BindingAttribute::Static));
+            BindingAttribute::FlattenHierarchy |
+            BindingAttribute::Instance         |
+            BindingAttribute::NonPublic        |
+            BindingAttribute::Public           |
+            BindingAttribute::Static);
         std::for_each(methodsType.BeginMethods(bindings), methodsType.EndMethods(), [&](Method const& m)
         {
             Dump(os, m);

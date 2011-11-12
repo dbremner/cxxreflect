@@ -11,10 +11,10 @@
 #include <numeric>
 #include <vector>
 
-using namespace CxxReflect;
-using namespace CxxReflect::Metadata;
+namespace { namespace Private {
 
-namespace {
+    using namespace CxxReflect;
+    using namespace CxxReflect::Metadata;
 
     // The PE headers and related structures are naturally aligned, so we shouldn't need any custom
     // pragmas, attributes, or directives to pack the structures.  We use static assertions to ensure
@@ -473,7 +473,7 @@ namespace {
         return 0;
     }
 
-    BlobReference ReadBlob(Database const& database, ByteIterator const data, SizeType const offset)
+    BlobReference ReadBlobReference(Database const& database, ByteIterator const data, SizeType const offset)
     {
         return BlobReference(ReadBlobHeapIndex(database, data, offset));
     }
@@ -490,7 +490,7 @@ namespace {
         return 0;
     }
 
-    StringReference ReadString(Database const& database, ByteIterator const data, SizeType const offset)
+    StringReference ReadStringReference(Database const& database, ByteIterator const data, SizeType const offset)
     {
         return database.GetString(ReadStringHeapIndex(database, data, offset));
     }
@@ -733,7 +733,8 @@ namespace {
             return (database.GetRow<TSourceId>(logicalIndex + 1).*first)();
         }
     }
-}
+
+} }
 
 namespace CxxReflect { namespace Metadata {
 
@@ -809,7 +810,7 @@ namespace CxxReflect { namespace Metadata {
     {
         #define CXXREFLECT_GENERATE(x)                                                \
             _state.Get()._compositeIndexSizes[Detail::AsInteger(CompositeIndex::x)] = \
-                Compute ## x ## IndexSize(_state.Get()._rowCounts)
+                Private::Compute ## x ## IndexSize(_state.Get()._rowCounts)
         
         CXXREFLECT_GENERATE(TypeDefOrRef       );
         CXXREFLECT_GENERATE(HasConstant        );
@@ -1026,13 +1027,10 @@ namespace CxxReflect { namespace Metadata {
     Database::Database(String fileName)
         : _fileName(std::move(fileName))
     {
-        Detail::FileModeFlags const mode(
-            Detail::AsInteger(Detail::FileMode::Read) |
-            Detail::AsInteger(Detail::FileMode::Binary));
-        Detail::FileHandle file(_fileName.c_str(), mode);
+        Detail::FileHandle file(_fileName.c_str(), Detail::FileMode::Read | Detail::FileMode::Binary);
 
-        PeSectionsAndCliHeader const peSectionsAndCliHeader(ReadPeSectionsAndCliHeader(file));
-        PeCliStreamHeaderSequence const streamHeaders(ReadPeCliStreamHeaders(file, peSectionsAndCliHeader));
+        Private::PeSectionsAndCliHeader const peSectionsAndCliHeader(Private::ReadPeSectionsAndCliHeader(file));
+        Private::PeCliStreamHeaderSequence const streamHeaders(Private::ReadPeCliStreamHeaders(file, peSectionsAndCliHeader));
         for (std::size_t i(0); i < streamHeaders.size(); ++i)
         {
             if (streamHeaders[i]._metadataOffset == 0)
@@ -1044,25 +1042,25 @@ namespace CxxReflect { namespace Metadata {
                 streamHeaders[i]._streamOffset,
                 streamHeaders[i]._streamSize);
 
-            switch (static_cast<PeCliStreamKind>(i))
+            switch (static_cast<Private::PeCliStreamKind>(i))
             {
-            case PeCliStreamKind::StringStream:
+            case Private::PeCliStreamKind::StringStream:
                 _strings = StringCollection(std::move(newStream));
                 break;
 
-            case PeCliStreamKind::UserStringStream:
+            case Private::PeCliStreamKind::UserStringStream:
                 // We do not use the userstrings stream for metadata
                 break;
 
-            case PeCliStreamKind::BlobStream:
+            case Private::PeCliStreamKind::BlobStream:
                 _blobStream = std::move(newStream);
                 break;
 
-            case PeCliStreamKind::GuidStream:
+            case Private::PeCliStreamKind::GuidStream:
                 _guidStream = std::move(newStream);
                 break;
 
-            case PeCliStreamKind::TableStream:
+            case Private::PeCliStreamKind::TableStream:
                 _tables = TableCollection(std::move(newStream));
                 break;
 
@@ -1074,189 +1072,191 @@ namespace CxxReflect { namespace Metadata {
 
     AssemblyHashAlgorithm AssemblyRow::GetHashAlgorithm() const
     {
-        return ReadAs<AssemblyHashAlgorithm>(_data, GetColumnOffset(0));
+        return Private::ReadAs<AssemblyHashAlgorithm>(_data, GetColumnOffset(0));
     }
 
     Version AssemblyRow::GetVersion() const
     {
-        FourComponentVersion const version(ReadAs<FourComponentVersion>(_data, GetColumnOffset(1)));
+        Private::FourComponentVersion const version(
+            Private::ReadAs<Private::FourComponentVersion>(_data, GetColumnOffset(1)));
         return Version(version._major, version._minor, version._build, version._revision);
     }
 
     AssemblyFlags AssemblyRow::GetFlags() const
     {
-        return ReadAs<AssemblyAttribute>(_data, GetColumnOffset(2));
+        return Private::ReadAs<AssemblyAttribute>(_data, GetColumnOffset(2));
     }
 
     BlobReference AssemblyRow::GetPublicKey() const
     {
-        return ReadBlob(*_database, _data, GetColumnOffset(3));
+        return Private::ReadBlobReference(*_database, _data, GetColumnOffset(3));
     }
 
     StringReference AssemblyRow::GetName() const
     {
-        return ReadString(*_database, _data, GetColumnOffset(4));
+        return Private::ReadStringReference(*_database, _data, GetColumnOffset(4));
     }
 
     StringReference AssemblyRow::GetCulture() const
     {
-        return ReadString(*_database, _data, GetColumnOffset(5));
+        return Private::ReadStringReference(*_database, _data, GetColumnOffset(5));
     }
 
     std::uint32_t AssemblyOsRow::GetOsPlatformId()   const
     {
-        return ReadAs<std::uint32_t>(_data, GetColumnOffset(0));
+        return Private::ReadAs<std::uint32_t>(_data, GetColumnOffset(0));
     }
 
     std::uint32_t AssemblyOsRow::GetOsMajorVersion() const
     {
-        return ReadAs<std::uint32_t>(_data, GetColumnOffset(1));
+        return Private::ReadAs<std::uint32_t>(_data, GetColumnOffset(1));
     }
 
     std::uint32_t AssemblyOsRow::GetOsMinorVersion() const
     {
-        return ReadAs<std::uint32_t>(_data, GetColumnOffset(2));
+        return Private::ReadAs<std::uint32_t>(_data, GetColumnOffset(2));
     }
 
     std::uint32_t AssemblyProcessorRow::GetProcessor() const
     {
-        return ReadAs<std::uint32_t>(_data, GetColumnOffset(0));
+        return Private::ReadAs<std::uint32_t>(_data, GetColumnOffset(0));
     }
 
     Version AssemblyRefRow::GetVersion() const
     {
-        FourComponentVersion const version(ReadAs<FourComponentVersion>(_data, GetColumnOffset(0)));
+        Private::FourComponentVersion const version(
+            Private::ReadAs<Private::FourComponentVersion>(_data, GetColumnOffset(0)));
         return Version(version._major, version._minor, version._build, version._revision);
     }
 
     AssemblyFlags AssemblyRefRow::GetFlags() const
     {
-        return ReadAs<AssemblyAttribute>(_data, GetColumnOffset(1));
+        return Private::ReadAs<AssemblyAttribute>(_data, GetColumnOffset(1));
     }
 
     BlobReference AssemblyRefRow::GetPublicKey() const
     {
-        return ReadBlob(*_database, _data, GetColumnOffset(2));
+        return Private::ReadBlobReference(*_database, _data, GetColumnOffset(2));
     }
 
     StringReference AssemblyRefRow::GetName() const
     {
-        return ReadString(*_database, _data, GetColumnOffset(3));
+        return Private::ReadStringReference(*_database, _data, GetColumnOffset(3));
     }
 
     StringReference AssemblyRefRow::GetCulture() const
     {
-        return ReadString(*_database, _data, GetColumnOffset(4));
+        return Private::ReadStringReference(*_database, _data, GetColumnOffset(4));
     }
 
     BlobReference AssemblyRefRow::GetHashValue() const
     {
-        return ReadBlob(*_database, _data, GetColumnOffset(5));
+        return Private::ReadBlobReference(*_database, _data, GetColumnOffset(5));
     }
 
     std::uint32_t AssemblyRefOsRow::GetOsPlatformId()   const
     {
-        return ReadAs<std::uint32_t>(_data, GetColumnOffset(0));
+        return Private::ReadAs<std::uint32_t>(_data, GetColumnOffset(0));
     }
 
     std::uint32_t AssemblyRefOsRow::GetOsMajorVersion() const
     {
-        return ReadAs<std::uint32_t>(_data, GetColumnOffset(1));
+        return Private::ReadAs<std::uint32_t>(_data, GetColumnOffset(1));
     }
 
     std::uint32_t AssemblyRefOsRow::GetOsMinorVersion() const
     {
-        return ReadAs<std::uint32_t>(_data, GetColumnOffset(2));
+        return Private::ReadAs<std::uint32_t>(_data, GetColumnOffset(2));
     }
 
     TableReference AssemblyRefOsRow::GetAssemblyRef() const
     {
-        return ReadTableReference(*_database, _data, TableId::AssemblyRef, GetColumnOffset(3));
+        return Private::ReadTableReference(*_database, _data, TableId::AssemblyRef, GetColumnOffset(3));
     }
 
     std::uint32_t AssemblyRefProcessorRow::GetProcessor() const
     {
-        return ReadAs<std::uint32_t>(_data, GetColumnOffset(0));
+        return Private::ReadAs<std::uint32_t>(_data, GetColumnOffset(0));
     }
 
     TableReference AssemblyRefProcessorRow::GetAssemblyRef() const
     {
-        return ReadTableReference(*_database, _data, TableId::AssemblyRef, GetColumnOffset(1));
+        return Private::ReadTableReference(*_database, _data, TableId::AssemblyRef, GetColumnOffset(1));
     }
 
     std::uint16_t ClassLayoutRow::GetPackingSize() const
     {
-        return ReadAs<std::uint16_t>(_data, GetColumnOffset(0));
+        return Private::ReadAs<std::uint16_t>(_data, GetColumnOffset(0));
     }
 
     std::uint32_t ClassLayoutRow::GetClassSize() const
     {
-        return ReadAs<std::uint32_t>(_data, GetColumnOffset(1));
+        return Private::ReadAs<std::uint32_t>(_data, GetColumnOffset(1));
     }
 
     TableReference ClassLayoutRow::GetParentTypeDef() const
     {
-        return ReadTableReference(*_database, _data, TableId::TypeDef, GetColumnOffset(2));
+        return Private::ReadTableReference(*_database, _data, TableId::TypeDef, GetColumnOffset(2));
     }
 
     std::uint8_t ConstantRow::GetType() const
     {
-        return ReadAs<std::uint8_t>(_data, GetColumnOffset(0));
+        return Private::ReadAs<std::uint8_t>(_data, GetColumnOffset(0));
     }
 
     TableReference ConstantRow::GetParent() const
     {
-        return ReadTableReference(*_database, _data, CompositeIndex::HasConstant, GetColumnOffset(1));
+        return Private::ReadTableReference(*_database, _data, CompositeIndex::HasConstant, GetColumnOffset(1));
     }
 
     BlobReference ConstantRow::GetValue() const
     {
-        return ReadBlob(*_database, _data, GetColumnOffset(2));
+        return Private::ReadBlobReference(*_database, _data, GetColumnOffset(2));
     }
 
     TableReference CustomAttributeRow::GetParent() const
     {
-        return ReadTableReference(*_database, _data, CompositeIndex::HasCustomAttribute, GetColumnOffset(0));
+        return Private::ReadTableReference(*_database, _data, CompositeIndex::HasCustomAttribute, GetColumnOffset(0));
     }
 
     TableReference CustomAttributeRow::GetType() const
     {
-        return ReadTableReference(*_database, _data, CompositeIndex::CustomAttributeType, GetColumnOffset(1));
+        return Private::ReadTableReference(*_database, _data, CompositeIndex::CustomAttributeType, GetColumnOffset(1));
     }
 
     BlobReference CustomAttributeRow::GetValue() const
     {
-        return ReadBlob(*_database, _data, GetColumnOffset(2));
+        return Private::ReadBlobReference(*_database, _data, GetColumnOffset(2));
     }
 
     std::uint16_t DeclSecurityRow::GetAction() const
     {
-        return ReadAs<std::uint16_t>(_data, GetColumnOffset(0));
+        return Private::ReadAs<std::uint16_t>(_data, GetColumnOffset(0));
     }
 
     TableReference DeclSecurityRow::GetParent() const
     {
-        return ReadTableReference(*_database, _data, CompositeIndex::HasDeclSecurity, GetColumnOffset(1));
+        return Private::ReadTableReference(*_database, _data, CompositeIndex::HasDeclSecurity, GetColumnOffset(1));
     }
 
     BlobReference DeclSecurityRow::GetPermissionSet() const
     {
-        return ReadBlob(*_database, _data, GetColumnOffset(2));
+        return Private::ReadBlobReference(*_database, _data, GetColumnOffset(2));
     }
 
     TableReference EventMapRow::GetParent() const
     {
-        return ReadTableReference(*_database, _data, TableId::TypeDef, GetColumnOffset(0));
+        return Private::ReadTableReference(*_database, _data, TableId::TypeDef, GetColumnOffset(0));
     }
 
     TableReference EventMapRow::GetFirstEvent() const
     {
-        return ReadTableReference(*_database, _data, TableId::Event, GetColumnOffset(1));
+        return Private::ReadTableReference(*_database, _data, TableId::Event, GetColumnOffset(1));
     }
 
     TableReference EventMapRow::GetLastEvent() const
     {
-        return ComputeLastTableReference<
+        return Private::ComputeLastTableReference<
             TableId::EventMap,
             TableId::Event
         >(*_database, _data, &EventMapRow::GetLastEvent);
@@ -1264,232 +1264,232 @@ namespace CxxReflect { namespace Metadata {
 
     EventFlags EventRow::GetFlags() const
     {
-        return ReadAs<EventAttribute>(_data, GetColumnOffset(0));
+        return Private::ReadAs<EventAttribute>(_data, GetColumnOffset(0));
     }
 
     StringReference EventRow::GetName() const
     {
-        return ReadString(*_database, _data, GetColumnOffset(1));
+        return Private::ReadStringReference(*_database, _data, GetColumnOffset(1));
     }
 
     TableReference EventRow::GetType() const
     {
-        return ReadTableReference(*_database, _data, CompositeIndex::TypeDefOrRef, GetColumnOffset(2));
+        return Private::ReadTableReference(*_database, _data, CompositeIndex::TypeDefOrRef, GetColumnOffset(2));
     }
 
     TypeFlags ExportedTypeRow::GetFlags() const
     {
-        return ReadAs<TypeAttribute>(_data, GetColumnOffset(0));
+        return Private::ReadAs<TypeAttribute>(_data, GetColumnOffset(0));
     }
 
     std::uint32_t ExportedTypeRow::GetTypeDefId() const
     {
-        return ReadAs<std::uint32_t>(_data, GetColumnOffset(1));
+        return Private::ReadAs<std::uint32_t>(_data, GetColumnOffset(1));
     }
 
     StringReference ExportedTypeRow::GetName() const
     {
-        return ReadString(*_database, _data, GetColumnOffset(2));
+        return Private::ReadStringReference(*_database, _data, GetColumnOffset(2));
     }
 
     StringReference ExportedTypeRow::GetNamespace() const
     {
-        return ReadString(*_database, _data, GetColumnOffset(3));
+        return Private::ReadStringReference(*_database, _data, GetColumnOffset(3));
     }
 
     TableReference ExportedTypeRow::GetImplementation() const
     {
-        return ReadTableReference(*_database, _data, CompositeIndex::Implementation, GetColumnOffset(4));
+        return Private::ReadTableReference(*_database, _data, CompositeIndex::Implementation, GetColumnOffset(4));
     }
 
     FieldFlags FieldRow::GetFlags() const
     {
-        return ReadAs<FieldAttribute>(_data, GetColumnOffset(0));
+        return Private::ReadAs<FieldAttribute>(_data, GetColumnOffset(0));
     }
 
     StringReference FieldRow::GetName() const
     {
-        return ReadString(*_database, _data, GetColumnOffset(1));
+        return Private::ReadStringReference(*_database, _data, GetColumnOffset(1));
     }
 
     BlobReference FieldRow::GetSignature() const
     {
-        return ReadBlob(*_database, _data, GetColumnOffset(2));
+        return Private::ReadBlobReference(*_database, _data, GetColumnOffset(2));
     }
 
     std::uint32_t FieldLayoutRow::GetOffset() const
     {
-        return ReadAs<std::uint32_t>(_data, GetColumnOffset(0));
+        return Private::ReadAs<std::uint32_t>(_data, GetColumnOffset(0));
     }
 
     TableReference FieldLayoutRow::GetField() const
     {
-        return ReadTableReference(*_database, _data, TableId::Field, GetColumnOffset(1));
+        return Private::ReadTableReference(*_database, _data, TableId::Field, GetColumnOffset(1));
     }
 
     TableReference FieldMarshalRow::GetParent() const
     {
-        return ReadTableReference(*_database, _data, CompositeIndex::HasFieldMarshal, GetColumnOffset(0));
+        return Private::ReadTableReference(*_database, _data, CompositeIndex::HasFieldMarshal, GetColumnOffset(0));
     }
 
     BlobReference FieldMarshalRow::GetNativeType() const
     {
-        return ReadBlob(*_database, _data, GetColumnOffset(1));
+        return Private::ReadBlobReference(*_database, _data, GetColumnOffset(1));
     }
 
     std::uint32_t FieldRvaRow::GetRva() const
     {
-        return ReadAs<std::uint32_t>(_data, GetColumnOffset(0));
+        return Private::ReadAs<std::uint32_t>(_data, GetColumnOffset(0));
     }
 
     TableReference FieldRvaRow::GetField() const
     {
-        return ReadTableReference(*_database, _data, TableId::Field, GetColumnOffset(1));
+        return Private::ReadTableReference(*_database, _data, TableId::Field, GetColumnOffset(1));
     }
 
     FileFlags FileRow::GetFlags() const
     {
-        return ReadAs<FileAttribute>(_data, GetColumnOffset(0));
+        return Private::ReadAs<FileAttribute>(_data, GetColumnOffset(0));
     }
 
     StringReference FileRow::GetName() const
     {
-        return ReadString(*_database, _data, GetColumnOffset(1));
+        return Private::ReadStringReference(*_database, _data, GetColumnOffset(1));
     }
 
     BlobReference FileRow::GetHashValue() const
     {
-        return ReadBlob(*_database, _data, GetColumnOffset(2));
+        return Private::ReadBlobReference(*_database, _data, GetColumnOffset(2));
     }
 
     std::uint16_t GenericParamRow::GetNumber() const
     {
-        return ReadAs<std::uint16_t>(_data, GetColumnOffset(0));
+        return Private::ReadAs<std::uint16_t>(_data, GetColumnOffset(0));
     }
 
     GenericParameterFlags GenericParamRow::GetFlags() const
     {
-        return ReadAs<GenericParameterAttribute>(_data, GetColumnOffset(1));
+        return Private::ReadAs<GenericParameterAttribute>(_data, GetColumnOffset(1));
     }
 
     TableReference GenericParamRow::GetOwner() const
     {
-        return ReadTableReference(*_database, _data, CompositeIndex::TypeOrMethodDef, GetColumnOffset(2));
+        return Private::ReadTableReference(*_database, _data, CompositeIndex::TypeOrMethodDef, GetColumnOffset(2));
     }
 
     StringReference GenericParamRow::GetName() const
     {
-        return ReadString(*_database, _data, GetColumnOffset(3));
+        return Private::ReadStringReference(*_database, _data, GetColumnOffset(3));
     }
 
     TableReference GenericParamConstraintRow::GetOwner() const
     {
-        return ReadTableReference(*_database, _data, TableId::GenericParam, GetColumnOffset(0));
+        return Private::ReadTableReference(*_database, _data, TableId::GenericParam, GetColumnOffset(0));
     }
 
     TableReference GenericParamConstraintRow::GetConstraint() const
     {
-        return ReadTableReference(*_database, _data, CompositeIndex::TypeDefOrRef, GetColumnOffset(1));
+        return Private::ReadTableReference(*_database, _data, CompositeIndex::TypeDefOrRef, GetColumnOffset(1));
     }
 
     PInvokeFlags ImplMapRow::GetMappingFlags() const
     {
-        return ReadAs<PInvokeAttribute>(_data, GetColumnOffset(0));
+        return Private::ReadAs<PInvokeAttribute>(_data, GetColumnOffset(0));
     }
 
     TableReference ImplMapRow::GetMemberForwarded() const
     {
-        return ReadTableReference(*_database, _data, CompositeIndex::MemberForwarded, GetColumnOffset(1));
+        return Private::ReadTableReference(*_database, _data, CompositeIndex::MemberForwarded, GetColumnOffset(1));
     }
 
     StringReference ImplMapRow::GetImportName() const
     {
-        return ReadString(*_database, _data, GetColumnOffset(2));
+        return Private::ReadStringReference(*_database, _data, GetColumnOffset(2));
     }
 
     TableReference ImplMapRow::GetImportScope() const
     {
-        return ReadTableReference(*_database, _data, TableId::ModuleRef, GetColumnOffset(3));
+        return Private::ReadTableReference(*_database, _data, TableId::ModuleRef, GetColumnOffset(3));
     }
 
     TableReference InterfaceImplRow::GetClass() const
     {
-        return ReadTableReference(*_database, _data, TableId::TypeDef, GetColumnOffset(0));
+        return Private::ReadTableReference(*_database, _data, TableId::TypeDef, GetColumnOffset(0));
     }
 
     TableReference InterfaceImplRow::GetInterface() const
     {
-        return ReadTableReference(*_database, _data, CompositeIndex::TypeDefOrRef, GetColumnOffset(1));
+        return Private::ReadTableReference(*_database, _data, CompositeIndex::TypeDefOrRef, GetColumnOffset(1));
     }
 
     std::uint32_t ManifestResourceRow::GetOffset() const
     {
-        return ReadAs<std::uint32_t>(_data, GetColumnOffset(0));
+        return Private::ReadAs<std::uint32_t>(_data, GetColumnOffset(0));
     }
 
     ManifestResourceFlags ManifestResourceRow::GetFlags() const
     {
-        return ReadAs<ManifestResourceAttribute>(_data, GetColumnOffset(1));
+        return Private::ReadAs<ManifestResourceAttribute>(_data, GetColumnOffset(1));
     }
 
     StringReference ManifestResourceRow::GetName() const
     {
-        return ReadString(*_database, _data, GetColumnOffset(2));
+        return Private::ReadStringReference(*_database, _data, GetColumnOffset(2));
     }
 
     TableReference ManifestResourceRow::GetImplementation() const
     {
-        return ReadTableReference(*_database, _data, CompositeIndex::Implementation, GetColumnOffset(3));
+        return Private::ReadTableReference(*_database, _data, CompositeIndex::Implementation, GetColumnOffset(3));
     }
 
     TableReference MemberRefRow::GetClass() const
     {
-        return ReadTableReference(*_database, _data, CompositeIndex::MemberRefParent, GetColumnOffset(0));
+        return Private::ReadTableReference(*_database, _data, CompositeIndex::MemberRefParent, GetColumnOffset(0));
     }
 
     StringReference MemberRefRow::GetName() const
     {
-        return ReadString(*_database, _data, GetColumnOffset(1));
+        return Private::ReadStringReference(*_database, _data, GetColumnOffset(1));
     }
 
     BlobReference MemberRefRow::GetSignature() const
     {
-        return ReadBlob(*_database, _data, GetColumnOffset(2));
+        return Private::ReadBlobReference(*_database, _data, GetColumnOffset(2));
     }
 
     std::uint32_t MethodDefRow::GetRva() const
     {
-        return ReadAs<std::uint32_t>(_data, GetColumnOffset(0));
+        return Private::ReadAs<std::uint32_t>(_data, GetColumnOffset(0));
     }
 
     MethodImplementationFlags MethodDefRow::GetImplementationFlags() const
     {
-        return ReadAs<MethodImplementationAttribute>(_data, GetColumnOffset(1));
+        return Private::ReadAs<MethodImplementationAttribute>(_data, GetColumnOffset(1));
     }
 
     MethodFlags MethodDefRow::GetFlags() const
     {
-        return ReadAs<MethodAttribute>(_data, GetColumnOffset(2));
+        return Private::ReadAs<MethodAttribute>(_data, GetColumnOffset(2));
     }
 
     StringReference MethodDefRow::GetName() const
     {
-        return ReadString(*_database, _data, GetColumnOffset(3));
+        return Private::ReadStringReference(*_database, _data, GetColumnOffset(3));
     }
 
     BlobReference MethodDefRow::GetSignature() const
     {
-        return ReadBlob(*_database, _data, GetColumnOffset(4));
+        return Private::ReadBlobReference(*_database, _data, GetColumnOffset(4));
     }
 
     TableReference MethodDefRow::GetFirstParameter() const
     {
-        return ReadTableReference(*_database, _data, TableId::Param, GetColumnOffset(5));
+        return Private::ReadTableReference(*_database, _data, TableId::Param, GetColumnOffset(5));
     }
 
     TableReference MethodDefRow::GetLastParameter() const
     {
-        return ComputeLastTableReference<
+        return Private::ComputeLastTableReference<
             TableId::MethodDef,
             TableId::Param
         >(*_database, _data, &MethodDefRow::GetLastParameter);
@@ -1497,107 +1497,107 @@ namespace CxxReflect { namespace Metadata {
 
     TableReference MethodImplRow::GetClass() const
     {
-        return ReadTableReference(*_database, _data, TableId::TypeDef, GetColumnOffset(0));
+        return Private::ReadTableReference(*_database, _data, TableId::TypeDef, GetColumnOffset(0));
     }
 
     TableReference MethodImplRow::GetMethodBody() const
     {
-        return ReadTableReference(*_database, _data, CompositeIndex::MethodDefOrRef, GetColumnOffset(1));
+        return Private::ReadTableReference(*_database, _data, CompositeIndex::MethodDefOrRef, GetColumnOffset(1));
     }
 
     TableReference MethodImplRow::GetMethodDeclaration() const
     {
-        return ReadTableReference(*_database, _data, CompositeIndex::MethodDefOrRef, GetColumnOffset(2));
+        return Private::ReadTableReference(*_database, _data, CompositeIndex::MethodDefOrRef, GetColumnOffset(2));
     }
 
     MethodSemanticsFlags MethodSemanticsRow::GetSemantics() const
     {
-        return ReadAs<MethodSemanticsAttribute>(_data, GetColumnOffset(0));
+        return Private::ReadAs<MethodSemanticsAttribute>(_data, GetColumnOffset(0));
     }
 
     TableReference MethodSemanticsRow::GetMethod() const
     {
-        return ReadTableReference(*_database, _data, TableId::MethodDef, GetColumnOffset(1));
+        return Private::ReadTableReference(*_database, _data, TableId::MethodDef, GetColumnOffset(1));
     }
 
     TableReference MethodSemanticsRow::GetAssociation() const
     {
-        return ReadTableReference(*_database, _data, CompositeIndex::HasSemantics, GetColumnOffset(2));
+        return Private::ReadTableReference(*_database, _data, CompositeIndex::HasSemantics, GetColumnOffset(2));
     }
 
     TableReference MethodSpecRow::GetMethod() const
     {
-        return ReadTableReference(*_database, _data, CompositeIndex::MethodDefOrRef, GetColumnOffset(0));
+        return Private::ReadTableReference(*_database, _data, CompositeIndex::MethodDefOrRef, GetColumnOffset(0));
     }
 
     BlobReference MethodSpecRow::GetInstantiation() const
     {
-        return ReadBlob(*_database, _data, GetColumnOffset(1));
+        return Private::ReadBlobReference(*_database, _data, GetColumnOffset(1));
     }
 
     StringReference ModuleRow::GetName() const
     {
-        return ReadString(*_database, _data, GetColumnOffset(1));
+        return Private::ReadStringReference(*_database, _data, GetColumnOffset(1));
     }
 
     StringReference ModuleRefRow::GetName() const
     {
-        return ReadString(*_database, _data, GetColumnOffset(0));
+        return Private::ReadStringReference(*_database, _data, GetColumnOffset(0));
     }
 
     TableReference NestedClassRow::GetNestedClass() const
     {
-        return ReadTableReference(*_database, _data, TableId::TypeDef, GetColumnOffset(0));
+        return Private::ReadTableReference(*_database, _data, TableId::TypeDef, GetColumnOffset(0));
     }
 
     TableReference NestedClassRow::GetEnclosingClass() const
     {
-        return ReadTableReference(*_database, _data, TableId::TypeDef, GetColumnOffset(1));
+        return Private::ReadTableReference(*_database, _data, TableId::TypeDef, GetColumnOffset(1));
     }
 
     ParameterFlags ParamRow::GetFlags() const
     {
-        return ReadAs<ParameterAttribute>(_data, GetColumnOffset(0));
+        return Private::ReadAs<ParameterAttribute>(_data, GetColumnOffset(0));
     }
 
     std::uint16_t ParamRow::GetSequence() const
     {
-        return ReadAs<std::uint16_t>(_data, GetColumnOffset(1));
+        return Private::ReadAs<std::uint16_t>(_data, GetColumnOffset(1));
     }
 
     StringReference ParamRow::GetName() const
     {
-        return ReadString(*_database, _data, GetColumnOffset(2));
+        return Private::ReadStringReference(*_database, _data, GetColumnOffset(2));
     }
 
     PropertyFlags PropertyRow::GetFlags() const
     {
-        return ReadAs<PropertyAttribute>(_data, GetColumnOffset(0));
+        return Private::ReadAs<PropertyAttribute>(_data, GetColumnOffset(0));
     }
 
     StringReference PropertyRow::GetName() const
     {
-        return ReadString(*_database, _data, GetColumnOffset(1));
+        return Private::ReadStringReference(*_database, _data, GetColumnOffset(1));
     }
 
     BlobReference PropertyRow::GetSignature() const
     {
-        return ReadBlob(*_database, _data, GetColumnOffset(2));
+        return Private::ReadBlobReference(*_database, _data, GetColumnOffset(2));
     }
 
     TableReference PropertyMapRow::GetParent() const
     {
-        return ReadTableReference(*_database, _data, TableId::TypeDef, GetColumnOffset(0));
+        return Private::ReadTableReference(*_database, _data, TableId::TypeDef, GetColumnOffset(0));
     }
 
     TableReference PropertyMapRow::GetFirstProperty() const
     {
-        return ReadTableReference(*_database, _data, TableId::Property, GetColumnOffset(1));
+        return Private::ReadTableReference(*_database, _data, TableId::Property, GetColumnOffset(1));
     }
 
     TableReference PropertyMapRow::GetLastProperty() const
     {
-        return ComputeLastTableReference<
+        return Private::ComputeLastTableReference<
             TableId::PropertyMap,
             TableId::Property
         >(*_database, _data, &PropertyMapRow::GetFirstProperty);
@@ -1605,37 +1605,37 @@ namespace CxxReflect { namespace Metadata {
 
     BlobReference StandaloneSigRow::GetSignature() const
     {
-        return ReadBlob(*_database, _data, GetColumnOffset(0));
+        return Private::ReadBlobReference(*_database, _data, GetColumnOffset(0));
     }
 
     TypeFlags TypeDefRow::GetFlags() const
     {
-        return ReadAs<TypeAttribute>(_data, GetColumnOffset(0));
+        return Private::ReadAs<TypeAttribute>(_data, GetColumnOffset(0));
     }
 
     StringReference TypeDefRow::GetName() const
     {
-        return ReadString(*_database, _data, GetColumnOffset(1));
+        return Private::ReadStringReference(*_database, _data, GetColumnOffset(1));
     }
 
     StringReference TypeDefRow::GetNamespace() const
     {
-        return ReadString(*_database, _data, GetColumnOffset(2));
+        return Private::ReadStringReference(*_database, _data, GetColumnOffset(2));
     }
 
     TableReference TypeDefRow::GetExtends() const
     {
-        return ReadTableReference(*_database, _data, CompositeIndex::TypeDefOrRef, GetColumnOffset(3));
+        return Private::ReadTableReference(*_database, _data, CompositeIndex::TypeDefOrRef, GetColumnOffset(3));
     }
 
     TableReference TypeDefRow::GetFirstField() const
     {
-        return ReadTableReference(*_database, _data, TableId::Field, GetColumnOffset(4));
+        return Private::ReadTableReference(*_database, _data, TableId::Field, GetColumnOffset(4));
     }
 
     TableReference TypeDefRow::GetLastField() const
     {
-        return ComputeLastTableReference<
+        return Private::ComputeLastTableReference<
             TableId::TypeDef,
             TableId::Field
         >(*_database, _data, &TypeDefRow::GetFirstField);
@@ -1643,12 +1643,12 @@ namespace CxxReflect { namespace Metadata {
 
     TableReference TypeDefRow::GetFirstMethod() const
     {
-        return ReadTableReference(*_database, _data, TableId::MethodDef, GetColumnOffset(5));
+        return Private::ReadTableReference(*_database, _data, TableId::MethodDef, GetColumnOffset(5));
     }
 
     TableReference TypeDefRow::GetLastMethod() const
     {
-        return ComputeLastTableReference<
+        return Private::ComputeLastTableReference<
             TableId::TypeDef,
             TableId::MethodDef
         >(*_database, _data, &TypeDefRow::GetFirstMethod);
@@ -1656,22 +1656,22 @@ namespace CxxReflect { namespace Metadata {
 
     TableReference TypeRefRow::GetResolutionScope() const
     {
-        return ReadTableReference(*_database, _data, CompositeIndex::ResolutionScope, GetColumnOffset(0));
+        return Private::ReadTableReference(*_database, _data, CompositeIndex::ResolutionScope, GetColumnOffset(0));
     }
 
     StringReference TypeRefRow::GetName() const
     {
-        return ReadString(*_database, _data, GetColumnOffset(1));
+        return Private::ReadStringReference(*_database, _data, GetColumnOffset(1));
     }
 
     StringReference TypeRefRow::GetNamespace() const
     {
-        return ReadString(*_database, _data, GetColumnOffset(2));
+        return Private::ReadStringReference(*_database, _data, GetColumnOffset(2));
     }
 
     BlobReference TypeSpecRow::GetSignature() const
     {
-        return ReadBlob(*_database, _data, GetColumnOffset(0));
+        return Private::ReadBlobReference(*_database, _data, GetColumnOffset(0));
     }
 
 } }

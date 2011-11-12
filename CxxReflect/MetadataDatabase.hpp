@@ -10,6 +10,7 @@
 #define CXXREFLECT_METADATADATABASE_HPP_
 
 #include "CxxReflect/Core.hpp"
+#include "CxxReflect/MetadataSignature.hpp"
 
 #include <array>
 #include <bitset>
@@ -19,18 +20,6 @@
 #include <string>
 
 namespace CxxReflect { namespace Metadata {
-
-    // This exception is thrown if any error occurs when reading metadata from an assembly.
-    struct ReadError : RuntimeError
-    {
-        ReadError(char const* const message)
-            : RuntimeError(message)
-        {
-        }
-    };
-
-
-
 
     enum class TableId : std::uint8_t
     {
@@ -80,7 +69,7 @@ namespace CxxReflect { namespace Metadata {
 
     inline bool IsValidTableId(std::uint32_t const id)
     {
-        static std::array<Byte, 64> const mask =
+        static std::array<Byte, 0x40> const mask =
         {
             1, 1, 1, 0, 1, 0, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1,
             1, 1, 1, 0, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 0, 0,
@@ -199,6 +188,14 @@ namespace CxxReflect { namespace Metadata {
         friend bool operator> (TableReference const& lhs, TableReference const& rhs) { return   rhs <  lhs ; }
         friend bool operator>=(TableReference const& lhs, TableReference const& rhs) { return !(lhs <  rhs); }
         friend bool operator<=(TableReference const& lhs, TableReference const& rhs) { return !(rhs <  lhs); }
+
+        static TableReference FromToken(TokenType const token)
+        {
+            Detail::Verify([&]{ return (token & ValueIndexMask) != 0; });
+            return TableReference(
+                static_cast<TableId>((token & ValueTableIdMask) >> ValueIndexBits),
+                (token & ValueIndexMask) - 1);
+        }
 
     private:
 
@@ -810,10 +807,10 @@ namespace CxxReflect { namespace Metadata {
             return ReturnType(this, _tables.GetTable(TId).At(index));
         }
 
-        //BlobReference GetBlob(SizeType const index) const
-        //{
-        //    return BlobReference(_blobStream.At(index));
-        //}
+        Blob GetBlob(SizeType const index) const
+        {
+            return Blob(_blobStream.At(index), _blobStream.End());
+        }
 
         StringReference GetString(SizeType const index) const
         {

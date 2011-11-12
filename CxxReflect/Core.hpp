@@ -71,6 +71,19 @@ namespace CxxReflect {
 
 }
 
+namespace CxxReflect { namespace Metadata {
+
+    // This exception is thrown if any error occurs when reading metadata from an assembly.
+    struct ReadError : RuntimeError
+    {
+        ReadError(char const* const message)
+            : RuntimeError(message)
+        {
+        }
+    };
+
+} }
+
 namespace CxxReflect { namespace Detail {
 
     #ifdef CXXREFLECT_LOGIC_CHECKS
@@ -103,6 +116,65 @@ namespace CxxReflect { namespace Detail {
     void Verify(TCallable&&, char const* = "") { }
 
     #endif
+
+
+
+
+    // Utilities and macros for making strongly typed enums slightly more usable (mostly by making
+    // them "less strongly typed").  The macros are used to generate commonly-used operators for a
+    // particular enum; they should only be used woth strongly-typed enums.  Note that they must be
+    // macros:  if they are in a namespace pulled in via a using directive then the operators will
+    // not be found via ADL, and they cannot be in a class because an enum cannot derive from a class.
+
+    template <typename TEnumeration>
+    typename std::underlying_type<TEnumeration>::type AsInteger(TEnumeration value)
+    {
+        return static_cast<typename std::underlying_type<TEnumeration>::type>(value);
+    }
+
+    #define CXXREFLECT_GENERATE_SCOPED_ENUM_OPERATORS_BINARY_EVAL_EVAL(E, Op)         \
+        inline E operator Op(E const lhs, E const rhs)                                \
+        {                                                                             \
+            return static_cast<E>(::CxxReflect::Detail::AsInteger(lhs)                \
+                               Op ::CxxReflect::Detail::AsInteger(rhs));              \
+        }
+
+    #define CXXREFLECT_GENERATE_SCOPED_ENUM_OPERATORS_BINARY_EREF_EVAL(E, Op)         \
+        inline E& operator Op##=(E& lhs, E const rhs)                                 \
+        {                                                                             \
+            lhs = static_cast<E>(::CxxReflect::Detail::AsInteger(lhs)                 \
+                              Op ::CxxReflect::Detail::AsInteger(rhs));               \
+            return lhs;                                                               \
+        }
+
+    #define CXXREFLECT_GENERATE_SCOPED_ENUM_OPERATORS_BINARY_COMPARE(E, Op)           \
+        inline bool operator Op(E const lhs, std::underlying_type<E>::type rhs)       \
+        {                                                                             \
+            return ::CxxReflect::Detail::AsInteger(lhs) Op rhs;                       \
+        }                                                                             \
+                                                                                      \
+        inline bool operator Op(std::underlying_type<E>::type const lhs, E const rhs) \
+        {                                                                             \
+            return lhs Op ::CxxReflect::Detail::AsInteger(rhs);                       \
+        }
+
+    #define CXXREFLECT_GENERATE_SCOPED_ENUM_OPERATORS(E)                  \
+        CXXREFLECT_GENERATE_SCOPED_ENUM_OPERATORS_BINARY_EVAL_EVAL(E, |)  \
+        CXXREFLECT_GENERATE_SCOPED_ENUM_OPERATORS_BINARY_EVAL_EVAL(E, &)  \
+        CXXREFLECT_GENERATE_SCOPED_ENUM_OPERATORS_BINARY_EVAL_EVAL(E, ^)  \
+        CXXREFLECT_GENERATE_SCOPED_ENUM_OPERATORS_BINARY_EREF_EVAL(E, |)  \
+        CXXREFLECT_GENERATE_SCOPED_ENUM_OPERATORS_BINARY_EREF_EVAL(E, &)  \
+        CXXREFLECT_GENERATE_SCOPED_ENUM_OPERATORS_BINARY_EREF_EVAL(E, ^)  \
+        CXXREFLECT_GENERATE_SCOPED_ENUM_OPERATORS_BINARY_COMPARE  (E, ==) \
+        CXXREFLECT_GENERATE_SCOPED_ENUM_OPERATORS_BINARY_COMPARE  (E, !=) \
+        CXXREFLECT_GENERATE_SCOPED_ENUM_OPERATORS_BINARY_COMPARE  (E, < ) \
+        CXXREFLECT_GENERATE_SCOPED_ENUM_OPERATORS_BINARY_COMPARE  (E, > ) \
+        CXXREFLECT_GENERATE_SCOPED_ENUM_OPERATORS_BINARY_COMPARE  (E, <=) \
+        CXXREFLECT_GENERATE_SCOPED_ENUM_OPERATORS_BINARY_COMPARE  (E, >=)
+
+
+
+
 
     // A handful of useful algorithms that we use throughout the library.
 
@@ -537,11 +609,8 @@ namespace CxxReflect { namespace Detail {
         IntegralType _value;
     };
 
-    template <typename TEnumeration>
-    typename std::underlying_type<TEnumeration>::type AsInteger(TEnumeration value)
-    {
-        return static_cast<typename std::underlying_type<TEnumeration>::type>(value);
-    }
+
+
 
     // A basic RAII wrapper around the cstdio file interfaces; this allows us to get the performance
     // of the C runtime APIs wih the convenience of the C++ iostream interfaces.
@@ -587,6 +656,8 @@ namespace CxxReflect { namespace Detail {
     };
 
     typedef FlagSet<FileMode> FileModeFlags;
+
+    CXXREFLECT_GENERATE_SCOPED_ENUM_OPERATORS(FileMode)
 
     enum class FileOrigin : std::uint8_t
     {
@@ -860,70 +931,8 @@ namespace CxxReflect { namespace Detail {
         ValueType _value;
     };
 
-    // A "smart" pointer that is guaranteed to be either not initialized or not null.  If it is
-    // default-initialized, then it is flagged as being "uninitialized" (meaning it is null);
-    // however, it cannot be constructed with a null pointer.
-    /*
-    template <typename T>
-    class NonNull
-    {
-    public:
 
-        typedef typename std::remove_pointer<T>::type ValueType;
-        typedef ValueType*                            Pointer;
-        typedef ValueType&                            Reference;
 
-        NonNull()
-            : _pointer(nullptr)
-        {
-        }
-
-        NonNull(Pointer const pointer)
-            : _pointer(pointer)
-        {
-            VerifyInitialized();
-        }
-
-        template <typename U>
-        NonNull(U const pointer)
-            : _pointer(pointer)
-        {
-            VerifyInitialized();
-        }
-
-        Pointer   Get()        const { VerifyInitialized(); return _pointer;  }
-        Pointer   operator->() const { VerifyInitialized(); return _pointer;  }
-        Reference operator*()  const { VerifyInitialized(); return *_pointer; }
-
-        bool IsInitialized() const { return _pointer != nullptr; }
-
-    private:
-
-        void VerifyInitialized() const
-        {
-            Verify([&] { return IsInitialized(); });
-        }
-
-        Pointer _pointer;
-    };
-
-    template <typename T, typename U> bool operator==(NonNull<T> const& lhs, NonNull<U> const& rhs) { return lhs.Get() == rhs.Get(); }
-    template <typename T, typename U> bool operator==(NonNull<T> const& lhs, U*                rhs) { return lhs.Get() == rhs;       }
-    template <typename T, typename U> bool operator==(T*                lhs, NonNull<U> const& rhs) { return lhs       == rhs.Get(); }
-    template <typename T>             bool operator==(NonNull<T> const& lhs, std::nullptr_t       ) { return lhs.Get() == nullptr;   }
-    template <typename T>             bool operator==(std::nullptr_t,        NonNull<T> const& rhs) { return rhs.Get() == nullptr;   }
-
-    template <typename T, typename U> bool operator!=(NonNull<T> const& lhs, NonNull<U> const& rhs) { return !(lhs == rhs);          }
-    template <typename T, typename U> bool operator!=(NonNull<T> const& lhs, U*                rhs) { return !(lhs == rhs);          }
-    template <typename T, typename U> bool operator!=(T*                lhs, NonNull<U> const& rhs) { return !(lhs == rhs);          }
-    template <typename T>             bool operator!=(NonNull<T> const& lhs, std::nullptr_t       ) { return lhs.IsInitialized();    }
-    template <typename T>             bool operator!=(std::nullptr_t,        NonNull<T> const& rhs) { return rhs.IsInitialized();    }
-
-    template <typename T, typename U> bool operator< (NonNull<T> const& lhs, NonNull<U> const& rhs) { return lhs.Get() <  rhs.Get(); }
-    template <typename T, typename U> bool operator> (NonNull<T> const& lhs, NonNull<U> const& rhs) { return lhs.Get() >  rhs.Get(); }
-    template <typename T, typename U> bool operator<=(NonNull<T> const& lhs, NonNull<U> const& rhs) { return lhs.Get() <= rhs.Get(); }
-    template <typename T, typename U> bool operator>=(NonNull<T> const& lhs, NonNull<U> const& rhs) { return lhs.Get() >= rhs.Get(); }
-    */
 
     template <typename T>
     class ValueInitialized
@@ -1664,6 +1673,21 @@ namespace CxxReflect {
     typedef Detail::FlagSet<PInvokeAttribute>              PInvokeFlags;
     typedef Detail::FlagSet<PropertyAttribute>             PropertyFlags;
     typedef Detail::FlagSet<TypeAttribute>                 TypeFlags;
+
+    CXXREFLECT_GENERATE_SCOPED_ENUM_OPERATORS(AssemblyAttribute)
+    CXXREFLECT_GENERATE_SCOPED_ENUM_OPERATORS(BindingAttribute)
+    CXXREFLECT_GENERATE_SCOPED_ENUM_OPERATORS(EventAttribute)
+    CXXREFLECT_GENERATE_SCOPED_ENUM_OPERATORS(FieldAttribute)
+    CXXREFLECT_GENERATE_SCOPED_ENUM_OPERATORS(FileAttribute)
+    CXXREFLECT_GENERATE_SCOPED_ENUM_OPERATORS(GenericParameterAttribute)
+    CXXREFLECT_GENERATE_SCOPED_ENUM_OPERATORS(ManifestResourceAttribute)
+    CXXREFLECT_GENERATE_SCOPED_ENUM_OPERATORS(MethodAttribute)
+    CXXREFLECT_GENERATE_SCOPED_ENUM_OPERATORS(MethodImplementationAttribute)
+    CXXREFLECT_GENERATE_SCOPED_ENUM_OPERATORS(MethodSemanticsAttribute)
+    CXXREFLECT_GENERATE_SCOPED_ENUM_OPERATORS(ParameterAttribute)
+    CXXREFLECT_GENERATE_SCOPED_ENUM_OPERATORS(PInvokeAttribute)
+    CXXREFLECT_GENERATE_SCOPED_ENUM_OPERATORS(PropertyAttribute)
+    CXXREFLECT_GENERATE_SCOPED_ENUM_OPERATORS(TypeAttribute)
 
 }
 

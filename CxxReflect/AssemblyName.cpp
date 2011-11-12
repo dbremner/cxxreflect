@@ -12,9 +12,9 @@
 #include <map>
 #include <sstream>
 
-using namespace CxxReflect;
+namespace { namespace Private {
 
-namespace {
+    using namespace CxxReflect;
 
     PublicKeyToken ComputePublicKeyToken(Metadata::BlobReference const, bool const isFullPublicKey)
     {
@@ -57,7 +57,7 @@ namespace {
             flags);
     }
 
-}
+} }
 
 namespace CxxReflect {
 
@@ -101,12 +101,12 @@ namespace CxxReflect {
         switch (reference.GetTable())
         {
         case Metadata::TableId::Assembly:
-            BuildAssemblyName<Metadata::TableId::Assembly>(*this, database, reference.GetIndex());
+            Private::BuildAssemblyName<Metadata::TableId::Assembly>(*this, database, reference.GetIndex());
             // TODO _path = assembly.GetPath();
             break;
 
         case Metadata::TableId::AssemblyRef:
-            BuildAssemblyName<Metadata::TableId::AssemblyRef>(*this, database, reference.GetIndex());
+            Private::BuildAssemblyName<Metadata::TableId::AssemblyRef>(*this, database, reference.GetIndex());
             break;
 
         default:
