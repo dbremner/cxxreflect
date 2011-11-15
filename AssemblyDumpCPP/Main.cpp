@@ -22,11 +22,11 @@ using namespace CxxReflect::Metadata;
 
 namespace
 {
-    void Dump(Detail::FastFileStream& os, Assembly const& a);
-    void Dump(Detail::FastFileStream& os, Type     const& t);
-    void Dump(Detail::FastFileStream& os, Method   const& m);
+    void Dump(Detail::FileHandle& os, Assembly const& a);
+    void Dump(Detail::FileHandle& os, Type     const& t);
+    void Dump(Detail::FileHandle& os, Method   const& m);
 
-    void Dump(Detail::FastFileStream& os, Assembly const& a)
+    void Dump(Detail::FileHandle& os, Assembly const& a)
     {
         os << L"Assembly [" << a.GetName().GetFullName().c_str() << L"]\n";
         os << L"!!BeginAssemblyReferences\n";
@@ -43,7 +43,7 @@ namespace
         os << L"!!EndTypes\n";
     }
 
-    void Dump(Detail::FastFileStream& os, Type const& t)
+    void Dump(Detail::FileHandle& os, Type const& t)
     {
         os << L" -- Type [" << t.GetFullName().c_str() << L"] [$" << Detail::HexFormat(t.GetMetadataToken()) << L"]\n";
         os << L"     -- AssemblyQualifiedName [" << t.GetAssemblyQualifiedName().c_str() << L"]\n";
@@ -76,7 +76,7 @@ namespace
         os << L"    !!EndMethods\n";
     }
 
-    void Dump(Detail::FastFileStream& os, Method const& m)
+    void Dump(Detail::FileHandle& os, Method const& m)
     {
         os << L"     -- Method [" << m.GetName().c_str() << L"] [$" << Detail::HexFormat(m.GetMetadataToken()) << L"]\n"; // TODO
     }
@@ -93,6 +93,6 @@ int main()
 
     Assembly a(loader.LoadAssembly(L"C:\\Windows\\Microsoft.NET\\Framework\\v4.0.30319\\mscorlib.dll"));
 
-    Detail::FastFileStream fs("d:\\jm\\mscorlib.cpp.txt");
+    Detail::FileHandle fs(L"d:\\jm\\mscorlib.cpp.txt", Detail::FileMode::Write);
     Dump(fs, a);
 }

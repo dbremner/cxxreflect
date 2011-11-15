@@ -559,74 +559,6 @@ namespace CxxReflect { namespace Detail {
 
 
 
-    // A high-performance, std::ofstream-like file stream.  std::ofstream has abysmal performance
-    // relative to the <cstdio> file I/O API, at least on Visual C++ 11 Developer Preview.
-    // TODO WE LEFT OFF HERE!
-    class HexFormat
-    {
-    public:
-
-        explicit HexFormat(unsigned int const x)
-            : _x(x)
-        {
-        }
-
-        unsigned int GetValue() const { return _x; }
-
-    private:
-
-        unsigned int _x;
-    };
-
-    class FastFileStream
-    {
-    public:
-
-        FastFileStream(std::string const path)
-        {
-            #pragma warning(push)
-            #pragma warning(disable: 4996)
-            _handle = fopen(path.c_str(), "w");
-            #pragma warning(pop)
-
-            if (_handle == nullptr)
-                throw RuntimeError("Failed to open file");
-        }
-
-        ~FastFileStream()
-        {
-            fclose(_handle);
-        }
-
-        #define CXXREFLECT_GENERATE(t, f)   \
-            FastFileStream& operator<<(t x) \
-            {                               \
-                fprintf(_handle, f, x);     \
-                return *this;               \
-            }
-
-        CXXREFLECT_GENERATE(char const* const,    "%s" )
-        CXXREFLECT_GENERATE(wchar_t const* const, "%ls")
-        CXXREFLECT_GENERATE(int const,            "%i" )
-        CXXREFLECT_GENERATE(unsigned int const,   "%u" )
-        CXXREFLECT_GENERATE(double const,         "%g" )
-
-        #undef CXXREFLECT_GENERATE
-
-        FastFileStream& operator<<(HexFormat const x)
-        {
-            fprintf(_handle, "%08x", x.GetValue());
-            return *this;
-        }
-
-    private:
-
-        FastFileStream(FastFileStream const&);
-        FastFileStream& operator=(FastFileStream const&);
-
-        FILE* _handle;
-    };
-
     // A scope-guard class that performs an operation on destruction.  The implementation is "good
     // enough" for most uses, though its use of std::function, which may itself perform dynamic
     // allocation, makes it unsuitable for "advanced" use.
@@ -730,6 +662,22 @@ namespace CxxReflect { namespace Detail {
 
     // A basic RAII wrapper around the cstdio file interfaces; this allows us to get the performance
     // of the C runtime APIs wih the convenience of the C++ iostream interfaces.
+
+    class HexFormat
+    {
+    public:
+
+        explicit HexFormat(unsigned int const value)
+            : _value(value)
+        {
+        }
+
+        unsigned int GetValue() const { return _value; }
+
+    private:
+
+        unsigned int _value;
+    };
 
     struct FileIOException : RuntimeError
     {
@@ -950,6 +898,27 @@ namespace CxxReflect { namespace Detail {
             VerifyOutputStream();
             if (fwrite(data, size, count, _handle) != count)
                 throw FileIOException();
+        }
+
+        #define CXXREFLECT_GENERATE(t, f)   \
+            FileHandle& operator<<(t x)     \
+            {                               \
+                fprintf(_handle, f, x);     \
+                return *this;               \
+            }
+
+        CXXREFLECT_GENERATE(char const* const,    "%s" )
+        CXXREFLECT_GENERATE(wchar_t const* const, "%ls")
+        CXXREFLECT_GENERATE(int const,            "%i" )
+        CXXREFLECT_GENERATE(unsigned int const,   "%u" )
+        CXXREFLECT_GENERATE(double const,         "%g" )
+
+        #undef CXXREFLECT_GENERATE
+
+        FileHandle& operator<<(HexFormat const x)
+        {
+            fprintf(_handle, "%08x", x.GetValue());
+            return *this;
         }
 
     private:
