@@ -32,9 +32,9 @@ namespace CxxReflect { namespace Metadata {
         Sentinel              = 0x41
     };
 
-    typedef Detail::FlagSet<SignatureAttribute> SignatureFlags;
-
     CXXREFLECT_GENERATE_SCOPED_ENUM_OPERATORS(SignatureAttribute)
+
+    typedef Detail::FlagSet<SignatureAttribute> SignatureFlags;
 
     enum class ElementType : std::uint8_t
     {
@@ -231,7 +231,7 @@ namespace CxxReflect { namespace Metadata {
 
         friend bool operator==(SentinelIterator const& lhs, SentinelIterator const& rhs)
         {
-            return lhs._current == rhs._current;
+            return lhs._current.Get() == rhs._current.Get();
         }
 
     private:
@@ -257,12 +257,94 @@ namespace CxxReflect { namespace Metadata {
 
 
 
+
+    // A generic iterator that reads elements from a sequence via FMaterialize until FSentinelCheck
+    // returns false.  This is used for sequences of elements where the sequence is terminated by
+    // failing to read another element (e.g. CustomMod sequences).
+    template <typename TValue,
+              bool(*FSentinelCheck)(ByteIterator,  ByteIterator),
+              TValue(*FMaterialize)(ByteIterator&, ByteIterator)>
+    class CountingSentinelIterator
+        : Detail::EqualityComparable<CountingSentinelIterator<TValue, FSentinelCheck, FMaterialize>>
+    {
+    public:
+
+        typedef TValue                    value_type;
+        typedef TValue const&             reference;
+        typedef TValue const*             pointer;
+        typedef std::ptrdiff_t            difference_type;
+        typedef std::forward_iterator_tag iterator_category;
+
+        CountingSentinelIterator()
+        {
+        }
+
+        CountingSentinelIterator(ByteIterator const current, ByteIterator const last,
+                                 SizeType const index, SizeType const count)
+            : _current(current), _last(last), _index(index), _count(count)
+        {
+            if (current != last && index != count)
+                Materialize();
+        }
+
+        reference operator*()  const { return _value.Get();  }
+        pointer   operator->() const { return &_value.Get(); }
+
+        CountingSentinelIterator& operator++()
+        {
+            ++_index.Get();
+            if (_index.Get() != _count.Get())
+                Materialize();
+
+            return *this;
+        }
+
+        CountingSentinelIterator operator++(int)
+        {
+            SentinelIterator const it(*this);
+            ++*this;
+            return it;
+        }
+
+        friend bool operator==(CountingSentinelIterator const& lhs, CountingSentinelIterator const& rhs)
+        {
+            return lhs._current.Get() == rhs._current.Get();
+        }
+
+    private:
+
+        void Materialize()
+        {
+            if (FSentinelCheck(_current.Get(), _last.Get()))
+            {
+                _current.Get() = nullptr;
+                _last.Get()    = nullptr;
+            }
+            else
+            {
+                _value.Get() = FMaterialize(_current.Get(), _last.Get());
+            }
+        }
+
+        Detail::ValueInitialized<ByteIterator> _current;
+        Detail::ValueInitialized<ByteIterator> _last;
+
+        Detail::ValueInitialized<SizeType>     _index;
+        Detail::ValueInitialized<SizeType>     _count;
+
+        Detail::ValueInitialized<value_type>   _value;
+    };
+
+
+
+
     class ArrayShape;
     class CustomModifier;
     class FieldSignature;
     class MethodSignature;
     class PropertySignature;
     class TypeSignature;
+
 
 
 
@@ -446,6 +528,77 @@ namespace CxxReflect { namespace Metadata {
 
 
 
+    // Represents a MethodDefSig, MethodRefSig, or StandAloneMethodSig.
+    class MethodSignature
+    {
+    private:
+
+        static bool ParameterEndCheck(ByteIterator current, ByteIterator last);
+        static TypeSignature ReadParameter(ByteIterator& current, ByteIterator last);
+
+    public:
+
+        typedef CountingSentinelIterator<
+            TypeSignature,
+            &MethodSignature::ParameterEndCheck,
+            &MethodSignature::ReadParameter
+        > ParameterIterator;
+
+        enum class Part
+        {
+            Begin,
+            TypeTag,
+            GenParamCount,
+            ParamCount,
+            RetType,
+            FirstParam,
+            Sentinel,
+            FirstVarargParam,
+            End
+        };
+
+        MethodSignature();
+        MethodSignature(ByteIterator first, ByteIterator last);
+
+        bool HasThis()         const;
+        bool HasExplicitThis() const;
+
+        // Calling conventions; exactly one of these will be true.
+        bool HasDefaultConvention()  const;
+        bool HasVarArgConvention()   const;
+        bool HasCConvention()        const;
+        bool HasStdCallConvention()  const;
+        bool HasThisCallConvention() const;
+        bool HasFastCallConvention() const;
+
+        bool     IsGeneric()                const;
+        SizeType GetGenericParameterCount() const;
+
+        TypeSignature     GetReturnType()         const;
+        SizeType          GetParameterCount()     const;
+        ParameterIterator BeginParameters()       const;
+        ParameterIterator EndParameters()         const;
+        ParameterIterator BeginVarargParameters() const;
+        ParameterIterator EndVarargParameters()   const;
+
+        SizeType          ComputeSize()           const;
+        bool              IsInitialized()         const;
+
+    private:
+
+        ByteIterator SeekTo(Part part) const;
+
+        void VerifyInitialized() const;
+
+        Detail::ValueInitialized<ByteIterator> _first;
+        Detail::ValueInitialized<ByteIterator> _last;
+    };
+
+    CXXREFLECT_GENERATE_SCOPED_ENUM_OPERATORS(MethodSignature::Part)
+
+
+
+
     // A 'Type' signature item, with support for an optional prefix sequence of CustomModifier items,
     // an optional BYREF tag before the type proper, and either a TYPEDBYREF or VOID type in place of
     // a real type.  This supports Param, RetType, Type, and TypeSpec signatures in entirety, as well
@@ -583,53 +736,7 @@ namespace CxxReflect { namespace Metadata {
     CXXREFLECT_GENERATE_SCOPED_ENUM_OPERATORS(TypeSignature::Kind)
     CXXREFLECT_GENERATE_SCOPED_ENUM_OPERATORS(TypeSignature::Part)
 
-    // Represents a MethodDefSig, MethodRefSig, or StandAloneMethodSig.
-    class MethodSignature
-    {
-    public:
-
-        typedef void /* TODO */ ParameterIterator;
-
-        MethodSignature();
-        MethodSignature(ByteIterator first, ByteIterator last);
-
-        SizeType ComputeSize() const;
-
-        bool HasThis()         const;
-        bool HasExplicitThis() const;
-
-        // Calling conventions; exactly one of these will be true.
-        bool HasDefaultConvention()  const;
-        bool HasVarArgConvention()   const;
-        bool HasCConvention()        const;
-        bool HasStdCallConvention()  const;
-        bool HasThisCallConvention() const;
-        bool HasFastCallConvention() const;
-
-        bool      IsGeneric()                const;
-        IndexType GetGenericParameterCount() const;
-
-        TypeSignature     GetReturnType()     const;
-
-        // The parameter count is the total of all of the declared parameters and variadic
-        // parameters (if there are any).  To compute the count of each of these, use std::distance
-        // on the Begin/End pairs.
-        IndexType         GetParameterCount()     const;
-
-        ParameterIterator BeginParameters()       const;
-        ParameterIterator EndParameters()         const;
-
-        ParameterIterator BeginVarargParameters() const;
-        ParameterIterator EndVarargParameters()   const;
-
-    private:
-
-        ByteIterator GetRetTypeIterator() const;
-        ByteIterator GetParamIterator()   const;
-
-        ByteIterator _first;
-        ByteIterator _last;
-    };
+    
 
     // Represents a Blob in the metadata database TODO MOVE THIS BACK INTO METADATADATABASE.CPP
     class Blob

@@ -563,89 +563,235 @@ namespace CxxReflect { namespace Metadata {
         return type;
     }
 
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
+
+
+
+    MethodSignature::MethodSignature()
+    {
+    }
+
+    MethodSignature::MethodSignature(ByteIterator const first, ByteIterator const last)
+        : _first(first), _last(last)
+    {
+        Detail::VerifyNotNull(first);
+        Detail::VerifyNotNull(last);
+    }
+
     bool MethodSignature::HasThis() const
     {
-        return SignatureFlags(Private::PeekByte(_first, _last))
+        VerifyInitialized();
+
+        return SignatureFlags(Private::PeekByte(SeekTo(Part::TypeTag), _last.Get()))
             .IsSet(SignatureAttribute::HasThis);
     }
 
     bool MethodSignature::HasExplicitThis() const
     {
-        return SignatureFlags(Private::PeekByte(_first, _last))
+        VerifyInitialized();
+
+        return SignatureFlags(Private::PeekByte(SeekTo(Part::TypeTag), _last.Get()))
             .IsSet(SignatureAttribute::ExplicitThis);
     }
 
     bool MethodSignature::HasDefaultConvention() const
     {
-        return SignatureFlags(Private::PeekByte(_first, _last))
+        VerifyInitialized();
+
+        return SignatureFlags(Private::PeekByte(SeekTo(Part::TypeTag), _last.Get()))
             .WithMask(SignatureAttribute::CallingConventionMask) == SignatureAttribute::Default;
     }
 
     bool MethodSignature::HasVarArgConvention() const
     {
-        return SignatureFlags(Private::PeekByte(_first, _last))
+        VerifyInitialized();
+
+        return SignatureFlags(Private::PeekByte(SeekTo(Part::TypeTag), _last.Get()))
             .WithMask(SignatureAttribute::CallingConventionMask) == SignatureAttribute::VarArg;
     }
 
     bool MethodSignature::HasCConvention() const
     {
-        return SignatureFlags(Private::PeekByte(_first, _last))
+        VerifyInitialized();
+
+        return SignatureFlags(Private::PeekByte(SeekTo(Part::TypeTag), _last.Get()))
             .WithMask(SignatureAttribute::CallingConventionMask) == SignatureAttribute::C;
     }
 
     bool MethodSignature::HasStdCallConvention() const
     {
-        return SignatureFlags(Private::PeekByte(_first, _last))
+        VerifyInitialized();
+
+        return SignatureFlags(Private::PeekByte(SeekTo(Part::TypeTag), _last.Get()))
             .WithMask(SignatureAttribute::CallingConventionMask) == SignatureAttribute::StdCall;
     }
 
     bool MethodSignature::HasThisCallConvention() const
     {
-        return SignatureFlags(Private::PeekByte(_first, _last))
+        VerifyInitialized();
+
+        return SignatureFlags(Private::PeekByte(SeekTo(Part::TypeTag), _last.Get()))
             .WithMask(SignatureAttribute::CallingConventionMask) == SignatureAttribute::ThisCall;
     }
 
+
     bool MethodSignature::HasFastCallConvention() const
     {
-        return SignatureFlags(Private::PeekByte(_first, _last))
+        VerifyInitialized();
+
+        return SignatureFlags(Private::PeekByte(SeekTo(Part::TypeTag), _last.Get()))
             .WithMask(SignatureAttribute::CallingConventionMask) == SignatureAttribute::FastCall;
     }
 
     bool MethodSignature::IsGeneric() const
     {
-        return SignatureFlags(Private::PeekByte(_first, _last))
+        VerifyInitialized();
+
+        return SignatureFlags(Private::PeekByte(SeekTo(Part::TypeTag), _last.Get()))
             .IsSet(SignatureAttribute::Generic);
     }
 
-    IndexType MethodSignature::GetGenericParameterCount() const
+    SizeType MethodSignature::GetGenericParameterCount() const
     {
+        VerifyInitialized();
+
         if (!IsGeneric())
             return 0;
 
-        ByteIterator current(_first);
-        Private::ReadByte(current, _last);
-        return Private::PeekCompressedUInt32(current, _last);
+        return Private::PeekCompressedUInt32(SeekTo(Part::GenParamCount), _last.Get());
     }
 
+    TypeSignature MethodSignature::GetReturnType() const
+    {
+        VerifyInitialized();
 
+        return TypeSignature(SeekTo(Part::RetType), _last.Get());
+    }
 
+    SizeType MethodSignature::GetParameterCount() const
+    {
+        VerifyInitialized();
+
+        return Private::PeekCompressedUInt32(SeekTo(Part::ParamCount), _last.Get());
+    }
+
+    MethodSignature::ParameterIterator MethodSignature::BeginParameters() const
+    {
+        VerifyInitialized();
+
+        return ParameterIterator(SeekTo(Part::FirstParam), _last.Get(), 0, GetParameterCount());
+    }
+
+    MethodSignature::ParameterIterator MethodSignature::EndParameters() const
+    {
+        VerifyInitialized();
+
+        SizeType const parameterCount(GetParameterCount());
+        return ParameterIterator(nullptr, nullptr, parameterCount, parameterCount);
+    }
+
+    MethodSignature::ParameterIterator MethodSignature::BeginVarargParameters() const
+    {
+        VerifyInitialized();
+
+        SizeType const parameterCount(GetParameterCount());
+        SizeType const actualParameters(std::distance(BeginParameters(), EndParameters()));
+        SizeType const varArgParameters(parameterCount - actualParameters);
+
+        return ParameterIterator(SeekTo(Part::FirstVarargParam), _last.Get(), 0, varArgParameters);
+    }
+
+    MethodSignature::ParameterIterator MethodSignature::EndVarargParameters() const
+    {
+        VerifyInitialized();
+
+        SizeType const parameterCount(GetParameterCount());
+        SizeType const actualParameters(std::distance(BeginParameters(), EndParameters()));
+        SizeType const varArgParameters(parameterCount - actualParameters);
+
+        return ParameterIterator(nullptr, nullptr, varArgParameters, varArgParameters);
+    }
+
+    SizeType MethodSignature::ComputeSize() const
+    {
+        VerifyInitialized();
+
+        return SeekTo(Part::End) - _first.Get();
+    }
+
+    bool MethodSignature::IsInitialized() const
+    {
+        return _first.Get() != nullptr && _last.Get() != nullptr;
+    }
+
+    void MethodSignature::VerifyInitialized() const
+    {
+        Detail::Verify([&]{ return IsInitialized(); });
+    }
+
+    ByteIterator MethodSignature::SeekTo(Part const part) const
+    {
+        VerifyInitialized();
+
+        ByteIterator current(_first.Get());
+
+        SignatureFlags typeFlags;
+        if (part > Part::TypeTag)
+        {
+            typeFlags = Private::ReadByte(current, _last.Get());
+        }
+
+        if (part == Part::GenParamCount && !typeFlags.IsSet(SignatureAttribute::Generic))
+        {
+            return nullptr;
+        }
+
+        if (part > Part::GenParamCount && typeFlags.IsSet(SignatureAttribute::Generic))
+        {
+            Private::ReadCompressedUInt32(current, _last.Get());
+        }
+
+        SizeType parameterCount(0);
+        if (part > Part::ParamCount)
+        {
+            parameterCount = Private::ReadCompressedUInt32(current, _last.Get());
+        }
+
+        if (part > Part::RetType)
+        {
+            current += TypeSignature(current, _last.Get()).ComputeSize();
+        }
+
+        unsigned parametersRead(0);
+        if (part > Part::FirstParam)
+        {
+            while (Private::PeekByte(current, _last.Get()) != ElementType::Sentinel
+                && parametersRead < parameterCount)
+            {
+                ++parametersRead;
+                current += TypeSignature(current, _last.Get()).ComputeSize();
+            }
+
+            if (Private::PeekByte(current, _last.Get()) == ElementType::Sentinel)
+            {
+                current += Private::ReadByte(current, _last.Get());
+            }
+        }
+
+        if (part > Part::FirstVarargParam && parametersRead < parameterCount)
+        {
+            for (unsigned i(parametersRead); i != parameterCount; ++i)
+            {
+                current += TypeSignature(current, _last.Get()).ComputeSize();
+            }
+        }
+
+        if (part > Part::End)
+        {
+            Detail::VerifyFail("Invalid signature part requested");
+        }
+
+        return current;
+    }
 
 
 

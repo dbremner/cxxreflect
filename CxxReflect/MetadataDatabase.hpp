@@ -108,6 +108,7 @@ namespace CxxReflect { namespace Metadata {
     // the index so that it is zero-based instead of one-based.  We represent the invalid token
     // using all bits one instead of all bits zero.
     class TableReference
+        : Detail::Comparable<TableReference>
     {
     public:
 
@@ -184,11 +185,6 @@ namespace CxxReflect { namespace Metadata {
             return lhs._value < rhs._value;
         }
 
-        friend bool operator!=(TableReference const& lhs, TableReference const& rhs) { return !(lhs == rhs); }
-        friend bool operator> (TableReference const& lhs, TableReference const& rhs) { return   rhs <  lhs ; }
-        friend bool operator>=(TableReference const& lhs, TableReference const& rhs) { return !(lhs <  rhs); }
-        friend bool operator<=(TableReference const& lhs, TableReference const& rhs) { return !(rhs <  lhs); }
-
         static TableReference FromToken(TokenType const token)
         {
             Detail::Verify([&]{ return (token & ValueIndexMask) != 0; });
@@ -230,6 +226,7 @@ namespace CxxReflect { namespace Metadata {
     // Represents a reference into the blob stream.  TODO What functionality are we going to put
     // in here, and how are we going to expose it?
     class BlobReference
+        : Detail::Comparable<BlobReference>
     {
     public:
 
@@ -275,11 +272,6 @@ namespace CxxReflect { namespace Metadata {
             return lhs._index < rhs._index;
         }
 
-        friend bool operator!=(BlobReference const& lhs, BlobReference const& rhs) { return !(lhs == rhs); }
-        friend bool operator> (BlobReference const& lhs, BlobReference const& rhs) { return   rhs <  lhs ; }
-        friend bool operator>=(BlobReference const& lhs, BlobReference const& rhs) { return !(lhs <  rhs); }
-        friend bool operator<=(BlobReference const& lhs, BlobReference const& rhs) { return !(rhs <  lhs); }
-
     private:
 
         void VerifyInitialized() const
@@ -297,6 +289,7 @@ namespace CxxReflect { namespace Metadata {
     // relies on the fact that the high bit in a table index or a blob index is never set, so we can
     // store the "kind tag" in the high bit.
     class TableOrBlobReference
+        : Detail::Comparable<TableOrBlobReference>
     {
     public:
 
@@ -369,11 +362,6 @@ namespace CxxReflect { namespace Metadata {
         {
             return lhs._index < rhs._index;
         }
-
-        friend bool operator!=(TableOrBlobReference const& lhs, TableOrBlobReference const& rhs) { return !(lhs == rhs); }
-        friend bool operator> (TableOrBlobReference const& lhs, TableOrBlobReference const& rhs) { return   rhs <  lhs ; }
-        friend bool operator>=(TableOrBlobReference const& lhs, TableOrBlobReference const& rhs) { return !(lhs <  rhs); }
-        friend bool operator<=(TableOrBlobReference const& lhs, TableOrBlobReference const& rhs) { return !(rhs <  lhs); }
 
     private:
 
@@ -853,6 +841,7 @@ namespace CxxReflect { namespace Metadata {
     // This iterator type provides a random access container interface for the metadata database.
     template <TableId TId>
     class RowIterator
+        : Detail::Comparable<RowIterator<TId>>
     {
     public:
 
@@ -874,7 +863,7 @@ namespace CxxReflect { namespace Metadata {
         {
         }
 
-        explicit RowIterator(Database const* const database, IndexType const index)
+        RowIterator(Database const* const database, IndexType const index)
             : _database(database), _index(index)
         {
             Detail::VerifyNotNull(database);
@@ -915,16 +904,11 @@ namespace CxxReflect { namespace Metadata {
             return lhs._index.Get() == rhs._index.Get();
         }
 
-        friend bool operator< (RowIterator const& lhs, RowIterator const& rhs)
+        friend bool operator<(RowIterator const& lhs, RowIterator const& rhs)
         {
             VerifyComparable(lhs, rhs);
             return lhs._index.Get() < rhs._index.Get();
         }
-
-        friend bool operator!=(RowIterator const& lhs, RowIterator const& rhs) { return !(lhs == rhs); }
-        friend bool operator> (RowIterator const& lhs, RowIterator const& rhs) { return   rhs <  lhs ; }
-        friend bool operator<=(RowIterator const& lhs, RowIterator const& rhs) { return !(rhs <  lhs); }
-        friend bool operator>=(RowIterator const& lhs, RowIterator const& rhs) { return !(lhs <  rhs); }
 
     private:
 
