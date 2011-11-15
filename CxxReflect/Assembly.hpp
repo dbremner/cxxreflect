@@ -10,7 +10,9 @@
 
 namespace CxxReflect {
 
-    class Assembly : public Detail::SafeBoolConvertible<Assembly>
+    class Assembly
+        : public Detail::SafeBoolConvertible<Assembly>,
+          public Detail::Comparable<Assembly>
     {
     public:
 
@@ -108,11 +110,6 @@ namespace CxxReflect {
 
         friend bool operator==(Assembly const& lhs, Assembly const& rhs) { return lhs._database == rhs._database; }
         friend bool operator< (Assembly const& lhs, Assembly const& rhs) { return lhs._database <  rhs._database; }
-
-        friend bool operator!=(Assembly const& lhs, Assembly const& rhs) { return !(lhs == rhs); }
-        friend bool operator> (Assembly const& lhs, Assembly const& rhs) { return   rhs <  lhs ; }
-        friend bool operator<=(Assembly const& lhs, Assembly const& rhs) { return !(rhs <  lhs); }
-        friend bool operator>=(Assembly const& lhs, Assembly const& rhs) { return !(lhs <  rhs); }
 
     private:
 

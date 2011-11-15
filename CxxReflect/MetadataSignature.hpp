@@ -121,6 +121,7 @@ namespace CxxReflect { namespace Metadata {
     // each element in the sequence from the raw bytes.
     template <typename TValue, TValue(*FMaterialize)(ByteIterator&, ByteIterator)>
     class CountingIterator
+        : Detail::EqualityComparable<CountingIterator<TValue, FMaterialize>>
     {
     public:
 
@@ -135,7 +136,7 @@ namespace CxxReflect { namespace Metadata {
         }
 
         CountingIterator(ByteIterator const current, ByteIterator const last,
-                         IndexType const index, IndexType const count)
+                         SizeType const index, SizeType const count)
             : _current(current), _last(last), _index(index), _count(count)
         {
             if (index != count)
@@ -164,11 +165,6 @@ namespace CxxReflect { namespace Metadata {
             return lhs._current == rhs._current;
         }
 
-        friend bool operator!=(CountingIterator const& lhs, CountingIterator const& rhs)
-        {
-            return !(lhs == rhs);
-        }
-
     private:
 
         void Materialize()
@@ -181,12 +177,92 @@ namespace CxxReflect { namespace Metadata {
         Detail::ValueInitialized<ByteIterator> _current;
         Detail::ValueInitialized<ByteIterator> _last;
 
-        Detail::ValueInitialized<IndexType>    _index;
-        Detail::ValueInitialized<IndexType>    _count;
+        Detail::ValueInitialized<SizeType>     _index;
+        Detail::ValueInitialized<SizeType>     _count;
 
         Detail::ValueInitialized<value_type>   _value;
     };
 
+
+
+
+    // A generic iterator that reads elements from a sequence via FMaterialize until FSentinelCheck
+    // returns false.  This is used for sequences of elements where the sequence is terminated by
+    // failing to read another element (e.g. CustomMod sequences).
+    template <typename TValue,
+              bool(*FSentinelCheck)(ByteIterator,  ByteIterator),
+              TValue(*FMaterialize)(ByteIterator&, ByteIterator)>
+    class SentinelIterator
+        : Detail::EqualityComparable<SentinelIterator<TValue, FSentinelCheck, FMaterialize>>
+    {
+    public:
+
+        typedef TValue                    value_type;
+        typedef TValue const&             reference;
+        typedef TValue const*             pointer;
+        typedef std::ptrdiff_t            difference_type;
+        typedef std::forward_iterator_tag iterator_category;
+
+        SentinelIterator()
+        {
+        }
+
+        SentinelIterator(ByteIterator const current, ByteIterator const last)
+            : _current(current), _last(last)
+        {
+            if (current != last)
+                Materialize();
+        }
+
+        reference operator*()  const { return _value.Get();  }
+        pointer   operator->() const { return &_value.Get(); }
+
+        SentinelIterator& operator++()
+        {
+            Materialize();
+        }
+
+        SentinelIterator operator++(int)
+        {
+            SentinelIterator const it(*this);
+            ++*this;
+            return it;
+        }
+
+        friend bool operator==(SentinelIterator const& lhs, SentinelIterator const& rhs)
+        {
+            return lhs._current == rhs._current;
+        }
+
+    private:
+
+        void Materialize()
+        {
+            if (FSentinelCheck(_current.Get(), _last.Get()))
+            {
+                _current.Get() = nullptr;
+                _last.Get()    = nullptr;
+            }
+            else
+            {
+                _value.Get() = FMaterialize(_current.Get(), _last.Get());
+            }
+        }
+
+        Detail::ValueInitialized<ByteIterator> _current;
+        Detail::ValueInitialized<ByteIterator> _last;
+
+        Detail::ValueInitialized<value_type>   _value;
+    };
+
+
+
+    class ArrayShape;
+    class CustomModifier;
+    class FieldSignature;
+    class MethodSignature;
+    class PropertySignature;
+    class TypeSignature;
 
 
 
@@ -195,8 +271,8 @@ namespace CxxReflect { namespace Metadata {
     {
     private:
 
-        static IndexType ReadSize(ByteIterator& current, ByteIterator last);
-        static IndexType ReadLowBound(ByteIterator& current, ByteIterator last);
+        static SizeType ReadSize(ByteIterator& current, ByteIterator last);
+        static SizeType ReadLowBound(ByteIterator& current, ByteIterator last);
 
     public:
 
@@ -211,23 +287,23 @@ namespace CxxReflect { namespace Metadata {
             End
         };
 
-        typedef CountingIterator<IndexType, &ArrayShape::ReadSize>     SizeIterator;
-        typedef CountingIterator<IndexType, &ArrayShape::ReadLowBound> LowBoundIterator;
+        typedef CountingIterator<SizeType, &ArrayShape::ReadSize>     SizeIterator;
+        typedef CountingIterator<SizeType, &ArrayShape::ReadLowBound> LowBoundIterator;
 
         ArrayShape();
         ArrayShape(ByteIterator first, ByteIterator last);
 
-        IndexType        GetRank()           const;
+        SizeType         GetRank()           const;
 
-        IndexType        GetSizesCount()     const;
+        SizeType         GetSizesCount()     const;
         SizeIterator     BeginSizes()        const;
         SizeIterator     EndSizes()          const;
 
-        IndexType        GetLowBoundsCount() const;
+        SizeType         GetLowBoundsCount() const;
         LowBoundIterator BeginLowBounds()    const;
         LowBoundIterator EndLowBounds()      const;
 
-        IndexType        ComputeSize()       const;
+        SizeType         ComputeSize()       const;
 
         bool             IsInitialized()     const;
 
@@ -244,10 +320,20 @@ namespace CxxReflect { namespace Metadata {
     CXXREFLECT_GENERATE_SCOPED_ENUM_OPERATORS(ArrayShape::Part)
 
 
+
+
     // Represents a CustomMod signature item
     class CustomModifier
     {
     public:
+
+        enum class Part
+        {
+            Begin,
+            ReqOptFlag,
+            Type,
+            End
+        };
 
         CustomModifier();
         CustomModifier(ByteIterator first, ByteIterator last);
@@ -256,11 +342,13 @@ namespace CxxReflect { namespace Metadata {
         bool           IsRequired()       const;
         TableReference GetTypeReference() const;
 
-        IndexType ComputeSize() const;
+        SizeType       ComputeSize()      const;
 
-        bool IsInitialized() const;
+        bool           IsInitialized()    const;
 
     private:
+
+        ByteIterator SeekTo(Part part) const;
 
         void VerifyInitialized() const;
 
@@ -268,38 +356,232 @@ namespace CxxReflect { namespace Metadata {
         Detail::ValueInitialized<ByteIterator> _last;
     };
 
-    // A blob that represents a type.  We use this to represent the following kinds of blobs:
-    // * FieldSig,
-    // * PropertySig,
-    // * [TODO The repeatable part of LocalVarSig],
-    // * Param,
-    // * RetType,
-    // * Type,
-    // * [TODO MethodSpec]
-    // TypeSpec is a subset of Type, so we use Type directly to parse it.
-    class TypeSignature
+    CXXREFLECT_GENERATE_SCOPED_ENUM_OPERATORS(CustomModifier::Part)
+
+
+
+
+    // Represents a FieldSig signature item; note that the optional CustomMod sequence is contained
+    // in TypeSignature itself and is thus not exposed directly here.
+    class FieldSignature
     {
     public:
 
-        typedef void /* TODO */ CustomModifierIterator;
+        enum Part
+        {
+            Begin,
+            FieldTag,
+            Type,
+            End
+        };
 
-        // A FieldSig, PropertySig, 
-        CustomModifierIterator BeginCustomModifiers() const;
-        CustomModifierIterator EndCustomModifiers()   const;
+        FieldSignature();
+        FieldSignature(ByteIterator first, ByteIterator last);
 
-        IndexType ComputeSize() const;
+        TypeSignature GetTypeSignature() const;
+        SizeType      ComputeSize()      const;
+        bool          IsInitialized()    const;
 
     private:
 
-        // Computes the pointer to the first CustomModifier that modifies this Type signature
-        ByteIterator GetFirstCustomModifier() const;
+        ByteIterator SeekTo(Part part) const;
 
-        // Computes the pointer to the Type signature by skipping past the prologue
-        ByteIterator GetFirstType() const;
+        void VerifyInitialized() const;
 
-        ByteIterator _first;
-        ByteIterator _last;
+        Detail::ValueInitialized<ByteIterator> _first;
+        Detail::ValueInitialized<ByteIterator> _last;
     };
+
+    CXXREFLECT_GENERATE_SCOPED_ENUM_OPERATORS(FieldSignature::Part);
+
+
+
+
+    // Represents a PropertySig signature item; note that the optional CustomMod sequence is
+    // contained in TypeSignature itself and is thus not exposed directly here.
+    class PropertySignature
+    {
+    private:
+
+        static TypeSignature ReadParameter(ByteIterator& current, ByteIterator last);
+
+    public:
+
+        typedef CountingIterator<TypeSignature, &PropertySignature::ReadParameter> ParameterIterator;
+
+        enum Part
+        {
+            Begin,
+            PropertyTag,
+            ParameterCount,
+            Type,
+            FirstParameter,
+            End
+        };
+
+        PropertySignature();
+        PropertySignature(ByteIterator first, ByteIterator last);
+
+        bool              HasThis()           const;
+        SizeType          GetParameterCount() const;
+        ParameterIterator BeginParameters()   const;
+        ParameterIterator EndParameters()     const;
+        TypeSignature     GetTypeSignature()  const;
+
+        SizeType          ComputeSize()       const;
+        bool              IsInitialized()     const;
+
+    private:
+
+        ByteIterator SeekTo(Part part) const;
+
+        void VerifyInitialized() const;
+
+        Detail::ValueInitialized<ByteIterator> _first;
+        Detail::ValueInitialized<ByteIterator> _last;
+    };
+
+    CXXREFLECT_GENERATE_SCOPED_ENUM_OPERATORS(PropertySignature::Part);
+
+
+
+
+    // A 'Type' signature item, with support for an optional prefix sequence of CustomModifier items,
+    // an optional BYREF tag before the type proper, and either a TYPEDBYREF or VOID type in place of
+    // a real type.  This supports Param, RetType, Type, and TypeSpec signatures in entirety, as well
+    // as the core parts of FieldSig and PropertySig.
+    class TypeSignature
+    {
+    private:
+
+        static bool CustomModifierEndCheck(ByteIterator current, ByteIterator last);
+        static CustomModifier ReadCustomModifier(ByteIterator& current, ByteIterator last);
+
+        static TypeSignature ReadType(ByteIterator& current, ByteIterator last);
+
+    public:
+
+        enum class Kind
+        {
+            Mask        = 0xff00,
+
+            Unknown     = 0x0000,
+
+            Primitive   = 0x0100,
+            Array       = 0x0200,
+            SzArray     = 0x0300,
+            ClassType   = 0x0400,
+            FnPtr       = 0x0500,
+            GenericInst = 0x0600,
+            Ptr         = 0x0700,
+            Var         = 0x0800
+        };
+
+        enum class Part
+        {
+            Begin          = 0x00,
+            FirstCustomMod = 0x01,
+            ByRefTag       = 0x02,
+
+            // The TypeCode marks the start of the actual 'Type' signature element
+            TypeCode       = 0x03,
+
+            ArrayType                = static_cast<SizeType>(Kind::Array)       + 0x0a,
+            ArrayShape               = static_cast<SizeType>(Kind::Array)       + 0x0b,
+
+            SzArrayType              = static_cast<SizeType>(Kind::SzArray)     + 0x0a,
+
+            ClassTypeReference       = static_cast<SizeType>(Kind::ClassType)   + 0x0a,
+
+            MethodSignature          = static_cast<SizeType>(Kind::FnPtr)       + 0x0a,
+
+            GenericInstTypeCode      = static_cast<SizeType>(Kind::GenericInst) + 0x0a,
+            GenericInstTypeReference = static_cast<SizeType>(Kind::GenericInst) + 0x0b,
+            GenericInstArgumentCount = static_cast<SizeType>(Kind::GenericInst) + 0x0c,
+            FirstGenericInstArgument = static_cast<SizeType>(Kind::GenericInst) + 0x0d,
+
+            PointerTypeSignature     = static_cast<SizeType>(Kind::Ptr)         + 0x0a,
+
+            VariableNumber           = static_cast<SizeType>(Kind::Var)         + 0x0a,
+
+            End            = 0xff
+        };
+
+        typedef SentinelIterator<
+            CustomModifier,
+            &TypeSignature::CustomModifierEndCheck,
+            &TypeSignature::ReadCustomModifier
+        > CustomModifierIterator;
+
+        typedef CountingIterator<TypeSignature, &TypeSignature::ReadType> GenericArgumentIterator;
+
+        TypeSignature();
+        TypeSignature(ByteIterator first, ByteIterator last);
+
+        SizeType ComputeSize()     const;
+        bool     IsInitialized()   const;
+        bool     IsKind(Kind kind) const;
+
+        // FieldSig, PropertySig, Param, RetType signatures, and PTR and SZARRAY Type signatures:
+        CustomModifierIterator BeginCustomModifiers() const;
+        CustomModifierIterator EndCustomModifiers()   const;
+
+        // Param and RetType signatures:
+        bool IsByRef() const;
+
+        // BOOLEAN, CHAR, I1, U1, I2, U2, I4, U4, I8, U8, R4, R8, I, U, OBJECT, and STRING (also,
+        // VOID for RetType signatures and TYPEDBYREF for Param and RetType signatures).
+        bool        IsPrimitive()             const;
+        ElementType GetPrimitiveElementType() const;
+
+        // ARRAY, SZARRAY:
+        bool          IsGeneralArray() const;
+        bool          IsSimpleArray()  const;
+        TypeSignature GetArrayType()   const;
+        ArrayShape    GetArrayShape()  const; // ARRAY only
+
+        // CLASS and VALUETYPE:
+        bool           IsClassType()      const;
+        bool           IsValueType()      const;
+        TableReference GetTypeReference() const;
+
+        // FNPTR:
+        bool            IsFunctionPointer()  const;
+        MethodSignature GetMethodSignature() const;
+
+        // GENERICINST:
+        bool                    IsGenericInstance()          const;
+        bool                    IsGenericClassTypeInstance() const;
+        bool                    IsGenericValueTypeInstance() const;
+        TableReference          GetGenericTypeReference()    const;
+        SizeType                GetGenericArgumentCount()    const;
+        GenericArgumentIterator BeginGenericArguments()      const;
+        GenericArgumentIterator EndGenericArguments()        const;
+
+        // PTR:
+        bool          IsPointer()               const;
+        TypeSignature GetPointerTypeSignature() const;
+
+        // MVAR and VAR:
+        bool     IsClassVariableType()  const;
+        bool     IsMethodVariableType() const;
+        SizeType GetVariableNumber()    const;
+
+    private:
+
+        ByteIterator SeekTo(Part part) const;
+
+        ElementType GetElementType() const;
+
+        void VerifyInitialized() const;
+        void VerifyKind(Kind kind) const;
+
+        Detail::ValueInitialized<ByteIterator> _first;
+        Detail::ValueInitialized<ByteIterator> _last;
+    };
+
+    CXXREFLECT_GENERATE_SCOPED_ENUM_OPERATORS(TypeSignature::Kind)
+    CXXREFLECT_GENERATE_SCOPED_ENUM_OPERATORS(TypeSignature::Part)
 
     // Represents a MethodDefSig, MethodRefSig, or StandAloneMethodSig.
     class MethodSignature
@@ -307,6 +589,11 @@ namespace CxxReflect { namespace Metadata {
     public:
 
         typedef void /* TODO */ ParameterIterator;
+
+        MethodSignature();
+        MethodSignature(ByteIterator first, ByteIterator last);
+
+        SizeType ComputeSize() const;
 
         bool HasThis()         const;
         bool HasExplicitThis() const;
@@ -344,7 +631,7 @@ namespace CxxReflect { namespace Metadata {
         ByteIterator _last;
     };
 
-    // Represents a Blob in the metadata database
+    // Represents a Blob in the metadata database TODO MOVE THIS BACK INTO METADATADATABASE.CPP
     class Blob
     {
     public:

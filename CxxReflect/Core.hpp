@@ -124,7 +124,9 @@ namespace CxxReflect { namespace Detail {
     // them "less strongly typed").  The macros are used to generate commonly-used operators for a
     // particular enum; they should only be used woth strongly-typed enums.  Note that they must be
     // macros:  if they are in a namespace pulled in via a using directive then the operators will
-    // not be found via ADL, and they cannot be in a class because an enum cannot derive from a class.
+    // not be found via ADL, and they cannot be in a class because an enum cannot derive from a
+    // class.  Note also that we do not use a base class for noncopyability due to poor diagnostics
+    // from the Visual C++ compiler.
 
     template <typename TEnumeration>
     typename std::underlying_type<TEnumeration>::type AsInteger(TEnumeration value)
@@ -175,8 +177,9 @@ namespace CxxReflect { namespace Detail {
 
 
 
-
+    //
     // A handful of useful algorithms that we use throughout the library.
+    //
 
     template <typename TRanIt, typename TValue, typename TComparer>
     TRanIt BinarySearch(TRanIt const first, TRanIt const last, TValue const& value, TComparer const comparer)
@@ -213,73 +216,180 @@ namespace CxxReflect { namespace Detail {
         return first0 == last0 && first1 == last1;
     }
 
-    // A high-performance, std::ofstream-like file stream.  std::ofstream has abysmal performance
-    // relative to the <cstdio> file I/O API, at least on Visual C++ 11 Developer Preview.
 
-    class HexFormat
+
+
+    // Utility types and functions for encapsulating reinterpretation of an object as a char[].
+    // These help reduce the occurrence of reinterpret_cast in the code and make it easier to
+    // copy data into and out of POD-struct types.
+
+    typedef std::uint8_t                             Byte;
+    typedef std::uint8_t*                            ByteIterator;
+    typedef std::uint8_t const*                      ConstByteIterator;
+    typedef std::reverse_iterator<ByteIterator>      ReverseByteIterator;
+    typedef std::reverse_iterator<ConstByteIterator> ConstReverseByteIterator;
+
+    template <typename T>
+    ByteIterator BeginBytes(T& x)
+    {
+        return reinterpret_cast<ByteIterator>(&x);
+    }
+
+    template <typename T>
+    ByteIterator EndBytes(T& x)
+    {
+        return reinterpret_cast<ByteIterator>(&x + 1);
+    }
+
+    template <typename T>
+    ConstByteIterator BeginBytes(T const& x)
+    {
+        return reinterpret_cast<ConstByteIterator>(&x);
+    }
+
+    template <typename T>
+    ConstByteIterator EndBytes(T const& x)
+    {
+        return reinterpret_cast<ConstByteIterator>(&x + 1);
+    }
+
+    template <typename T>
+    ReverseByteIterator ReverseBeginBytes(T& p)
+    {
+        return ReverseByteIterator(EndBytes(p));
+    }
+
+    template <typename T>
+    ReverseByteIterator ReverseEndBytes(T& p)
+    {
+        return ReverseByteIterator(BeginBytes(p));
+    }
+
+    template <typename T>
+    ConstReverseByteIterator ReverseBeginBytes(T const& p)
+    {
+        return ConstReverseByteIterator(EndBytes(p));
+    }
+
+    template <typename T>
+    ConstReverseByteIterator ReverseEndBytes(T const& p)
+    {
+        return ConstReverseByteIterator(BeginBytes(p));
+    }
+
+
+
+
+    // Utility base classes used for declaring types as equality-comparable (if the type has defined
+    // operator==), relational-comparable (if the type has defined operator<), and as safe-bool
+    // convertible (if the type has defined operator!).  The safe-bool implementation is based on
+    // Bjorn Karlsson's implementation, found at http://www.artima.com/cppsource/safebool.html.
+
+    template <typename TDerived>
+    class EqualityComparable
     {
     public:
 
-        explicit HexFormat(unsigned int const x)
-            : _x(x)
+        friend bool operator!=(TDerived const& lhs, TDerived const& rhs)
         {
+            return !(lhs == rhs);
         }
 
-        unsigned int GetValue() const { return _x; }
+    protected:
 
-    private:
-
-        unsigned int _x;
+        EqualityComparable() { }
+        EqualityComparable(EqualityComparable const&) { }
+        EqualityComparable& operator=(EqualityComparable const&) { return *this; }
+        ~EqualityComparable() { }
     };
 
-    class FastFileStream
+    template <typename TDerived>
+    class RelationalComparable
     {
     public:
 
-        FastFileStream(std::string const path)
+        friend bool operator>(TDerived const& lhs, TDerived const& rhs)
         {
-            #pragma warning(push)
-            #pragma warning(disable: 4996)
-            _handle = fopen(path.c_str(), "w");
-            #pragma warning(pop)
-
-            if (_handle == nullptr)
-                throw RuntimeError("Failed to open file");
+            return rhs < lhs;
         }
 
-        ~FastFileStream()
+        friend bool operator>=(TDerived const& lhs, TDerived const& rhs)
         {
-            fclose(_handle);
+            return !(lhs < rhs);
         }
 
-        #define CXXREFLECT_GENERATE(t, f)   \
-            FastFileStream& operator<<(t x) \
-            {                               \
-                fprintf(_handle, f, x);     \
-                return *this;               \
-            }
-
-        CXXREFLECT_GENERATE(char const* const,    "%s" )
-        CXXREFLECT_GENERATE(wchar_t const* const, "%ls")
-        CXXREFLECT_GENERATE(int const,            "%i" )
-        CXXREFLECT_GENERATE(unsigned int const,   "%u" )
-        CXXREFLECT_GENERATE(double const,         "%g" )
-
-        #undef CXXREFLECT_GENERATE
-
-        FastFileStream& operator<<(HexFormat const x)
+        friend bool operator<=(TDerived const& lhs, TDerived const& rhs)
         {
-            fprintf(_handle, "%08x", x.GetValue());
-            return *this;
+            return !(rhs < lhs);
         }
 
+    protected:
+
+        RelationalComparable() { }
+        RelationalComparable(RelationalComparable const&) { }
+        RelationalComparable& operator=(RelationalComparable const&) { return *this; }
+        ~RelationalComparable() { }
+    };
+
+    template <typename TDerived>
+    class Comparable
+        : public EqualityComparable<TDerived>,
+          public RelationalComparable<TDerived>
+    {
+    protected:
+
+        Comparable() { }
+        Comparable(Comparable const&) { }
+        Comparable& operator=(Comparable const&) { return *this; }
+        ~Comparable() { }
+    };
+
+    template <typename TDerived>
+    class SafeBoolConvertible
+    {
     private:
 
-        FastFileStream(FastFileStream const&);
-        FastFileStream& operator=(FastFileStream const&);
+        typedef void (SafeBoolConvertible::*FauxBoolType)() const;
 
-        FILE* _handle;
+        void ThisTypeDoesNotSupportComparisons() const { }
+
+    protected:
+
+        SafeBoolConvertible() { }
+        SafeBoolConvertible(SafeBoolConvertible const&) { }
+        SafeBoolConvertible& operator=(SafeBoolConvertible const&) { return *this; }
+        ~SafeBoolConvertible() { }
+
+    public:
+
+        operator FauxBoolType() const
+        {
+            // !! is no good because if we forget to implement operator! in the derived class, the !!
+            // will find this conversion and we will recurse infinitely.  The explicit .operator!()
+            // call requires that the conversion operator is present.
+            return !static_cast<TDerived const&>(*this).operator!()
+                ? &SafeBoolConvertible::ThisTypeDoesNotSupportComparisons
+                : nullptr;
+        }
     };
+
+    // Suppress unwanted equatability of types that are safe-bool convertible (TODO:  We have some
+    // issues with types that derive from both SafeBoolConvertible and EqualityComparable; this
+    // should be investigated.
+    template <typename T, typename U>
+    void operator==(SafeBoolConvertible<T> const& lhs, SafeBoolConvertible<U> const&)
+    {
+        lhs.ThisTypeDoesNotSupportComparisons();
+    }
+
+    template <typename T, typename U>
+    void operator!=(SafeBoolConvertible<T> const& lhs, SafeBoolConvertible<U> const&)
+    {
+        lhs.ThisTypeDoesNotSupportComparisons();
+    }
+
+
+
 
     // A string class that provides a simplified std::string-like interface around a C string.  This
     // class does not perform any memory management:  it simply has pointers into an existing null-
@@ -287,6 +397,7 @@ namespace CxxReflect { namespace Detail {
 
     template <typename T>
     class EnhancedCString
+        : public Comparable<EnhancedCString<T>>
     {
     public:
 
@@ -391,11 +502,6 @@ namespace CxxReflect { namespace Detail {
         {
             return std::lexicographical_compare(lhs.begin(), lhs.end(), rhs.begin(), rhs.end());
         }
-        
-        friend bool operator!=(EnhancedCString const& lhs, EnhancedCString const& rhs) { return !(lhs == rhs); }
-        friend bool operator> (EnhancedCString const& lhs, EnhancedCString const& rhs) { return   rhs <  lhs ; }
-        friend bool operator<=(EnhancedCString const& lhs, EnhancedCString const& rhs) { return !(rhs <  lhs); }
-        friend bool operator>=(EnhancedCString const& lhs, EnhancedCString const& rhs) { return !(lhs <  rhs); }
 
         // TODO Consider implementing some of the rest of the std::string interface
 
@@ -450,63 +556,76 @@ namespace CxxReflect { namespace Detail {
         return os;
     }
 
-    // Utility types and functions for encapsulating reinterpretation of an object as a char[].
-    // These help reduce the occurrence of reinterpret_cast in the code and make it easier to
-    // copy data into and out of POD-struct types.
 
-    typedef std::uint8_t                             Byte;
-    typedef std::uint8_t*                            ByteIterator;
-    typedef std::uint8_t const*                      ConstByteIterator;
-    typedef std::reverse_iterator<ByteIterator>      ReverseByteIterator;
-    typedef std::reverse_iterator<ConstByteIterator> ConstReverseByteIterator;
 
-    template <typename T>
-    ByteIterator BeginBytes(T& x)
+
+    // A high-performance, std::ofstream-like file stream.  std::ofstream has abysmal performance
+    // relative to the <cstdio> file I/O API, at least on Visual C++ 11 Developer Preview.
+    // TODO WE LEFT OFF HERE!
+    class HexFormat
     {
-        return reinterpret_cast<ByteIterator>(&x);
-    }
+    public:
 
-    template <typename T>
-    ByteIterator EndBytes(T& x)
-    {
-        return reinterpret_cast<ByteIterator>(&x + 1);
-    }
+        explicit HexFormat(unsigned int const x)
+            : _x(x)
+        {
+        }
 
-    template <typename T>
-    ConstByteIterator BeginBytes(T const& x)
-    {
-        return reinterpret_cast<ConstByteIterator>(&x);
-    }
+        unsigned int GetValue() const { return _x; }
 
-    template <typename T>
-    ConstByteIterator EndBytes(T const& x)
-    {
-        return reinterpret_cast<ConstByteIterator>(&x + 1);
-    }
+    private:
 
-    template <typename T>
-    ReverseByteIterator ReverseBeginBytes(T& p)
-    {
-        return ReverseByteIterator(EndBytes(p));
-    }
+        unsigned int _x;
+    };
 
-    template <typename T>
-    ReverseByteIterator ReverseEndBytes(T& p)
+    class FastFileStream
     {
-        return ReverseByteIterator(BeginBytes(p));
-    }
+    public:
 
-    template <typename T>
-    ConstReverseByteIterator ReverseBeginBytes(T const& p)
-    {
-        return ConstReverseByteIterator(EndBytes(p));
-    }
+        FastFileStream(std::string const path)
+        {
+            #pragma warning(push)
+            #pragma warning(disable: 4996)
+            _handle = fopen(path.c_str(), "w");
+            #pragma warning(pop)
 
-    template <typename T>
-    ConstReverseByteIterator ReverseEndBytes(T const& p)
-    {
-        return ConstReverseByteIterator(BeginBytes(p));
-    }
+            if (_handle == nullptr)
+                throw RuntimeError("Failed to open file");
+        }
+
+        ~FastFileStream()
+        {
+            fclose(_handle);
+        }
+
+        #define CXXREFLECT_GENERATE(t, f)   \
+            FastFileStream& operator<<(t x) \
+            {                               \
+                fprintf(_handle, f, x);     \
+                return *this;               \
+            }
+
+        CXXREFLECT_GENERATE(char const* const,    "%s" )
+        CXXREFLECT_GENERATE(wchar_t const* const, "%ls")
+        CXXREFLECT_GENERATE(int const,            "%i" )
+        CXXREFLECT_GENERATE(unsigned int const,   "%u" )
+        CXXREFLECT_GENERATE(double const,         "%g" )
+
+        #undef CXXREFLECT_GENERATE
+
+        FastFileStream& operator<<(HexFormat const x)
+        {
+            fprintf(_handle, "%08x", x.GetValue());
+            return *this;
+        }
+
+    private:
+
+        FastFileStream(FastFileStream const&);
+        FastFileStream& operator=(FastFileStream const&);
+
+        FILE* _handle;
+    };
 
     // A scope-guard class that performs an operation on destruction.  The implementation is "good
     // enough" for most uses, though its use of std::function, which may itself perform dynamic
@@ -545,6 +664,8 @@ namespace CxxReflect { namespace Detail {
 
     template <typename TEnumeration>
     class FlagSet
+        : //TODO public SafeBoolConvertible<FlagSet<TEnumeration>>,
+          public Comparable<FlagSet<TEnumeration>>
     {
     public:
 
@@ -598,11 +719,6 @@ namespace CxxReflect { namespace Detail {
 
         friend bool operator==(FlagSet const& lhs, FlagSet const& rhs) { return lhs._value == rhs._value; }
         friend bool operator< (FlagSet const& lhs, FlagSet const& rhs) { return lhs._value <  rhs._value; }
-
-        friend bool operator!=(FlagSet const& lhs, FlagSet const& rhs) { return !(lhs == rhs); }
-        friend bool operator> (FlagSet const& lhs, FlagSet const& rhs) { return   rhs <  lhs ; }
-        friend bool operator<=(FlagSet const& lhs, FlagSet const& rhs) { return !(rhs <  lhs); }
-        friend bool operator>=(FlagSet const& lhs, FlagSet const& rhs) { return !(lhs <  rhs); }
 
     private:
 
@@ -971,51 +1087,6 @@ namespace CxxReflect { namespace Detail {
         typedef T Type;
     };
 
-    // A safe-bool implementation based largely on Bjorn Karlsson's canonical implementation, found
-    // at http://www.artima.com/cppsource/safebool.html.
-
-    template <typename TDerived>
-    class SafeBoolConvertible
-    {
-    private:
-
-        typedef void (SafeBoolConvertible::*FauxBoolType)() const;
-
-        void ThisTypeDoesNotSupportComparisons() const { }
-
-    protected:
-
-        SafeBoolConvertible() { }
-        SafeBoolConvertible(SafeBoolConvertible const&) { }
-        SafeBoolConvertible& operator=(SafeBoolConvertible const&) { return *this; }
-        ~SafeBoolConvertible() { }
-
-    public:
-
-        operator FauxBoolType() const
-        {
-            // !! is no good because if we forget to implement operator! in the derived class, the !!
-            // will find this conversion and we will recurse infinitely.  The explicit .operator!()
-            // call requires that the conversion operator is present.
-            return !static_cast<TDerived const&>(*this).operator!()
-                ? &SafeBoolConvertible::ThisTypeDoesNotSupportComparisons
-                : nullptr;
-        }
-    };
-
-    // Suppress unwanted equatability
-    template <typename T, typename U>
-    void operator==(SafeBoolConvertible<T> const& lhs, SafeBoolConvertible<U> const&)
-    {
-        lhs.ThisTypeDoesNotSupportComparisons();
-    }
-
-    template <typename T, typename U>
-    void operator!=(SafeBoolConvertible<T> const& lhs, SafeBoolConvertible<U> const&)
-    {
-        lhs.ThisTypeDoesNotSupportComparisons();
-    }
-
 
     // A linear allocator for arrays; this is most useful for the allocation of strings.
     template <typename T, std::size_t TBlockSize>
@@ -1117,6 +1188,7 @@ namespace CxxReflect { namespace Detail {
     // dependent so that we don't need it defined when we define the template.
     template <typename TTableReference, typename TResult, typename TParameter>
     class TableTransformIterator
+        : public Comparable<TableTransformIterator<TTableReference, TResult, TParameter>>
     {
     public:
 
@@ -1181,11 +1253,6 @@ namespace CxxReflect { namespace Detail {
         {
             return lhs._current.GetIndex() < rhs._current.GetIndex();
         }
-
-        friend bool operator!=(TableTransformIterator const& lhs, TableTransformIterator const& rhs) { return !(lhs == rhs); }
-        friend bool operator> (TableTransformIterator const& lhs, TableTransformIterator const& rhs) { return   rhs <  lhs ; }
-        friend bool operator<=(TableTransformIterator const& lhs, TableTransformIterator const& rhs) { return !(rhs <  lhs); }
-        friend bool operator>=(TableTransformIterator const& lhs, TableTransformIterator const& rhs) { return !(lhs <  rhs); }
 
     private:
 
@@ -1383,7 +1450,7 @@ namespace CxxReflect {
     // and allow multiple encodings in the public interface and support platforms that use other
     // encodings by default for wchar_t.
     typedef wchar_t                            Character;
-    typedef std::size_t                        SizeType;
+    typedef std::uint32_t                      SizeType;
     typedef std::uint8_t                       Byte;
     typedef std::uint8_t const*                ByteIterator;
     typedef std::uint32_t                      IndexType;

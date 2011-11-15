@@ -9,6 +9,27 @@
 
 namespace CxxReflect {
 
+    class CustomAttribute
+    {
+    public:
+
+        typedef void /* TODO */ PositionalArgumentIterator;
+        typedef void /* TODO */ NamedArgumentIterator;
+
+        CustomAttribute();
+
+        Method GetConstructor() const;
+
+        PositionalArgumentIterator BeginPositionalArguments() const;
+        PositionalArgumentIterator EndPositionalArguments()   const;
+
+        NamedArgumentIterator BeginNamedArguments() const;
+        NamedArgumentIterator EndNamedArguments()   const;
+
+    private:
+
+    };
+
 }
 
 #endif
