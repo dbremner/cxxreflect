@@ -93,6 +93,9 @@ int main()
 
     Assembly a(loader.LoadAssembly(L"C:\\Windows\\Microsoft.NET\\Framework\\v4.0.30319\\mscorlib.dll"));
 
+    //Type const object(a.GetType(L"System.Object"));
+    //Method const firstMethod(*object.BeginMethods());
+
     Detail::FileHandle fs(L"d:\\jm\\mscorlib.cpp.txt", Detail::FileMode::Write);
     Dump(fs, a);
 }

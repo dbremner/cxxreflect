@@ -16,23 +16,21 @@ namespace { namespace Private {
 
     using namespace CxxReflect;
 
-    PublicKeyToken ComputePublicKeyToken(Metadata::BlobReference const, bool const isFullPublicKey)
+    PublicKeyToken ComputePublicKeyToken(Metadata::Blob const blob, bool const isFullPublicKey)
     {
         PublicKeyToken result;
 
         if (isFullPublicKey)
         {
-            // TODO WE NEED TO COMPLETE BLOB SUPPORT BEFORE THIS WILL WORK
-            //Detail::Sha1Hash const hash(Detail::ComputeSha1Hash(blob.Begin(), blob.End()));
-            //std::copy(hash.rbegin(), hash.rbegin() + 8, result.begin());
+            Detail::Sha1Hash const hash(Detail::ComputeSha1Hash(blob.Begin(), blob.End()));
+            std::copy(hash.rbegin(), hash.rbegin() + 8, result.begin());
         }
         else
         {
-            // TODO WE NEED TO COMPLETE BLOB SUPPORT BEFORE THIS WILL WORK
-            //if (blob.GetSize() != 8)
-            //    throw std::runtime_error("wtf");
+            if (blob.GetSize() != 8)
+                throw std::runtime_error("wtf");
 
-            //std::copy(blob.Begin(), blob.End(), result.begin());
+            std::copy(blob.Begin(), blob.End(), result.begin());
         }
 
         return result;
@@ -46,7 +44,7 @@ namespace { namespace Private {
         AssemblyFlags const flags(row.GetFlags());
 
         PublicKeyToken const publicKeyToken(ComputePublicKeyToken(
-            row.GetPublicKey(),
+            database.GetBlob(row.GetPublicKey().GetIndex()),
             flags.IsSet(AssemblyAttribute::PublicKey)));
 
         name = CxxReflect::AssemblyName(

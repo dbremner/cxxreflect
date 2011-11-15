@@ -139,26 +139,21 @@ namespace CxxReflect { namespace Metadata {
 
         TableId GetTable() const
         {
-            VerifyInitialized();
             return static_cast<TableId>((_value & ValueTableIdMask) >> ValueIndexBits);
         }
 
         IndexType GetIndex() const
         {
-            VerifyInitialized();
             return _value & ValueIndexMask;
         }
 
         ValueType GetValue() const
         {
-            VerifyInitialized();
             return _value;
         }
 
         TokenType GetToken() const
         {
-            VerifyInitialized();
-
             // The metadata token is the same as the value we store, except that it uses a one-based
             // indexing scheme rather than a zero-based indexing scheme.  We check in ComposeValue
             // to ensure that adding one here will not cause the index to overflow.
@@ -306,7 +301,7 @@ namespace CxxReflect { namespace Metadata {
         }
 
         TableOrBlobReference(TableReference reference)
-            : _index((reference.GetIndex() & ~KindMask) | TableKindBit)
+            : _index((reference.GetValue() & ~KindMask) | TableKindBit)
         {
             Detail::Verify([&]{ return (reference.GetIndex() & ~KindMask) == reference.GetIndex(); });
         }
