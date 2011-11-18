@@ -151,6 +151,8 @@ namespace CxxReflect { namespace Metadata {
             ++_index.Get();
             if (_index.Get() != _count.Get())
                 Materialize();
+
+            return *this;
         }
 
         CountingIterator operator++(int)
@@ -162,7 +164,7 @@ namespace CxxReflect { namespace Metadata {
 
         friend bool operator==(CountingIterator const& lhs, CountingIterator const& rhs)
         {
-            return lhs._current == rhs._current;
+            return lhs._current.Get() == rhs._current.Get();
         }
 
     private:
@@ -344,6 +346,35 @@ namespace CxxReflect { namespace Metadata {
     class MethodSignature;
     class PropertySignature;
     class TypeSignature;
+
+
+
+
+    // Compares signatures to see whether they are equivalent.  The compatibility/equivalence rules
+    // are laid out in ECMA-355 section 8.6.1.6, "Signature Matching".
+    class SignatureComparer
+    {
+    public:
+
+        // TOOD It would be really great if we could get rid of the loader here somehow; we are
+        // mixing the physical and logical layers here.
+        SignatureComparer(MetadataLoader const* loader, Database const* lhsDatabase, Database const* rhsDatabase);
+
+        bool operator()(ArrayShape        const& lhs, ArrayShape        const& rhs) const;
+        bool operator()(CustomModifier    const& lhs, CustomModifier    const& rhs) const;
+        bool operator()(FieldSignature    const& lhs, FieldSignature    const& rhs) const;
+        bool operator()(MethodSignature   const& lhs, MethodSignature   const& rhs) const;
+        bool operator()(PropertySignature const& lhs, PropertySignature const& rhs) const;
+        bool operator()(TypeSignature     const& lhs, TypeSignature     const& rhs) const;
+
+    private:
+
+        bool operator()(TableReference    const& lhs, TableReference    const& rhs) const;
+
+        Detail::ValueInitialized<MetadataLoader const*> _loader;
+        Detail::ValueInitialized<Database const*>       _lhsDatabase;
+        Detail::ValueInitialized<Database const*>       _rhsDatabase;
+    };
 
 
 
@@ -564,6 +595,7 @@ namespace CxxReflect { namespace Metadata {
         bool HasExplicitThis() const;
 
         // Calling conventions; exactly one of these will be true.
+        SignatureAttribute GetCallingConvention() const;
         bool HasDefaultConvention()  const;
         bool HasVarArgConvention()   const;
         bool HasCConvention()        const;
@@ -672,6 +704,7 @@ namespace CxxReflect { namespace Metadata {
         TypeSignature(ByteIterator first, ByteIterator last);
 
         SizeType ComputeSize()     const;
+        Kind     GetKind()         const;
         bool     IsInitialized()   const;
         bool     IsKind(Kind kind) const;
 
@@ -735,98 +768,6 @@ namespace CxxReflect { namespace Metadata {
 
     CXXREFLECT_GENERATE_SCOPED_ENUM_OPERATORS(TypeSignature::Kind)
     CXXREFLECT_GENERATE_SCOPED_ENUM_OPERATORS(TypeSignature::Part)
-
-    
-
-    // Represents a Blob in the metadata database TODO MOVE THIS BACK INTO METADATADATABASE.CPP
-    class Blob
-    {
-    public:
-
-        Blob()
-        {
-        }
-
-        // Note that this 'last' is not the end of the blob, it is the end of the whole blob stream.
-        Blob(ByteIterator const first, ByteIterator const last)
-        {
-            Detail::VerifyNotNull(first);
-            Detail::VerifyNotNull(last);
-
-            std::tie(_first.Get(), _last.Get()) = ComputeBounds(first, last);
-        }
-
-        ByteIterator Begin()   const { VerifyInitialized(); return _first.Get(); }
-        ByteIterator End()     const { VerifyInitialized(); return _last.Get();  }
-
-        SizeType GetSize() const
-        {
-            VerifyInitialized();
-            return static_cast<SizeType>(_last.Get() - _first.Get());
-        }
-
-        bool IsInitialized() const
-        {
-            return _first.Get() != nullptr && _last.Get() != nullptr;
-        }
-
-    private:
-
-        static std::pair<ByteIterator, ByteIterator> ComputeBounds(ByteIterator const first,
-                                                                   ByteIterator const last)
-        {
-            if (first == last)
-                throw ReadError("Invalid blob");
-
-            Byte initialByte(*first);
-            SizeType blobSizeBytes(0);
-            switch (initialByte >> 5)
-            {
-            case 0:
-            case 1:
-            case 2:
-            case 3:
-                blobSizeBytes = 1;
-                initialByte &= 0x7f;
-                break;
-
-            case 4:
-            case 5:
-                blobSizeBytes = 2;
-                initialByte &= 0x3f;
-                break;
-
-            case 6:
-                blobSizeBytes = 4;
-                initialByte &= 0x1f;
-                break;
-
-            case 7:
-            default:
-                throw ReadError("Invalid blob");
-            }
-
-            if (static_cast<SizeType>(last - first) < blobSizeBytes)
-                throw ReadError("Invalid blob");
-
-            SizeType blobSize(initialByte);
-            for (unsigned i(1); i < blobSizeBytes; ++ i)
-                blobSize = (blobSize << 8) + *(first + i);
-
-            if (static_cast<SizeType>(last - first) < blobSizeBytes + blobSize)
-                throw ReadError("Invalid blob");
-
-            return std::make_pair(first + blobSizeBytes, first + blobSizeBytes + blobSize);
-        }
-
-        void VerifyInitialized() const
-        {
-            Detail::Verify([&]{ return IsInitialized(); });
-        }
-
-        Detail::ValueInitialized<ByteIterator> _first;
-        Detail::ValueInitialized<ByteIterator> _last;
-    };
 
 } }
 

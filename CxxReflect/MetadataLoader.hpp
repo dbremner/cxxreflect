@@ -97,10 +97,17 @@ namespace CxxReflect {
         MetadataLoader(std::unique_ptr<IMetadataResolver> resolver);
 
         Assembly LoadAssembly(String path) const;
+        Assembly LoadAssembly(AssemblyName const& name) const;
 
     public: // internals
 
         AssemblyName const& GetAssemblyName(Metadata::Database const& database, InternalKey) const;
+
+        // Resolves a type via a type reference.  The type reference must refer to a TypeDef, TypeRef,
+        // or TypeSpec token.  If it is a TypeDef or a TypeRef, the token is returned as-is.  If it is
+        // a TypeRef, it is resolved into either a TypeDef or a TypeSpec token in the defining
+        // assembly.
+        Metadata::DatabaseReference ResolveType(Metadata::DatabaseReference const& typeReference, InternalKey) const;
 
     private:
 

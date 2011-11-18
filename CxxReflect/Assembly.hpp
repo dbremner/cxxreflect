@@ -60,7 +60,7 @@ namespace CxxReflect {
         TypeIterator EndTypes()   const;
 
         Type GetType(StringReference name, bool ignoreCase = false) const;
-
+        Type GetType(StringReference namespaceName, StringReference typeName, bool ignoreCase = false) const;
 
         Metadata::Database const& GetDatabase(InternalKey) const;
         MetadataLoader     const& GetLoader(InternalKey)   const;

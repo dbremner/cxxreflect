@@ -26,12 +26,30 @@ namespace CxxReflect {
 
     Type Assembly::GetType(StringReference const name, bool const ignoreCase) const
     {
+        // TODO PORTABILITY
         typedef int (*Comparer)(wchar_t const*, wchar_t const*);
-        Comparer compare(ignoreCase ? _wcsicmp : wcscmp);
+        Comparer const compare(ignoreCase ? _wcsicmp : wcscmp);
 
         auto const it(std::find_if(BeginTypes(), EndTypes(), [&](Type const& t)
         {
             return compare(t.GetFullName().c_str(), name.c_str()) == 0;
+        }));
+
+        return it != EndTypes() ? *it : Type();
+    }
+
+    Type Assembly::GetType(StringReference const namespaceName,
+                           StringReference const typeName,
+                           bool const ignoreCase) const
+    {
+        // TODO PORTABILITY
+        typedef int (*Comparer)(wchar_t const*, wchar_t const*);
+        Comparer const compare(ignoreCase ? _wcsicmp : wcscmp);
+
+        auto const it(std::find_if(BeginTypes(), EndTypes(), [&](Type const& t)
+        {
+            return compare(t.GetNamespace().c_str(), namespaceName.c_str()) == 0
+                && compare(t.GetName().c_str(), namespaceName.c_str()) == 0;
         }));
 
         return it != EndTypes() ? *it : Type();

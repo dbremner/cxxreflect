@@ -216,6 +216,18 @@ namespace CxxReflect { namespace Detail {
         return first0 == last0 && first1 == last1;
     }
 
+    template <typename TInIt0, typename TInIt1, typename TPred>
+    bool RangeCheckedEqual(TInIt0 first0, TInIt0 const last0, TInIt1 first1, TInIt1 const last1, TPred const pred)
+    {
+        while (first0 != last0 && first1 != last1 && pred(*first0, *first1))
+        {
+            ++first0;
+            ++first1;
+        }
+
+        return first0 == last0 && first1 == last1;
+    }
+
 
 
 
@@ -1410,6 +1422,14 @@ namespace CxxReflect { namespace Metadata {
     class TypeRefRow;
     class TypeSpecRow;
 
+    class ArrayShape;
+    class CustomModifier;
+    class FieldSignature;
+    class MethodSignature;
+    class PropertySignature;
+    class TypeSignature;
+    class SignatureComparer;
+
 } }
 
 namespace CxxReflect {
@@ -1457,6 +1477,14 @@ namespace CxxReflect {
         friend Module;
         friend Type;
         friend Version;
+
+        friend Metadata::ArrayShape;
+        friend Metadata::CustomModifier;
+        friend Metadata::FieldSignature;
+        friend Metadata::MethodSignature;
+        friend Metadata::PropertySignature;
+        friend Metadata::TypeSignature;
+        friend Metadata::SignatureComparer;
     };
 
     enum class AssemblyAttribute : std::uint32_t

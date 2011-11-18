@@ -10,7 +10,6 @@
 #define CXXREFLECT_METADATADATABASE_HPP_
 
 #include "CxxReflect/Core.hpp"
-#include "CxxReflect/MetadataSignature.hpp"
 
 #include <array>
 #include <bitset>
@@ -373,6 +372,54 @@ namespace CxxReflect { namespace Metadata {
 
 
 
+    // Represents a TableReference along with a reference to the database in which the row to which
+    // the TableReference refers is located.
+    class DatabaseReference
+    {
+    public:
+
+        DatabaseReference()
+        {
+        }
+
+        DatabaseReference(Database const* database, TableReference const& tableReference)
+            : _database(database), _tableReference(tableReference)
+        {
+            Detail::VerifyNotNull(database);
+            Detail::Verify([&]{ return tableReference.IsInitialized(); });
+        }
+
+        Database const& GetDatabase() const
+        {
+            VerifyInitialized();
+            return *_database.Get();
+        }
+
+        TableReference const& GetTableReference() const
+        {
+            VerifyInitialized();
+            return _tableReference;
+        }
+
+        bool IsInitialized() const
+        {
+            return _database.Get() != nullptr && _tableReference.IsInitialized();
+        }
+
+    private:
+
+        void VerifyInitialized() const
+        {
+            Detail::Verify([&]{ return IsInitialized(); });
+        }
+
+        Detail::ValueInitialized<Database const*> _database;
+        TableReference                            _tableReference;
+    };
+
+
+
+
     // Represents a metadata stream.  A metadata stream is a sequence of bytes in the assembly that
     // contains metadata.  When we are constructed, we bulk copy the entire sequence of bytes into
     // an array in memory, then provide access to that data via offsets into the stream.
@@ -514,6 +561,106 @@ namespace CxxReflect { namespace Metadata {
     CXXREFLECT_GENERATE(TypeSpec              );
 
     #undef CXXREFLECT_GENERATE
+
+
+
+
+    // Represents a Blob in the metadata database
+    class Blob
+    {
+    public:
+
+        Blob()
+        {
+        }
+
+        // Note that this 'last' is not the end of the blob, it is the end of the whole blob stream.
+        Blob(ByteIterator const first, ByteIterator const last)
+        {
+            Detail::VerifyNotNull(first);
+            Detail::VerifyNotNull(last);
+
+            std::tie(_first.Get(), _last.Get()) = ComputeBounds(first, last);
+        }
+
+        ByteIterator Begin()   const { VerifyInitialized(); return _first.Get(); }
+        ByteIterator End()     const { VerifyInitialized(); return _last.Get();  }
+
+        SizeType GetSize() const
+        {
+            VerifyInitialized();
+            return static_cast<SizeType>(_last.Get() - _first.Get());
+        }
+
+        bool IsInitialized() const
+        {
+            return _first.Get() != nullptr && _last.Get() != nullptr;
+        }
+
+        template <typename TSignature>
+        TSignature As() const
+        {
+            VerifyInitialized();
+            return TSignature(_first.Get(), _last.Get());
+        }
+
+    private:
+
+        static std::pair<ByteIterator, ByteIterator> ComputeBounds(ByteIterator const first,
+                                                                   ByteIterator const last)
+        {
+            if (first == last)
+                throw ReadError("Invalid blob");
+
+            Byte initialByte(*first);
+            SizeType blobSizeBytes(0);
+            switch (initialByte >> 5)
+            {
+            case 0:
+            case 1:
+            case 2:
+            case 3:
+                blobSizeBytes = 1;
+                initialByte &= 0x7f;
+                break;
+
+            case 4:
+            case 5:
+                blobSizeBytes = 2;
+                initialByte &= 0x3f;
+                break;
+
+            case 6:
+                blobSizeBytes = 4;
+                initialByte &= 0x1f;
+                break;
+
+            case 7:
+            default:
+                throw ReadError("Invalid blob");
+            }
+
+            if (static_cast<SizeType>(last - first) < blobSizeBytes)
+                throw ReadError("Invalid blob");
+
+            SizeType blobSize(initialByte);
+            for (unsigned i(1); i < blobSizeBytes; ++ i)
+                blobSize = (blobSize << 8) + *(first + i);
+
+            if (static_cast<SizeType>(last - first) < blobSizeBytes + blobSize)
+                throw ReadError("Invalid blob");
+
+            return std::make_pair(first + blobSizeBytes, first + blobSizeBytes + blobSize);
+        }
+
+        void VerifyInitialized() const
+        {
+            Detail::Verify([&]{ return IsInitialized(); });
+        }
+
+        Detail::ValueInitialized<ByteIterator> _first;
+        Detail::ValueInitialized<ByteIterator> _last;
+    };
 
 
 
@@ -742,6 +889,7 @@ namespace CxxReflect { namespace Metadata {
     // The core metadata database interface.  This loads the database from the assembly file and
     // initializes all of the data structures required for accessing the metadata.
     class Database
+        : public Detail::Comparable<Database>
     {
     public:
 
@@ -809,6 +957,17 @@ namespace CxxReflect { namespace Metadata {
                 && _guidStream.IsInitialized()
                 && _strings.IsInitialized()
                 && _tables.IsInitialized();
+        }
+
+        // Every Database object is unique, so we can compare via address:
+        friend bool operator==(Database const& lhs, Database const& rhs)
+        {
+            return &lhs == &rhs;
+        }
+
+        friend bool operator<(Database const& lhs, Database const& rhs)
+        {
+            return std::less<Database const*>()(&lhs, &rhs);
         }
 
     private:

@@ -6,6 +6,7 @@
 #include "CxxReflect/AssemblyName.hpp"
 #include "CxxReflect/MetadataLoader.hpp"
 #include "CxxReflect/Method.hpp"
+#include "CxxReflect/Type.hpp"
 
 namespace CxxReflect { namespace Detail {
 
@@ -85,6 +86,80 @@ namespace CxxReflect {
         return it->second.GetAssemblyName();
     }
 
+    Metadata::DatabaseReference MetadataLoader::ResolveType(Metadata::DatabaseReference const& typeReference, InternalKey) const
+    {
+        using namespace CxxReflect::Metadata;
+
+        // A TypeDef or TypeSpec is already resolved:
+        if (typeReference.GetTableReference().GetTable() == TableId::TypeDef ||
+            typeReference.GetTableReference().GetTable() == TableId::TypeSpec)
+            return typeReference;
+
+        Detail::Verify([&]{ return typeReference.GetTableReference().GetTable() == TableId::TypeRef; });
+            
+
+        // Ok, we have a TypeRef;
+        Database const& referenceDatabase(typeReference.GetDatabase());
+        SizeType const typeRefIndex(typeReference.GetTableReference().GetIndex());
+        TypeRefRow const typeRef(referenceDatabase.GetRow<TableId::TypeRef>(typeRefIndex));
+
+        TableReference const resolutionScope(typeRef.GetResolutionScope());
+
+        // If the resolution scope is null, we look in the ExportedType table for this type.
+        if (!resolutionScope.IsValid())
+        {
+            Detail::VerifyFail("wtf");
+            return DatabaseReference(); // TODO WE SHOULD THROW HERE
+        }
+
+        switch (resolutionScope.GetTable())
+        {
+        case TableId::Module:
+        {
+            Detail::VerifyFail("wtf");
+            break;
+        }
+
+        case TableId::ModuleRef:
+        {
+            Detail::VerifyFail("wtf");
+            break;
+        }
+        case TableId::AssemblyRef:
+        {
+            AssemblyName const definingAssemblyName(
+                Assembly(this, &referenceDatabase, InternalKey()),
+                resolutionScope);
+
+            Assembly const definingAssembly(LoadAssembly(definingAssemblyName));
+            if (definingAssembly == nullptr)
+                throw std::logic_error("wtf");
+
+            Type const resolvedType(definingAssembly.GetType(typeRef.GetNamespace(), typeRef.GetName()));
+            if (resolvedType == nullptr)
+                throw std::logic_error("wtf");
+
+            return DatabaseReference(
+                &definingAssembly.GetDatabase(InternalKey()), 
+                TableReference::FromToken(resolvedType.GetMetadataToken()));
+        }
+
+        case TableId::TypeRef:
+        {
+            Detail::VerifyFail("wtf");
+            break;
+        }
+
+        default:
+        {
+            Detail::VerifyFail("wtf");
+            break;
+        }
+        }
+
+        return DatabaseReference(); // TODO THIS IS UNREACHABLE
+    }
+
     Assembly MetadataLoader::LoadAssembly(String path) const
     {
         // TODO PATH NORMALIZATION?
@@ -97,6 +172,11 @@ namespace CxxReflect {
         }
 
         return Assembly(this, &it->second.GetDatabase(), InternalKey());
+    }
+
+    Assembly MetadataLoader::LoadAssembly(AssemblyName const& name) const
+    {
+        return LoadAssembly(_resolver->ResolveAssembly(name, String()));
     }
 
     AssemblyName const& MetadataLoader::AssemblyContext::GetAssemblyName() const

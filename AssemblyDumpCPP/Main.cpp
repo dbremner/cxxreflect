@@ -89,12 +89,37 @@ int main()
 
     std::unique_ptr<IMetadataResolver> resolver(new DirectoryBasedMetadataResolver(directories));
 
+    Metadata::Database db(L"D:\\jm\\dev\\TestData\\ConsoleApplication1\\ConsoleApplication1\\bin\\Debug\\ConsoleApplication1.exe");
+
+    std::vector<std::pair<std::wstring, unsigned>> vx;
+
+    std::transform(
+        db.Begin<TableId::MethodDef>(),
+        db.End<TableId::MethodDef>(),
+        std::back_inserter(vx),
+        [&](MethodDefRow const& r)
+    {
+        return std::make_pair(r.GetName().c_str(), r.GetSignature().GetIndex());
+    });
+
+    std::vector<std::pair<std::wstring, unsigned>> vy;
+
+    std::transform(
+        db.Begin<TableId::MemberRef>(),
+        db.End<TableId::MemberRef>(),
+        std::back_inserter(vy),
+        [&](MemberRefRow const& r)
+    {
+        return std::make_pair(r.GetName().c_str(), r.GetSignature().GetIndex());
+    });
+
+
     MetadataLoader loader(std::move(resolver));
 
     Assembly a(loader.LoadAssembly(L"C:\\Windows\\Microsoft.NET\\Framework\\v4.0.30319\\mscorlib.dll"));
 
-    //Type const object(a.GetType(L"System.Object"));
-    //Method const firstMethod(*object.BeginMethods());
+    Type const object(a.GetType(L"System.Object"));
+    Method const toString(*object.BeginMethods());
 
     Detail::FileHandle fs(L"d:\\jm\\mscorlib.cpp.txt", Detail::FileMode::Write);
     Dump(fs, a);

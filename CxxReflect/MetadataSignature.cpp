@@ -3,6 +3,7 @@
 //     (See accompanying file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)    //
 
 #include "CxxReflect/MetadataDatabase.hpp"
+#include "CxxReflect/MetadataLoader.hpp"
 #include "CxxReflect/MetadataSignature.hpp"
 
 namespace { namespace Private {
@@ -169,6 +170,254 @@ namespace { namespace Private {
 } }
 
 namespace CxxReflect { namespace Metadata {
+
+    SignatureComparer::SignatureComparer(MetadataLoader const* loader,
+                                         Database const* lhsDatabase,
+                                         Database const* rhsDatabase)
+        : _loader(loader), _lhsDatabase(lhsDatabase), _rhsDatabase(rhsDatabase)
+    {
+        Detail::VerifyNotNull(loader);
+        Detail::VerifyNotNull(lhsDatabase);
+        Detail::VerifyNotNull(rhsDatabase);
+    }
+
+    bool SignatureComparer::operator()(ArrayShape const& lhs, ArrayShape const& rhs) const
+    {
+        if (lhs.GetRank() != rhs.GetRank())
+            return false;
+
+        if (!Detail::RangeCheckedEqual(
+                lhs.BeginSizes(), lhs.EndSizes(),
+                rhs.BeginSizes(), rhs.EndSizes()))
+            return false;
+
+        if (!Detail::RangeCheckedEqual(
+                lhs.BeginLowBounds(), lhs.EndLowBounds(),
+                rhs.BeginLowBounds(), rhs.EndLowBounds()))
+            return false;
+
+        return true;
+    }
+
+    bool SignatureComparer::operator()(CustomModifier const& lhs, CustomModifier const& rhs) const
+    {
+        if (lhs.IsOptional() != rhs.IsOptional())
+            return false;
+
+        if (!(*this)(lhs.GetTypeReference(), rhs.GetTypeReference()))
+            return false;
+
+        return true;
+    }
+
+    bool SignatureComparer::operator()(FieldSignature const& lhs, FieldSignature const& rhs) const
+    {
+        if (!(*this)(lhs.GetTypeSignature(), rhs.GetTypeSignature()))
+            return false;
+
+        return true;
+    }
+
+    bool SignatureComparer::operator()(MethodSignature const& lhs, MethodSignature const& rhs) const
+    {
+        if (lhs.GetCallingConvention() != rhs.GetCallingConvention())
+            return false;
+
+        if (lhs.HasThis() != rhs.HasThis())
+            return false;
+
+        if (lhs.HasExplicitThis() != rhs.HasExplicitThis())
+            return false;
+
+        if (lhs.IsGeneric() != rhs.IsGeneric())
+            return false;
+
+        if (lhs.GetGenericParameterCount() != rhs.GetGenericParameterCount())
+            return false;
+
+        // TODO Check assignable-to?  Shouldn't this always be the case for derived classes?
+
+        if (lhs.GetParameterCount() != rhs.GetParameterCount())
+            return false;
+
+        if (!Detail::RangeCheckedEqual(
+                lhs.BeginParameters(), lhs.EndParameters(),
+                rhs.BeginParameters(), rhs.EndParameters(),
+                *this))
+            return false;
+
+        if (!(*this)(lhs.GetReturnType(), rhs.GetReturnType()))
+            return false;
+
+        return true;
+    }
+
+    bool SignatureComparer::operator()(PropertySignature const& lhs, PropertySignature const& rhs) const
+    {
+        if (lhs.HasThis() != rhs.HasThis())
+            return false;
+
+        if (!Detail::RangeCheckedEqual(
+                lhs.BeginParameters(), lhs.EndParameters(),
+                rhs.BeginParameters(), rhs.EndParameters(),
+                *this))
+            return false;
+
+        if (!(*this)(lhs.GetTypeSignature(), rhs.GetTypeSignature()))
+            return false;
+
+        return true;
+    }
+
+    bool SignatureComparer::operator()(TypeSignature const& lhs, TypeSignature const& rhs) const
+    {
+        // TODO DO WE NEED TO CHECK CUSTOM MODIFIERS?
+
+        if (lhs.GetKind() != rhs.GetKind())
+            return false;
+
+        if (lhs.GetKind() == TypeSignature::Kind::Unknown || rhs.GetKind() == TypeSignature::Kind::Unknown)
+            return false;
+
+        switch (lhs.GetKind())
+        {
+        case TypeSignature::Kind::Array:
+        {
+            if (!(*this)(lhs.GetArrayType(), rhs.GetArrayType()))
+                return false;
+
+            if (!(*this)(lhs.GetArrayShape(), rhs.GetArrayShape()))
+                return false;
+
+            return true;
+        }
+
+        case TypeSignature::Kind::ClassType:
+        {
+            if (lhs.IsClassType() != rhs.IsClassType())
+                return false;
+
+            if (!(*this)(lhs.GetTypeReference(), rhs.GetTypeReference()))
+                return false;
+
+            return true;
+        }
+
+        case TypeSignature::Kind::FnPtr:
+        {
+            if (!(*this)(lhs.GetMethodSignature(), rhs.GetMethodSignature()))
+                return false;
+
+            return true;
+        }
+
+        case TypeSignature::Kind::GenericInst:
+        {
+            if (lhs.IsGenericClassTypeInstance() != rhs.IsGenericClassTypeInstance())
+                return false;
+
+            if (lhs.GetGenericTypeReference() != rhs.GetGenericTypeReference())
+                return false;
+
+            if (lhs.GetGenericArgumentCount() != rhs.GetGenericArgumentCount())
+                return false;
+
+            if (!Detail::RangeCheckedEqual(
+                    lhs.BeginGenericArguments(), lhs.EndGenericArguments(),
+                    rhs.BeginGenericArguments(), rhs.EndGenericArguments(),
+                    *this))
+                return false;
+
+            return true;
+        }
+
+        case TypeSignature::Kind::Primitive:
+        {
+            if (lhs.GetPrimitiveElementType() != rhs.GetPrimitiveElementType())
+                return false;
+
+            return true;
+        }
+
+        case TypeSignature::Kind::Ptr:
+        {
+            if (!(*this)(lhs.GetPointerTypeSignature(), rhs.GetPointerTypeSignature()))
+                return false;
+
+            return true;
+        }
+
+        case TypeSignature::Kind::SzArray:
+        {
+            if (!(*this)(lhs.GetArrayType(), rhs.GetArrayType()))
+                return false;
+
+            return true;
+        }
+
+        case TypeSignature::Kind::Var:
+        {
+            if (lhs.IsClassVariableType() != rhs.IsClassVariableType())
+                return false;
+
+            if (lhs.GetVariableNumber() != rhs.GetVariableNumber())
+                return false;
+
+            return true;
+        }
+
+        default:
+        {
+            return false;
+        }
+        }
+    }
+
+    bool SignatureComparer::operator()(TableReference const& lhs, TableReference const& rhs) const
+    {
+        DatabaseReference const lhsResolved(_loader.Get()->ResolveType(DatabaseReference(_lhsDatabase.Get(), lhs), InternalKey()));
+        DatabaseReference const rhsResolved(_loader.Get()->ResolveType(DatabaseReference(_rhsDatabase.Get(), rhs), InternalKey()));
+
+        // If the types are from different tables, they cannot be equal:
+        if (lhsResolved.GetTableReference().GetTable() != rhsResolved.GetTableReference().GetTable())
+            return false;
+
+        // If we have a pair of TypeDefs, they are only equal if they refer to the same type in the
+        // same database; in no other case can they be equal:
+        if (lhsResolved.GetTableReference().GetTable() == TableId::TypeDef)
+        {
+            if (lhsResolved.GetDatabase() == rhsResolved.GetDatabase() &&
+                lhsResolved.GetTableReference() == rhsResolved.GetTableReference())
+                return true;
+
+            return false;
+        }
+
+        // Otherwise, we have a pair of TypeSpec tokens and we have to compare them recursively:
+        Database const& lhsDatabase(lhsResolved.GetDatabase());
+        Database const& rhsDatabase(rhsResolved.GetDatabase());
+
+        SizeType const lhsRowIndex(lhsResolved.GetTableReference().GetIndex());
+        SizeType const rhsRowIndex(rhsResolved.GetTableReference().GetIndex());
+
+        TypeSpecRow const lhsTypeSpec(lhsDatabase.GetRow<TableId::TypeSpec>(lhsRowIndex));
+        TypeSpecRow const rhsTypeSpec(rhsDatabase.GetRow<TableId::TypeSpec>(rhsRowIndex));
+
+        Blob const lhsSignature(lhsDatabase.GetBlob(lhsTypeSpec.GetSignature().GetIndex()));
+        Blob const rhsSignature(rhsDatabase.GetBlob(rhsTypeSpec.GetSignature().GetIndex()));
+
+        // Note that we use a new signature comparer because the LHS and RHS signatures may have come
+        // from new and/or different databases.
+        if (SignatureComparer(_loader.Get(), &lhsDatabase, &rhsDatabase)(
+                TypeSignature(lhsSignature.Begin(), lhsSignature.End()),
+                TypeSignature(rhsSignature.Begin(), rhsSignature.End())))
+            return true;
+
+        return false;
+    }
+
+
+
 
     ArrayShape::ArrayShape()
     {
@@ -591,6 +840,15 @@ namespace CxxReflect { namespace Metadata {
 
         return SignatureFlags(Private::PeekByte(SeekTo(Part::TypeTag), _last.Get()))
             .IsSet(SignatureAttribute::ExplicitThis);
+    }
+
+    SignatureAttribute MethodSignature::GetCallingConvention() const
+    {
+        VerifyInitialized();
+
+        return SignatureFlags(Private::PeekByte(SeekTo(Part::TypeTag), _last.Get()))
+            .WithMask(SignatureAttribute::CallingConventionMask)
+            .GetEnum();
     }
 
     bool MethodSignature::HasDefaultConvention() const
