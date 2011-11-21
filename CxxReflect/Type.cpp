@@ -3,6 +3,7 @@
 //     (See accompanying file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)    //
 
 #include "CxxReflect/AssemblyName.hpp"
+#include "CxxReflect/MetadataLoader.hpp"
 #include "CxxReflect/Method.hpp"
 #include "CxxReflect/Type.hpp"
 
@@ -58,6 +59,67 @@ namespace CxxReflect {
 
     bool const TodoNotYetImplementedFlag = false;
 
+    Type::Type()
+    {
+    }
+
+    Type::Type(Assembly const& assembly, Metadata::TableReference const& type)
+        : _assembly(assembly), _type(Metadata::TableOrBlobReference(type))
+    {
+        using namespace CxxReflect::Metadata;
+
+        Detail::Verify([&] { return assembly.IsInitialized(); });
+
+        // If we were initialized with an empty type, do not attempt to do any type resolution.
+        if (!type.IsInitialized())
+            return;
+
+        switch (type.GetTable())
+        {
+        case TableId::TypeDef:
+        {
+            // Wonderful news!  We have a TypeDef and we don't need to do any further work.
+            break;
+        }
+
+        case TableId::TypeRef:
+        {
+            // Resolve the TypeRef into a TypeDef, throwing on failure:
+            // TODO CORRECT ERROR HANDLING
+            MetadataLoader const& loader(assembly.GetLoader(InternalKey()));
+            Database const& database(assembly.GetContext(InternalKey()).GetDatabase());
+            DatabaseReference const resolvedType(loader.ResolveType(DatabaseReference(&database, type), InternalKey()));
+            Detail::Verify([&]{ return resolvedType.IsInitialized(); });
+
+            _assembly = Assembly(
+                &loader,
+                &loader.GetContextForDatabase(resolvedType.GetDatabase(), InternalKey()),
+                InternalKey());
+
+            _type = TableOrBlobReference(resolvedType.GetTableReference());
+            Detail::Verify([&]{ return _type.AsTableReference().GetTable() == TableId::TypeDef; });
+
+            break;
+        }
+
+        case TableId::TypeSpec:
+        {
+            // Get the signature for the TypeSpec token and use that instead:
+            Database const& database(assembly.GetContext(InternalKey()).GetDatabase());
+            TypeSpecRow const typeSpec(database.GetRow<TableId::TypeSpec>(type.GetIndex()));
+            _type = TableOrBlobReference(typeSpec.GetSignature());
+
+            break;
+        }
+
+        default:
+        {
+            Detail::VerifyFail();
+            break;
+        }
+        }
+    }
+
     void Type::AccumulateFullNameInto(std::wostream& os) const
     {
         // TODO ENSURE WE ESCAPE THE TYPE NAME CORRECTLY
@@ -89,6 +151,38 @@ namespace CxxReflect {
         {
             os << L", " << _assembly.GetName().GetFullName();
         }
+    }
+
+    Metadata::TypeDefRow Type::GetTypeDefRow() const
+    {
+        Detail::Verify([&] { return IsTypeDef(); });
+        return _assembly
+            .GetContext(InternalKey())
+            .GetDatabase()
+            .GetRow<Metadata::TableId::TypeDef>(_type.AsTableReference().GetIndex());
+    }
+
+    Metadata::TypeSpecRow Type::GetTypeSpecRow() const
+    {
+        Detail::Verify([&] { return IsTypeSpec(); });
+        // TODO HANDLE BLOB REFERENCES HERE
+        return _assembly
+            .GetContext(InternalKey())
+            .GetDatabase()
+            .GetRow<Metadata::TableId::TypeSpec>(_type.AsTableReference().GetIndex());
+    }
+
+    Detail::MethodTableAllocator::Range Type::GetOrCreateMethodTable() const
+    {
+        // TODO HANDLE TYPE SPECS
+        Detail::MethodTableAllocator::Range const existingRange(_assembly
+            .GetContext(InternalKey())
+            .GetMethodTableForType(_type.AsTableReference().GetIndex()));
+        if (!existingRange.Empty())
+            return existingRange;
+
+        std::vector<Detail::MethodReference> methods;
+        return existingRange; // TODO
     }
 
     Type::MethodIterator Type::BeginMethods(BindingFlags flags) const
@@ -173,7 +267,7 @@ namespace CxxReflect {
     {
         if (IsNested())
         {
-            Metadata::Database const& database(_assembly.GetDatabase(InternalKey()));
+            Metadata::Database const& database(_assembly.GetContext(InternalKey()).GetDatabase());
             auto const it(std::lower_bound(
                 database.Begin<Metadata::TableId::NestedClass>(),
                 database.End<Metadata::TableId::NestedClass>(),

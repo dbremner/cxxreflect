@@ -1093,10 +1093,14 @@ namespace CxxReflect { namespace Detail {
             Range(Pointer const begin, Pointer const end)
                 : _begin(begin), _end(end)
             {
+                VerifyNotNull(begin);
+                VerifyNotNull(end);
             }
 
-            Pointer Begin() const { return _begin; }
-            Pointer End()   const { return _end;   }
+            Pointer Begin() const { return _begin;         }
+            Pointer End()   const { return _end;           }
+
+            bool    Empty() const { return _begin == _end; }
 
         private:
 
@@ -1366,7 +1370,8 @@ namespace CxxReflect { namespace Detail {
 
     bool FileExists(wchar_t const* filePath);
 
-     class MethodReference;
+    class AssemblyContext;
+    class MethodReference;
 
 } }
 
@@ -1467,6 +1472,7 @@ namespace CxxReflect {
     {
         InternalKey() { }
 
+        friend Detail::AssemblyContext;
         friend Detail::MethodReference;
 
         friend Assembly;

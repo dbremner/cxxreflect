@@ -82,12 +82,7 @@ namespace CxxReflect {
 
     private:
 
-        Metadata::MethodDefRow GetMethodDefRow() const
-        {
-            Detail::Verify([&]{ return _method.GetTable() == Metadata::TableId::MethodDef; });
-            auto const& database(_declaringType.GetAssembly().GetDatabase(InternalKey()));
-            return database.GetRow<Metadata::TableId::MethodDef>(_method.GetIndex());
-        }
+        Metadata::MethodDefRow GetMethodDefRow() const;
 
         Type                     _reflectedType;
         Type                     _declaringType;

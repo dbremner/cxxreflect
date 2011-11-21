@@ -95,7 +95,7 @@ namespace CxxReflect {
 
     AssemblyName::AssemblyName(Assembly const& assembly, Metadata::TableReference const& reference)
     {
-        Metadata::Database const& database(assembly.GetDatabase(InternalKey()));
+        Metadata::Database const& database(assembly.GetContext(InternalKey()).GetDatabase());
         switch (reference.GetTable())
         {
         case Metadata::TableId::Assembly:

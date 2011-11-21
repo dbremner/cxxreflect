@@ -36,16 +36,9 @@ namespace CxxReflect {
             &Type::InternalFilterMethod
         > MethodIterator;
 
-        Type()
-            : _assembly(), _type()
-        {
-        }
+        Type();
 
-        Type(Assembly const& assembly, Metadata::TableReference const& type)
-            : _assembly(assembly), _type(Metadata::TableOrBlobReference(type))
-        {
-            Detail::Verify([&] { return assembly.IsInitialized(); });
-        }
+        Type(Assembly const& assembly, Metadata::TableReference const& type);
 
         Type(Assembly const& assembly, Metadata::BlobReference const& type)
             : _assembly(assembly), _type(Metadata::TableOrBlobReference(type))
@@ -157,22 +150,8 @@ namespace CxxReflect {
                 || _type.AsTableReference().GetTable() == Metadata::TableId::TypeSpec;
         }
 
-        Metadata::TypeDefRow  GetTypeDefRow() const
-        {
-            Detail::Verify([&] { return IsTypeDef(); });
-            return _assembly
-                .GetDatabase(InternalKey())
-                .GetRow<Metadata::TableId::TypeDef>(_type.AsTableReference().GetIndex());
-        }
-
-        Metadata::TypeSpecRow GetTypeSpecRow() const
-        {
-            Detail::Verify([&] { return IsTypeSpec(); });
-            // TODO HANDLE BLOB REFERENCES HERE
-            return _assembly
-                .GetDatabase(InternalKey())
-                .GetRow<Metadata::TableId::TypeSpec>(_type.AsTableReference().GetIndex());
-        }
+        Metadata::TypeDefRow  GetTypeDefRow()  const;
+        Metadata::TypeSpecRow GetTypeSpecRow() const;
 
         #define CXXREFLECT_GENERATE decltype(std::declval<TCallback>()(std::declval<Type>()))
 
@@ -202,6 +181,8 @@ namespace CxxReflect {
 
         void AccumulateFullNameInto(std::wostream& os) const;
         void AccumulateAssemblyQualifiedNameInto(std::wostream& os) const;
+
+        Detail::MethodTableAllocator::Range GetOrCreateMethodTable() const;
 
         Assembly                       _assembly;
         Metadata::TableOrBlobReference _type;

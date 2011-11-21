@@ -7,29 +7,39 @@
 #include "CxxReflect/MetadataLoader.hpp"
 #include "CxxReflect/Type.hpp"
 
-using namespace CxxReflect;
+namespace { namespace Private {
+
+    using namespace CxxReflect;
+
+    typedef int (*StringComparer)(wchar_t const*, wchar_t const*);
+
+    StringComparer GetStringComparer(bool const caseInsensitive)
+    {
+        // TODO PORTABILITY
+        return caseInsensitive ? _wcsicmp : wcscmp;
+    }
+
+} }
 
 namespace CxxReflect {
 
     Assembly::TypeIterator Assembly::BeginTypes() const
     {
-        // We skip the type at index 0, which is the internal <module> type containing module-scope things:
+        // We intentionally skip the type at index 0; this isn't a real type, it's the internal
+        // <module> "type" containing module-scope thingies.
         return Assembly::TypeIterator(*this, Metadata::TableReference(Metadata::TableId::TypeDef, 1));
     }
 
     Assembly::TypeIterator Assembly::EndTypes() const
     {
-        return Assembly::TypeIterator(*this, Metadata::TableReference(
+        return TypeIterator(*this, Metadata::TableReference(
             Metadata::TableId::TypeDef,
-            _database->GetTables().GetTable(Metadata::TableId::TypeDef).GetRowCount()));
+            _context.Get()->GetDatabase().GetTables().GetTable(Metadata::TableId::TypeDef).GetRowCount()));
     }
 
     Type Assembly::GetType(StringReference const name, bool const ignoreCase) const
     {
-        // TODO PORTABILITY
-        typedef int (*Comparer)(wchar_t const*, wchar_t const*);
-        Comparer const compare(ignoreCase ? _wcsicmp : wcscmp);
-
+        Private::StringComparer const compare(Private::GetStringComparer(ignoreCase));
         auto const it(std::find_if(BeginTypes(), EndTypes(), [&](Type const& t)
         {
             return compare(t.GetFullName().c_str(), name.c_str()) == 0;
@@ -42,10 +52,7 @@ namespace CxxReflect {
                            StringReference const typeName,
                            bool const ignoreCase) const
     {
-        // TODO PORTABILITY
-        typedef int (*Comparer)(wchar_t const*, wchar_t const*);
-        Comparer const compare(ignoreCase ? _wcsicmp : wcscmp);
-
+        Private::StringComparer const compare(Private::GetStringComparer(ignoreCase));
         auto const it(std::find_if(BeginTypes(), EndTypes(), [&](Type const& t)
         {
             return compare(t.GetNamespace().c_str(), namespaceName.c_str()) == 0
@@ -57,26 +64,26 @@ namespace CxxReflect {
 
     SizeType Assembly::GetReferencedAssemblyCount() const
     {
-        return _database->GetTables().GetTable(Metadata::TableId::AssemblyRef).GetRowCount();
+        return _context.Get()->GetDatabase().GetTables().GetTable(Metadata::TableId::AssemblyRef).GetRowCount();
     }
 
     Assembly::AssemblyNameIterator Assembly::BeginReferencedAssemblyNames() const
     {
-        return Assembly::AssemblyNameIterator(*this, Metadata::TableReference(Metadata::TableId::AssemblyRef, 0));
+        return AssemblyNameIterator(*this, Metadata::TableReference(Metadata::TableId::AssemblyRef, 0));
     }
 
     Assembly::AssemblyNameIterator Assembly::EndReferencedAssemblyNames() const
     {
         return Assembly::AssemblyNameIterator(*this, Metadata::TableReference(
             Metadata::TableId::AssemblyRef,
-            _database->GetTables().GetTable(Metadata::TableId::AssemblyRef).GetRowCount()));
+            _context.Get()->GetDatabase().GetTables().GetTable(Metadata::TableId::AssemblyRef).GetRowCount()));
     }
 
     AssemblyName const& Assembly::GetName() const
     {
         VerifyInitialized();
 
-        return _loader->GetAssemblyName(*_database, InternalKey());
+        return _context.Get()->GetAssemblyName();
     }
 
     /*String const& Assembly::GetPath() const
@@ -88,22 +95,24 @@ namespace CxxReflect {
     {
         VerifyInitialized();
 
-        if (_database->GetTables().GetTable(Metadata::TableId::Assembly).GetRowCount() == 0)
+        Metadata::Database const& database(_context.Get()->GetDatabase());
+
+        if (database.GetTables().GetTable(Metadata::TableId::Assembly).GetRowCount() == 0)
             throw std::runtime_error("wtf");
 
-        return _database->GetRow<Metadata::TableId::Assembly>(0);
+        return database.GetRow<Metadata::TableId::Assembly>(0);
     }
 
-    Metadata::Database const& Assembly::GetDatabase(InternalKey) const
+    Detail::AssemblyContext const& Assembly::GetContext(InternalKey) const
     {
         VerifyInitialized();
-        return *_database;
+        return *_context.Get();
     }
 
     MetadataLoader const& Assembly::GetLoader(InternalKey) const
     {
         VerifyInitialized();
-        return *_loader;
+        return *_loader.Get();
     }
 
 }

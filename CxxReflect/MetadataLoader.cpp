@@ -15,14 +15,29 @@ namespace CxxReflect { namespace Detail {
         MetadataLoader const& loader(reflectedType.GetAssembly().GetLoader(InternalKey()));
 
         Type const declaringType(
-            Assembly(&loader, _database, InternalKey()),
-            Metadata::TableReference(Metadata::TableId::TypeDef, _declaringType));
+            Assembly(&loader, &loader.GetContextForDatabase(*_database.Get(), InternalKey()), InternalKey()),
+            _declaringType);
 
-        return Method(
-            declaringType,
-            reflectedType,
-            Metadata::TableReference(Metadata::TableId::MethodDef, _method));
+        return Method(declaringType, reflectedType, _method);
     }
+
+    AssemblyName const& AssemblyContext::GetAssemblyName() const
+    {
+        RealizeName();
+        return _name;
+    }
+
+    void AssemblyContext::RealizeName() const
+    {
+        if (_state.IsSet(RealizedName)) { return; }
+
+        _name = AssemblyName(
+            Assembly(_loader.Get(), this, InternalKey()),
+            Metadata::TableReference(Metadata::TableId::Assembly, 0));
+
+        _state.Set(RealizedName);
+    }
+
 
 } }
 
@@ -73,17 +88,18 @@ namespace CxxReflect {
 
 
 
-    AssemblyName const& MetadataLoader::GetAssemblyName(Metadata::Database const& database, InternalKey) const
+    Detail::AssemblyContext const& MetadataLoader::GetContextForDatabase(Metadata::Database const& database, InternalKey) const
     {
-        auto const it(std::find_if(begin(_contexts), end(_contexts), [&](std::pair<String const, AssemblyContext> const& a)
+        typedef std::pair<String const, Detail::AssemblyContext> ValueType;
+        auto const it(std::find_if(begin(_contexts), end(_contexts), [&](ValueType const& a)
         {
-            return &a.second.GetDatabase() == &database;
+            return a.second.GetDatabase() == database;
         }));
 
-        if (it == end(_contexts))
-            throw std::logic_error("wtf");
+        // TODO Convert this back to the ADL 'end' once we get a compiler fix
+        Detail::Verify([&]{ return it != _contexts.end(); }, "The database is not owned by this loader");
 
-        return it->second.GetAssemblyName();
+        return it->second;
     }
 
     Metadata::DatabaseReference MetadataLoader::ResolveType(Metadata::DatabaseReference const& typeReference, InternalKey) const
@@ -96,7 +112,6 @@ namespace CxxReflect {
             return typeReference;
 
         Detail::Verify([&]{ return typeReference.GetTableReference().GetTable() == TableId::TypeRef; });
-            
 
         // Ok, we have a TypeRef;
         Database const& referenceDatabase(typeReference.GetDatabase());
@@ -128,7 +143,7 @@ namespace CxxReflect {
         case TableId::AssemblyRef:
         {
             AssemblyName const definingAssemblyName(
-                Assembly(this, &referenceDatabase, InternalKey()),
+                Assembly(this, &GetContextForDatabase(referenceDatabase, InternalKey()), InternalKey()),
                 resolutionScope);
 
             Assembly const definingAssembly(LoadAssembly(definingAssemblyName));
@@ -140,7 +155,7 @@ namespace CxxReflect {
                 throw std::logic_error("wtf");
 
             return DatabaseReference(
-                &definingAssembly.GetDatabase(InternalKey()), 
+                &definingAssembly.GetContext(InternalKey()).GetDatabase(), 
                 TableReference::FromToken(resolvedType.GetMetadataToken()));
         }
 
@@ -168,32 +183,15 @@ namespace CxxReflect {
         {
             it = _contexts.insert(std::make_pair(
                 path,
-                std::move(AssemblyContext(this, std::move(path), std::move(Metadata::Database(path.c_str())))))).first;
+                std::move(Detail::AssemblyContext(this, std::move(path), std::move(Metadata::Database(path.c_str())))))).first;
         }
 
-        return Assembly(this, &it->second.GetDatabase(), InternalKey());
+        return Assembly(this, &it->second, InternalKey());
     }
 
     Assembly MetadataLoader::LoadAssembly(AssemblyName const& name) const
     {
-        return LoadAssembly(_resolver->ResolveAssembly(name, String()));
-    }
-
-    AssemblyName const& MetadataLoader::AssemblyContext::GetAssemblyName() const
-    {
-        RealizeName();
-        return _name;
-    }
-
-    void MetadataLoader::AssemblyContext::RealizeName() const
-    {
-        if (_state.IsSet(RealizedName)) { return; }
-
-        _name = AssemblyName(
-            Assembly(_loader.Get(), &_database, InternalKey()),
-            Metadata::TableReference(Metadata::TableId::Assembly, 0));
-
-        _state.Set(RealizedName);
+        return LoadAssembly(_resolver->ResolveAssembly(name));
     }
 
 }

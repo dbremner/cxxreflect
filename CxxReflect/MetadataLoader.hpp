@@ -19,14 +19,17 @@ namespace CxxReflect { namespace Detail {
     public:
 
         MethodReference()
-            : _database(nullptr), _declaringType(0), _method(0)
         {
         }
 
-        MethodReference(Metadata::Database const* const database, SizeType const declaringType, SizeType const method)
+        MethodReference(Metadata::Database const* const database,
+                        Metadata::TableReference const declaringType,
+                        Metadata::TableReference const method)
             : _database(database), _declaringType(declaringType), _method(method)
         {
             Detail::VerifyNotNull(database);
+            Detail::Verify([&]{ return declaringType.IsInitialized(); });
+            Detail::Verify([&]{ return method.IsInitialized(); });
         }
 
         // Resolves the MethodReference as a Method using the provided reflected type
@@ -34,9 +37,99 @@ namespace CxxReflect { namespace Detail {
 
     private:
 
-        Metadata::Database const*  _database;
-        SizeType                   _declaringType; // Index into TypeDef table
-        SizeType                   _method;        // Index into MethodDef table
+        Detail::ValueInitialized<Metadata::Database const*> _database;
+        Metadata::TableReference                            _declaringType; // Reference into TypeDef table
+        Metadata::TableReference                            _method;        // Reference into MethodDef table
+    };
+
+    typedef Detail::LinearArrayAllocator<Detail::MethodReference, 2048> MethodTableAllocator;
+
+    class AssemblyContext
+    {
+    public:
+
+        AssemblyContext(MetadataLoader const* const loader, String path, Metadata::Database&& database)
+            : _loader(loader), _path(std::move(path)), _database(std::move(database))
+        {
+            Detail::VerifyNotNull(_loader.Get());
+            Detail::Verify([&]{ return !_path.empty(); });
+        }
+
+        AssemblyContext(AssemblyContext&& other)
+            : _loader(other._loader),
+                _path(std::move(other._path)),
+                _database(std::move(other._database)),
+                _name(std::move(other._name)),
+                _state(other._state),
+                _methodTableAllocator(std::move(other._methodTableAllocator)),
+                _methodTableIndices(std::move(other._methodTableIndices))
+        {
+            other._loader.Get() = nullptr;
+            other._state.Reset();
+        }
+
+        AssemblyContext& operator=(AssemblyContext&& other)
+        {
+            Swap(other);
+            return *this;
+        }
+
+        void Swap(AssemblyContext& other)
+        {
+            using std::swap;
+            swap(other._loader,                _loader);
+            swap(other._path,                  _path);
+            swap(other._database,              _database);
+            swap(other._name,                  _name);
+            swap(other._state,                 _state);
+            swap(other._methodTableAllocator,  _methodTableAllocator);
+            swap(other._methodTableIndices,    _methodTableIndices);
+        }
+
+        MetadataLoader     const& GetLoader()       const { VerifyInitialized(); return *_loader.Get(); }
+        Metadata::Database const& GetDatabase()     const { VerifyInitialized(); return _database;      }
+        String             const& GetPath()         const { VerifyInitialized(); return _path;          }
+        AssemblyName       const& GetAssemblyName() const;
+
+        Detail::MethodTableAllocator::Range GetMethodTableForType(SizeType const typeIndex) const
+        {
+            auto const it(_methodTableIndices.find(typeIndex));
+            return it != _methodTableIndices.end()
+                ? it->second
+                : Detail::MethodTableAllocator::Range();
+        }
+
+        bool IsInitialized() const
+        {
+            return _loader.Get() != nullptr;
+        }
+
+    private:
+
+        AssemblyContext(AssemblyContext const&);
+        AssemblyContext operator=(AssemblyContext const&);
+
+        void VerifyInitialized() const
+        {
+            Detail::Verify([&]{ return IsInitialized(); });
+        }
+
+        enum RealizationState
+        {
+            RealizedName = 0x01
+        };
+
+        void RealizeName() const;
+
+        Detail::ValueInitialized<MetadataLoader const*> _loader;
+        String                                          _path;
+        Metadata::Database                              _database;
+
+        mutable Detail::FlagSet<RealizationState>       _state; 
+        mutable AssemblyName                            _name; 
+
+        mutable Detail::MethodTableAllocator                            _methodTableAllocator;
+        mutable std::map<SizeType, Detail::MethodTableAllocator::Range> _methodTableIndices;
     };
 
 } }
@@ -101,7 +194,8 @@ namespace CxxReflect {
 
     public: // internals
 
-        AssemblyName const& GetAssemblyName(Metadata::Database const& database, InternalKey) const;
+        // Searches the set of AssemblyContexts for the one that owns 'database'.
+        Detail::AssemblyContext const& GetContextForDatabase(Metadata::Database const& database, InternalKey) const;
 
         // Resolves a type via a type reference.  The type reference must refer to a TypeDef, TypeRef,
         // or TypeSpec token.  If it is a TypeDef or a TypeRef, the token is returned as-is.  If it is
@@ -114,80 +208,8 @@ namespace CxxReflect {
         MetadataLoader(MetadataLoader const&);
         MetadataLoader& operator=(MetadataLoader const&);
 
-        class AssemblyContext
-        {
-        public:
-
-            AssemblyContext(MetadataLoader const* const loader, String path, Metadata::Database&& database)
-                : _loader(loader), _path(std::move(path)), _database(std::move(database))
-            {
-                Detail::VerifyNotNull(_loader.Get());
-                Detail::Verify([&]{ return !_path.empty(); });
-            }
-
-            AssemblyContext(AssemblyContext&& other)
-                : _loader(other._loader),
-                  _path(std::move(other._path)),
-                  _database(std::move(other._database)),
-                  _name(std::move(other._name)),
-                  _state(other._state)
-            {
-                other._loader.Get() = nullptr;
-                other._state.Reset();
-            }
-
-            AssemblyContext& operator=(AssemblyContext&& other)
-            {
-                Swap(other);
-                return *this;
-            }
-
-            void Swap(AssemblyContext& other)
-            {
-                std::swap(other._loader,   _loader);
-                std::swap(other._path,     _path);
-                std::swap(other._database, _database);
-                std::swap(other._name,     _name);
-                std::swap(other._state,    _state);
-            }
-
-            MetadataLoader     const& GetLoader()   const { VerifyInitialized(); return *_loader.Get();   }
-            Metadata::Database const& GetDatabase() const { VerifyInitialized(); return _database;        }
-
-            AssemblyName const& GetAssemblyName() const;
-
-            bool IsInitialized() const
-            {
-                return _loader.Get() != nullptr;
-            }
-
-        private:
-
-            AssemblyContext(AssemblyContext const&);
-            AssemblyContext operator=(AssemblyContext const&);
-
-            void VerifyInitialized() const
-            {
-                Detail::Verify([&]{ return IsInitialized(); });
-            }
-
-            enum RealizationState
-            {
-                RealizedName = 0x01
-            };
-
-            void RealizeName() const;
-
-            Detail::ValueInitialized<MetadataLoader const*> _loader;
-            String                                          _path;
-            Metadata::Database                              _database;
-
-            mutable Detail::FlagSet<RealizationState>       _state; 
-            mutable AssemblyName                            _name; 
-        };
-
-        std::unique_ptr<IMetadataResolver>   _resolver;
-        mutable std::map<String, AssemblyContext> _contexts;
+        std::unique_ptr<IMetadataResolver>                _resolver;
+        mutable std::map<String, Detail::AssemblyContext> _contexts;
     };
 
 }

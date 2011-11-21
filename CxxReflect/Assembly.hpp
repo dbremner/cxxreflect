@@ -7,6 +7,7 @@
 
 #include "CxxReflect/Core.hpp"
 #include "CxxReflect/MetadataDatabase.hpp"
+#include "CxxReflect/MetadataLoader.hpp"
 
 namespace CxxReflect {
 
@@ -20,16 +21,16 @@ namespace CxxReflect {
         {
         }
 
-        Assembly(MetadataLoader const* const loader, Metadata::Database const* const database, InternalKey)
-            : _loader(loader), _database(database)
+        Assembly(MetadataLoader const* const loader, Detail::AssemblyContext const* const context, InternalKey)
+            : _loader(loader), _context(context)
         {
             Detail::VerifyNotNull(loader);
-            Detail::VerifyNotNull(database);
+            Detail::VerifyNotNull(context);
         }
 
         bool IsInitialized() const
         {
-            return _loader != nullptr && _database != nullptr;
+            return _loader.Get() != nullptr && _context.Get() != nullptr;
         }
 
         bool operator!() const { return !IsInitialized(); }
@@ -62,8 +63,8 @@ namespace CxxReflect {
         Type GetType(StringReference name, bool ignoreCase = false) const;
         Type GetType(StringReference namespaceName, StringReference typeName, bool ignoreCase = false) const;
 
-        Metadata::Database const& GetDatabase(InternalKey) const;
-        MetadataLoader     const& GetLoader(InternalKey)   const;
+        Detail::AssemblyContext const& GetContext(InternalKey) const;
+        MetadataLoader          const& GetLoader(InternalKey)  const;
 
         // EntryPoint
         // ImageRuntimeVersion
@@ -108,8 +109,15 @@ namespace CxxReflect {
         // ReflectionOnlyLoadFrom Use MetadataLoader::LoadAssembly()
         // UnsafeLoadFrom         Not applicable outside of runtime
 
-        friend bool operator==(Assembly const& lhs, Assembly const& rhs) { return lhs._database == rhs._database; }
-        friend bool operator< (Assembly const& lhs, Assembly const& rhs) { return lhs._database <  rhs._database; }
+        friend bool operator==(Assembly const& lhs, Assembly const& rhs)
+        {
+            return lhs._context.Get() == rhs._context.Get();
+        }
+
+        friend bool operator<(Assembly const& lhs, Assembly const& rhs)
+        {
+            return lhs._context.Get() <  rhs._context.Get();
+        }
 
     private:
 
@@ -120,8 +128,8 @@ namespace CxxReflect {
 
         Metadata::AssemblyRow GetAssemblyRow() const;
 
-        MetadataLoader     const* _loader;
-        Metadata::Database const* _database;
+        Detail::ValueInitialized<MetadataLoader          const*> _loader;
+        Detail::ValueInitialized<Detail::AssemblyContext const*> _context;
     };
 
     // Allow "t == nullptr" and "t != nullptr":

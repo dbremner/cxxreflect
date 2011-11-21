@@ -2,6 +2,7 @@
 //                   Distributed under the Boost Software License, Version 1.0.                   //
 //     (See accompanying file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)    //
 
+#include "CxxReflect/MetadataLoader.hpp"
 #include "CxxReflect/Method.hpp"
 
 namespace CxxReflect {
@@ -24,6 +25,16 @@ namespace CxxReflect {
     SizeType Method::GetMetadataToken() const
     {
         return _method.GetToken();
+    }
+
+    Metadata::MethodDefRow Method::GetMethodDefRow() const
+    {
+        Detail::Verify([&]{ return _method.GetTable() == Metadata::TableId::MethodDef; });
+        return _declaringType
+            .GetAssembly()
+            .GetContext(InternalKey())
+            .GetDatabase()
+            .GetRow<Metadata::TableId::MethodDef>(_method.GetIndex());
     }
 
     StringReference Method::GetName() const
