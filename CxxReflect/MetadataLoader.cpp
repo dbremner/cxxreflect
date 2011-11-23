@@ -12,10 +12,8 @@ namespace CxxReflect { namespace Detail {
 
     Method MethodReference::Resolve(Type const& reflectedType) const
     {
-        MetadataLoader const& loader(reflectedType.GetAssembly().GetLoader(InternalKey()));
-
         Type const declaringType(
-            Assembly(&loader, &loader.GetContextForDatabase(*_database.Get(), InternalKey()), InternalKey()),
+            Assembly(&reflectedType.GetAssembly().GetContext(InternalKey()), InternalKey()),
             _declaringType);
 
         return Method(declaringType, reflectedType, _method);
@@ -32,7 +30,7 @@ namespace CxxReflect { namespace Detail {
         if (_state.IsSet(RealizedName)) { return; }
 
         _name = AssemblyName(
-            Assembly(_loader.Get(), this, InternalKey()),
+            Assembly(this, InternalKey()),
             Metadata::TableReference(Metadata::TableId::Assembly, 0));
 
         _state.Set(RealizedName);
@@ -85,8 +83,6 @@ namespace CxxReflect {
     {
         Detail::VerifyNotNull(_resolver.get());
     }
-
-
 
     Detail::AssemblyContext const& MetadataLoader::GetContextForDatabase(Metadata::Database const& database, InternalKey) const
     {
@@ -143,7 +139,7 @@ namespace CxxReflect {
         case TableId::AssemblyRef:
         {
             AssemblyName const definingAssemblyName(
-                Assembly(this, &GetContextForDatabase(referenceDatabase, InternalKey()), InternalKey()),
+                Assembly(&GetContextForDatabase(referenceDatabase, InternalKey()), InternalKey()),
                 resolutionScope);
 
             Assembly const definingAssembly(LoadAssembly(definingAssemblyName));
@@ -183,10 +179,10 @@ namespace CxxReflect {
         {
             it = _contexts.insert(std::make_pair(
                 path,
-                std::move(Detail::AssemblyContext(this, std::move(path), std::move(Metadata::Database(path.c_str())))))).first;
+                std::move(Detail::AssemblyContext(this, path, std::move(Metadata::Database(path.c_str())))))).first;
         }
 
-        return Assembly(this, &it->second, InternalKey());
+        return Assembly(&it->second, InternalKey());
     }
 
     Assembly MetadataLoader::LoadAssembly(AssemblyName const& name) const

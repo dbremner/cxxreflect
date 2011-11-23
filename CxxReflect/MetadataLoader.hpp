@@ -35,7 +35,18 @@ namespace CxxReflect { namespace Detail {
         // Resolves the MethodReference as a Method using the provided reflected type
         Method Resolve(Type const& reflectedType) const;
 
+        Metadata::Database       const& GetDatabase()      const { VerifyInitialized(); return *_database.Get(); }
+        Metadata::TableReference const& GetDeclaringType() const { VerifyInitialized(); return _declaringType;   }
+        Metadata::TableReference const& GetMethod()        const { VerifyInitialized(); return _method;          }
+
+        bool IsInitialized() const { return _database.Get() != nullptr; }
+
     private:
+
+        void VerifyInitialized() const
+        {
+            Detail::Verify([&]{ return IsInitialized(); });
+        }
 
         Detail::ValueInitialized<Metadata::Database const*> _database;
         Metadata::TableReference                            _declaringType; // Reference into TypeDef table
@@ -44,6 +55,10 @@ namespace CxxReflect { namespace Detail {
 
     typedef Detail::LinearArrayAllocator<Detail::MethodReference, 2048> MethodTableAllocator;
 
+    // Represents all of the permanent information about an Assembly.  This is the implementation of
+    // an 'Assembly' facade and includes parts of the implementation of other facades (e.g., it
+    // stores the method tables for each type in the assembly).  This way, the actual facade types
+    // are uber-fast to copy and we can treat them as "references" into the metadata database.
     class AssemblyContext
     {
     public:
@@ -142,9 +157,16 @@ namespace CxxReflect {
 
         virtual ~IMetadataResolver();
 
-        virtual std::wstring ResolveAssembly(AssemblyName const& assemblyName) const = 0;
-        virtual std::wstring ResolveAssembly(AssemblyName const& assemblyName,
-                                             String       const& typeFullName) const = 0;
+        // When an attempt is made to load an assembly by name, the MetadataLoader calls this
+        // overload to resolve the assembly.
+        virtual String ResolveAssembly(AssemblyName const& assemblyName) const = 0;
+
+        // When an attempt is made to load an assembly and a type from that assembly is known, this
+        // overload is called.  This allows us to support WinRT type universes wherein type
+        // resolution is namespace-oriented rather than assembly-oriented.  For non-WinRT resolver
+        // implementations, this function may simply defer to the above overload.
+        virtual String ResolveAssembly(AssemblyName const& assemblyName,
+                                       String       const& namespaceQualifiedTypeName) const = 0;
     };
 
     #ifdef CXXREFLECT_ENABLE_WINRT_RESOLVER
@@ -154,11 +176,9 @@ namespace CxxReflect {
     public:
 
         WinRTMetadataResolver();
-        ~WinRTMetadataResolver();
 
-        std::wstring ResolveAssembly(AssemblyName const& assemblyName) const;
-        std::wstring ResolveAssembly(AssemblyName const& assemblyName,
-                                     String       const& typeFullName) const;
+        String ResolveAssembly(AssemblyName const& assemblyName) const;
+        String ResolveAssembly(AssemblyName const& assemblyName, String const& namespaceQualifiedTypeName) const;
 
     private:
 
@@ -175,14 +195,16 @@ namespace CxxReflect {
 
         DirectoryBasedMetadataResolver(DirectorySet const& directories);
 
-        String ResolveAssembly(AssemblyName const& name) const;
-        String ResolveAssembly(AssemblyName const& assemblyName, String const& typeFullName) const;
+        String ResolveAssembly(AssemblyName const& assemblyName) const;
+        String ResolveAssembly(AssemblyName const& assemblyName, String const& namespaceQualifiedTypeName) const;
 
     private:
 
         DirectorySet _directories;
     };
 
+
+    // MetadataLoader is the entry point for the library.  It is used to resolve and load assemblies.
     class MetadataLoader
     {
     public:
@@ -194,7 +216,10 @@ namespace CxxReflect {
 
     public: // internals
 
-        // Searches the set of AssemblyContexts for the one that owns 'database'.
+        // Searches the set of AssemblyContexts for the one that owns 'database'.  In most cases we
+        // should try to keep a pointer to the context itself so that we don't need to use this
+        // much.  Once case where we really need this is in resolving DatabaseReference elements;
+        // to maintain the physical/logical firewall, we cannot store the context in the reference.
         Detail::AssemblyContext const& GetContextForDatabase(Metadata::Database const& database, InternalKey) const;
 
         // Resolves a type via a type reference.  The type reference must refer to a TypeDef, TypeRef,

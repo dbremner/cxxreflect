@@ -31,6 +31,9 @@
     <ClCompile Include="MetadataSignature.cpp">
       <Filter>Sources</Filter>
     </ClCompile>
+    <ClCompile Include="WindowsRuntimeAdapter.cpp">
+      <Filter>Sources</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Assembly.hpp">

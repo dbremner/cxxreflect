@@ -17,6 +17,7 @@
 #include <array>
 #include <cstdint>
 #include <functional>
+#include <iostream>
 #include <memory>
 #include <stdexcept>
 #include <type_traits>
@@ -32,7 +33,7 @@
 #define CXXREFLECT_LOGIC_CHECKS
 #endif
 
-// #define CXXREFLECT_ENABLE_WINRT_RESOLVER
+#define CXXREFLECT_ENABLE_WINRT_RESOLVER
 
 namespace CxxReflect {
 
@@ -108,7 +109,7 @@ namespace CxxReflect { namespace Detail {
 
     #else
 
-    inline void VerifyFail(char const*) { }
+    inline void VerifyFail(char const* = "") { }
 
     inline void VerifyNotNull(void const*) { }
 
@@ -436,18 +437,11 @@ namespace CxxReflect { namespace Detail {
         }
 
         // We mark this explicit so that the constructor templates taking value_type[N] are
-        // preferred for string literals (and other arrays); that constructor is O(1) whereas
-        // this constructor is O(N) where N is the number of characters in the string.
+        // preferred for string literals (and other arrays); that constructor provides O(1) end
+        // pointer computation.
         explicit EnhancedCString(pointer const first)
-            : _first(first), _last(first)
+            : _first(first), _last(nullptr)
         {
-            if (first == nullptr)
-                return;
-
-            while (*_last != 0)
-                ++_last;
-
-            ++_last; // One-past-the-end of the null terminator
         }
 
         EnhancedCString(pointer const first, pointer const last)
@@ -467,20 +461,20 @@ namespace CxxReflect { namespace Detail {
         {
         }
 
-        const_iterator begin()  const { return _first; }
-        const_iterator end()    const { return _last;  }
+        const_iterator begin()  const { return _first;          }
+        const_iterator end()    const { return compute_last();  }
 
-        const_iterator cbegin() const { return _first; }
-        const_iterator cend()   const { return _last;  }
+        const_iterator cbegin() const { return _first;          }
+        const_iterator cend()   const { return compute_last();  }
 
-        const_reverse_iterator rbegin()  const { return reverse_iterator(_last);  }
+        const_reverse_iterator rbegin()  const { return reverse_iterator(compute_last());  }
         const_reverse_iterator rend()    const { return reverse_iterator(_first); }
 
-        const_reverse_iterator crbegin() const { return reverse_iterator(_last);  }
-        const_reverse_iterator crend()   const { return reverse_iterator(_first); }
+        const_reverse_iterator crbegin() const { return reverse_iterator(compute_last());  }
+        const_reverse_iterator crend()   const { return reverse_iterator(_first);          }
 
         // Note that unlike std::string, the size of an EnhancedCString includes its null terminator
-        size_type size()     const { return _last - _first;                          }
+        size_type size()     const { return compute_last() - _first;                 }
         size_type length()   const { return size();                                  }
         size_type max_size() const { return std::numeric_limits<std::size_t>::max(); }
         size_type capacity() const { return size();                                  }
@@ -500,7 +494,7 @@ namespace CxxReflect { namespace Detail {
         }
 
         const_reference front() const { return *_first;      }
-        const_reference back()  const { return *(_last - 1); }
+        const_reference back()  const { return *(compute_last() - 1); }
 
         const_pointer c_str() const { return _first; }
         const_pointer data()  const { return _first; }
@@ -519,8 +513,29 @@ namespace CxxReflect { namespace Detail {
 
     private:
 
-        pointer _first;
-        pointer _last;
+        pointer compute_last() const
+        {
+            if (_last != nullptr)
+                return _last;
+
+            if (_first == nullptr)
+                return _last;
+
+            _last = _first;
+            while (*_last != 0)
+                ++_last;
+
+            ++_last; // One-past-the-end of the null terminator
+            return _last;
+        }
+
+        pointer         _first;
+
+        // NOTE:  Do not access '_last' directly:  it is lazily computed by 'compute_last()'.  Call
+        // that function instead.  In the case where we get only a pointer to a C String, computation
+        // of the '_last' pointer requires a linear scan of the string.  We don't typically need the
+        // '_last' pointer, and profiling shows that the linear scan is absurdly expensive.
+        pointer mutable _last;
     };
 
     template <typename T, typename U>
@@ -1100,7 +1115,8 @@ namespace CxxReflect { namespace Detail {
             Pointer Begin() const { return _begin;         }
             Pointer End()   const { return _end;           }
 
-            bool    Empty() const { return _begin == _end; }
+            bool    IsInitialized() const { return _begin != nullptr && _end != nullptr; }
+            bool    IsEmpty()       const { return _begin == _end;                       }
 
         private:
 
@@ -1452,6 +1468,9 @@ namespace CxxReflect {
     typedef std::basic_string<Character>       String;
     typedef Detail::EnhancedCString<Character> StringReference;
 
+    typedef std::basic_ostream<Character>      OutputStream;
+    typedef std::basic_istream<Character>      InputStream;
+
     class Assembly;
     class AssemblyName;
     class File;
@@ -1470,6 +1489,7 @@ namespace CxxReflect {
     // bugs elsewhere in the library.
     class InternalKey
     {
+    public: // TODO THIS SHOULD BE PRIVATE!
         InternalKey() { }
 
         friend Detail::AssemblyContext;

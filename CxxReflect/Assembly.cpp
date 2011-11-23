@@ -15,7 +15,7 @@ namespace { namespace Private {
 
     StringComparer GetStringComparer(bool const caseInsensitive)
     {
-        // TODO PORTABILITY
+        // TODO PORTABILITY _wcsicmp is nonstandard
         return caseInsensitive ? _wcsicmp : wcscmp;
     }
 
@@ -37,26 +37,26 @@ namespace CxxReflect {
             _context.Get()->GetDatabase().GetTables().GetTable(Metadata::TableId::TypeDef).GetRowCount()));
     }
 
-    Type Assembly::GetType(StringReference const name, bool const ignoreCase) const
+    Type Assembly::GetType(StringReference const namespaceQualifiedTypeName, bool const caseInsensitive) const
     {
-        Private::StringComparer const compare(Private::GetStringComparer(ignoreCase));
+        Private::StringComparer const compare(Private::GetStringComparer(caseInsensitive));
         auto const it(std::find_if(BeginTypes(), EndTypes(), [&](Type const& t)
         {
-            return compare(t.GetFullName().c_str(), name.c_str()) == 0;
+            return compare(t.GetFullName().c_str(), namespaceQualifiedTypeName.c_str()) == 0;
         }));
 
         return it != EndTypes() ? *it : Type();
     }
 
     Type Assembly::GetType(StringReference const namespaceName,
-                           StringReference const typeName,
-                           bool const ignoreCase) const
+                           StringReference const unqualifiedTypeName,
+                           bool const caseInsensitive) const
     {
-        Private::StringComparer const compare(Private::GetStringComparer(ignoreCase));
+        Private::StringComparer const compare(Private::GetStringComparer(caseInsensitive));
         auto const it(std::find_if(BeginTypes(), EndTypes(), [&](Type const& t)
         {
             return compare(t.GetNamespace().c_str(), namespaceName.c_str()) == 0
-                && compare(t.GetName().c_str(), namespaceName.c_str()) == 0;
+                && compare(t.GetName().c_str(), unqualifiedTypeName.c_str()) == 0;
         }));
 
         return it != EndTypes() ? *it : Type();
@@ -86,11 +86,6 @@ namespace CxxReflect {
         return _context.Get()->GetAssemblyName();
     }
 
-    /*String const& Assembly::GetPath() const
-    {
-        return L""; // TODO return _path;
-    }*/
-
     Metadata::AssemblyRow Assembly::GetAssemblyRow() const
     {
         VerifyInitialized();
@@ -107,12 +102,6 @@ namespace CxxReflect {
     {
         VerifyInitialized();
         return *_context.Get();
-    }
-
-    MetadataLoader const& Assembly::GetLoader(InternalKey) const
-    {
-        VerifyInitialized();
-        return *_loader.Get();
     }
 
 }

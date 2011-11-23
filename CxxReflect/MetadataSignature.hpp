@@ -164,10 +164,30 @@ namespace CxxReflect { namespace Metadata {
 
         friend bool operator==(CountingIterator const& lhs, CountingIterator const& rhs)
         {
-            return lhs._current.Get() == rhs._current.Get();
+            if (lhs._current.Get() == rhs._current.Get())
+                return true;
+
+            if (lhs.IsEnd() && rhs.IsEnd())
+                return true;
+
+            return false;
         }
 
     private:
+
+        bool IsEnd() const
+        {
+            if (_current.Get() == nullptr)
+                return true;
+
+            if (_current.Get() == _last.Get())
+                return true;
+
+            if (_index.Get() == _count.Get())
+                return true;
+
+            return false;
+        }
 
         void Materialize()
         {
@@ -310,10 +330,30 @@ namespace CxxReflect { namespace Metadata {
 
         friend bool operator==(CountingSentinelIterator const& lhs, CountingSentinelIterator const& rhs)
         {
-            return lhs._current.Get() == rhs._current.Get();
+            if (lhs._current.Get() == rhs._current.Get())
+                return true;
+
+            if (lhs.IsEnd() && rhs.IsEnd())
+                return true;
+
+            return false;
         }
 
     private:
+
+        bool IsEnd() const
+        {
+            if (_current.Get() == nullptr)
+                return true;
+
+            if (_current.Get() == _last.Get())
+                return true;
+
+            if (_index.Get() == _count.Get())
+                return true;
+
+            return false;
+        }
 
         void Materialize()
         {

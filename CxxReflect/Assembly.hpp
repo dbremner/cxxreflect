@@ -21,16 +21,15 @@ namespace CxxReflect {
         {
         }
 
-        Assembly(MetadataLoader const* const loader, Detail::AssemblyContext const* const context, InternalKey)
-            : _loader(loader), _context(context)
+        Assembly(Detail::AssemblyContext const* const context, InternalKey)
+            : _context(context)
         {
-            Detail::VerifyNotNull(loader);
             Detail::VerifyNotNull(context);
         }
 
         bool IsInitialized() const
         {
-            return _loader.Get() != nullptr && _context.Get() != nullptr;
+            return _context.Get() != nullptr;
         }
 
         bool operator!() const { return !IsInitialized(); }
@@ -60,11 +59,15 @@ namespace CxxReflect {
         TypeIterator BeginTypes() const;
         TypeIterator EndTypes()   const;
 
-        Type GetType(StringReference name, bool ignoreCase = false) const;
-        Type GetType(StringReference namespaceName, StringReference typeName, bool ignoreCase = false) const;
+        Type GetType(StringReference namespaceQualifiedTypeName, bool caseInsensitive = false) const;
+
+        // The namespace and name of a type are stored separately; this function is far more
+        // efficient than the GetType() that takes a namespace-qualified type name.
+        Type GetType(StringReference namespaceName,
+                     StringReference unqualifiedTypeName,
+                     bool            caseInsensitive = false) const;
 
         Detail::AssemblyContext const& GetContext(InternalKey) const;
-        MetadataLoader          const& GetLoader(InternalKey)  const;
 
         // EntryPoint
         // ImageRuntimeVersion
@@ -128,15 +131,8 @@ namespace CxxReflect {
 
         Metadata::AssemblyRow GetAssemblyRow() const;
 
-        Detail::ValueInitialized<MetadataLoader          const*> _loader;
         Detail::ValueInitialized<Detail::AssemblyContext const*> _context;
     };
-
-    // Allow "t == nullptr" and "t != nullptr":
-    inline bool operator==(Assembly const& a, std::nullptr_t) { return !a.IsInitialized(); }
-    inline bool operator==(std::nullptr_t, Assembly const& a) { return !a.IsInitialized(); }
-    inline bool operator!=(Assembly const& a, std::nullptr_t) { return  a.IsInitialized(); }
-    inline bool operator!=(std::nullptr_t, Assembly const& a) { return  a.IsInitialized(); }
 
 }
 

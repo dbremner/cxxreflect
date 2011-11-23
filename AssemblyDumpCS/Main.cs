@@ -71,7 +71,7 @@ class Program
             BindingFlags.NonPublic        |
             BindingFlags.Public           |
             BindingFlags.Static;
-        foreach (MethodInfo m in t.GetMethods(flags))
+        foreach (MethodInfo m in t.GetMethods(flags).OrderBy(m => m.MetadataToken))
         {
             Dump(sb, m);
         }

@@ -11,6 +11,7 @@
 #include "CxxReflect/Assembly.hpp"
 #include "CxxReflect/AssemblyName.hpp"
 #include "CxxReflect/MetadataLoader.hpp"
+#include "CxxReflect/MetadataSignature.hpp"
 #include "CxxReflect/Method.hpp"
 #include "CxxReflect/Type.hpp"
 
@@ -19,6 +20,133 @@
 
 using namespace CxxReflect;
 using namespace CxxReflect::Metadata;
+
+namespace
+{
+    typedef std::vector<Detail::MethodReference> MethodTable;
+
+    bool IsExplicitInterfaceImplementation(StringReference const methodName)
+    {
+        return std::any_of(methodName.begin(), methodName.end(), [](Character c) { return c == L'.'; });
+    }
+
+    DatabaseReference ResolveTypeDef(MetadataLoader const& loader, DatabaseReference const typeReference)
+    {
+        // Resolve a TypeRef into the TypeDef or TypeSpec it references:
+        DatabaseReference const resolvedTypeReference(loader.ResolveType(typeReference, InternalKey()));
+
+        if (resolvedTypeReference.GetTableReference().GetTable() == TableId::TypeDef)
+        {
+            return typeReference;
+        }
+
+        Detail::Verify([&]{ return resolvedTypeReference.GetTableReference().GetTable() == TableId::TypeSpec; });
+
+        TypeSpecRow const resolvedTypeSpec(resolvedTypeReference
+            .GetDatabase()
+            .GetRow<TableId::TypeSpec>(resolvedTypeReference.GetTableReference().GetIndex()));
+
+        TypeSignature const typeSignature(resolvedTypeReference
+            .GetDatabase()
+            .GetBlob(resolvedTypeSpec.GetSignature().GetIndex())
+            .As<TypeSignature>());
+
+        Detail::Verify([&]{ return typeSignature.GetKind() == TypeSignature::Kind::GenericInst; }, "Not yet implemented");
+
+        return loader.ResolveType(DatabaseReference(
+            &typeReference.GetDatabase(),
+            typeSignature.GetGenericTypeReference()), InternalKey());
+    }
+
+    bool BuildMethodTableFilter(MetadataLoader          const& loader,
+                                Detail::MethodReference const& newMethod,
+                                MethodTable             const& currentTable)
+    {
+        Detail::MethodReference const& r(newMethod);
+        MethodDefRow const methodDefR(r.GetDatabase().GetRow<TableId::MethodDef>(r.GetMethod().GetIndex()));
+        MethodSignature const methodSigR(r
+            .GetDatabase()
+            .GetBlob(methodDefR.GetSignature().GetIndex())
+            .As<MethodSignature>());
+
+        return !std::any_of(begin(currentTable), end(currentTable), [&](Detail::MethodReference const& s) -> bool
+        {
+            MethodDefRow const methodDefS(s.GetDatabase().GetRow<TableId::MethodDef>(s.GetMethod().GetIndex()));
+
+            if (methodDefS.GetFlags().IsSet(MethodAttribute::NewSlot))
+                return false;
+
+            if (methodDefR.GetName() != methodDefS.GetName())
+                return false;
+
+            // If the method isn't HideBySig, it's HideByName, so all inherited methods of that name
+            // are not visible from the derived class, regardless of whether the signatures match.
+            if (!methodDefS.GetFlags().IsSet(MethodAttribute::HideBySig))
+                return true;
+
+            if (methodDefR.GetFlags().IsSet(MethodAttribute::Final))
+                return false;
+
+            MethodSignature const methodSigS(s
+                .GetDatabase()
+                .GetBlob(methodDefS.GetSignature().GetIndex())
+                .As<MethodSignature>());
+
+            if (!SignatureComparer(&loader, &r.GetDatabase(), &s.GetDatabase())(methodSigR, methodSigS))
+                return false;
+
+            return true;
+        });
+    }
+
+
+    // TODO WE ONLY CURRENTLY SUPPORT GENERICINST AND TYPEDEF HERE
+    void BuildMethodTableRecursive(MetadataLoader    const& loader,
+                                   DatabaseReference const  typeReference,
+                                   MethodTable&             currentTable)
+    {
+        // The algorithm for building the method table is found in ECMA-335 I/8.10.4.
+        DatabaseReference const typeDefReference(ResolveTypeDef(loader, typeReference));
+
+        TypeDefRow const typeDefRow(typeDefReference
+            .GetDatabase()
+            .GetRow<TableId::TypeDef>(typeDefReference.GetTableReference().GetIndex()));
+
+        MethodTable newEntries;
+
+        SizeType const firstMethod(typeDefRow.GetFirstMethod().GetIndex());
+        SizeType const lastMethod(typeDefRow.GetLastMethod().GetIndex());
+
+        for (SizeType index(firstMethod); index != lastMethod; ++index)
+        {
+            Detail::MethodReference newMethod(Detail::MethodReference(
+                &typeDefReference.GetDatabase(),
+                typeDefReference.GetTableReference(),
+                TableReference(TableId::MethodDef, index)));
+
+            if (BuildMethodTableFilter(loader, newMethod, currentTable))
+                newEntries.push_back(newMethod);
+        }
+
+        currentTable.insert(end(currentTable), begin(newEntries), end(newEntries));
+
+        if (typeDefRow.GetExtends().IsValid())
+        {
+            DatabaseReference const baseTypeReference(
+                &typeDefReference.GetDatabase(),
+                typeDefRow.GetExtends());
+
+            BuildMethodTableRecursive(loader, baseTypeReference, currentTable);
+        }
+    }
+
+    MethodTable BuildMethodTable(MetadataLoader const& loader, DatabaseReference const typeReference)
+    {
+        MethodTable result;
+        BuildMethodTableRecursive(loader, typeReference, result);
+        return result;
+    }
+}
 
 namespace
 {
@@ -63,6 +191,47 @@ namespace
         os << L"     -- Namespace [" << t.GetNamespace().c_str() << L"]\n";
         os << L"    !!BeginMethods\n";
         Type methodsType = t.IsEnum() ? t.GetBaseType() : t;
+
+        MethodTable allMethods(BuildMethodTable(
+            t.GetAssembly().GetContext(InternalKey()).GetLoader(),
+            DatabaseReference(
+                &t.GetAssembly().GetContext(InternalKey()).GetDatabase(),
+                TableReference::FromToken(t.GetMetadataToken()))));
+
+        std::sort(begin(allMethods), end(allMethods), [](Detail::MethodReference const& lhs, Detail::MethodReference const& rhs)
+        {
+            return lhs.GetMethod().GetToken() < rhs.GetMethod().GetToken();
+        });
+
+        std::for_each(begin(allMethods), end(allMethods), [&](Detail::MethodReference const& m)
+        {
+            MethodDefRow const mdr(m.GetDatabase().GetRow<TableId::MethodDef>(m.GetMethod().GetIndex()));
+
+            // Inherited type:
+            if (m.GetDeclaringType().GetToken() != t.GetMetadataToken() ||
+                m.GetDatabase() != t.GetAssembly().GetContext(InternalKey()).GetDatabase())
+            {
+                //if (mdr.GetFlags().IsSet(MethodAttribute::Static))
+                //    return;
+
+                if (mdr.GetFlags().WithMask(MethodAttribute::MemberAccessMask) == MethodAttribute::Private &&
+                    !IsExplicitInterfaceImplementation(mdr.GetName()))
+                    return;
+            }
+
+            if (mdr.GetFlags().IsSet(MethodAttribute::SpecialName) && mdr.GetName() == L".ctor")
+                return;
+
+            if (mdr.GetFlags().IsSet(MethodAttribute::SpecialName) && mdr.GetName() == L".cctor")
+                return;
+
+            if (String(mdr.GetName().c_str()).substr(0, 8) == L"<.cctor>")
+                return;
+
+            os << L"     -- Method [" << mdr.GetName().c_str() << L"] [$" << Detail::HexFormat(mdr.GetSelfReference().GetToken()) << L"]\n";
+        });
+
+        /*
         BindingFlags const bindings(
             BindingAttribute::FlattenHierarchy |
             BindingAttribute::Instance         |
@@ -73,6 +242,7 @@ namespace
         {
             Dump(os, m);
         });
+        */
         os << L"    !!EndMethods\n";
     }
 

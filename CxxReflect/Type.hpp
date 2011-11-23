@@ -11,7 +11,9 @@
 
 namespace CxxReflect {
 
-    class Type : public Detail::SafeBoolConvertible<Type>
+    class Type
+        : public Detail::SafeBoolConvertible<Type>,
+          public Detail::Comparable<Type>
     {
     private:
 
@@ -131,6 +133,24 @@ namespace CxxReflect {
         // IsSecuritySafeCritical
         // IsSecurityTransparent
 
+        friend bool operator==(Type const& lhs, Type const& rhs)
+        {
+            return lhs.GetAssembly() == rhs.GetAssembly()
+                && lhs.GetMetadataToken() == rhs.GetMetadataToken();
+        }
+
+        // We provide a total ordering of Types across all loaded assemblies.  Types within a given
+        // assembly are ordered by metadata token; types in different assemblies have an unspecified
+        // total ordering.
+        friend bool operator<(Type const& lhs, Type const& rhs)
+        {
+            if (lhs.GetAssembly() < rhs.GetAssembly())
+                return true;
+
+            return lhs.GetAssembly() == rhs.GetAssembly()
+                && lhs.GetMetadataToken() == rhs.GetMetadataToken();
+        }
+
     private:
 
         void VerifyInitialized() const
@@ -179,40 +199,14 @@ namespace CxxReflect {
 
         #undef CXXREFLECT_GENERATE
 
-        void AccumulateFullNameInto(std::wostream& os) const;
-        void AccumulateAssemblyQualifiedNameInto(std::wostream& os) const;
+        void AccumulateFullNameInto(OutputStream& os) const;
+        void AccumulateAssemblyQualifiedNameInto(OutputStream& os) const;
 
         Detail::MethodTableAllocator::Range GetOrCreateMethodTable() const;
 
         Assembly                       _assembly;
         Metadata::TableOrBlobReference _type;
     };
-
-    inline bool operator==(Type const& lhs, Type const& rhs)
-    {
-        return lhs.GetAssembly() == rhs.GetAssembly()
-            && lhs.GetMetadataToken() == rhs.GetMetadataToken();
-    }
-
-    inline bool operator< (Type const& lhs, Type const& rhs)
-    {
-        if (lhs.GetAssembly() < rhs.GetAssembly())
-            return true;
-
-        return lhs.GetAssembly() == rhs.GetAssembly()
-            && lhs.GetMetadataToken() == rhs.GetMetadataToken();
-    }
-
-    inline bool operator!=(Type const& lhs, Type const& rhs) { return !(lhs == rhs); }
-    inline bool operator> (Type const& lhs, Type const& rhs) { return   rhs <  lhs ; }
-    inline bool operator<=(Type const& lhs, Type const& rhs) { return !(rhs <  lhs); }
-    inline bool operator>=(Type const& lhs, Type const& rhs) { return !(lhs <  rhs); }
-
-    // Allow "t == nullptr" and "t != nullptr":
-    inline bool operator==(Type const& t, std::nullptr_t) { return !t.IsInitialized(); }
-    inline bool operator==(std::nullptr_t, Type const& t) { return !t.IsInitialized(); }
-    inline bool operator!=(Type const& t, std::nullptr_t) { return  t.IsInitialized(); }
-    inline bool operator!=(std::nullptr_t, Type const& t) { return  t.IsInitialized(); }
 
 }
 

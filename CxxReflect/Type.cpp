@@ -86,13 +86,12 @@ namespace CxxReflect {
         {
             // Resolve the TypeRef into a TypeDef, throwing on failure:
             // TODO CORRECT ERROR HANDLING
-            MetadataLoader const& loader(assembly.GetLoader(InternalKey()));
+            MetadataLoader const& loader(assembly.GetContext(InternalKey()).GetLoader());
             Database const& database(assembly.GetContext(InternalKey()).GetDatabase());
             DatabaseReference const resolvedType(loader.ResolveType(DatabaseReference(&database, type), InternalKey()));
             Detail::Verify([&]{ return resolvedType.IsInitialized(); });
 
             _assembly = Assembly(
-                &loader,
                 &loader.GetContextForDatabase(resolvedType.GetDatabase(), InternalKey()),
                 InternalKey());
 
@@ -120,7 +119,7 @@ namespace CxxReflect {
         }
     }
 
-    void Type::AccumulateFullNameInto(std::wostream& os) const
+    void Type::AccumulateFullNameInto(OutputStream& os) const
     {
         // TODO ENSURE WE ESCAPE THE TYPE NAME CORRECTLY
 
@@ -144,7 +143,7 @@ namespace CxxReflect {
         // TODO TYPESPEC SUPPORT
     }
 
-    void Type::AccumulateAssemblyQualifiedNameInto(std::wostream& os) const
+    void Type::AccumulateAssemblyQualifiedNameInto(OutputStream& os) const
     {
         AccumulateFullNameInto(os);
         if (GetName().size() > 1)
@@ -174,11 +173,13 @@ namespace CxxReflect {
 
     Detail::MethodTableAllocator::Range Type::GetOrCreateMethodTable() const
     {
-        // TODO HANDLE TYPE SPECS
-        Detail::MethodTableAllocator::Range const existingRange(_assembly
-            .GetContext(InternalKey())
-            .GetMethodTableForType(_type.AsTableReference().GetIndex()));
-        if (!existingRange.Empty())
+        // TODO We need to handle TypeSpec Type objects here.
+        typedef Detail::MethodTableAllocator::Range Range;
+
+        Detail::AssemblyContext const& context(_assembly.GetContext(InternalKey()));
+        Range const existingRange(context.GetMethodTableForType(_type.AsTableReference().GetIndex()));
+
+        if (existingRange.IsInitialized())
             return existingRange;
 
         std::vector<Detail::MethodReference> methods;
@@ -188,11 +189,8 @@ namespace CxxReflect {
     Type::MethodIterator Type::BeginMethods(BindingFlags flags) const
     {
         // TODO TYPESPEC SUPPORT
-        return MethodIterator(
-            *this,
-            GetTypeDefRow().GetFirstMethod(),
-            GetTypeDefRow().GetLastMethod(),
-            flags);
+        Metadata::TypeDefRow const typeDef(GetTypeDefRow());
+        return MethodIterator(*this, typeDef.GetFirstMethod(), typeDef.GetLastMethod(), flags);
     }
 
     Type::MethodIterator Type::EndMethods() const
