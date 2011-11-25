@@ -8,6 +8,7 @@
 #include "CxxReflect/AssemblyName.hpp"
 #include "CxxReflect/Core.hpp"
 #include "CxxReflect/MetadataDatabase.hpp"
+#include "CxxReflect/MetadataSignature.hpp"
 
 #include <set>
 #include <utility>
@@ -37,7 +38,17 @@ namespace CxxReflect { namespace Detail {
 
         Metadata::Database       const& GetDatabase()      const { VerifyInitialized(); return *_database.Get(); }
         Metadata::TableReference const& GetDeclaringType() const { VerifyInitialized(); return _declaringType;   }
-        Metadata::TableReference const& GetMethod()        const { VerifyInitialized(); return _method;          }
+        Metadata::TableReference const& GetMethodIndex()   const { VerifyInitialized(); return _method;          }
+
+        Metadata::MethodDefRow GetMethodDefinition() const
+        {
+            return _database.Get()->GetRow<Metadata::TableId::MethodDef>(_method.GetIndex());
+        }
+
+        Metadata::MethodSignature GetMethodSignature() const
+        {
+            return _database.Get()->GetBlob(GetMethodDefinition().GetSignature()).As<Metadata::MethodSignature>();
+        }
 
         bool IsInitialized() const { return _database.Get() != nullptr; }
 

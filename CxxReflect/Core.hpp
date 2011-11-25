@@ -1213,9 +1213,9 @@ namespace CxxReflect { namespace Detail {
         {
         }
 
-        Reference Get()        const { return ValueType(_parameter, _current); }
-        Reference operator*()  const { return ValueType(_parameter, _current); }
-        Pointer   operator->() const { return ValueType(_parameter, _current); }
+        Reference Get()        const { return ValueType(_parameter, _current, InternalKey()); }
+        Reference operator*()  const { return ValueType(_parameter, _current, InternalKey()); }
+        Pointer   operator->() const { return ValueType(_parameter, _current, InternalKey()); }
 
         TableTransformIterator& operator++()    { *this += 1; return *this;                    }
         TableTransformIterator  operator++(int) { auto const it(*this); *this += 1; return it; }

@@ -180,8 +180,8 @@ namespace CxxReflect { namespace Metadata {
             if (_current.Get() == nullptr)
                 return true;
 
-            if (_current.Get() == _last.Get())
-                return true;
+            //if (_current.Get() == _last.Get())
+            //    return true;
 
             if (_index.Get() == _count.Get())
                 return true;
@@ -346,8 +346,8 @@ namespace CxxReflect { namespace Metadata {
             if (_current.Get() == nullptr)
                 return true;
 
-            if (_current.Get() == _last.Get())
-                return true;
+            // if (_current.Get() == _last.Get())
+            //    return true;
 
             if (_index.Get() == _count.Get())
                 return true;
@@ -742,6 +742,10 @@ namespace CxxReflect { namespace Metadata {
 
         TypeSignature();
         TypeSignature(ByteIterator first, ByteIterator last);
+
+        // TODO MOVE INTO .CPP FILE
+        ByteIterator Begin() const { VerifyInitialized(); return _first.Get(); }
+        ByteIterator End()   const { VerifyInitialized(); return _last.Get();  }
 
         SizeType ComputeSize()     const;
         Kind     GetKind()         const;

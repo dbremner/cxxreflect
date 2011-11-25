@@ -39,16 +39,10 @@ namespace CxxReflect {
         > MethodIterator;
 
         Type();
+        Type(Assembly const& assembly, Metadata::TableReference const& type, InternalKey);
+        Type(Assembly const& assembly, Metadata::BlobReference  const& type, InternalKey);
 
-        Type(Assembly const& assembly, Metadata::TableReference const& type);
-
-        Type(Assembly const& assembly, Metadata::BlobReference const& type)
-            : _assembly(assembly), _type(Metadata::TableOrBlobReference(type))
-        {
-            Detail::Verify([&] { return assembly.IsInitialized(); });
-        }
-
-        Assembly const& GetAssembly()      const { return _assembly; }
+        Assembly const& GetAssembly() const { return _assembly; }
 
         SizeType GetMetadataToken() const
         {
@@ -158,25 +152,16 @@ namespace CxxReflect {
             Detail::Verify([&] { return IsInitialized(); }, "Type is not initialized");
         }
 
-        bool IsTypeDef()  const
-        {
-            return _type.IsTableReference()
-                && _type.AsTableReference().GetTable() == Metadata::TableId::TypeDef;
-        }
+        bool IsTypeDef()  const { VerifyInitialized(); return _type.IsTableReference(); }
+        bool IsTypeSpec() const { VerifyInitialized(); return _type.IsBlobReference();  }
 
-        bool IsTypeSpec() const
-        {
-            return _type.IsBlobReference()
-                || _type.AsTableReference().GetTable() == Metadata::TableId::TypeSpec;
-        }
-
-        Metadata::TypeDefRow  GetTypeDefRow()  const;
-        Metadata::TypeSpecRow GetTypeSpecRow() const;
+        Metadata::TypeDefRow    GetTypeDefRow()        const;
+        Metadata::TypeSignature GetTypeSpecSignature() const;
 
         #define CXXREFLECT_GENERATE decltype(std::declval<TCallback>()(std::declval<Type>()))
 
         // Resolves the TypeDef associated with this type.  If this type is itself a TypeDef, it
-        // returns itself.  If this type is a TypeSpect, it parses the TypeSpec to find the
+        // returns itself.  If this type is a TypeSpec, it parses the TypeSpec to find the
         // primary TypeDef referenced by the TypeSpec; note that in this case the TypeDef may be
         // in a different module or assembly.
         template <typename TCallback>
@@ -199,7 +184,7 @@ namespace CxxReflect {
 
         #undef CXXREFLECT_GENERATE
 
-        void AccumulateFullNameInto(OutputStream& os) const;
+        bool AccumulateFullNameInto(OutputStream& os) const;
         void AccumulateAssemblyQualifiedNameInto(OutputStream& os) const;
 
         Detail::MethodTableAllocator::Range GetOrCreateMethodTable() const;

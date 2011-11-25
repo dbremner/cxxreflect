@@ -225,7 +225,7 @@ namespace CxxReflect { namespace Metadata {
     {
     public:
 
-        enum : std::uint32_t
+        enum : SizeType
         {
             InvalidIndex = static_cast<std::uint32_t>(-1)
         };
@@ -235,36 +235,33 @@ namespace CxxReflect { namespace Metadata {
         {
         }
 
-        explicit BlobReference(IndexType const index)
-            : _index(index)
+        explicit BlobReference(SizeType const index, SizeType const size = 0)
+            : _index(index), _size(size)
         {
             VerifyInitialized();
         }
 
-        IndexType GetIndex() const
-        {
-            VerifyInitialized();
-            return _index;
-        }
+        SizeType GetIndex() const { VerifyInitialized(); return _index.Get(); }
+        SizeType GetSize()  const { VerifyInitialized(); return _size.Get();  }
 
         bool IsValid() const
         {
-            return _index != InvalidIndex;
+            return _index.Get() != InvalidIndex;
         }
 
         bool IsInitialized() const
         {
-            return _index != InvalidIndex;
+            return _index.Get() != InvalidIndex;
         }
 
         friend bool operator==(BlobReference const& lhs, BlobReference const& rhs)
         {
-            return lhs._index == rhs._index;
+            return lhs._index.Get() == rhs._index.Get();
         }
 
         friend bool operator<(BlobReference const& lhs, BlobReference const& rhs)
         {
-            return lhs._index < rhs._index;
+            return lhs._index.Get() < rhs._index.Get();
         }
 
     private:
@@ -274,7 +271,8 @@ namespace CxxReflect { namespace Metadata {
             Detail::Verify([&] { return IsInitialized(); });
         }
 
-        IndexType _index;
+        Detail::ValueInitialized<SizeType> _index;
+        Detail::ValueInitialized<SizeType> _size;
     };
 
 
@@ -300,14 +298,14 @@ namespace CxxReflect { namespace Metadata {
         {
         }
 
-        TableOrBlobReference(TableReference reference)
+        TableOrBlobReference(TableReference const reference)
             : _index((reference.GetValue() & ~KindMask) | TableKindBit)
         {
             Detail::Verify([&]{ return (reference.GetIndex() & ~KindMask) == reference.GetIndex(); });
         }
 
-        TableOrBlobReference(BlobReference reference)
-            : _index((reference.GetIndex() & ~KindMask) | BlobKindBit)
+        TableOrBlobReference(BlobReference const reference)
+            : _index((reference.GetIndex() & ~KindMask) | BlobKindBit), _size(reference.GetSize())
         {
             Detail::Verify([&]{ return (reference.GetIndex() & ~KindMask) == reference.GetIndex(); });
         }
@@ -315,7 +313,7 @@ namespace CxxReflect { namespace Metadata {
         TableReference AsTableReference() const
         {
             Detail::Verify([&]{ return IsTableReference(); });
-            IndexType const value(_index & ~KindMask);
+            IndexType const value(_index.Get() & ~KindMask);
             return TableReference(
                 static_cast<TableId>(
                     (value & TableReference::ValueTableIdMask) >> TableReference::ValueIndexBits),
@@ -325,49 +323,50 @@ namespace CxxReflect { namespace Metadata {
         BlobReference AsBlobReference() const
         {
             Detail::Verify([&]{ return IsBlobReference(); });
-            return BlobReference(_index & ~KindMask);
+            return BlobReference(_index.Get() & ~KindMask, _size.Get());
         }
 
         bool IsTableReference() const
         {
-            return IsValid() && (_index & KindMask) == TableKindBit;
+            return IsValid() && (_index.Get() & KindMask) == TableKindBit;
         }
 
         bool IsBlobReference() const
         {
-            return IsValid() && (_index & KindMask) == BlobKindBit;
+            return IsValid() && (_index.Get() & KindMask) == BlobKindBit;
         }
 
         bool IsValid() const
         {
-            return _index != InvalidIndex;
+            return _index.Get() != InvalidIndex;
         }
 
         bool IsInitialized() const
         {
-            return _index != InvalidIndex;
+            return _index.Get() != InvalidIndex;
         }
 
         friend bool operator==(TableOrBlobReference const& lhs, TableOrBlobReference const& rhs)
         {
-            return lhs._index == rhs._index;
+            return lhs._index.Get() == rhs._index.Get();
         }
 
         friend bool operator<(TableOrBlobReference const& lhs, TableOrBlobReference const& rhs)
         {
-            return lhs._index < rhs._index;
+            return lhs._index.Get() < rhs._index.Get();
         }
 
     private:
 
-        enum : std::uint32_t
+        enum : SizeType
         {
             KindMask     = 0x80000000,
             TableKindBit = 0x00000000,
             BlobKindBit  = 0x80000000
         };
 
-        IndexType _index;
+        Detail::ValueInitialized<SizeType> _index;
+        Detail::ValueInitialized<SizeType> _size;
     };
 
 
@@ -576,12 +575,12 @@ namespace CxxReflect { namespace Metadata {
         }
 
         // Note that this 'last' is not the end of the blob, it is the end of the whole blob stream.
-        Blob(ByteIterator const first, ByteIterator const last)
+        Blob(ByteIterator const first, ByteIterator const last, SizeType const size = 0)
         {
             Detail::VerifyNotNull(first);
             Detail::VerifyNotNull(last);
 
-            std::tie(_first.Get(), _last.Get()) = ComputeBounds(first, last);
+            std::tie(_first.Get(), _last.Get()) = ComputeBounds(first, last, size);
         }
 
         ByteIterator Begin()   const { VerifyInitialized(); return _first.Get(); }
@@ -608,10 +607,14 @@ namespace CxxReflect { namespace Metadata {
     private:
 
         static std::pair<ByteIterator, ByteIterator> ComputeBounds(ByteIterator const first,
-                                                                   ByteIterator const last)
+                                                                   ByteIterator const last,
+                                                                   SizeType     const size)
         {
             if (first == last)
                 throw ReadError("Invalid blob");
+
+            if (size > 0)
+                return std::make_pair(first, first + size);
 
             Byte initialByte(*first);
             SizeType blobSizeBytes(0);
@@ -939,9 +942,9 @@ namespace CxxReflect { namespace Metadata {
             return ReturnType(this, _tables.GetTable(TId).At(index));
         }
 
-        Blob GetBlob(SizeType const index) const
+        Blob GetBlob(BlobReference const blobReference) const
         {
-            return Blob(_blobStream.At(index), _blobStream.End());
+            return Blob(_blobStream.At(blobReference.GetIndex()), _blobStream.End(), blobReference.GetSize());
         }
 
         StringReference GetString(SizeType const index) const
@@ -949,8 +952,9 @@ namespace CxxReflect { namespace Metadata {
             return StringReference(_strings.At(index));
         }
 
-        TableCollection  const& GetTables()  const { return _tables;  }
-        StringCollection const& GetStrings() const { return _strings; }
+        TableCollection  const& GetTables()  const { return _tables;     }
+        StringCollection const& GetStrings() const { return _strings;    }
+        Stream           const& GetBlobs()   const { return _blobStream; }
 
         bool IsInitialized() const
         {

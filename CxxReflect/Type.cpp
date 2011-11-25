@@ -4,6 +4,7 @@
 
 #include "CxxReflect/AssemblyName.hpp"
 #include "CxxReflect/MetadataLoader.hpp"
+#include "CxxReflect/MetadataSignature.hpp"
 #include "CxxReflect/Method.hpp"
 #include "CxxReflect/Type.hpp"
 
@@ -63,11 +64,9 @@ namespace CxxReflect {
     {
     }
 
-    Type::Type(Assembly const& assembly, Metadata::TableReference const& type)
+    Type::Type(Assembly const& assembly, Metadata::TableReference const& type, InternalKey)
         : _assembly(assembly), _type(Metadata::TableOrBlobReference(type))
     {
-        using namespace CxxReflect::Metadata;
-
         Detail::Verify([&] { return assembly.IsInitialized(); });
 
         // If we were initialized with an empty type, do not attempt to do any type resolution.
@@ -76,37 +75,39 @@ namespace CxxReflect {
 
         switch (type.GetTable())
         {
-        case TableId::TypeDef:
+        case Metadata::TableId::TypeDef:
         {
             // Wonderful news!  We have a TypeDef and we don't need to do any further work.
             break;
         }
 
-        case TableId::TypeRef:
+        case Metadata::TableId::TypeRef:
         {
             // Resolve the TypeRef into a TypeDef, throwing on failure:
-            // TODO CORRECT ERROR HANDLING
             MetadataLoader const& loader(assembly.GetContext(InternalKey()).GetLoader());
-            Database const& database(assembly.GetContext(InternalKey()).GetDatabase());
-            DatabaseReference const resolvedType(loader.ResolveType(DatabaseReference(&database, type), InternalKey()));
+            Metadata::Database const& database(assembly.GetContext(InternalKey()).GetDatabase());
+
+            Metadata::DatabaseReference const resolvedType(
+                loader.ResolveType(Metadata::DatabaseReference(&database, type), InternalKey()));
+
             Detail::Verify([&]{ return resolvedType.IsInitialized(); });
 
             _assembly = Assembly(
                 &loader.GetContextForDatabase(resolvedType.GetDatabase(), InternalKey()),
                 InternalKey());
 
-            _type = TableOrBlobReference(resolvedType.GetTableReference());
-            Detail::Verify([&]{ return _type.AsTableReference().GetTable() == TableId::TypeDef; });
+            _type = Metadata::TableOrBlobReference(resolvedType.GetTableReference());
+            Detail::Verify([&]{ return _type.AsTableReference().GetTable() == Metadata::TableId::TypeDef; });
 
             break;
         }
 
-        case TableId::TypeSpec:
+        case Metadata::TableId::TypeSpec:
         {
             // Get the signature for the TypeSpec token and use that instead:
-            Database const& database(assembly.GetContext(InternalKey()).GetDatabase());
-            TypeSpecRow const typeSpec(database.GetRow<TableId::TypeSpec>(type.GetIndex()));
-            _type = TableOrBlobReference(typeSpec.GetSignature());
+            Metadata::Database const& database(assembly.GetContext(InternalKey()).GetDatabase());
+            Metadata::TypeSpecRow const typeSpec(database.GetRow<Metadata::TableId::TypeSpec>(type.GetIndex()));
+            _type = Metadata::TableOrBlobReference(typeSpec.GetSignature());
 
             break;
         }
@@ -119,7 +120,59 @@ namespace CxxReflect {
         }
     }
 
-    void Type::AccumulateFullNameInto(OutputStream& os) const
+    Type::Type(Assembly const& assembly, Metadata::BlobReference const& type, InternalKey)
+        : _assembly(assembly), _type(Metadata::TableOrBlobReference(type))
+    {
+        Detail::Verify([&] { return assembly.IsInitialized(); });
+
+        Metadata::TypeSignature const signature(assembly
+            .GetContext(InternalKey())
+            .GetDatabase()
+            .GetBlob(type)
+            .As<Metadata::TypeSignature>());
+
+        if (signature.GetKind() == Metadata::TypeSignature::Kind::Primitive)
+        {
+            String primitiveTypeName;
+            switch (signature.GetPrimitiveElementType())
+            {
+            case Metadata::ElementType::Boolean: primitiveTypeName = L"System.Boolean"; break;
+            case Metadata::ElementType::Char:    primitiveTypeName = L"System.Char";    break;
+            case Metadata::ElementType::I1:      primitiveTypeName = L"System.SByte";   break;
+            case Metadata::ElementType::U1:      primitiveTypeName = L"System.Byte";    break;
+            case Metadata::ElementType::I2:      primitiveTypeName = L"System.Int16";   break;
+            case Metadata::ElementType::U2:      primitiveTypeName = L"System.UInt16";  break;
+            case Metadata::ElementType::I4:      primitiveTypeName = L"System.Int32";   break;
+            case Metadata::ElementType::U4:      primitiveTypeName = L"System.UInt32";  break;
+            case Metadata::ElementType::I8:      primitiveTypeName = L"System.Int64";   break;
+            case Metadata::ElementType::U8:      primitiveTypeName = L"System.UInt64";  break;
+            case Metadata::ElementType::R4:      primitiveTypeName = L"System.Short";   break;
+            case Metadata::ElementType::R8:      primitiveTypeName = L"System.Double";  break;
+            case Metadata::ElementType::I:       primitiveTypeName = L"System.IntPtr";  break;
+            case Metadata::ElementType::U:       primitiveTypeName = L"System.UIntPtr"; break;
+            case Metadata::ElementType::Object:  primitiveTypeName = L"System.Object";  break;
+            case Metadata::ElementType::String:  primitiveTypeName = L"System.String";  break;
+            case Metadata::ElementType::Void:    primitiveTypeName = L"System.Void";    break;
+
+            case Metadata::ElementType::TypedByRef:
+            default:
+                Detail::VerifyFail("Not Yet Implemented");
+                break;
+            }
+
+            // Find the system assembly:
+            Type systemObject(*assembly.BeginTypes());
+            while (systemObject.GetBaseType())
+                systemObject = systemObject.GetBaseType();
+
+            Type const primitiveType(systemObject.GetAssembly().GetType(StringReference(primitiveTypeName.c_str())));
+
+            _assembly = primitiveType.GetAssembly();
+            _type = Metadata::TableReference::FromToken(primitiveType.GetMetadataToken());
+        }
+    }
+
+    bool Type::AccumulateFullNameInto(OutputStream& os) const
     {
         // TODO ENSURE WE ESCAPE THE TYPE NAME CORRECTLY
 
@@ -139,14 +192,82 @@ namespace CxxReflect {
                 os << GetName();
             }
         }
+        else
+        {
+            Metadata::TypeSignature const signature(GetTypeSpecSignature());
+            switch (signature.GetKind())
+            {
+            case Metadata::TypeSignature::Kind::GenericInst:
+            {
+                if (std::any_of(signature.BeginGenericArguments(), signature.EndGenericArguments(), [&](Metadata::TypeSignature const& sig)
+                {
+                    return sig.GetKind() == Metadata::TypeSignature::Kind::Var;
+                }))
+                {
+                    return false;
+                }
+
+                Type const genericType(_assembly, signature.GetGenericTypeReference(), InternalKey());
+                genericType.AccumulateFullNameInto(os);
+
+                os << L'[';
+                std::for_each(
+                    signature.BeginGenericArguments(),
+                    signature.EndGenericArguments(),
+                    [&](Metadata::TypeSignature const& argumentSignature)
+                {
+                    os << L'[';
+                    Type const argumentType(
+                        _assembly,
+                        Metadata::BlobReference(
+                            argumentSignature.Begin() - _assembly.GetContext(InternalKey()).GetDatabase().GetBlobs().Begin(),
+                            argumentSignature.End() - argumentSignature.Begin()), InternalKey());
+                    argumentType.AccumulateAssemblyQualifiedNameInto(os);
+                    os << L']';
+                });
+                os << L']';
+                break;
+            }
+            case Metadata::TypeSignature::Kind::ClassType:
+            {
+                Type const classType(_assembly, signature.GetTypeReference(), InternalKey());
+                classType.AccumulateFullNameInto(os);
+                break;
+            }
+            case Metadata::TypeSignature::Kind::SzArray:
+            {
+                Type const classType(
+                    _assembly,
+                    Metadata::BlobReference(
+                        signature.GetArrayType().Begin() - _assembly.GetContext(InternalKey()).GetDatabase().GetBlobs().Begin(),
+                        signature.GetArrayType().End() - signature.Begin()),
+                    InternalKey());
+
+                classType.AccumulateFullNameInto(os);
+                os << L"[]";
+                break;
+            }
+            case Metadata::TypeSignature::Kind::Var:
+            {
+                // TODO MVAR?
+                os << L"Var!" << signature.GetVariableNumber();
+                break;
+            }
+            default:
+            {
+                Detail::VerifyFail("Not yet implemented");
+                break;
+            }
+            }
+        }
 
         // TODO TYPESPEC SUPPORT
+        return true;
     }
 
     void Type::AccumulateAssemblyQualifiedNameInto(OutputStream& os) const
     {
-        AccumulateFullNameInto(os);
-        if (GetName().size() > 1)
+        if (AccumulateFullNameInto(os))
         {
             os << L", " << _assembly.GetName().GetFullName();
         }
@@ -154,21 +275,23 @@ namespace CxxReflect {
 
     Metadata::TypeDefRow Type::GetTypeDefRow() const
     {
-        Detail::Verify([&] { return IsTypeDef(); });
+        Detail::Verify([&]{ return IsTypeDef(); });
+
         return _assembly
             .GetContext(InternalKey())
             .GetDatabase()
             .GetRow<Metadata::TableId::TypeDef>(_type.AsTableReference().GetIndex());
     }
 
-    Metadata::TypeSpecRow Type::GetTypeSpecRow() const
+    Metadata::TypeSignature Type::GetTypeSpecSignature() const
     {
-        Detail::Verify([&] { return IsTypeSpec(); });
-        // TODO HANDLE BLOB REFERENCES HERE
+        Detail::Verify([&]{ return IsTypeSpec(); });
+
         return _assembly
             .GetContext(InternalKey())
             .GetDatabase()
-            .GetRow<Metadata::TableId::TypeSpec>(_type.AsTableReference().GetIndex());
+            .GetBlob(_type.AsBlobReference())
+            .As<Metadata::TypeSignature>();
     }
 
     Detail::MethodTableAllocator::Range Type::GetOrCreateMethodTable() const
@@ -252,8 +375,7 @@ namespace CxxReflect {
             case Metadata::TableId::TypeDef:
             case Metadata::TableId::TypeRef:
             case Metadata::TableId::TypeSpec:
-                // TODO DO WE WANT TO RESOLVE TYPEREFS HERE OR DEFER RESOLUTION?
-                return Type(_assembly, extends);
+                return Type(_assembly, extends, InternalKey());
 
             default:
                 throw std::logic_error("wtf");
@@ -283,7 +405,7 @@ namespace CxxReflect {
             if (enclosingType.GetTable() != Metadata::TableId::TypeDef)
                 throw std::logic_error("wtf");
 
-            return Type(_assembly, enclosingType);
+            return Type(_assembly, enclosingType, InternalKey());
         }
 
         // TODO OTHER KINDS OF DECLARING TYPES

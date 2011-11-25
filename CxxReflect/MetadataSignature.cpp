@@ -394,8 +394,8 @@ namespace CxxReflect { namespace Metadata {
         TypeSpecRow const lhsTypeSpec(lhsDatabase.GetRow<TableId::TypeSpec>(lhsRowIndex));
         TypeSpecRow const rhsTypeSpec(rhsDatabase.GetRow<TableId::TypeSpec>(rhsRowIndex));
 
-        Blob const lhsSignature(lhsDatabase.GetBlob(lhsTypeSpec.GetSignature().GetIndex()));
-        Blob const rhsSignature(rhsDatabase.GetBlob(rhsTypeSpec.GetSignature().GetIndex()));
+        Blob const lhsSignature(lhsDatabase.GetBlob(lhsTypeSpec.GetSignature()));
+        Blob const rhsSignature(rhsDatabase.GetBlob(rhsTypeSpec.GetSignature()));
 
         // Note that we use a new signature comparer because the LHS and RHS signatures may have come
         // from new and/or different databases.

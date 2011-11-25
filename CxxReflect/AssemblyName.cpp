@@ -44,7 +44,7 @@ namespace { namespace Private {
         AssemblyFlags const flags(row.GetFlags());
 
         PublicKeyToken const publicKeyToken(ComputePublicKeyToken(
-            database.GetBlob(row.GetPublicKey().GetIndex()),
+            database.GetBlob(row.GetPublicKey()),
             flags.IsSet(AssemblyAttribute::PublicKey)));
 
         name = CxxReflect::AssemblyName(
@@ -93,7 +93,7 @@ namespace CxxReflect {
         return is;
     }
 
-    AssemblyName::AssemblyName(Assembly const& assembly, Metadata::TableReference const& reference)
+    AssemblyName::AssemblyName(Assembly const& assembly, Metadata::TableReference const& reference, InternalKey)
     {
         Metadata::Database const& database(assembly.GetContext(InternalKey()).GetDatabase());
         switch (reference.GetTable())

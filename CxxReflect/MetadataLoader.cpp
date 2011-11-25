@@ -14,7 +14,8 @@ namespace CxxReflect { namespace Detail {
     {
         Type const declaringType(
             Assembly(&reflectedType.GetAssembly().GetContext(InternalKey()), InternalKey()),
-            _declaringType);
+            _declaringType,
+            InternalKey());
 
         return Method(declaringType, reflectedType, _method);
     }
@@ -31,11 +32,11 @@ namespace CxxReflect { namespace Detail {
 
         _name = AssemblyName(
             Assembly(this, InternalKey()),
-            Metadata::TableReference(Metadata::TableId::Assembly, 0));
+            Metadata::TableReference(Metadata::TableId::Assembly, 0),
+            InternalKey());
 
         _state.Set(RealizedName);
     }
-
 
 } }
 
@@ -119,56 +120,62 @@ namespace CxxReflect {
         // If the resolution scope is null, we look in the ExportedType table for this type.
         if (!resolutionScope.IsValid())
         {
-            Detail::VerifyFail("wtf");
-            return DatabaseReference(); // TODO WE SHOULD THROW HERE
+            Detail::VerifyFail("Not Yet Implemented"); // TODO
+            return DatabaseReference();
         }
 
         switch (resolutionScope.GetTable())
         {
         case TableId::Module:
         {
-            Detail::VerifyFail("wtf");
-            break;
-        }
+            // A Module resolution scope means the target type is defined in the current module:
+            Assembly const definingAssembly(
+                &GetContextForDatabase(typeReference.GetDatabase(), InternalKey()),
+                InternalKey());
 
+            Type resolvedType(definingAssembly.GetType(typeRef.GetNamespace(), typeRef.GetName()));
+            if (!resolvedType)
+                throw RuntimeError("Failed to resolve type in module");
+
+            return DatabaseReference(
+                &definingAssembly.GetContext(InternalKey()).GetDatabase(),
+                TableReference::FromToken(resolvedType.GetMetadataToken()));
+        }
         case TableId::ModuleRef:
         {
-            Detail::VerifyFail("wtf");
-            break;
+            throw std::logic_error("Not Yet Implemented");
         }
         case TableId::AssemblyRef:
         {
             AssemblyName const definingAssemblyName(
                 Assembly(&GetContextForDatabase(referenceDatabase, InternalKey()), InternalKey()),
-                resolutionScope);
+                resolutionScope,
+                InternalKey());
 
             Assembly const definingAssembly(LoadAssembly(definingAssemblyName));
             if (definingAssembly == nullptr)
-                throw std::logic_error("wtf");
+                throw RuntimeError("Failed to resolve assembly reference");
 
             Type const resolvedType(definingAssembly.GetType(typeRef.GetNamespace(), typeRef.GetName()));
             if (resolvedType == nullptr)
-                throw std::logic_error("wtf");
+                throw RuntimeError("Failed to resolve type in assembly");
 
             return DatabaseReference(
-                &definingAssembly.GetContext(InternalKey()).GetDatabase(), 
+                &definingAssembly.GetContext(InternalKey()).GetDatabase(),
                 TableReference::FromToken(resolvedType.GetMetadataToken()));
         }
-
         case TableId::TypeRef:
         {
-            Detail::VerifyFail("wtf");
-            break;
+            throw std::logic_error("Not Yet Implemented");
         }
-
         default:
         {
-            Detail::VerifyFail("wtf");
-            break;
+            // The resolution scope must be from one of the tables in the switch; if we get here,
+            // something is broken in the MetadataDatabase code.
+            Detail::VerifyFail("This is unreachable");
+            return DatabaseReference();
         }
         }
-
-        return DatabaseReference(); // TODO THIS IS UNREACHABLE
     }
 
     Assembly MetadataLoader::LoadAssembly(String path) const
