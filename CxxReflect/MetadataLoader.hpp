@@ -15,6 +15,8 @@
 
 namespace CxxReflect { namespace Detail {
 
+    typedef Detail::LinearArrayAllocator<Byte, (2 << 16)> MethodSignatureAllocator;
+
     class MethodReference
     {
     public:
@@ -23,34 +25,92 @@ namespace CxxReflect { namespace Detail {
         {
         }
 
-        MethodReference(Metadata::Database const* const database,
-                        Metadata::TableReference const declaringType,
-                        Metadata::TableReference const method)
-            : _database(database), _declaringType(declaringType), _method(method)
+        MethodReference(Metadata::DatabaseReference const typeDef,
+                        Metadata::TableReference    const methodDef)
+            : _typeDef(typeDef),
+              _methodDef(methodDef)
         {
-            Detail::VerifyNotNull(database);
-            Detail::Verify([&]{ return declaringType.IsInitialized(); });
-            Detail::Verify([&]{ return method.IsInitialized(); });
+            Detail::Verify([&]{ return typeDef.IsInitialized();   });
+            Detail::Verify([&]{ return methodDef.IsInitialized(); });
+        }
+
+        MethodReference(Metadata::DatabaseReference     const typeDef,
+                        Metadata::TableReference        const methodDef,
+                        Metadata::DatabaseReference     const typeSpec,
+                        MethodSignatureAllocator::Range const instantiatedSignature)
+            : _typeDef(typeDef),
+              _methodDef(methodDef),
+              _typeSpec(typeSpec),
+              _instantiatedSignature(instantiatedSignature)
+        {
+            Detail::Verify([&]{ return typeDef.IsInitialized();   });
+            Detail::Verify([&]{ return methodDef.IsInitialized(); });
+            Detail::Verify([&]{ return typeSpec.IsInitialized();  });
+            // Note: 'instantiatedSignature' may not be initialized
         }
 
         // Resolves the MethodReference as a Method using the provided reflected type
         Method Resolve(Type const& reflectedType) const;
 
-        Metadata::Database       const& GetDatabase()      const { VerifyInitialized(); return *_database.Get(); }
-        Metadata::TableReference const& GetDeclaringType() const { VerifyInitialized(); return _declaringType;   }
-        Metadata::TableReference const& GetMethodIndex()   const { VerifyInitialized(); return _method;          }
+        Metadata::DatabaseReference GetDeclaringType() const
+        {
+            VerifyInitialized();
+            return _typeDef;
+        }
+        
+        Metadata::DatabaseReference GetMethod() const
+        {
+            VerifyInitialized();
+            return Metadata::DatabaseReference(&_typeDef.GetDatabase(), _methodDef);
+        }
 
         Metadata::MethodDefRow GetMethodDefinition() const
         {
-            return _database.Get()->GetRow<Metadata::TableId::MethodDef>(_method.GetIndex());
+            VerifyInitialized();
+            return _typeDef.GetDatabase().GetRow<Metadata::TableId::MethodDef>(_methodDef.GetIndex());
         }
 
         Metadata::MethodSignature GetMethodSignature() const
         {
-            return _database.Get()->GetBlob(GetMethodDefinition().GetSignature()).As<Metadata::MethodSignature>();
+            VerifyInitialized();
+            if (HasInstantiatedSignature())
+            {
+                return Metadata::MethodSignature(
+                    _instantiatedSignature.Begin(),
+                    _instantiatedSignature.End());
+            }
+            else
+            {
+                return _typeDef
+                    .GetDatabase()
+                    .GetBlob(GetMethodDefinition().GetSignature())
+                    .As<Metadata::MethodSignature>();
+            }
         }
 
-        bool IsInitialized() const { return _database.Get() != nullptr; }
+        bool HasInstantiatedType() const
+        {
+            return _typeSpec.IsInitialized();
+        }
+
+        Metadata::DatabaseReference GetInstantiatedType() const
+        {
+            Verify([&]{ return HasInstantiatedType(); });
+            return _typeSpec;
+        }
+
+        bool HasInstantiatedSignature() const
+        {
+            return _instantiatedSignature.IsInitialized();
+        }
+
+        MethodSignatureAllocator::Range GetInstantiatedSignature() const
+        {
+            Verify([&]{ return HasInstantiatedSignature(); });
+            return _instantiatedSignature;
+        }
+
+        bool IsInitialized() const { return _typeDef.IsInitialized(); }
 
     private:
 
@@ -59,9 +119,16 @@ namespace CxxReflect { namespace Detail {
             Detail::Verify([&]{ return IsInitialized(); });
         }
 
-        Detail::ValueInitialized<Metadata::Database const*> _database;
-        Metadata::TableReference                            _declaringType; // Reference into TypeDef table
-        Metadata::TableReference                            _method;        // Reference into MethodDef table
+        // _typeDef is the type that defines the method.  _methodDef is the method definition; it is
+        // resolved in the same database as _typeDef.  _typeSpec is the type through which the method
+        // is referred; this is usually set for e.g. an instantiated generic type.  If _typeSpec is
+        // set and the method uses any of the _typeSpec's generic parameters, _instantiatedSignature
+        // will be set and will point to a replacement signature that has all of the variables (Var!0)
+        // replaced with their arguments.
+        Metadata::DatabaseReference     _typeDef;
+        Metadata::TableReference        _methodDef;
+        Metadata::DatabaseReference     _typeSpec;
+        MethodSignatureAllocator::Range _instantiatedSignature;
     };
 
     typedef Detail::LinearArrayAllocator<Detail::MethodReference, 2048> MethodTableAllocator;
@@ -147,15 +214,16 @@ namespace CxxReflect { namespace Detail {
 
         void RealizeName() const;
 
-        Detail::ValueInitialized<MetadataLoader const*> _loader;
-        String                                          _path;
-        Metadata::Database                              _database;
+        ValueInitialized<MetadataLoader const*> _loader;
+        String                                  _path;
+        Metadata::Database                      _database;
 
-        mutable Detail::FlagSet<RealizationState>       _state; 
-        mutable AssemblyName                            _name; 
+        mutable FlagSet<RealizationState>       _state;
+        mutable AssemblyName                    _name;
 
-        mutable Detail::MethodTableAllocator                            _methodTableAllocator;
-        mutable std::map<SizeType, Detail::MethodTableAllocator::Range> _methodTableIndices;
+        mutable MethodTableAllocator                            _methodTableAllocator;
+        mutable MethodSignatureAllocator                        _methodSignatureAllocator;
+        mutable std::map<SizeType, MethodTableAllocator::Range> _methodTableIndices;
     };
 
 } }

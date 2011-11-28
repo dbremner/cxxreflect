@@ -23,7 +23,7 @@ using namespace CxxReflect;
 namespace
 {
     typedef std::vector<Detail::MethodReference> MethodTable;
-    
+
     bool IsExplicitInterfaceImplementation(StringReference const methodName)
     {
         // TODO THIS IS A HACK
@@ -117,19 +117,18 @@ namespace
                                    Metadata::DatabaseReference const  type,
                                    MethodTable                      & currentTable)
     {
-        Metadata::DatabaseReference const typeReference(ResolveTypeDef(loader, type));
-        Metadata::Database const& database(typeReference.GetDatabase());
+        Metadata::DatabaseReference const typeDefReference(ResolveTypeDef(loader, type));
 
-        Metadata::TypeDefRow const typeDef(typeReference
+        Metadata::TypeDefRow const typeDef(typeDefReference
             .GetDatabase()
-            .GetRow<Metadata::TableId::TypeDef>(typeReference.GetTableReference().GetIndex()));
+            .GetRow<Metadata::TableId::TypeDef>(typeDefReference.GetTableReference().GetIndex()));
 
         Metadata::TableReference const baseTypeReference(typeDef.GetExtends());
         if (baseTypeReference.IsValid())
         {
             BuildMethodTableRecursive(
                 loader,
-                Metadata::DatabaseReference(&typeReference.GetDatabase(), baseTypeReference),
+                Metadata::DatabaseReference(&typeDefReference.GetDatabase(), baseTypeReference),
                 currentTable);
         }
 
@@ -143,8 +142,19 @@ namespace
 
         std::for_each(firstMethod, lastMethod, [&](Metadata::MethodDefRow const& methodDef)
         {
+            Metadata::MethodSignature const methodSig(typeDefReference
+                .GetDatabase()
+                .GetBlob(methodDef.GetSignature())
+                .As<Metadata::MethodSignature>());
+
+            bool hasEmbeddedClassVariables(false);
+            VisitTypeSignatures(methodSig, [&](Metadata::TypeSignature const& typeSignature)
+            {
+                hasEmbeddedClassVariables |= typeSignature.IsClassVariableType();
+            });
+
              Detail::MethodReference const methodReference(
-                &typeReference.GetDatabase(),
+                &typeDefReference.GetDatabase(),
                 typeReference.GetTableReference(),
                 methodDef.GetSelfReference());
 
@@ -169,7 +179,7 @@ namespace
     {
         MethodTable result;
         BuildMethodTableRecursive(loader, type, result);
-        // TODO WE NEED TO REMOVE HIDEBYNAME/HIDEBYSIG ENTRIES!
+        // TODO We need to remove hidden methods using the hide by name and hide by name-and-sig rules.
         return result;
     }
 }

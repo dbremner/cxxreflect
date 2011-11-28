@@ -81,7 +81,6 @@
     <ClInclude Include="CustomAttribute.hpp" />
     <ClInclude Include="Event.hpp" />
     <ClInclude Include="Field.hpp" />
-    <ClInclude Include="BlobMetadata.hpp" />
     <ClInclude Include="CxxReflect.hpp" />
     <ClInclude Include="File.hpp" />
     <ClInclude Include="Guid.hpp" />

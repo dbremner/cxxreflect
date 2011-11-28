@@ -116,6 +116,9 @@ namespace CxxReflect { namespace Metadata {
 
 
 
+    // TODO We could probably consolidate much of this iterator code; a lot of it is the same in all
+    // three iterator implementations.  For the moment, though, they all work.
+
     // An iterator that counts elements as it materializes them.  This is used for metadata sequences
     // where the number of elements is known in advance and some function is required to materialize
     // each element in the sequence from the raw bytes.
@@ -390,30 +393,35 @@ namespace CxxReflect { namespace Metadata {
 
 
 
-    // Compares signatures to see whether they are equivalent.  The compatibility/equivalence rules
-    // are laid out in ECMA-355 section 8.6.1.6, "Signature Matching".
-    class SignatureComparer
+    // All of the signature types share a few common members; those that also have a common
+    // implementation are in this base class.  Note that we do not use polymorphic classes for
+    // signatures, so members that are present in all signature types but do not have a common
+    // implementation (e.g. SeekTo) are not present in this base class.
+    class BaseSignature
     {
     public:
 
-        // TOOD It would be really great if we could get rid of the loader here somehow; we are
-        // mixing the physical and logical layers here.
-        SignatureComparer(MetadataLoader const* loader, Database const* lhsDatabase, Database const* rhsDatabase);
+        ByteIterator BeginBytes() const;
+        ByteIterator EndBytes()   const;
 
-        bool operator()(ArrayShape        const& lhs, ArrayShape        const& rhs) const;
-        bool operator()(CustomModifier    const& lhs, CustomModifier    const& rhs) const;
-        bool operator()(FieldSignature    const& lhs, FieldSignature    const& rhs) const;
-        bool operator()(MethodSignature   const& lhs, MethodSignature   const& rhs) const;
-        bool operator()(PropertySignature const& lhs, PropertySignature const& rhs) const;
-        bool operator()(TypeSignature     const& lhs, TypeSignature     const& rhs) const;
+        bool IsInitialized() const;
+
+    protected:
+
+        BaseSignature();
+        BaseSignature(ByteIterator first, ByteIterator last);
+        
+        BaseSignature(BaseSignature const& other);
+        BaseSignature& operator=(BaseSignature const& other);
+
+        ~BaseSignature();
+
+        void VerifyInitialized() const;
 
     private:
 
-        bool operator()(TableReference    const& lhs, TableReference    const& rhs) const;
-
-        Detail::ValueInitialized<MetadataLoader const*> _loader;
-        Detail::ValueInitialized<Database const*>       _lhsDatabase;
-        Detail::ValueInitialized<Database const*>       _rhsDatabase;
+        Detail::ValueInitialized<ByteIterator> _first;
+        Detail::ValueInitialized<ByteIterator> _last;
     };
 
 
@@ -421,6 +429,7 @@ namespace CxxReflect { namespace Metadata {
 
     // Represents an ArrayShape signature item
     class ArrayShape
+        : public BaseSignature
     {
     private:
 
@@ -457,17 +466,7 @@ namespace CxxReflect { namespace Metadata {
         LowBoundIterator EndLowBounds()      const;
 
         SizeType         ComputeSize()       const;
-
-        bool             IsInitialized()     const;
-
-    private:
-
-        ByteIterator SeekTo(Part part) const;
-
-        void VerifyInitialized() const;
-
-        Detail::ValueInitialized<ByteIterator> _first;
-        Detail::ValueInitialized<ByteIterator> _last;
+        ByteIterator     SeekTo(Part part)   const;
     };
 
     CXXREFLECT_GENERATE_SCOPED_ENUM_OPERATORS(ArrayShape::Part)
@@ -477,6 +476,7 @@ namespace CxxReflect { namespace Metadata {
 
     // Represents a CustomMod signature item
     class CustomModifier
+        : public BaseSignature
     {
     public:
 
@@ -496,17 +496,7 @@ namespace CxxReflect { namespace Metadata {
         TableReference GetTypeReference() const;
 
         SizeType       ComputeSize()      const;
-
-        bool           IsInitialized()    const;
-
-    private:
-
-        ByteIterator SeekTo(Part part) const;
-
-        void VerifyInitialized() const;
-
-        Detail::ValueInitialized<ByteIterator> _first;
-        Detail::ValueInitialized<ByteIterator> _last;
+        ByteIterator   SeekTo(Part part)  const;
     };
 
     CXXREFLECT_GENERATE_SCOPED_ENUM_OPERATORS(CustomModifier::Part)
@@ -517,6 +507,7 @@ namespace CxxReflect { namespace Metadata {
     // Represents a FieldSig signature item; note that the optional CustomMod sequence is contained
     // in TypeSignature itself and is thus not exposed directly here.
     class FieldSignature
+        : public BaseSignature
     {
     public:
 
@@ -533,16 +524,7 @@ namespace CxxReflect { namespace Metadata {
 
         TypeSignature GetTypeSignature() const;
         SizeType      ComputeSize()      const;
-        bool          IsInitialized()    const;
-
-    private:
-
-        ByteIterator SeekTo(Part part) const;
-
-        void VerifyInitialized() const;
-
-        Detail::ValueInitialized<ByteIterator> _first;
-        Detail::ValueInitialized<ByteIterator> _last;
+        ByteIterator  SeekTo(Part part)  const;
     };
 
     CXXREFLECT_GENERATE_SCOPED_ENUM_OPERATORS(FieldSignature::Part);
@@ -553,6 +535,7 @@ namespace CxxReflect { namespace Metadata {
     // Represents a PropertySig signature item; note that the optional CustomMod sequence is
     // contained in TypeSignature itself and is thus not exposed directly here.
     class PropertySignature
+        : public BaseSignature
     {
     private:
 
@@ -582,16 +565,7 @@ namespace CxxReflect { namespace Metadata {
         TypeSignature     GetTypeSignature()  const;
 
         SizeType          ComputeSize()       const;
-        bool              IsInitialized()     const;
-
-    private:
-
-        ByteIterator SeekTo(Part part) const;
-
-        void VerifyInitialized() const;
-
-        Detail::ValueInitialized<ByteIterator> _first;
-        Detail::ValueInitialized<ByteIterator> _last;
+        ByteIterator      SeekTo(Part part)   const;
     };
 
     CXXREFLECT_GENERATE_SCOPED_ENUM_OPERATORS(PropertySignature::Part);
@@ -601,6 +575,7 @@ namespace CxxReflect { namespace Metadata {
 
     // Represents a MethodDefSig, MethodRefSig, or StandAloneMethodSig.
     class MethodSignature
+        : public BaseSignature
     {
     private:
 
@@ -654,16 +629,7 @@ namespace CxxReflect { namespace Metadata {
         ParameterIterator EndVarargParameters()   const;
 
         SizeType          ComputeSize()           const;
-        bool              IsInitialized()         const;
-
-    private:
-
-        ByteIterator SeekTo(Part part) const;
-
-        void VerifyInitialized() const;
-
-        Detail::ValueInitialized<ByteIterator> _first;
-        Detail::ValueInitialized<ByteIterator> _last;
+        ByteIterator      SeekTo(Part part)       const;
     };
 
     CXXREFLECT_GENERATE_SCOPED_ENUM_OPERATORS(MethodSignature::Part)
@@ -676,6 +642,7 @@ namespace CxxReflect { namespace Metadata {
     // a real type.  This supports Param, RetType, Type, and TypeSpec signatures in entirety, as well
     // as the core parts of FieldSig and PropertySig.
     class TypeSignature
+        : public BaseSignature
     {
     private:
 
@@ -743,14 +710,11 @@ namespace CxxReflect { namespace Metadata {
         TypeSignature();
         TypeSignature(ByteIterator first, ByteIterator last);
 
-        // TODO MOVE INTO .CPP FILE
-        ByteIterator Begin() const { VerifyInitialized(); return _first.Get(); }
-        ByteIterator End()   const { VerifyInitialized(); return _last.Get();  }
-
-        SizeType ComputeSize()     const;
-        Kind     GetKind()         const;
-        bool     IsInitialized()   const;
-        bool     IsKind(Kind kind) const;
+        SizeType     ComputeSize()     const;
+        ByteIterator SeekTo(Part part) const;
+        Kind         GetKind()         const;
+        bool         IsInitialized()   const;
+        bool         IsKind(Kind kind) const;
 
         // FieldSig, PropertySig, Param, RetType signatures, and PTR and SZARRAY Type signatures:
         CustomModifierIterator BeginCustomModifiers() const;
@@ -799,19 +763,101 @@ namespace CxxReflect { namespace Metadata {
 
     private:
 
-        ByteIterator SeekTo(Part part) const;
-
         ElementType GetElementType() const;
 
-        void VerifyInitialized() const;
         void VerifyKind(Kind kind) const;
-
-        Detail::ValueInitialized<ByteIterator> _first;
-        Detail::ValueInitialized<ByteIterator> _last;
     };
 
     CXXREFLECT_GENERATE_SCOPED_ENUM_OPERATORS(TypeSignature::Kind)
     CXXREFLECT_GENERATE_SCOPED_ENUM_OPERATORS(TypeSignature::Part)
+
+
+
+
+    // Compares signatures to see whether they are equivalent.  The compatibility/equivalence rules
+    // are laid out in ECMA-355 section 8.6.1.6, "Signature Matching".
+    class SignatureComparer
+    {
+    public:
+
+        // TOOD It would be really great if we could get rid of the loader here somehow; we are
+        // mixing the physical and logical layers here.
+        SignatureComparer(MetadataLoader const* loader, Database const* lhsDatabase, Database const* rhsDatabase);
+
+        bool operator()(ArrayShape        const& lhs, ArrayShape        const& rhs) const;
+        bool operator()(CustomModifier    const& lhs, CustomModifier    const& rhs) const;
+        bool operator()(FieldSignature    const& lhs, FieldSignature    const& rhs) const;
+        bool operator()(MethodSignature   const& lhs, MethodSignature   const& rhs) const;
+        bool operator()(PropertySignature const& lhs, PropertySignature const& rhs) const;
+        bool operator()(TypeSignature     const& lhs, TypeSignature     const& rhs) const;
+
+    private:
+
+        bool operator()(TableReference    const& lhs, TableReference    const& rhs) const;
+
+        Detail::ValueInitialized<MetadataLoader const*> _loader;
+        Detail::ValueInitialized<Database const*>       _lhsDatabase;
+        Detail::ValueInitialized<Database const*>       _rhsDatabase;
+    };
+
+
+
+
+    // This function object decomposes a signature and replaces each generic class variable with its
+    // corresponding argument.  It only instantiates class variables, not method variables (this is
+    // primarily used for the generating of method tables where a class type is derived from a
+    // generic instance.
+    class ClassVariableSignatureInstantiator
+    {
+    public:
+
+        template <typename TForIt>
+        ClassVariableSignatureInstantiator(TForIt const firstArgument, TForIt const lastArgument)
+            : _arguments(firstArgument, lastArgument)
+        {
+        }
+
+        // Instantiates the given signature into an internal buffer and returns the instantiated
+        // signature.  Note that ownership of the internal buffer is retained, so the caller must
+        // copy the contents of the signature into its own storage.
+        template <typename TSignature>
+        TSignature Instantiate(TSignature const& signature) const;
+
+        // This tests whether the given signature requires instantiation (i.e., whether it contains
+        // any generic class variables in it).
+        template <typename TSignature>
+        bool RequiresInstantiation(TSignature const& signature) const;
+
+    private:
+
+        typedef std::vector<TypeSignature> TypeSignatureSequence;
+        typedef std::vector<Byte>          InternalBuffer;
+
+        void InstantiateInto(InternalBuffer& buffer, ArrayShape        const& s) const;
+        void InstantiateInto(InternalBuffer& buffer, FieldSignature    const& s) const;
+        void InstantiateInto(InternalBuffer& buffer, MethodSignature   const& s) const;
+        void InstantiateInto(InternalBuffer& buffer, PropertySignature const& s) const;
+        void InstantiateInto(InternalBuffer& buffer, TypeSignature     const& s) const;
+
+        template <typename TSignature, typename TPart>
+        void CopyBytesInto(InternalBuffer& buffer, TSignature const& s, TPart const first, TPart const last) const;
+
+        template <typename TForIt>
+        void InstantiateRangeInto(InternalBuffer& buffer, TForIt const first, TForIt const last) const;
+
+        bool RequiresInstantiationInternal(ArrayShape        const& s) const;
+        bool RequiresInstantiationInternal(FieldSignature    const& s) const;
+        bool RequiresInstantiationInternal(MethodSignature   const& s) const;
+        bool RequiresInstantiationInternal(PropertySignature const& s) const;
+        bool RequiresInstantiationInternal(TypeSignature     const& s) const;
+
+        template <typename TForIt>
+        bool AnyRequiresInstantiationInternal(TForIt const first, TForIt const last) const;
+
+        InternalBuffer        mutable _buffer;
+        TypeSignatureSequence         _arguments;
+    };
+
 
 } }
 

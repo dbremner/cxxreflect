@@ -14,10 +14,10 @@ namespace CxxReflect { namespace Detail {
     {
         Type const declaringType(
             Assembly(&reflectedType.GetAssembly().GetContext(InternalKey()), InternalKey()),
-            _declaringType,
+            _typeDef.GetTableReference(),
             InternalKey());
 
-        return Method(declaringType, reflectedType, _method);
+        return Method(declaringType, reflectedType, _methodDef);
     }
 
     AssemblyName const& AssemblyContext::GetAssemblyName() const

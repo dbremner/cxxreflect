@@ -42,9 +42,6 @@
     <ClInclude Include="AssemblyName.hpp">
       <Filter>Headers</Filter>
     </ClInclude>
-    <ClInclude Include="BlobMetadata.hpp">
-      <Filter>Headers</Filter>
-    </ClInclude>
     <ClInclude Include="CustomAttribute.hpp">
       <Filter>Headers</Filter>
     </ClInclude>

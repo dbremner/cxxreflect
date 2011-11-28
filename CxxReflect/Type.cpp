@@ -220,8 +220,8 @@ namespace CxxReflect {
                     Type const argumentType(
                         _assembly,
                         Metadata::BlobReference(
-                            argumentSignature.Begin() - _assembly.GetContext(InternalKey()).GetDatabase().GetBlobs().Begin(),
-                            argumentSignature.End() - argumentSignature.Begin()), InternalKey());
+                            argumentSignature.BeginBytes() - _assembly.GetContext(InternalKey()).GetDatabase().GetBlobs().Begin(),
+                            argumentSignature.EndBytes() - argumentSignature.BeginBytes()), InternalKey());
                     argumentType.AccumulateAssemblyQualifiedNameInto(os);
                     os << L']';
                 });
@@ -239,8 +239,8 @@ namespace CxxReflect {
                 Type const classType(
                     _assembly,
                     Metadata::BlobReference(
-                        signature.GetArrayType().Begin() - _assembly.GetContext(InternalKey()).GetDatabase().GetBlobs().Begin(),
-                        signature.GetArrayType().End() - signature.Begin()),
+                        signature.GetArrayType().BeginBytes() - _assembly.GetContext(InternalKey()).GetDatabase().GetBlobs().Begin(),
+                        signature.GetArrayType().EndBytes() - signature.BeginBytes()),
                     InternalKey());
 
                 classType.AccumulateFullNameInto(os);
