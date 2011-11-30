@@ -420,7 +420,7 @@ namespace CxxReflect { namespace Metadata {
     {
         _buffer.clear();
         InstantiateInto(_buffer, signature);
-        return TSignature(&*_buffer.begin(), &*_buffer.end());
+        return TSignature(&*_buffer.begin(), &*_buffer.begin() + _buffer.size());
     }
 
     template ArrayShape        ClassVariableSignatureInstantiator::Instantiate<ArrayShape>       (ArrayShape        const&) const;
@@ -528,10 +528,10 @@ namespace CxxReflect { namespace Metadata {
             if (s.IsClassVariableType())
             {
                 SizeType const variableNumber(s.GetVariableNumber());
-                if (variableNumber > _arguments.size())
-                    throw std::logic_error("wtf"); // Invalid metadata?
-
-                CopyBytesInto(buffer, _arguments[variableNumber], Part::Begin, Part::End);
+                if (variableNumber >= _arguments.size())
+                    CopyBytesInto(buffer, s, Part::Begin, Part::End);
+                else // TODO THIS IS PROBABLY INVALID METADATA IF WE HAVE A BAD ARG!
+                    CopyBytesInto(buffer, _arguments[variableNumber], Part::Begin, Part::End);
             }
             else if (s.IsMethodVariableType())
             {
@@ -685,7 +685,7 @@ namespace CxxReflect { namespace Metadata {
 
     bool BaseSignature::IsInitialized() const
     {
-        return BeginBytes() != nullptr && EndBytes() != nullptr;
+        return _first.Get() != nullptr && _last.Get() != nullptr;
     }
 
     void BaseSignature::VerifyInitialized() const
@@ -1251,14 +1251,15 @@ namespace CxxReflect { namespace Metadata {
         unsigned parametersRead(0);
         if (part > Part::FirstParam)
         {
-            while (Private::PeekByte(current, EndBytes()) != ElementType::Sentinel
-                && parametersRead < parameterCount)
+            while (parametersRead < parameterCount &&
+                   Private::PeekByte(current, EndBytes()) != ElementType::Sentinel)
             {
                 ++parametersRead;
                 current += TypeSignature(current, EndBytes()).ComputeSize();
             }
 
-            if (Private::PeekByte(current, EndBytes()) == ElementType::Sentinel)
+            if (current != EndBytes() &&
+                Private::PeekByte(current, EndBytes()) == ElementType::Sentinel)
             {
                 current += Private::ReadByte(current, EndBytes());
             }

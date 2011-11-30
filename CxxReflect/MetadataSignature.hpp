@@ -811,6 +811,9 @@ namespace CxxReflect { namespace Metadata {
     {
     public:
 
+        // TODO MOVE INTO .CPP
+        ClassVariableSignatureInstantiator() { }
+
         template <typename TForIt>
         ClassVariableSignatureInstantiator(TForIt const firstArgument, TForIt const lastArgument)
             : _arguments(firstArgument, lastArgument)

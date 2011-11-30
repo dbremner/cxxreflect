@@ -23,46 +23,12 @@ using namespace CxxReflect;
 namespace
 {
     typedef std::vector<Detail::MethodReference> MethodTable;
+    typedef Detail::LinearArrayAllocator<Byte, (2 << 16)> ByteAllocator;
 
     bool IsExplicitInterfaceImplementation(StringReference const methodName)
     {
         // TODO THIS IS A HACK
         return std::any_of(methodName.begin(), methodName.end(), [](Character const c) { return c == L'.'; });
-    }
-
-    Metadata::DatabaseReference ResolveTypeDef(MetadataLoader const& loader,
-                                               Metadata::DatabaseReference const typeReference)
-    {
-        // Resolve a TypeRef into the TypeDef or TypeSpec it references:
-        Metadata::DatabaseReference const resolvedTypeReference(loader.ResolveType(typeReference, InternalKey()));
-
-        if (resolvedTypeReference.GetTableReference().GetTable() == Metadata::TableId::TypeDef)
-        {
-            return resolvedTypeReference;
-        }
-
-        Detail::Verify([&]
-        {
-            return resolvedTypeReference.GetTableReference().GetTable() == Metadata::TableId::TypeSpec;
-        });
-
-        Metadata::TypeSpecRow const resolvedTypeSpec(resolvedTypeReference
-            .GetDatabase()
-            .GetRow<Metadata::TableId::TypeSpec>(resolvedTypeReference.GetTableReference().GetIndex()));
-
-        Metadata::TypeSignature const typeSignature(resolvedTypeReference
-            .GetDatabase()
-            .GetBlob(resolvedTypeSpec.GetSignature())
-            .As<Metadata::TypeSignature>());
-
-        Detail::Verify([&]
-        {
-            return typeSignature.GetKind() == Metadata::TypeSignature::Kind::GenericInst;
-        }, "Not yet implemented");
-
-        return loader.ResolveType(Metadata::DatabaseReference(
-            &typeReference.GetDatabase(),
-            typeSignature.GetGenericTypeReference()), InternalKey());
     }
 
     SizeType ComputeIndexForMethod(MetadataLoader          const& loader,
@@ -92,8 +58,8 @@ namespace
 
             Metadata::SignatureComparer const compareSignatures(
                 &loader,
-                &methodReference.GetDatabase(),
-                &newMethodReference.GetDatabase());
+                &methodReference.GetDeclaringType().GetDatabase(),
+                &newMethodReference.GetDeclaringType().GetDatabase());
 
             // If the signature of the method in the derived class is different from the signature
             // of the method in the base class, it does not replace it, because it is HideBySig:
@@ -112,12 +78,54 @@ namespace
         return static_cast<SizeType>(-1);
     }
 
-    // TODO WE ONLY CURRENTLY SUPPORT GENERICINST AND TYPEDEF HERE
-    void BuildMethodTableRecursive(MetadataLoader              const& loader,
-                                   Metadata::DatabaseReference const  type,
-                                   MethodTable                      & currentTable)
+    std::pair<Metadata::DatabaseReference, Metadata::DatabaseReference>
+    ResolveTypeDefAndTypeSpec(MetadataLoader const& loader, Metadata::DatabaseReference const& typeReference)
     {
-        Metadata::DatabaseReference const typeDefReference(ResolveTypeDef(loader, type));
+        // Resolve a TypeRef into the TypeDef or TypeSpec it references:
+        Metadata::DatabaseReference const resolvedTypeReference(loader.ResolveType(typeReference, InternalKey()));
+
+        if (resolvedTypeReference.GetTableReference().GetTable() == Metadata::TableId::TypeDef)
+        {
+            return std::make_pair(resolvedTypeReference, Metadata::DatabaseReference());
+        }
+
+        Detail::Verify([&]
+        {
+            return resolvedTypeReference.GetTableReference().GetTable() == Metadata::TableId::TypeSpec;
+        });
+
+        Metadata::TypeSpecRow const resolvedTypeSpec(resolvedTypeReference
+            .GetDatabase()
+            .GetRow<Metadata::TableId::TypeSpec>(resolvedTypeReference.GetTableReference().GetIndex()));
+
+        Metadata::TypeSignature const typeSignature(resolvedTypeReference
+            .GetDatabase()
+            .GetBlob(resolvedTypeSpec.GetSignature())
+            .As<Metadata::TypeSignature>());
+
+        Detail::Verify([&]
+        {
+            return typeSignature.GetKind() == Metadata::TypeSignature::Kind::GenericInst;
+        }, "Not yet implemented");
+
+        return std::make_pair(
+            loader.ResolveType(Metadata::DatabaseReference(
+                &typeReference.GetDatabase(),
+                typeSignature.GetGenericTypeReference()), InternalKey()),
+            resolvedTypeReference);
+    }
+
+    // TODO WE ONLY CURRENTLY SUPPORT GENERICINST AND TYPEDEF HERE
+    void BuildMethodTableRecursive(MetadataLoader                   const& loader,
+                                   Metadata::DatabaseReference      const  type,
+                                   MethodTable                           & currentTable,
+                                   ByteAllocator      & allocator)
+    {
+        auto const typeDefAndSpec(ResolveTypeDefAndTypeSpec(loader, type));
+        Metadata::DatabaseReference const& typeDefReference(typeDefAndSpec.first);
+        Metadata::DatabaseReference const& typeSpecReference(typeDefAndSpec.second);
+
+        Metadata::Database const& database(typeDefReference.GetDatabase());
 
         Metadata::TypeDefRow const typeDef(typeDefReference
             .GetDatabase()
@@ -129,7 +137,24 @@ namespace
             BuildMethodTableRecursive(
                 loader,
                 Metadata::DatabaseReference(&typeDefReference.GetDatabase(), baseTypeReference),
-                currentTable);
+                currentTable,
+                allocator);
+        }
+
+        Metadata::ClassVariableSignatureInstantiator instantiator;
+        if (typeSpecReference.IsInitialized())
+        {
+            Metadata::TypeSignature const typeSpecSignature(typeSpecReference
+                .GetDatabase()
+                .GetBlob(typeSpecReference
+                    .GetDatabase()
+                    .GetRow<Metadata::TableId::TypeSpec>(typeSpecReference.GetTableReference().GetIndex())
+                    .GetSignature())
+                .As<Metadata::TypeSignature>());
+
+            instantiator = Metadata::ClassVariableSignatureInstantiator(
+                typeSpecSignature.BeginGenericArguments(),
+                typeSpecSignature.EndGenericArguments());
         }
 
         // We'll accumulate new method table entries into a separate sequence so that we correctly
@@ -142,21 +167,24 @@ namespace
 
         std::for_each(firstMethod, lastMethod, [&](Metadata::MethodDefRow const& methodDef)
         {
-            Metadata::MethodSignature const methodSig(typeDefReference
+            Metadata::MethodSignature methodSig(typeDefReference
                 .GetDatabase()
                 .GetBlob(methodDef.GetSignature())
                 .As<Metadata::MethodSignature>());
 
-            bool hasEmbeddedClassVariables(false);
-            VisitTypeSignatures(methodSig, [&](Metadata::TypeSignature const& typeSignature)
+            Detail::MethodSignatureAllocator::Range replacementSig;
+            if (instantiator.RequiresInstantiation(methodSig))
             {
-                hasEmbeddedClassVariables |= typeSignature.IsClassVariableType();
-            });
+                auto const newSigTemp(instantiator.Instantiate(methodSig));
+                replacementSig = allocator.Allocate(std::distance(newSigTemp.BeginBytes(), newSigTemp.EndBytes()));
+                Detail::RangeCheckedCopy(
+                    newSigTemp.BeginBytes(), newSigTemp.EndBytes(),
+                    replacementSig.Begin(), replacementSig.End());
+            }
 
-             Detail::MethodReference const methodReference(
-                &typeDefReference.GetDatabase(),
-                typeReference.GetTableReference(),
-                methodDef.GetSelfReference());
+             Detail::MethodReference const methodReference(typeSpecReference.IsInitialized()
+                ? Detail::MethodReference(typeDefReference, methodDef.GetSelfReference(), typeSpecReference, replacementSig)
+                : Detail::MethodReference(typeDefReference, methodDef.GetSelfReference()));;
 
             SizeType const insertionIndex(ComputeIndexForMethod(loader, methodReference, currentTable, newTable));
             if (insertionIndex != static_cast<SizeType>(-1))
@@ -175,10 +203,10 @@ namespace
     }
 
     // The algorithm for building the method table is found in ECMA-335 I/8.10.4.
-    MethodTable BuildMethodTable(MetadataLoader const& loader, Metadata::DatabaseReference const type)
+    MethodTable BuildMethodTable(MetadataLoader const& loader, Metadata::DatabaseReference const type, ByteAllocator& allocator)
     {
         MethodTable result;
-        BuildMethodTableRecursive(loader, type, result);
+        BuildMethodTableRecursive(loader, type, result, allocator);
         // TODO We need to remove hidden methods using the hide by name and hide by name-and-sig rules.
         return result;
     }
@@ -230,24 +258,30 @@ namespace
         os << L"    !!BeginMethods\n";
         Type methodsType = t.IsEnum() ? t.GetBaseType() : t;
 
+        ByteAllocator signatureAllocator;
+
         MethodTable allMethods(BuildMethodTable(
             t.GetAssembly().GetContext(InternalKey()).GetLoader(),
             DatabaseReference(
                 &t.GetAssembly().GetContext(InternalKey()).GetDatabase(),
-                TableReference::FromToken(t.GetMetadataToken()))));
+                TableReference::FromToken(t.GetMetadataToken())),
+            signatureAllocator));
 
         std::sort(begin(allMethods), end(allMethods), [](Detail::MethodReference const& lhs, Detail::MethodReference const& rhs)
         {
-            return lhs.GetMethodIndex().GetToken() < rhs.GetMethodIndex().GetToken();
+            return lhs.GetMethod().GetTableReference().GetToken() < rhs.GetMethod().GetTableReference().GetToken();
         });
 
         std::for_each(begin(allMethods), end(allMethods), [&](Detail::MethodReference const& m)
         {
-            MethodDefRow const mdr(m.GetDatabase().GetRow<TableId::MethodDef>(m.GetMethodIndex().GetIndex()));
+            MethodDefRow const mdr(m
+                .GetMethod()
+                .GetDatabase()
+                .GetRow<TableId::MethodDef>(m.GetMethod().GetTableReference().GetIndex()));
 
             // Inherited type:
-            if (m.GetDeclaringType().GetToken() != t.GetMetadataToken() ||
-                m.GetDatabase() != t.GetAssembly().GetContext(InternalKey()).GetDatabase())
+            if (m.GetDeclaringType().GetTableReference().GetToken() != t.GetMetadataToken() ||
+                m.GetMethod().GetDatabase() != t.GetAssembly().GetContext(InternalKey()).GetDatabase())
             {
                 //if (mdr.GetFlags().IsSet(MethodAttribute::Static))
                 //    return;
