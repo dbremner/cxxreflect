@@ -7,11 +7,6 @@
 
 #include "CxxReflect/Core.hpp"
 
-#include <array>
-#include <cstdint>
-#include <functional>
-#include <iosfwd>
-
 namespace CxxReflect {
 
     class Version

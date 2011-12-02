@@ -92,7 +92,6 @@
     <ClInclude Include="Parameter.hpp" />
     <ClInclude Include="Property.hpp" />
     <ClInclude Include="Type.hpp" />
-    <ClInclude Include="Utility.hpp" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Assembly.cpp" />
@@ -105,7 +104,6 @@
     <ClCompile Include="Method.cpp" />
     <ClCompile Include="PlatformWin32.cpp" />
     <ClCompile Include="Type.cpp" />
-    <ClCompile Include="WindowsRuntimeAdapter.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

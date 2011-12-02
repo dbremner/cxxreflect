@@ -8,8 +8,6 @@
 #include "CxxReflect/Method.hpp"
 #include "CxxReflect/Type.hpp"
 
-#include <sstream>
-
 namespace { namespace Private {
 
     using namespace CxxReflect;

@@ -10,12 +10,9 @@
 #include "CxxReflect/MetadataDatabase.hpp"
 #include "CxxReflect/MetadataSignature.hpp"
 
-#include <set>
-#include <utility>
-
 namespace CxxReflect { namespace Detail {
 
-    typedef Detail::LinearArrayAllocator<Byte, (2 << 16)> MethodSignatureAllocator;
+    typedef Detail::LinearArrayAllocator<Byte, (1 << 16)> MethodSignatureAllocator;
 
     class MethodReference
     {

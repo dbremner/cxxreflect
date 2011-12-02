@@ -4,10 +4,6 @@
 
 #include "CxxReflect/Guid.hpp"
 
-#include <algorithm>
-#include <cstdio>
-#include <sstream>
-
 namespace CxxReflect {
 
     Guid::Guid(String const& guid)

@@ -15,12 +15,24 @@
 
 #include <algorithm>
 #include <array>
+#include <bitset>
+#include <cctype>
 #include <cstdint>
+#include <cstdio>
+#include <cstring>
 #include <functional>
+#include <iosfwd>
 #include <iostream>
+#include <iterator>
+#include <map>
 #include <memory>
+#include <numeric>
+#include <set>
+#include <sstream>
 #include <stdexcept>
+#include <string>
 #include <type_traits>
+#include <utility>
 #include <vector>
 
 // The logic checks can be used to debug errors both in the CxxReflect implementation itself and in

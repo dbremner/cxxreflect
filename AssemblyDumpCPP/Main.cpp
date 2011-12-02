@@ -23,7 +23,7 @@ using namespace CxxReflect;
 namespace
 {
     typedef std::vector<Detail::MethodReference> MethodTable;
-    typedef Detail::LinearArrayAllocator<Byte, (2 << 16)> ByteAllocator;
+    typedef Detail::LinearArrayAllocator<Byte, (1 << 16)> ByteAllocator;
 
     bool IsExplicitInterfaceImplementation(StringReference const methodName)
     {
@@ -238,6 +238,8 @@ using namespace CxxReflect::Metadata;
 
 namespace
 {
+    // The CLR hides or modifies some types in the reflection API; we don't get those modifications
+    // when we read the metadata directly, so we just ignore those types here in the test program.
     bool IsKnownProblemType(Type const& t)
     {
         return (t.GetNamespace() == L"System"                                        && t.GetName() == L"__ComObject")

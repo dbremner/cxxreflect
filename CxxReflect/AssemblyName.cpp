@@ -6,12 +6,6 @@
 #include "CxxReflect/AssemblyName.hpp"
 #include "CxxReflect/MetadataDatabase.hpp"
 
-#include <cctype>
-#include <cstring>
-#include <iostream>
-#include <map>
-#include <sstream>
-
 namespace { namespace Private {
 
     using namespace CxxReflect;
