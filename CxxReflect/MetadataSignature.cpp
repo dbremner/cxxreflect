@@ -415,6 +415,10 @@ namespace CxxReflect { namespace Metadata {
 
 
 
+    ClassVariableSignatureInstantiator::ClassVariableSignatureInstantiator()
+    {
+    }
+    
     template <typename TSignature>
     TSignature ClassVariableSignatureInstantiator::Instantiate(TSignature const& signature) const
     {
@@ -430,16 +434,16 @@ namespace CxxReflect { namespace Metadata {
     template TypeSignature     ClassVariableSignatureInstantiator::Instantiate<TypeSignature>    (TypeSignature     const&) const;
 
     template <typename TSignature>
-    bool ClassVariableSignatureInstantiator::RequiresInstantiation(TSignature const& signature) const
+    bool ClassVariableSignatureInstantiator::RequiresInstantiation(TSignature const& signature)
     {
         return RequiresInstantiationInternal(signature);
     }
 
-    template bool ClassVariableSignatureInstantiator::RequiresInstantiation<ArrayShape>       (ArrayShape        const&) const;
-    template bool ClassVariableSignatureInstantiator::RequiresInstantiation<FieldSignature>   (FieldSignature    const&) const;
-    template bool ClassVariableSignatureInstantiator::RequiresInstantiation<MethodSignature>  (MethodSignature   const&) const;
-    template bool ClassVariableSignatureInstantiator::RequiresInstantiation<PropertySignature>(PropertySignature const&) const;
-    template bool ClassVariableSignatureInstantiator::RequiresInstantiation<TypeSignature>    (TypeSignature     const&) const;
+    template bool ClassVariableSignatureInstantiator::RequiresInstantiation<ArrayShape>       (ArrayShape        const&);
+    template bool ClassVariableSignatureInstantiator::RequiresInstantiation<FieldSignature>   (FieldSignature    const&);
+    template bool ClassVariableSignatureInstantiator::RequiresInstantiation<MethodSignature>  (MethodSignature   const&);
+    template bool ClassVariableSignatureInstantiator::RequiresInstantiation<PropertySignature>(PropertySignature const&);
+    template bool ClassVariableSignatureInstantiator::RequiresInstantiation<TypeSignature>    (TypeSignature     const&);
 
     void ClassVariableSignatureInstantiator::InstantiateInto(InternalBuffer& buffer, ArrayShape const& s) const
     {
@@ -567,17 +571,17 @@ namespace CxxReflect { namespace Metadata {
         std::for_each(first, last, [&](decltype(*first) const& s) { InstantiateInto(buffer, s); });
     }
 
-    bool ClassVariableSignatureInstantiator::RequiresInstantiationInternal(ArrayShape const&) const
+    bool ClassVariableSignatureInstantiator::RequiresInstantiationInternal(ArrayShape const&)
     {
         return false;
     }
 
-    bool ClassVariableSignatureInstantiator::RequiresInstantiationInternal(FieldSignature const& s) const
+    bool ClassVariableSignatureInstantiator::RequiresInstantiationInternal(FieldSignature const& s)
     {
         return RequiresInstantiationInternal(s.GetTypeSignature());
     }
 
-    bool ClassVariableSignatureInstantiator::RequiresInstantiationInternal(MethodSignature const& s) const
+    bool ClassVariableSignatureInstantiator::RequiresInstantiationInternal(MethodSignature const& s)
     {
         if (RequiresInstantiationInternal(s.GetReturnType()))
             return true;
@@ -591,7 +595,7 @@ namespace CxxReflect { namespace Metadata {
         return false;
     }
 
-    bool ClassVariableSignatureInstantiator::RequiresInstantiationInternal(PropertySignature const& s) const
+    bool ClassVariableSignatureInstantiator::RequiresInstantiationInternal(PropertySignature const& s)
     {
         if (RequiresInstantiationInternal(s.GetTypeSignature()))
             return true;
@@ -602,7 +606,7 @@ namespace CxxReflect { namespace Metadata {
         return false;
     }
 
-    bool ClassVariableSignatureInstantiator::RequiresInstantiationInternal(TypeSignature const& s) const
+    bool ClassVariableSignatureInstantiator::RequiresInstantiationInternal(TypeSignature const& s)
     {
         switch (s.GetKind())
         {
@@ -632,8 +636,7 @@ namespace CxxReflect { namespace Metadata {
     }
 
     template <typename TForIt>
-    bool ClassVariableSignatureInstantiator::AnyRequiresInstantiationInternal(TForIt const first,
-                                                                              TForIt const last) const
+    bool ClassVariableSignatureInstantiator::AnyRequiresInstantiationInternal(TForIt const first, TForIt const last)
     {
         return std::any_of(first, last, [&](decltype(*first) const& s)
         {

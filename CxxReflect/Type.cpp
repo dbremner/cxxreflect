@@ -195,6 +195,11 @@ namespace CxxReflect {
         else
         {
             Metadata::TypeSignature const signature(GetTypeSpecSignature());
+
+            // A TypeSpec for an uninstantiated generic type has no name:
+            if (Metadata::ClassVariableSignatureInstantiator::RequiresInstantiation(signature))
+                return false;
+
             switch (signature.GetKind())
             {
             case Metadata::TypeSignature::Kind::GenericInst:

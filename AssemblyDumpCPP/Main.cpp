@@ -40,7 +40,8 @@ namespace
         Metadata::MethodSignature const newMethodSig(newMethodReference.GetMethodSignature());
 
         // If the method occupies a new slot, it does not override any other method:
-        if (newMethodDef.GetFlags().WithMask(MethodAttribute::VTableLayoutMask) == MethodAttribute::NewSlot)
+        if (newMethodDef.GetFlags().WithMask(MethodAttribute::VTableLayoutMask) == MethodAttribute::NewSlot ||
+            newMethodDef.GetFlags().IsSet(MethodAttribute::Static))
         {
             newTable.push_back(newMethodReference);
             return static_cast<SizeType>(-1);
@@ -52,6 +53,9 @@ namespace
 
             Metadata::MethodDefRow    const methodDef(methodReference.GetMethodDefinition());
             Metadata::MethodSignature const methodSig(methodReference.GetMethodSignature());
+
+            if (!methodDef.GetFlags().IsSet(MethodAttribute::Virtual))
+                continue;
 
             if (methodDef.GetName() != newMethodDef.GetName())
                 continue;
@@ -131,16 +135,6 @@ namespace
             .GetDatabase()
             .GetRow<Metadata::TableId::TypeDef>(typeDefReference.GetTableReference().GetIndex()));
 
-        Metadata::TableReference const baseTypeReference(typeDef.GetExtends());
-        if (baseTypeReference.IsValid())
-        {
-            BuildMethodTableRecursive(
-                loader,
-                Metadata::DatabaseReference(&typeDefReference.GetDatabase(), baseTypeReference),
-                currentTable,
-                allocator);
-        }
-
         Metadata::ClassVariableSignatureInstantiator instantiator;
         if (typeSpecReference.IsInitialized())
         {
@@ -155,6 +149,34 @@ namespace
             instantiator = Metadata::ClassVariableSignatureInstantiator(
                 typeSpecSignature.BeginGenericArguments(),
                 typeSpecSignature.EndGenericArguments());
+        }
+
+        Metadata::TableReference const baseTypeReference(typeDef.GetExtends());
+        if (baseTypeReference.IsValid())
+        {
+            BuildMethodTableRecursive(
+                loader,
+                Metadata::DatabaseReference(&typeDefReference.GetDatabase(), baseTypeReference),
+                currentTable,
+                allocator);
+
+            std::transform(begin(currentTable), end(currentTable), begin(currentTable), [&](Detail::MethodReference mr) -> Detail::MethodReference
+            {
+                if (!instantiator.RequiresInstantiation(mr.GetMethodSignature()))
+                    return mr;
+
+                auto const newSigTemp(instantiator.Instantiate(mr.GetMethodSignature()));
+                Detail::MethodSignatureAllocator::Range replacementSig = allocator.Allocate(std::distance(newSigTemp.BeginBytes(), newSigTemp.EndBytes()));
+                Detail::RangeCheckedCopy(
+                    newSigTemp.BeginBytes(), newSigTemp.EndBytes(),
+                    replacementSig.Begin(), replacementSig.End());
+
+                return Detail::MethodReference(
+                    mr.GetDeclaringType(),
+                    mr.GetMethod().GetTableReference(),
+                    mr.GetInstantiatedType(),
+                    replacementSig);
+            });
         }
 
         // We'll accumulate new method table entries into a separate sequence so that we correctly
@@ -216,6 +238,12 @@ using namespace CxxReflect::Metadata;
 
 namespace
 {
+    bool IsKnownProblemType(Type const& t)
+    {
+        return (t.GetNamespace() == L"System"                                        && t.GetName() == L"__ComObject")
+            || (t.GetNamespace() == L"System.Runtime.Remoting.Proxies"               && t.GetName() == L"__TransparentProxy")
+            || (t.GetNamespace() == L"System.Runtime.InteropServices.WindowsRuntime" && t.GetName() == L"DisposableRuntimeClass");
+    }
     void Dump(Detail::FileHandle& os, Assembly const& a);
     void Dump(Detail::FileHandle& os, Type     const& t);
     void Dump(Detail::FileHandle& os, Method   const& m);
@@ -232,6 +260,9 @@ namespace
         os << L"!!BeginTypes\n";
         std::for_each(a.BeginTypes(), a.EndTypes(), [&](Type const& x)
         {
+            if (IsKnownProblemType(x))
+                return;
+
             Dump(os, x);
         });
         os << L"!!EndTypes\n";

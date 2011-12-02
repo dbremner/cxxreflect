@@ -28,6 +28,9 @@ class Program
         sb.AppendLine("!!BeginTypes");
         foreach (Type x in a.GetTypes().OrderBy(x => x.MetadataToken))
         {
+            if (x.FullName == "System.__ComObject" || x.FullName == "System.Runtime.InteropServices.WindowsRuntime.DisposableRuntimeClass")
+                continue;
+
             Dump(sb, x);
         }
         sb.AppendLine("!!EndTypes");

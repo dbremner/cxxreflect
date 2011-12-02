@@ -116,109 +116,14 @@ namespace CxxReflect { namespace Metadata {
 
 
 
-    // TODO We could probably consolidate much of this iterator code; a lot of it is the same in all
-    // three iterator implementations.  For the moment, though, they all work.
-
-    // An iterator that counts elements as it materializes them.  This is used for metadata sequences
-    // where the number of elements is known in advance and some function is required to materialize
-    // each element in the sequence from the raw bytes.
-    template <typename TValue, TValue(*FMaterialize)(ByteIterator&, ByteIterator)>
-    class CountingIterator
-        : Detail::EqualityComparable<CountingIterator<TValue, FMaterialize>>
-    {
-    public:
-
-        typedef TValue                    value_type;
-        typedef TValue const&             reference;
-        typedef TValue const*             pointer;
-        typedef std::ptrdiff_t            difference_type;
-        typedef std::forward_iterator_tag iterator_category;
-
-        CountingIterator()
-        {
-        }
-
-        CountingIterator(ByteIterator const current, ByteIterator const last,
-                         SizeType const index, SizeType const count)
-            : _current(current), _last(last), _index(index), _count(count)
-        {
-            if (index != count)
-                Materialize();
-        }
-
-        reference operator*()  const { return _value.Get();  }
-        pointer   operator->() const { return &_value.Get(); }
-
-        CountingIterator& operator++()
-        {
-            ++_index.Get();
-            if (_index.Get() != _count.Get())
-                Materialize();
-
-            return *this;
-        }
-
-        CountingIterator operator++(int)
-        {
-            CountingIterator const it(*this);
-            ++*this;
-            return it;
-        }
-
-        friend bool operator==(CountingIterator const& lhs, CountingIterator const& rhs)
-        {
-            if (lhs._current.Get() == rhs._current.Get())
-                return true;
-
-            if (lhs.IsEnd() && rhs.IsEnd())
-                return true;
-
-            return false;
-        }
-
-    private:
-
-        bool IsEnd() const
-        {
-            if (_current.Get() == nullptr)
-                return true;
-
-            //if (_current.Get() == _last.Get())
-            //    return true;
-
-            if (_index.Get() == _count.Get())
-                return true;
-
-            return false;
-        }
-
-        void Materialize()
-        {
-            _value.Get() = FMaterialize(_current.Get(), _last.Get());
-        }
-
-        // For a non-singular iterator, _current always points one-past the location in the sequence
-        // whence _value was materialized.  This is because materialization requires advacement.
-        Detail::ValueInitialized<ByteIterator> _current;
-        Detail::ValueInitialized<ByteIterator> _last;
-
-        Detail::ValueInitialized<SizeType>     _index;
-        Detail::ValueInitialized<SizeType>     _count;
-
-        Detail::ValueInitialized<value_type>   _value;
-    };
-
-
-
-
     // A generic iterator that reads elements from a sequence via FMaterialize until FSentinelCheck
     // returns false.  This is used for sequences of elements where the sequence is terminated by
     // failing to read another element (e.g. CustomMod sequences).
     template <typename TValue,
-              bool(*FSentinelCheck)(ByteIterator,  ByteIterator),
-              TValue(*FMaterialize)(ByteIterator&, ByteIterator)>
+              TValue(*FMaterialize)(ByteIterator&, ByteIterator),
+              bool(*FSentinelCheck)(ByteIterator,  ByteIterator)>
     class SentinelIterator
-        : Detail::EqualityComparable<SentinelIterator<TValue, FSentinelCheck, FMaterialize>>
+        : Detail::EqualityComparable<SentinelIterator<TValue, FMaterialize, FSentinelCheck>>
     {
     public:
 
@@ -280,17 +185,24 @@ namespace CxxReflect { namespace Metadata {
         Detail::ValueInitialized<value_type>   _value;
     };
 
+    // A default sentinel check that always returns false.  This is useful for iteration over a
+    // sequence where the count is known and exact (e.g., there is no sentinel for which to look.
+    template <typename T>
+    bool AlwaysFalseSentinelCheck(T, T)
+    {
+        return false;
+    }
 
 
 
-    // A generic iterator that reads elements from a sequence via FMaterialize until FSentinelCheck
-    // returns false.  This is used for sequences of elements where the sequence is terminated by
-    // failing to read another element (e.g. CustomMod sequences).
+
+    // An iterator that yields elements up to a certain number (the count) or until a sentinel is
+    // read from the sequence (verified via the FSentinelCheck).
     template <typename TValue,
-              bool(*FSentinelCheck)(ByteIterator,  ByteIterator),
-              TValue(*FMaterialize)(ByteIterator&, ByteIterator)>
-    class CountingSentinelIterator
-        : Detail::EqualityComparable<CountingSentinelIterator<TValue, FSentinelCheck, FMaterialize>>
+              TValue(*FMaterialize)(ByteIterator&, ByteIterator),
+              bool(*FSentinelCheck)(ByteIterator,  ByteIterator) = &AlwaysFalseSentinelCheck<ByteIterator>>
+    class CountingIterator
+        : Detail::EqualityComparable<CountingIterator<TValue, FMaterialize, FSentinelCheck>>
     {
     public:
 
@@ -300,12 +212,14 @@ namespace CxxReflect { namespace Metadata {
         typedef std::ptrdiff_t            difference_type;
         typedef std::forward_iterator_tag iterator_category;
 
-        CountingSentinelIterator()
+        CountingIterator()
         {
         }
 
-        CountingSentinelIterator(ByteIterator const current, ByteIterator const last,
-                                 SizeType const index, SizeType const count)
+        CountingIterator(ByteIterator const current,
+                         ByteIterator const last,
+                         SizeType     const index,
+                         SizeType     const count)
             : _current(current), _last(last), _index(index), _count(count)
         {
             if (current != last && index != count)
@@ -315,7 +229,7 @@ namespace CxxReflect { namespace Metadata {
         reference operator*()  const { return _value.Get();  }
         pointer   operator->() const { return &_value.Get(); }
 
-        CountingSentinelIterator& operator++()
+        CountingIterator& operator++()
         {
             ++_index.Get();
             if (_index.Get() != _count.Get())
@@ -324,14 +238,14 @@ namespace CxxReflect { namespace Metadata {
             return *this;
         }
 
-        CountingSentinelIterator operator++(int)
+        CountingIterator operator++(int)
         {
             SentinelIterator const it(*this);
             ++*this;
             return it;
         }
 
-        friend bool operator==(CountingSentinelIterator const& lhs, CountingSentinelIterator const& rhs)
+        friend bool operator==(CountingIterator const& lhs, CountingIterator const& rhs)
         {
             if (lhs._current.Get() == rhs._current.Get())
                 return true;
@@ -349,8 +263,9 @@ namespace CxxReflect { namespace Metadata {
             if (_current.Get() == nullptr)
                 return true;
 
-            // if (_current.Get() == _last.Get())
-            //    return true;
+            // Note that we do not check whether _current == _last because _current always points
+            // one past the current element (we materialize the current element on-the-fly).  Also,
+            // the index check is sufficient to identify an end iterator.
 
             if (_index.Get() == _count.Get())
                 return true;
@@ -396,7 +311,7 @@ namespace CxxReflect { namespace Metadata {
     // All of the signature types share a few common members; those that also have a common
     // implementation are in this base class.  Note that we do not use polymorphic classes for
     // signatures, so members that are present in all signature types but do not have a common
-    // implementation (e.g. SeekTo) are not present in this base class.
+    // implementation (e.g. SeekTo or ComputeSize) are not present in this base class.
     class BaseSignature
     {
     public:
@@ -584,10 +499,10 @@ namespace CxxReflect { namespace Metadata {
 
     public:
 
-        typedef CountingSentinelIterator<
+        typedef CountingIterator<
             TypeSignature,
-            &MethodSignature::ParameterEndCheck,
-            &MethodSignature::ReadParameter
+            &MethodSignature::ReadParameter,
+            &MethodSignature::ParameterEndCheck
         > ParameterIterator;
 
         enum class Part
@@ -648,7 +563,6 @@ namespace CxxReflect { namespace Metadata {
 
         static bool CustomModifierEndCheck(ByteIterator current, ByteIterator last);
         static CustomModifier ReadCustomModifier(ByteIterator& current, ByteIterator last);
-
         static TypeSignature ReadType(ByteIterator& current, ByteIterator last);
 
     public:
@@ -701,8 +615,8 @@ namespace CxxReflect { namespace Metadata {
 
         typedef SentinelIterator<
             CustomModifier,
-            &TypeSignature::CustomModifierEndCheck,
-            &TypeSignature::ReadCustomModifier
+            &TypeSignature::ReadCustomModifier,
+            &TypeSignature::CustomModifierEndCheck
         > CustomModifierIterator;
 
         typedef CountingIterator<TypeSignature, &TypeSignature::ReadType> GenericArgumentIterator;
@@ -774,14 +688,12 @@ namespace CxxReflect { namespace Metadata {
 
 
 
-    // Compares signatures to see whether they are equivalent.  The compatibility/equivalence rules
-    // are laid out in ECMA-355 section 8.6.1.6, "Signature Matching".
+    // A function object that compares signatures using the compatibility and equivalence rules as
+    // specified by ECMA-355 section 8.6.1.6, "Signature Matching."
     class SignatureComparer
     {
     public:
 
-        // TOOD It would be really great if we could get rid of the loader here somehow; we are
-        // mixing the physical and logical layers here.
         SignatureComparer(MetadataLoader const* loader, Database const* lhsDatabase, Database const* rhsDatabase);
 
         bool operator()(ArrayShape        const& lhs, ArrayShape        const& rhs) const;
@@ -803,16 +715,13 @@ namespace CxxReflect { namespace Metadata {
 
 
 
-    // This function object decomposes a signature and replaces each generic class variable with its
-    // corresponding argument.  It only instantiates class variables, not method variables (this is
-    // primarily used for the generating of method tables where a class type is derived from a
-    // generic instance.
+    // A function object that decomposes signatures and replaces generic class variables.  Method
+    // variables are left unreplaced.
     class ClassVariableSignatureInstantiator
     {
     public:
 
-        // TODO MOVE INTO .CPP
-        ClassVariableSignatureInstantiator() { }
+        ClassVariableSignatureInstantiator();
 
         template <typename TForIt>
         ClassVariableSignatureInstantiator(TForIt const firstArgument, TForIt const lastArgument)
@@ -820,16 +729,17 @@ namespace CxxReflect { namespace Metadata {
         {
         }
 
-        // Instantiates the given signature into an internal buffer and returns the instantiated
-        // signature.  Note that ownership of the internal buffer is retained, so the caller must
-        // copy the contents of the signature into its own storage.
+        // Instantiates 'signature' by replacing each generic class variables in it with the
+        // corresponding generic argument provided in the constructor of this functor.  The returned
+        // signature is a range in an internal buffer and the caller is respondible for copying the
+        // returned signature into a more permanent buffer.
         template <typename TSignature>
         TSignature Instantiate(TSignature const& signature) const;
 
-        // This tests whether the given signature requires instantiation (i.e., whether it contains
-        // any generic class variables in it).
+        // Determines whether 'signature' has any generic class variables in it (and thus whether a
+        // call to Instantiate() would yield a different signature).
         template <typename TSignature>
-        bool RequiresInstantiation(TSignature const& signature) const;
+        static bool RequiresInstantiation(TSignature const& signature);
 
     private:
 
@@ -843,24 +753,23 @@ namespace CxxReflect { namespace Metadata {
         void InstantiateInto(InternalBuffer& buffer, TypeSignature     const& s) const;
 
         template <typename TSignature, typename TPart>
-        void CopyBytesInto(InternalBuffer& buffer, TSignature const& s, TPart const first, TPart const last) const;
+        void CopyBytesInto(InternalBuffer& buffer, TSignature const& s, TPart first, TPart last) const;
 
         template <typename TForIt>
-        void InstantiateRangeInto(InternalBuffer& buffer, TForIt const first, TForIt const last) const;
+        void InstantiateRangeInto(InternalBuffer& buffer, TForIt first, TForIt last) const;
 
-        bool RequiresInstantiationInternal(ArrayShape        const& s) const;
-        bool RequiresInstantiationInternal(FieldSignature    const& s) const;
-        bool RequiresInstantiationInternal(MethodSignature   const& s) const;
-        bool RequiresInstantiationInternal(PropertySignature const& s) const;
-        bool RequiresInstantiationInternal(TypeSignature     const& s) const;
+        static bool RequiresInstantiationInternal(ArrayShape        const& s);
+        static bool RequiresInstantiationInternal(FieldSignature    const& s);
+        static bool RequiresInstantiationInternal(MethodSignature   const& s);
+        static bool RequiresInstantiationInternal(PropertySignature const& s);
+        static bool RequiresInstantiationInternal(TypeSignature     const& s);
 
         template <typename TForIt>
-        bool AnyRequiresInstantiationInternal(TForIt const first, TForIt const last) const;
+        static bool AnyRequiresInstantiationInternal(TForIt first, TForIt last);
 
         InternalBuffer        mutable _buffer;
         TypeSignatureSequence         _arguments;
     };
-
 
 } }
 
