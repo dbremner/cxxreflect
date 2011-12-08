@@ -20,7 +20,7 @@ namespace CxxReflect {
         {
         }
 
-        Module(Assembly const assembly, Metadata::TableReference const module)
+        Module(Assembly const assembly, Metadata::RowReference const module)
             : _assembly(assembly), _module(module)
         {
             Detail::Verify([&] { return assembly.IsInitialized();               });
@@ -40,8 +40,8 @@ namespace CxxReflect {
             Detail::Verify([&] { return IsInitialized(); }, "Type is not initialized");
         }
 
-        Assembly                 _assembly;
-        Metadata::TableReference _module;
+        Assembly               _assembly;
+        Metadata::RowReference _module;
     };
 
 }

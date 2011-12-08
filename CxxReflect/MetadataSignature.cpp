@@ -368,22 +368,25 @@ namespace CxxReflect { namespace Metadata {
         }
     }
 
-    bool SignatureComparer::operator()(TableReference const& lhs, TableReference const& rhs) const
+    bool SignatureComparer::operator()(RowReference const& lhs, RowReference const& rhs) const
     {
+        FullReference const lhsFullReference(_lhsDatabase.Get(), lhs);
+        FullReference const rhsFullReference(_rhsDatabase.Get(), rhs);
+
         // TODO Do we need to handle generic type argument instantiation here?
-        DatabaseReference const lhsResolved(_loader.Get()->ResolveType(DatabaseReference(_lhsDatabase.Get(), lhs), InternalKey()));
-        DatabaseReference const rhsResolved(_loader.Get()->ResolveType(DatabaseReference(_rhsDatabase.Get(), rhs), InternalKey()));
+        FullReference const lhsResolved(_loader.Get()->ResolveType(lhsFullReference, InternalKey()));
+        FullReference const rhsResolved(_loader.Get()->ResolveType(rhsFullReference, InternalKey()));
 
         // If the types are from different tables, they cannot be equal:
-        if (lhsResolved.GetTableReference().GetTable() != rhsResolved.GetTableReference().GetTable())
+        if (lhsResolved.AsRowReference().GetTable() != rhsResolved.AsRowReference().GetTable())
             return false;
 
         // If we have a pair of TypeDefs, they are only equal if they refer to the same type in the
         // same database; in no other case can they be equal:
-        if (lhsResolved.GetTableReference().GetTable() == TableId::TypeDef)
+        if (lhsResolved.AsRowReference().GetTable() == TableId::TypeDef)
         {
             if (lhsResolved.GetDatabase() == rhsResolved.GetDatabase() &&
-                lhsResolved.GetTableReference() == rhsResolved.GetTableReference())
+                lhsResolved.AsRowReference() == rhsResolved.AsRowReference())
                 return true;
 
             return false;
@@ -393,8 +396,8 @@ namespace CxxReflect { namespace Metadata {
         Database const& lhsDatabase(lhsResolved.GetDatabase());
         Database const& rhsDatabase(rhsResolved.GetDatabase());
 
-        SizeType const lhsRowIndex(lhsResolved.GetTableReference().GetIndex());
-        SizeType const rhsRowIndex(rhsResolved.GetTableReference().GetIndex());
+        SizeType const lhsRowIndex(lhsResolved.AsRowReference().GetIndex());
+        SizeType const rhsRowIndex(rhsResolved.AsRowReference().GetIndex());
 
         TypeSpecRow const lhsTypeSpec(lhsDatabase.GetRow<TableId::TypeSpec>(lhsRowIndex));
         TypeSpecRow const rhsTypeSpec(rhsDatabase.GetRow<TableId::TypeSpec>(rhsRowIndex));
@@ -846,11 +849,11 @@ namespace CxxReflect { namespace Metadata {
         return Private::PeekByte(SeekTo(Part::ReqOptFlag), EndBytes()) == ElementType::CustomModifierRequired;
     }
 
-    TableReference CustomModifier::GetTypeReference() const
+    RowReference CustomModifier::GetTypeReference() const
     {
         VerifyInitialized();
 
-        return TableReference::FromToken(
+        return RowReference::FromToken(
             Private::PeekTypeDefOrRefOrSpecEncoded(SeekTo(Part::Type), EndBytes()));
     }
 
@@ -1501,11 +1504,11 @@ namespace CxxReflect { namespace Metadata {
         return GetElementType() == ElementType::ValueType;
     }
 
-    TableReference TypeSignature::GetTypeReference() const
+    RowReference TypeSignature::GetTypeReference() const
     {
         VerifyInitialized();
 
-        return TableReference::FromToken(
+        return RowReference::FromToken(
             Private::PeekTypeDefOrRefOrSpecEncoded(SeekTo(Part::ClassTypeReference), EndBytes()));
     }
 
@@ -1544,11 +1547,11 @@ namespace CxxReflect { namespace Metadata {
         return Private::PeekByte(SeekTo(Part::GenericInstTypeCode), EndBytes()) == ElementType::ValueType;
     }
 
-    TableReference TypeSignature::GetGenericTypeReference() const
+    RowReference TypeSignature::GetGenericTypeReference() const
     {
         VerifyInitialized();
 
-        return TableReference::FromToken(
+        return RowReference::FromToken(
             Private::PeekTypeDefOrRefOrSpecEncoded(SeekTo(Part::GenericInstTypeReference), EndBytes()));
     }
 

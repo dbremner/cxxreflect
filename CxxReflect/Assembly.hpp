@@ -37,10 +37,10 @@ namespace CxxReflect {
         AssemblyName const& GetName() const;
         String       const& GetPath() const;
 
-        typedef Detail::TableTransformIterator<Metadata::TableReference, File,   Assembly>       FileIterator;
-        typedef Detail::TableTransformIterator<Metadata::TableReference, Module, Assembly>       ModuleIterator;
-        typedef Detail::TableTransformIterator<Metadata::TableReference, Type,   Assembly>       TypeIterator;
-        typedef Detail::TableTransformIterator<Metadata::TableReference, AssemblyName, Assembly> AssemblyNameIterator;
+        typedef Detail::TableTransformIterator<Metadata::RowReference, File,   Assembly>       FileIterator;
+        typedef Detail::TableTransformIterator<Metadata::RowReference, Module, Assembly>       ModuleIterator;
+        typedef Detail::TableTransformIterator<Metadata::RowReference, Type,   Assembly>       TypeIterator;
+        typedef Detail::TableTransformIterator<Metadata::RowReference, AssemblyName, Assembly> AssemblyNameIterator;
 
         SizeType             GetReferencedAssemblyCount()   const;
         AssemblyNameIterator BeginReferencedAssemblyNames() const;

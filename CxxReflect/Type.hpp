@@ -15,38 +15,17 @@ namespace CxxReflect {
         : public Detail::SafeBoolConvertible<Type>,
           public Detail::Comparable<Type>
     {
-    private:
-
-        typedef std::tuple<
-            Type,
-            Metadata::TableReference,
-            Metadata::TableReference
-        > NextMethodScopeResult;
-
-        static NextMethodScopeResult InternalNextMethodScope(Type const& currentScope);
-        static bool InternalFilterMethod(Method const& method, BindingFlags const& flags);
-
     public:
 
-        typedef Detail::NestedTableTransformIterator<
-            Metadata::TableReference,
-            Method,
-            Type,
-            BindingFlags,
-            NextMethodScopeResult,
-            &Type::InternalNextMethodScope,
-            &Type::InternalFilterMethod
-        > MethodIterator;
-
         Type();
-        Type(Assembly const& assembly, Metadata::TableReference const& type, InternalKey);
-        Type(Assembly const& assembly, Metadata::BlobReference  const& type, InternalKey);
+        Type(Assembly const& assembly, Metadata::RowReference  const& type, InternalKey);
+        Type(Assembly const& assembly, Metadata::BlobReference const& type, InternalKey);
 
         Assembly const& GetAssembly() const { return _assembly; }
 
         SizeType GetMetadataToken() const
         {
-            return _type.IsTableReference() ? _type.AsTableReference().GetToken() : 0;
+            return _type.IsRowReference() ? _type.AsRowReference().GetToken() : 0;
         }
 
         Type GetBaseType() const;
@@ -93,6 +72,7 @@ namespace CxxReflect {
         bool IsValueType()               const;
         bool IsVisible()                 const;
 
+        typedef void MethodIterator; // TODO
         MethodIterator BeginMethods(BindingFlags flags = BindingAttribute::Default) const;
         MethodIterator EndMethods()   const;
 
@@ -152,8 +132,8 @@ namespace CxxReflect {
             Detail::Verify([&] { return IsInitialized(); }, "Type is not initialized");
         }
 
-        bool IsTypeDef()  const { VerifyInitialized(); return _type.IsTableReference(); }
-        bool IsTypeSpec() const { VerifyInitialized(); return _type.IsBlobReference();  }
+        bool IsTypeDef()  const { VerifyInitialized(); return _type.IsRowReference();  }
+        bool IsTypeSpec() const { VerifyInitialized(); return _type.IsBlobReference(); }
 
         Metadata::TypeDefRow    GetTypeDefRow()        const;
         Metadata::TypeSignature GetTypeSpecSignature() const;
@@ -187,10 +167,10 @@ namespace CxxReflect {
         bool AccumulateFullNameInto(OutputStream& os) const;
         void AccumulateAssemblyQualifiedNameInto(OutputStream& os) const;
 
-        Detail::MethodTableAllocator::Range GetOrCreateMethodTable() const;
+        // TODO Detail::MethodTableAllocator::Range GetOrCreateMethodTable() const;
 
-        Assembly                       _assembly;
-        Metadata::TableOrBlobReference _type;
+        Assembly                   _assembly;
+        Metadata::ElementReference _type;
     };
 
 }

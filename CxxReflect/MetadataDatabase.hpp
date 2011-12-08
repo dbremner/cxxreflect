@@ -96,11 +96,11 @@ namespace CxxReflect { namespace Metadata {
 
 
 
-    // Represents a reference into a table.  This is effectively a metadata token, except we adjust
-    // the index so that it is zero-based instead of one-based.  We represent the invalid token
-    // using all bits one instead of all bits zero.
-    class TableReference
-        : Detail::Comparable<TableReference>
+    // Represents a reference to a row in a table.  This is effectively a metadata token, except we
+    // adjust the index so that it is zero-based instead of one-based.  The invalid token value uses
+    // all bits one instead of all bits zero.
+    class RowReference
+        : Detail::Comparable<RowReference>
     {
     public:
 
@@ -119,43 +119,43 @@ namespace CxxReflect { namespace Metadata {
         typedef std::uint32_t ValueType;
         typedef std::uint32_t TokenType;
 
-        TableReference()
+        RowReference()
             : _value(InvalidValue)
         {
         }
 
-        TableReference(TableId const tableId, IndexType const index)
+        RowReference(TableId const tableId, IndexType const index)
             : _value(ComposeValue(tableId, index))
         {
         }
 
         TableId GetTable() const
         {
-            return static_cast<TableId>((_value & ValueTableIdMask) >> ValueIndexBits);
+            return static_cast<TableId>((_value.Get() & ValueTableIdMask) >> ValueIndexBits);
         }
 
-        IndexType GetIndex() const { return _value & ValueIndexMask; }
-        ValueType GetValue() const { return _value;                  }
+        IndexType GetIndex() const { return _value.Get() & ValueIndexMask; }
+        ValueType GetValue() const { return _value.Get();                  }
 
         // The metadata token is the same as the value we store, except that it uses a one-based
         // indexing scheme rather than a zero-based indexing scheme.  We check in ComposeValue
         // to ensure that adding one here will not cause the index to overflow.
-        TokenType GetToken() const { return _value + 1;              }
+        TokenType GetToken() const { return _value.Get() + 1;              }
 
-        bool IsValid()       const { return _value != InvalidValue;  }
-        bool IsInitialized() const { return _value != InvalidValue;  }
+        bool IsValid()       const { return _value.Get() != InvalidValue;  }
+        bool IsInitialized() const { return _value.Get() != InvalidValue;  }
 
-        friend bool operator==(TableReference const& lhs, TableReference const& rhs)
+        friend bool operator==(RowReference const& lhs, RowReference const& rhs)
         {
-            return lhs._value == rhs._value;
+            return lhs._value.Get() == rhs._value.Get();
         }
 
-        friend bool operator<(TableReference const& lhs, TableReference const& rhs)
+        friend bool operator<(RowReference const& lhs, RowReference const& rhs)
         {
-            return lhs._value < rhs._value;
+            return lhs._value.Get() < rhs._value.Get();
         }
 
-        static TableReference FromToken(TokenType const token);
+        static RowReference FromToken(TokenType const token);
 
     private:
 
@@ -169,14 +169,15 @@ namespace CxxReflect { namespace Metadata {
         // The value is the composition of the table id in the high eight bits and the zero-based
         // index in the remaining 24 bits.  This is similar to a metadata token, but metadata tokens
         // use one-based indices.
-        ValueType _value;
+        Detail::ValueInitialized<ValueType> _value;
     };
 
 
 
 
-    // Represents a reference into the blob stream.  TODO What functionality are we going to put
-    // in here, and how are we going to expose it?
+    // Represents a reference into the blob stream.  There are two different representations here:
+    // an unresolved reference simply has an index.  It must be resolved into the blob stream so
+    // that its length can be computed.  A resolved reference has both an index and a size.
     class BlobReference
         : Detail::Comparable<BlobReference>
     {
@@ -235,11 +236,10 @@ namespace CxxReflect { namespace Metadata {
 
 
 
-    // A space-efficient discriminated union that can hold a TableReference or a BlobReference.  It
-    // relies on the fact that the high bit in a table index or a blob index is never set, so we can
-    // store the "kind tag" in the high bit.
-    class TableOrBlobReference
-        : Detail::Comparable<TableOrBlobReference>
+    // Represents a reference to either a blob or a row, along with the database in which the blob
+    // or row is resolvable.
+    class BaseElementReference
+        : Detail::Comparable<BaseElementReference>
     {
     public:
 
@@ -250,27 +250,33 @@ namespace CxxReflect { namespace Metadata {
 
         typedef std::uint32_t ValueType;
 
-        TableOrBlobReference()
+        BaseElementReference()
             : _index(InvalidIndex)
         {
         }
 
-        TableOrBlobReference(TableReference const reference)
+        BaseElementReference(RowReference const& reference)
             : _index((reference.GetToken() & ~KindMask) | TableKindBit)
         {
-            Detail::Verify([&]{ return (reference.GetToken() & ~KindMask) == reference.GetToken(); });
+            VerifyInitialized();
         }
 
-        TableOrBlobReference(BlobReference const reference)
+        BaseElementReference(BlobReference const& reference)
             : _index((reference.GetIndex() & ~KindMask) | BlobKindBit), _size(reference.GetSize())
         {
-            Detail::Verify([&]{ return (reference.GetIndex() & ~KindMask) == reference.GetIndex(); });
+            VerifyInitialized();
         }
 
-        TableReference AsTableReference() const
+        bool IsRowReference()  const { return IsValid() && (_index.Get() & KindMask) == TableKindBit; }
+        bool IsBlobReference() const { return IsValid() && (_index.Get() & KindMask) == BlobKindBit;  }
+
+        bool IsValid()         const { return _index.Get() != InvalidIndex; }
+        bool IsInitialized()   const { return _index.Get() != InvalidIndex; }
+
+        RowReference AsRowReference() const
         {
-            Detail::Verify([&]{ return IsTableReference(); });
-            return TableReference::FromToken(_index.Get() & ~KindMask);
+            Detail::Verify([&]{ return IsRowReference(); });
+            return RowReference::FromToken(_index.Get() & ~KindMask);
         }
 
         BlobReference AsBlobReference() const
@@ -279,71 +285,71 @@ namespace CxxReflect { namespace Metadata {
             return BlobReference(_index.Get() & ~KindMask, _size.Get());
         }
 
-        bool IsTableReference() const { return IsValid() && (_index.Get() & KindMask) == TableKindBit; }
-        bool IsBlobReference()  const { return IsValid() && (_index.Get() & KindMask) == BlobKindBit;  }
-
-        bool IsValid()       const { return _index.Get() != InvalidIndex; }
-        bool IsInitialized() const { return _index.Get() != InvalidIndex; }
-
-        friend bool operator==(TableOrBlobReference const& lhs, TableOrBlobReference const& rhs)
+        friend bool operator==(BaseElementReference const& lhs, BaseElementReference const& rhs)
         {
             return lhs._index.Get() == rhs._index.Get();
         }
 
-        friend bool operator<(TableOrBlobReference const& lhs, TableOrBlobReference const& rhs)
+        friend bool operator<(BaseElementReference const& lhs, BaseElementReference const& rhs)
         {
             return lhs._index.Get() < rhs._index.Get();
         }
 
+    protected:
+
+        void VerifyInitialized() const { Detail::Verify([&]{ return IsInitialized(); }); }
+
     private:
 
-        enum : SizeType
+        enum : ValueType
         {
             KindMask     = 0x80000000,
             TableKindBit = 0x00000000,
             BlobKindBit  = 0x80000000
         };
 
-        Detail::ValueInitialized<SizeType> _index;
-        Detail::ValueInitialized<SizeType> _size;
+        Detail::ValueInitialized<ValueType> _index;
+        Detail::ValueInitialized<ValueType> _size;
     };
 
-
-
-
-    // Represents a TableReference along with a reference to the database in which the row to which
-    // the TableReference refers is located.
-    class DatabaseReference
+    class ElementReference
+        : public BaseElementReference
     {
     public:
 
-        DatabaseReference() { }
+        ElementReference() { }
 
-        DatabaseReference(Database const* database, TableReference const& tableReference)
-            : _database(database), _tableReference(tableReference)
+        ElementReference(RowReference const& reference)
+            : BaseElementReference(reference)
         {
+        }
+
+        ElementReference(BlobReference const& reference)
+            : BaseElementReference(reference)
+        {
+        }
+    };
+
+    class FullReference
+        : public BaseElementReference
+    {
+    public:
+
+        FullReference() { }
+
+        FullReference(Database const* const database, RowReference const& r)
+            : BaseElementReference(r), _database(database)
+        {
+            Detail::VerifyNotNull(database);
             VerifyInitialized();
         }
 
-        Database       const& GetDatabase()       const { VerifyInitialized(); return *_database.Get(); }
-        TableReference const& GetTableReference() const { VerifyInitialized(); return _tableReference;  }
-
-        bool IsInitialized() const
-        {
-            return _database.Get() != nullptr && _tableReference.IsInitialized();
-        }
+        Database const& GetDatabase() const { return *_database.Get(); }
 
     private:
 
-        void VerifyInitialized() const
-        {
-            Detail::Verify([&]{ return IsInitialized(); });
-        }
-
         Detail::ValueInitialized<Database const*> _database;
-        TableReference                            _tableReference;
     };
-
 
 
 
@@ -655,9 +661,8 @@ namespace CxxReflect { namespace Metadata {
             TableSequence _tables;
         };
 
-        Stream                           _stream;
-        Detail::ValueInitialized<bool>   _initialized;
-        Detail::ValueInitialized<State>  _state;
+        Stream                          _stream;
+        Detail::ValueInitialized<State> _state;
     };
 
 
@@ -737,6 +742,22 @@ namespace CxxReflect { namespace Metadata {
         {
             typedef typename TableIdToRowType<TId>::Type ReturnType;
             return CreateRow<ReturnType>(this, _tables.GetTable(TId).At(index));
+        }
+
+        template <TableId TId>
+        typename TableIdToRowType<TId>::Type GetRow(RowReference const& reference) const
+        {
+            typedef typename TableIdToRowType<TId>::Type ReturnType;
+            Detail::Verify([&]{ return reference.GetTable() == TId; });
+            return CreateRow<ReturnType>(this, _tables.GetTable(TId).At(reference.GetIndex()));
+        }
+
+        template <TableId TId>
+        typename TableIdToRowType<TId>::Type GetRow(BaseElementReference const& reference) const
+        {
+            typedef typename TableIdToRowType<TId>::Type ReturnType;
+            Detail::Verify([&]{ return reference.AsRowReference().GetTable() == TId; });
+            return CreateRow<ReturnType>(this, _tables.GetTable(TId).At(reference.AsRowReference().GetIndex()));
         }
 
         Blob GetBlob(BlobReference const blobReference) const
@@ -898,13 +919,13 @@ namespace CxxReflect { namespace Metadata {
             return _database.Get() != nullptr && _data.Get() != nullptr;
         }
 
-        TableReference GetSelfReference() const
+        RowReference GetSelfReference() const
         {
             VerifyInitialized();
 
             Table    const& table(GetDatabase().GetTables().GetTable(TTableId));
             SizeType const  index((GetIterator() - table.Begin()) / table.GetRowSize());
-            return TableReference(TTableId, index);
+            return RowReference(TTableId, index);
         }
 
     protected:
@@ -991,63 +1012,63 @@ namespace CxxReflect { namespace Metadata {
     {
     public:
 
-        std::uint32_t  GetOsPlatformId()   const;
-        std::uint32_t  GetOsMajorVersion() const;
-        std::uint32_t  GetOsMinorVersion() const;
-        TableReference GetAssemblyRef()    const;
+        std::uint32_t GetOsPlatformId()   const;
+        std::uint32_t GetOsMajorVersion() const;
+        std::uint32_t GetOsMinorVersion() const;
+        RowReference  GetAssemblyRef()    const;
     };
 
     class AssemblyRefProcessorRow : public BaseRow<TableId::AssemblyRefProcessor>
     {
     public:
 
-        std::uint32_t  GetProcessor()   const;
-        TableReference GetAssemblyRef() const;
+        std::uint32_t GetProcessor()   const;
+        RowReference  GetAssemblyRef() const;
     };
 
     class ClassLayoutRow : public BaseRow<TableId::ClassLayout>
     {
     public:
 
-        std::uint16_t  GetPackingSize()   const;
-        std::uint32_t  GetClassSize()     const;
-        TableReference GetParentTypeDef() const;
+        std::uint16_t GetPackingSize()   const;
+        std::uint32_t GetClassSize()     const;
+        RowReference  GetParentTypeDef() const;
     };
 
     class ConstantRow : public BaseRow<TableId::Constant>
     {
     public:
 
-        std::uint8_t   GetType()   const;
-        TableReference GetParent() const;
-        BlobReference  GetValue()  const;
+        std::uint8_t  GetType()   const;
+        RowReference  GetParent() const;
+        BlobReference GetValue()  const;
     };
 
     class CustomAttributeRow : public BaseRow<TableId::CustomAttribute>
     {
     public:
 
-        TableReference GetParent() const;
-        TableReference GetType()   const;
-        BlobReference  GetValue()  const;
+        RowReference  GetParent() const;
+        RowReference  GetType()   const;
+        BlobReference GetValue()  const;
     };
 
     class DeclSecurityRow : public BaseRow<TableId::DeclSecurity>
     {
     public:
 
-        std::uint16_t  GetAction()        const;
-        TableReference GetParent()        const;
-        BlobReference  GetPermissionSet() const;
+        std::uint16_t GetAction()        const;
+        RowReference  GetParent()        const;
+        BlobReference GetPermissionSet() const;
     };
 
     class EventMapRow : public BaseRow<TableId::EventMap>
     {
     public:
 
-        TableReference GetParent()     const;
-        TableReference GetFirstEvent() const;
-        TableReference GetLastEvent()  const;
+        RowReference GetParent()     const;
+        RowReference GetFirstEvent() const;
+        RowReference GetLastEvent()  const;
     };
 
     class EventRow : public BaseRow<TableId::Event>
@@ -1056,7 +1077,7 @@ namespace CxxReflect { namespace Metadata {
 
         EventFlags      GetFlags() const;
         StringReference GetName()  const;
-        TableReference  GetType()  const;
+        RowReference    GetType()  const;
     };
 
     class ExportedTypeRow : public BaseRow<TableId::ExportedType>
@@ -1067,7 +1088,7 @@ namespace CxxReflect { namespace Metadata {
         std::uint32_t   GetTypeDefId()      const;
         StringReference GetName()           const;
         StringReference GetNamespace()      const;
-        TableReference  GetImplementation() const;
+        RowReference    GetImplementation() const;
     };
 
     class FieldRow : public BaseRow<TableId::Field>
@@ -1083,24 +1104,24 @@ namespace CxxReflect { namespace Metadata {
     {
     public:
 
-        std::uint32_t  GetOffset() const;
-        TableReference GetField()  const;
+        std::uint32_t GetOffset() const;
+        RowReference  GetField()  const;
     };
 
     class FieldMarshalRow : public BaseRow<TableId::FieldMarshal>
     {
     public:
 
-        TableReference GetParent()     const;
-        BlobReference  GetNativeType() const;
+        RowReference  GetParent()     const;
+        BlobReference GetNativeType() const;
     };
 
     class FieldRvaRow : public BaseRow<TableId::FieldRva>
     {
     public:
 
-        std::uint32_t  GetRva()   const;
-        TableReference GetField() const;
+        std::uint32_t GetRva()   const;
+        RowReference  GetField() const;
     };
 
     class FileRow : public BaseRow<TableId::File>
@@ -1118,7 +1139,7 @@ namespace CxxReflect { namespace Metadata {
 
         std::uint16_t         GetNumber() const;
         GenericParameterFlags GetFlags()  const;
-        TableReference        GetOwner()  const;
+        RowReference          GetOwner()  const;
         StringReference       GetName()   const;
     };
 
@@ -1126,8 +1147,8 @@ namespace CxxReflect { namespace Metadata {
     {
     public:
 
-        TableReference GetOwner()      const;
-        TableReference GetConstraint() const;
+        RowReference GetOwner()      const;
+        RowReference GetConstraint() const;
     };
 
     class ImplMapRow : public BaseRow<TableId::ImplMap>
@@ -1135,17 +1156,17 @@ namespace CxxReflect { namespace Metadata {
     public:
 
         PInvokeFlags    GetMappingFlags()    const;
-        TableReference  GetMemberForwarded() const;
+        RowReference    GetMemberForwarded() const;
         StringReference GetImportName()      const;
-        TableReference  GetImportScope()     const;
+        RowReference    GetImportScope()     const;
     };
 
     class InterfaceImplRow : public BaseRow<TableId::InterfaceImpl>
     {
     public:
 
-        TableReference GetClass()     const;
-        TableReference GetInterface() const;
+        RowReference GetClass()     const;
+        RowReference GetInterface() const;
     };
 
     class ManifestResourceRow : public BaseRow<TableId::ManifestResource>
@@ -1155,14 +1176,14 @@ namespace CxxReflect { namespace Metadata {
         std::uint32_t         GetOffset()         const;
         ManifestResourceFlags GetFlags()          const;
         StringReference       GetName()           const;
-        TableReference        GetImplementation() const;
+        RowReference          GetImplementation() const;
     };
 
     class MemberRefRow : public BaseRow<TableId::MemberRef>
     {
     public:
 
-        TableReference  GetClass()     const;
+        RowReference    GetClass()     const;
         StringReference GetName()      const;
         BlobReference   GetSignature() const;
     };
@@ -1177,17 +1198,17 @@ namespace CxxReflect { namespace Metadata {
         StringReference           GetName()                const;
         BlobReference             GetSignature()           const;
 
-        TableReference            GetFirstParameter()      const;
-        TableReference            GetLastParameter()       const;
+        RowReference              GetFirstParameter()      const;
+        RowReference              GetLastParameter()       const;
     };
 
     class MethodImplRow : public BaseRow<TableId::MethodImpl>
     {
     public:
 
-        TableReference GetClass()             const;
-        TableReference GetMethodBody()        const;
-        TableReference GetMethodDeclaration() const;
+        RowReference GetClass()             const;
+        RowReference GetMethodBody()        const;
+        RowReference GetMethodDeclaration() const;
     };
 
     class MethodSemanticsRow : public BaseRow<TableId::MethodSemantics>
@@ -1195,16 +1216,16 @@ namespace CxxReflect { namespace Metadata {
     public:
 
         MethodSemanticsFlags GetSemantics()   const;
-        TableReference       GetMethod()      const;
-        TableReference       GetAssociation() const;
+        RowReference       GetMethod()      const;
+        RowReference       GetAssociation() const;
     };
 
     class MethodSpecRow : public BaseRow<TableId::MethodSpec>
     {
     public:
 
-        TableReference GetMethod()        const;
-        BlobReference  GetInstantiation() const;
+        RowReference  GetMethod()        const;
+        BlobReference GetInstantiation() const;
     };
 
     class ModuleRow : public BaseRow<TableId::Module>
@@ -1225,8 +1246,8 @@ namespace CxxReflect { namespace Metadata {
     {
     public:
 
-        TableReference GetNestedClass()    const;
-        TableReference GetEnclosingClass() const;
+        RowReference GetNestedClass()    const;
+        RowReference GetEnclosingClass() const;
     };
 
     class ParamRow : public BaseRow<TableId::Param>
@@ -1251,9 +1272,9 @@ namespace CxxReflect { namespace Metadata {
     {
     public:
 
-        TableReference GetParent()        const;
-        TableReference GetFirstProperty() const;
-        TableReference GetLastProperty()  const;
+        RowReference GetParent()        const;
+        RowReference GetFirstProperty() const;
+        RowReference GetLastProperty()  const;
     };
 
     class StandaloneSigRow : public BaseRow<TableId::StandaloneSig>
@@ -1270,20 +1291,20 @@ namespace CxxReflect { namespace Metadata {
         TypeFlags       GetFlags()       const;
         StringReference GetName()        const;
         StringReference GetNamespace()   const;
-        TableReference  GetExtends()     const;
+        RowReference    GetExtends()     const;
 
-        TableReference  GetFirstField()  const;
-        TableReference  GetLastField()   const;
+        RowReference    GetFirstField()  const;
+        RowReference    GetLastField()   const;
 
-        TableReference  GetFirstMethod() const;
-        TableReference  GetLastMethod()  const;
+        RowReference    GetFirstMethod() const;
+        RowReference    GetLastMethod()  const;
     };
 
     class TypeRefRow : public BaseRow<TableId::TypeRef>
     {
     public:
 
-        TableReference  GetResolutionScope() const;
+        RowReference    GetResolutionScope() const;
         StringReference GetName()            const;
         StringReference GetNamespace()       const;
     };

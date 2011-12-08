@@ -489,12 +489,12 @@ namespace { namespace Private {
         return database.GetString(ReadStringHeapIndex(database, data, offset));
     }
 
-    TableReference ReadTableReference(Database     const& database,
-                                      ByteIterator const  data,
-                                      TableId      const  table,
-                                      SizeType     const  offset)
+    RowReference ReadRowReference(Database     const& database,
+                                  ByteIterator const  data,
+                                  TableId      const  table,
+                                  SizeType     const  offset)
     {
-        return TableReference(table, ReadTableIndex(database, data, table, offset));
+        return RowReference(table, ReadTableIndex(database, data, table, offset));
     }
 
     typedef std::pair<std::uint32_t, std::uint32_t> TagIndexPair;
@@ -508,186 +508,186 @@ namespace { namespace Private {
             );
     }
 
-    TableReference DecodeCustomAttributeTypeIndex(std::uint32_t const value)
+    RowReference DecodeCustomAttributeTypeIndex(std::uint32_t const value)
     {
         TagIndexPair const split(SplitCompositeIndex(CompositeIndex::CustomAttributeType, value));
         switch (split.first)
         {
-        case 2:  return TableReference(TableId::MethodDef, split.second);
-        case 3:  return TableReference(TableId::MemberRef, split.second);
+        case 2:  return RowReference(TableId::MethodDef, split.second);
+        case 3:  return RowReference(TableId::MemberRef, split.second);
         default: throw ReadError("Invalid CustomAttributeType composite index value encountered");
         }
     }
 
-    TableReference DecodeHasConstantIndex(std::uint32_t const value)
+    RowReference DecodeHasConstantIndex(std::uint32_t const value)
     {
         TagIndexPair const split(SplitCompositeIndex(CompositeIndex::HasConstant, value));
         switch (split.first)
         {
-        case 0:  return TableReference(TableId::Field,    split.second);
-        case 1:  return TableReference(TableId::Param,    split.second);
-        case 2:  return TableReference(TableId::Property, split.second);
+        case 0:  return RowReference(TableId::Field,    split.second);
+        case 1:  return RowReference(TableId::Param,    split.second);
+        case 2:  return RowReference(TableId::Property, split.second);
         default: throw ReadError("Invalid HasConstant composite index value encountered");
         }
     }
 
-    TableReference DecodeHasCustomAttributeIndex(std::uint32_t const value)
+    RowReference DecodeHasCustomAttributeIndex(std::uint32_t const value)
     {
         TagIndexPair const split(SplitCompositeIndex(CompositeIndex::HasCustomAttribute, value));
         switch (split.first)
         {
-        case  0: return TableReference(TableId::MethodDef,              split.second);
-        case  1: return TableReference(TableId::Field,                  split.second);
-        case  2: return TableReference(TableId::TypeRef,                split.second);
-        case  3: return TableReference(TableId::TypeDef,                split.second);
-        case  4: return TableReference(TableId::Param,                  split.second);
-        case  5: return TableReference(TableId::InterfaceImpl,          split.second);
-        case  6: return TableReference(TableId::MemberRef,              split.second);
-        case  7: return TableReference(TableId::Module,                 split.second);
-        // case  8: return TableReference(TableId::Permission,          split.second); // TODO WHAT IS THIS?
-        case  9: return TableReference(TableId::Property,               split.second);
-        case 10: return TableReference(TableId::Event,                  split.second);
-        case 11: return TableReference(TableId::StandaloneSig,          split.second);
-        case 12: return TableReference(TableId::ModuleRef,              split.second);
-        case 13: return TableReference(TableId::TypeSpec,               split.second);
-        case 14: return TableReference(TableId::Assembly,               split.second);
-        case 15: return TableReference(TableId::AssemblyRef,            split.second);
-        case 16: return TableReference(TableId::File,                   split.second);
-        case 17: return TableReference(TableId::ExportedType,           split.second);
-        case 18: return TableReference(TableId::ManifestResource,       split.second);
-        case 19: return TableReference(TableId::GenericParam,           split.second);
-        case 20: return TableReference(TableId::GenericParamConstraint, split.second);
-        case 21: return TableReference(TableId::MethodSpec,             split.second);
+        case  0: return RowReference(TableId::MethodDef,              split.second);
+        case  1: return RowReference(TableId::Field,                  split.second);
+        case  2: return RowReference(TableId::TypeRef,                split.second);
+        case  3: return RowReference(TableId::TypeDef,                split.second);
+        case  4: return RowReference(TableId::Param,                  split.second);
+        case  5: return RowReference(TableId::InterfaceImpl,          split.second);
+        case  6: return RowReference(TableId::MemberRef,              split.second);
+        case  7: return RowReference(TableId::Module,                 split.second);
+        // case  8: return RowReference(TableId::Permission,          split.second); // TODO WHAT IS THIS?
+        case  9: return RowReference(TableId::Property,               split.second);
+        case 10: return RowReference(TableId::Event,                  split.second);
+        case 11: return RowReference(TableId::StandaloneSig,          split.second);
+        case 12: return RowReference(TableId::ModuleRef,              split.second);
+        case 13: return RowReference(TableId::TypeSpec,               split.second);
+        case 14: return RowReference(TableId::Assembly,               split.second);
+        case 15: return RowReference(TableId::AssemblyRef,            split.second);
+        case 16: return RowReference(TableId::File,                   split.second);
+        case 17: return RowReference(TableId::ExportedType,           split.second);
+        case 18: return RowReference(TableId::ManifestResource,       split.second);
+        case 19: return RowReference(TableId::GenericParam,           split.second);
+        case 20: return RowReference(TableId::GenericParamConstraint, split.second);
+        case 21: return RowReference(TableId::MethodSpec,             split.second);
         default: throw ReadError("Invalid HasCustomAttribute composite index value encountered");
         }
     }
 
-    TableReference DecodeHasDeclSecurityIndex(std::uint32_t const value)
+    RowReference DecodeHasDeclSecurityIndex(std::uint32_t const value)
     {
         TagIndexPair const split(SplitCompositeIndex(CompositeIndex::HasFieldMarshal, value));
         switch (split.first)
         {
-        case 0:  return TableReference(TableId::TypeDef,   split.second);
-        case 1:  return TableReference(TableId::MethodDef, split.second);
-        case 2:  return TableReference(TableId::Assembly,  split.second);
+        case 0:  return RowReference(TableId::TypeDef,   split.second);
+        case 1:  return RowReference(TableId::MethodDef, split.second);
+        case 2:  return RowReference(TableId::Assembly,  split.second);
         default: throw ReadError("Invalid HasFieldMarshal composite index value encountered");
         }
     }
 
-    TableReference DecodeHasFieldMarshalIndex(std::uint32_t const value)
+    RowReference DecodeHasFieldMarshalIndex(std::uint32_t const value)
     {
         TagIndexPair const split(SplitCompositeIndex(CompositeIndex::HasFieldMarshal, value));
         switch (split.first)
         {
-        case 0:  return TableReference(TableId::Field, split.second);
-        case 1:  return TableReference(TableId::Param, split.second);
-        default: Detail::VerifyFail("Too many bits!"); return TableReference();
+        case 0:  return RowReference(TableId::Field, split.second);
+        case 1:  return RowReference(TableId::Param, split.second);
+        default: Detail::VerifyFail("Too many bits!"); return RowReference();
         }
     }
 
-    TableReference DecodeHasSemanticsIndex(std::uint32_t const value)
+    RowReference DecodeHasSemanticsIndex(std::uint32_t const value)
     {
         TagIndexPair const split(SplitCompositeIndex(CompositeIndex::HasSemantics, value));
         switch (split.first)
         {
-        case 0:  return TableReference(TableId::Event,    split.second);
-        case 1:  return TableReference(TableId::Property, split.second);
-        default: Detail::VerifyFail("Too many bits!"); return TableReference();
+        case 0:  return RowReference(TableId::Event,    split.second);
+        case 1:  return RowReference(TableId::Property, split.second);
+        default: Detail::VerifyFail("Too many bits!"); return RowReference();
         }
     }
 
-    TableReference DecodeImplementationIndex(std::uint32_t const value)
+    RowReference DecodeImplementationIndex(std::uint32_t const value)
     {
         TagIndexPair const split(SplitCompositeIndex(CompositeIndex::Implementation, value));
         switch (split.first)
         {
-        case 0:  return TableReference(TableId::File,         split.second);
-        case 1:  return TableReference(TableId::AssemblyRef,  split.second);
-        case 2:  return TableReference(TableId::ExportedType, split.second);
+        case 0:  return RowReference(TableId::File,         split.second);
+        case 1:  return RowReference(TableId::AssemblyRef,  split.second);
+        case 2:  return RowReference(TableId::ExportedType, split.second);
         default: throw ReadError("Invalid Implementation composite index value encountered");
         }
     }
 
-    TableReference DecodeMemberForwardedIndex(std::uint32_t const value)
+    RowReference DecodeMemberForwardedIndex(std::uint32_t const value)
     {
         TagIndexPair const split(SplitCompositeIndex(CompositeIndex::MemberForwarded, value));
         switch (split.first)
         {
-        case 0:  return TableReference(TableId::Field,     split.second);
-        case 1:  return TableReference(TableId::MethodDef, split.second);
-        default: Detail::VerifyFail("Too many bits!"); return TableReference();
+        case 0:  return RowReference(TableId::Field,     split.second);
+        case 1:  return RowReference(TableId::MethodDef, split.second);
+        default: Detail::VerifyFail("Too many bits!"); return RowReference();
         }
     }
 
-    TableReference DecodeMemberRefParentIndex(std::uint32_t const value)
+    RowReference DecodeMemberRefParentIndex(std::uint32_t const value)
     {
         TagIndexPair const split(SplitCompositeIndex(CompositeIndex::MemberRefParent, value));
         switch (split.first)
         {
-        case 0:  return TableReference(TableId::TypeDef,   split.second);
-        case 1:  return TableReference(TableId::TypeRef,   split.second);
-        case 2:  return TableReference(TableId::ModuleRef, split.second);
-        case 3:  return TableReference(TableId::MethodDef, split.second);
-        case 4:  return TableReference(TableId::TypeSpec,  split.second);
+        case 0:  return RowReference(TableId::TypeDef,   split.second);
+        case 1:  return RowReference(TableId::TypeRef,   split.second);
+        case 2:  return RowReference(TableId::ModuleRef, split.second);
+        case 3:  return RowReference(TableId::MethodDef, split.second);
+        case 4:  return RowReference(TableId::TypeSpec,  split.second);
         default: throw ReadError("Invalid MemberRefParent composite index value encountered");
         }
     }
 
-    TableReference DecodeMethodDefOrRefIndex(std::uint32_t const value)
+    RowReference DecodeMethodDefOrRefIndex(std::uint32_t const value)
     {
         TagIndexPair const split(SplitCompositeIndex(CompositeIndex::MethodDefOrRef, value));
         switch (split.first)
         {
-        case 0:  return TableReference(TableId::MethodDef, split.second);
-        case 1:  return TableReference(TableId::MemberRef, split.second);
-        default: Detail::VerifyFail("Too many bits!"); return TableReference();
+        case 0:  return RowReference(TableId::MethodDef, split.second);
+        case 1:  return RowReference(TableId::MemberRef, split.second);
+        default: Detail::VerifyFail("Too many bits!"); return RowReference();
         }
     }
 
-    TableReference DecodeResolutionScopeIndex(std::uint32_t const value)
+    RowReference DecodeResolutionScopeIndex(std::uint32_t const value)
     {
         TagIndexPair const split(SplitCompositeIndex(CompositeIndex::ResolutionScope, value));
         switch (split.first)
         {
-        case 0:  return TableReference(TableId::Module,      split.second);
-        case 1:  return TableReference(TableId::ModuleRef,   split.second);
-        case 2:  return TableReference(TableId::AssemblyRef, split.second);
-        case 3:  return TableReference(TableId::TypeRef,     split.second);
-        default: Detail::VerifyFail("Too many bits!"); return TableReference();
+        case 0:  return RowReference(TableId::Module,      split.second);
+        case 1:  return RowReference(TableId::ModuleRef,   split.second);
+        case 2:  return RowReference(TableId::AssemblyRef, split.second);
+        case 3:  return RowReference(TableId::TypeRef,     split.second);
+        default: Detail::VerifyFail("Too many bits!"); return RowReference();
         }
     }
 
-    TableReference DecodeTypeDefOrRefIndex(std::uint32_t const value)
+    RowReference DecodeTypeDefOrRefIndex(std::uint32_t const value)
     {
         TagIndexPair const split(SplitCompositeIndex(CompositeIndex::TypeDefOrRef, value));
         switch (split.first)
         {
-        case 0:  return TableReference(TableId::TypeDef,  split.second);
-        case 1:  return TableReference(TableId::TypeRef,  split.second);
-        case 2:  return TableReference(TableId::TypeSpec, split.second);
+        case 0:  return RowReference(TableId::TypeDef,  split.second);
+        case 1:  return RowReference(TableId::TypeRef,  split.second);
+        case 2:  return RowReference(TableId::TypeSpec, split.second);
         default: throw ReadError("Invalid TypeDefOrRef composite index value encountered");
         }
     }
 
-    TableReference DecodeTypeOrMethodDefIndex(std::uint32_t const value)
+    RowReference DecodeTypeOrMethodDefIndex(std::uint32_t const value)
     {
         TagIndexPair const split(SplitCompositeIndex(CompositeIndex::TypeOrMethodDef, value));
         switch (split.first)
         {
-        case 0:  return TableReference(TableId::TypeDef,   split.second);
-        case 1:  return TableReference(TableId::MethodDef, split.second);
-        default: Detail::VerifyFail("Too many bits!"); return TableReference();
+        case 0:  return RowReference(TableId::TypeDef,   split.second);
+        case 1:  return RowReference(TableId::MethodDef, split.second);
+        default: Detail::VerifyFail("Too many bits!"); return RowReference();
         }
     }
 
-    TableReference ReadTableReference(Database       const& database,
-                                      ByteIterator   const  data,
-                                      CompositeIndex const  index,
-                                      SizeType       const  offset)
+    RowReference ReadRowReference(Database       const& database,
+                                  ByteIterator   const  data,
+                                  CompositeIndex const  index,
+                                  SizeType       const  offset)
     {
         std::uint32_t const value(ReadCompositeIndex(database, data, index, offset));
         if (value == 0)
-            return TableReference();
+            return RowReference();
         switch (index)
         {
         case CompositeIndex::CustomAttributeType: return DecodeCustomAttributeTypeIndex(value);
@@ -703,14 +703,12 @@ namespace { namespace Private {
         case CompositeIndex::ResolutionScope:     return DecodeResolutionScopeIndex(value);
         case CompositeIndex::TypeDefOrRef:        return DecodeTypeDefOrRefIndex(value);
         case CompositeIndex::TypeOrMethodDef:     return DecodeTypeOrMethodDefIndex(value);
-        default:  Detail::VerifyFail("Invalid index");     return TableReference();
+        default:  Detail::VerifyFail("Invalid index");     return RowReference();
         }
     }
 
     template <TableId TSourceId, TableId TTargetId, typename TFirstFunction>
-    TableReference ComputeLastTableReference(Database       const& database,
-                                             ByteIterator   const  data,
-                                             TFirstFunction const  first)
+    RowReference ComputeLastRowReference(Database const& database, ByteIterator const data, TFirstFunction const first)
     {
         SizeType const byteOffset(data - database.GetTables().GetTable(TSourceId).Begin());
         SizeType const rowSize(database.GetTables().GetTable(TSourceId).GetRowSize());
@@ -720,7 +718,7 @@ namespace { namespace Private {
         SizeType const targetTableRowCount(database.GetTables().GetTable(TTargetId).GetRowCount());
         if (logicalIndex + 1 == sourceTableRowCount)
         {
-            return TableReference(TTargetId, targetTableRowCount);
+            return RowReference(TTargetId, targetTableRowCount);
         }
         else
         {
@@ -732,7 +730,7 @@ namespace { namespace Private {
 
 namespace CxxReflect { namespace Metadata {
 
-    TableReference::ValueType TableReference::ComposeValue(TableId const tableId, IndexType const index)
+    RowReference::ValueType RowReference::ComposeValue(TableId const tableId, IndexType const index)
     {
         Detail::Verify([&]{ return IsValidTableId(Detail::AsInteger(tableId)); });
         Detail::Verify([&]{ return Detail::AsInteger(tableId) < (1 << ValueTableIdBits); });
@@ -746,10 +744,10 @@ namespace CxxReflect { namespace Metadata {
         return tableIdComponent | indexComponent;
     }
 
-    TableReference TableReference::FromToken(TokenType const token)
+    RowReference RowReference::FromToken(TokenType const token)
     {
         Detail::Verify([&]{ return (token & ValueIndexMask) != 0; });
-        return TableReference(
+        return RowReference(
             static_cast<TableId>((token & ValueTableIdMask) >> ValueIndexBits),
             (token & ValueIndexMask) - 1);
     }
@@ -909,8 +907,7 @@ namespace CxxReflect { namespace Metadata {
     }
 
     TableCollection::TableCollection(Stream&& stream)
-        : _stream(std::move(stream)),
-          _initialized(true)
+        : _stream(std::move(stream))
     {
         std::bitset<8> heapSizes(_stream.ReadAs<std::uint8_t>(6));
         _state.Get()._stringHeapIndexSize = heapSizes.test(0) ? 4 : 2;
@@ -951,10 +948,8 @@ namespace CxxReflect { namespace Metadata {
 
     TableCollection::TableCollection(TableCollection&& other)
         : _stream(std::move(other._stream)),
-            _initialized(std::move(other._initialized)),
-            _state(std::move(other._state))
+          _state (std::move(other._state ))
     {
-        other._initialized.Reset();
         other._state.Reset();
     }
 
@@ -967,7 +962,6 @@ namespace CxxReflect { namespace Metadata {
     void TableCollection::Swap(TableCollection& other)
     {
         std::swap(other._stream,      _stream     );
-        std::swap(other._initialized, _initialized);
         std::swap(other._state,       _state      );
     }
 
@@ -1364,9 +1358,9 @@ namespace CxxReflect { namespace Metadata {
         return Private::ReadAs<std::uint32_t>(GetIterator(), GetColumnOffset(2));
     }
 
-    TableReference AssemblyRefOsRow::GetAssemblyRef() const
+    RowReference AssemblyRefOsRow::GetAssemblyRef() const
     {
-        return Private::ReadTableReference(GetDatabase(), GetIterator(), TableId::AssemblyRef, GetColumnOffset(3));
+        return Private::ReadRowReference(GetDatabase(), GetIterator(), TableId::AssemblyRef, GetColumnOffset(3));
     }
 
     std::uint32_t AssemblyRefProcessorRow::GetProcessor() const
@@ -1374,9 +1368,9 @@ namespace CxxReflect { namespace Metadata {
         return Private::ReadAs<std::uint32_t>(GetIterator(), GetColumnOffset(0));
     }
 
-    TableReference AssemblyRefProcessorRow::GetAssemblyRef() const
+    RowReference AssemblyRefProcessorRow::GetAssemblyRef() const
     {
-        return Private::ReadTableReference(GetDatabase(), GetIterator(), TableId::AssemblyRef, GetColumnOffset(1));
+        return Private::ReadRowReference(GetDatabase(), GetIterator(), TableId::AssemblyRef, GetColumnOffset(1));
     }
 
     std::uint16_t ClassLayoutRow::GetPackingSize() const
@@ -1389,9 +1383,9 @@ namespace CxxReflect { namespace Metadata {
         return Private::ReadAs<std::uint32_t>(GetIterator(), GetColumnOffset(1));
     }
 
-    TableReference ClassLayoutRow::GetParentTypeDef() const
+    RowReference ClassLayoutRow::GetParentTypeDef() const
     {
-        return Private::ReadTableReference(GetDatabase(), GetIterator(), TableId::TypeDef, GetColumnOffset(2));
+        return Private::ReadRowReference(GetDatabase(), GetIterator(), TableId::TypeDef, GetColumnOffset(2));
     }
 
     std::uint8_t ConstantRow::GetType() const
@@ -1399,9 +1393,9 @@ namespace CxxReflect { namespace Metadata {
         return Private::ReadAs<std::uint8_t>(GetIterator(), GetColumnOffset(0));
     }
 
-    TableReference ConstantRow::GetParent() const
+    RowReference ConstantRow::GetParent() const
     {
-        return Private::ReadTableReference(GetDatabase(), GetIterator(), CompositeIndex::HasConstant, GetColumnOffset(1));
+        return Private::ReadRowReference(GetDatabase(), GetIterator(), CompositeIndex::HasConstant, GetColumnOffset(1));
     }
 
     BlobReference ConstantRow::GetValue() const
@@ -1409,14 +1403,14 @@ namespace CxxReflect { namespace Metadata {
         return Private::ReadBlobReference(GetDatabase(), GetIterator(), GetColumnOffset(2));
     }
 
-    TableReference CustomAttributeRow::GetParent() const
+    RowReference CustomAttributeRow::GetParent() const
     {
-        return Private::ReadTableReference(GetDatabase(), GetIterator(), CompositeIndex::HasCustomAttribute, GetColumnOffset(0));
+        return Private::ReadRowReference(GetDatabase(), GetIterator(), CompositeIndex::HasCustomAttribute, GetColumnOffset(0));
     }
 
-    TableReference CustomAttributeRow::GetType() const
+    RowReference CustomAttributeRow::GetType() const
     {
-        return Private::ReadTableReference(GetDatabase(), GetIterator(), CompositeIndex::CustomAttributeType, GetColumnOffset(1));
+        return Private::ReadRowReference(GetDatabase(), GetIterator(), CompositeIndex::CustomAttributeType, GetColumnOffset(1));
     }
 
     BlobReference CustomAttributeRow::GetValue() const
@@ -1429,9 +1423,9 @@ namespace CxxReflect { namespace Metadata {
         return Private::ReadAs<std::uint16_t>(GetIterator(), GetColumnOffset(0));
     }
 
-    TableReference DeclSecurityRow::GetParent() const
+    RowReference DeclSecurityRow::GetParent() const
     {
-        return Private::ReadTableReference(GetDatabase(), GetIterator(), CompositeIndex::HasDeclSecurity, GetColumnOffset(1));
+        return Private::ReadRowReference(GetDatabase(), GetIterator(), CompositeIndex::HasDeclSecurity, GetColumnOffset(1));
     }
 
     BlobReference DeclSecurityRow::GetPermissionSet() const
@@ -1439,19 +1433,19 @@ namespace CxxReflect { namespace Metadata {
         return Private::ReadBlobReference(GetDatabase(), GetIterator(), GetColumnOffset(2));
     }
 
-    TableReference EventMapRow::GetParent() const
+    RowReference EventMapRow::GetParent() const
     {
-        return Private::ReadTableReference(GetDatabase(), GetIterator(), TableId::TypeDef, GetColumnOffset(0));
+        return Private::ReadRowReference(GetDatabase(), GetIterator(), TableId::TypeDef, GetColumnOffset(0));
     }
 
-    TableReference EventMapRow::GetFirstEvent() const
+    RowReference EventMapRow::GetFirstEvent() const
     {
-        return Private::ReadTableReference(GetDatabase(), GetIterator(), TableId::Event, GetColumnOffset(1));
+        return Private::ReadRowReference(GetDatabase(), GetIterator(), TableId::Event, GetColumnOffset(1));
     }
 
-    TableReference EventMapRow::GetLastEvent() const
+    RowReference EventMapRow::GetLastEvent() const
     {
-        return Private::ComputeLastTableReference<
+        return Private::ComputeLastRowReference<
             TableId::EventMap,
             TableId::Event
         >(GetDatabase(), GetIterator(), &EventMapRow::GetLastEvent);
@@ -1467,9 +1461,9 @@ namespace CxxReflect { namespace Metadata {
         return Private::ReadStringReference(GetDatabase(), GetIterator(), GetColumnOffset(1));
     }
 
-    TableReference EventRow::GetType() const
+    RowReference EventRow::GetType() const
     {
-        return Private::ReadTableReference(GetDatabase(), GetIterator(), CompositeIndex::TypeDefOrRef, GetColumnOffset(2));
+        return Private::ReadRowReference(GetDatabase(), GetIterator(), CompositeIndex::TypeDefOrRef, GetColumnOffset(2));
     }
 
     TypeFlags ExportedTypeRow::GetFlags() const
@@ -1492,9 +1486,9 @@ namespace CxxReflect { namespace Metadata {
         return Private::ReadStringReference(GetDatabase(), GetIterator(), GetColumnOffset(3));
     }
 
-    TableReference ExportedTypeRow::GetImplementation() const
+    RowReference ExportedTypeRow::GetImplementation() const
     {
-        return Private::ReadTableReference(GetDatabase(), GetIterator(), CompositeIndex::Implementation, GetColumnOffset(4));
+        return Private::ReadRowReference(GetDatabase(), GetIterator(), CompositeIndex::Implementation, GetColumnOffset(4));
     }
 
     FieldFlags FieldRow::GetFlags() const
@@ -1517,14 +1511,14 @@ namespace CxxReflect { namespace Metadata {
         return Private::ReadAs<std::uint32_t>(GetIterator(), GetColumnOffset(0));
     }
 
-    TableReference FieldLayoutRow::GetField() const
+    RowReference FieldLayoutRow::GetField() const
     {
-        return Private::ReadTableReference(GetDatabase(), GetIterator(), TableId::Field, GetColumnOffset(1));
+        return Private::ReadRowReference(GetDatabase(), GetIterator(), TableId::Field, GetColumnOffset(1));
     }
 
-    TableReference FieldMarshalRow::GetParent() const
+    RowReference FieldMarshalRow::GetParent() const
     {
-        return Private::ReadTableReference(GetDatabase(), GetIterator(), CompositeIndex::HasFieldMarshal, GetColumnOffset(0));
+        return Private::ReadRowReference(GetDatabase(), GetIterator(), CompositeIndex::HasFieldMarshal, GetColumnOffset(0));
     }
 
     BlobReference FieldMarshalRow::GetNativeType() const
@@ -1537,9 +1531,9 @@ namespace CxxReflect { namespace Metadata {
         return Private::ReadAs<std::uint32_t>(GetIterator(), GetColumnOffset(0));
     }
 
-    TableReference FieldRvaRow::GetField() const
+    RowReference FieldRvaRow::GetField() const
     {
-        return Private::ReadTableReference(GetDatabase(), GetIterator(), TableId::Field, GetColumnOffset(1));
+        return Private::ReadRowReference(GetDatabase(), GetIterator(), TableId::Field, GetColumnOffset(1));
     }
 
     FileFlags FileRow::GetFlags() const
@@ -1567,9 +1561,9 @@ namespace CxxReflect { namespace Metadata {
         return Private::ReadAs<GenericParameterAttribute>(GetIterator(), GetColumnOffset(1));
     }
 
-    TableReference GenericParamRow::GetOwner() const
+    RowReference GenericParamRow::GetOwner() const
     {
-        return Private::ReadTableReference(GetDatabase(), GetIterator(), CompositeIndex::TypeOrMethodDef, GetColumnOffset(2));
+        return Private::ReadRowReference(GetDatabase(), GetIterator(), CompositeIndex::TypeOrMethodDef, GetColumnOffset(2));
     }
 
     StringReference GenericParamRow::GetName() const
@@ -1577,14 +1571,14 @@ namespace CxxReflect { namespace Metadata {
         return Private::ReadStringReference(GetDatabase(), GetIterator(), GetColumnOffset(3));
     }
 
-    TableReference GenericParamConstraintRow::GetOwner() const
+    RowReference GenericParamConstraintRow::GetOwner() const
     {
-        return Private::ReadTableReference(GetDatabase(), GetIterator(), TableId::GenericParam, GetColumnOffset(0));
+        return Private::ReadRowReference(GetDatabase(), GetIterator(), TableId::GenericParam, GetColumnOffset(0));
     }
 
-    TableReference GenericParamConstraintRow::GetConstraint() const
+    RowReference GenericParamConstraintRow::GetConstraint() const
     {
-        return Private::ReadTableReference(GetDatabase(), GetIterator(), CompositeIndex::TypeDefOrRef, GetColumnOffset(1));
+        return Private::ReadRowReference(GetDatabase(), GetIterator(), CompositeIndex::TypeDefOrRef, GetColumnOffset(1));
     }
 
     PInvokeFlags ImplMapRow::GetMappingFlags() const
@@ -1592,9 +1586,9 @@ namespace CxxReflect { namespace Metadata {
         return Private::ReadAs<PInvokeAttribute>(GetIterator(), GetColumnOffset(0));
     }
 
-    TableReference ImplMapRow::GetMemberForwarded() const
+    RowReference ImplMapRow::GetMemberForwarded() const
     {
-        return Private::ReadTableReference(GetDatabase(), GetIterator(), CompositeIndex::MemberForwarded, GetColumnOffset(1));
+        return Private::ReadRowReference(GetDatabase(), GetIterator(), CompositeIndex::MemberForwarded, GetColumnOffset(1));
     }
 
     StringReference ImplMapRow::GetImportName() const
@@ -1602,19 +1596,19 @@ namespace CxxReflect { namespace Metadata {
         return Private::ReadStringReference(GetDatabase(), GetIterator(), GetColumnOffset(2));
     }
 
-    TableReference ImplMapRow::GetImportScope() const
+    RowReference ImplMapRow::GetImportScope() const
     {
-        return Private::ReadTableReference(GetDatabase(), GetIterator(), TableId::ModuleRef, GetColumnOffset(3));
+        return Private::ReadRowReference(GetDatabase(), GetIterator(), TableId::ModuleRef, GetColumnOffset(3));
     }
 
-    TableReference InterfaceImplRow::GetClass() const
+    RowReference InterfaceImplRow::GetClass() const
     {
-        return Private::ReadTableReference(GetDatabase(), GetIterator(), TableId::TypeDef, GetColumnOffset(0));
+        return Private::ReadRowReference(GetDatabase(), GetIterator(), TableId::TypeDef, GetColumnOffset(0));
     }
 
-    TableReference InterfaceImplRow::GetInterface() const
+    RowReference InterfaceImplRow::GetInterface() const
     {
-        return Private::ReadTableReference(GetDatabase(), GetIterator(), CompositeIndex::TypeDefOrRef, GetColumnOffset(1));
+        return Private::ReadRowReference(GetDatabase(), GetIterator(), CompositeIndex::TypeDefOrRef, GetColumnOffset(1));
     }
 
     std::uint32_t ManifestResourceRow::GetOffset() const
@@ -1632,14 +1626,14 @@ namespace CxxReflect { namespace Metadata {
         return Private::ReadStringReference(GetDatabase(), GetIterator(), GetColumnOffset(2));
     }
 
-    TableReference ManifestResourceRow::GetImplementation() const
+    RowReference ManifestResourceRow::GetImplementation() const
     {
-        return Private::ReadTableReference(GetDatabase(), GetIterator(), CompositeIndex::Implementation, GetColumnOffset(3));
+        return Private::ReadRowReference(GetDatabase(), GetIterator(), CompositeIndex::Implementation, GetColumnOffset(3));
     }
 
-    TableReference MemberRefRow::GetClass() const
+    RowReference MemberRefRow::GetClass() const
     {
-        return Private::ReadTableReference(GetDatabase(), GetIterator(), CompositeIndex::MemberRefParent, GetColumnOffset(0));
+        return Private::ReadRowReference(GetDatabase(), GetIterator(), CompositeIndex::MemberRefParent, GetColumnOffset(0));
     }
 
     StringReference MemberRefRow::GetName() const
@@ -1677,32 +1671,32 @@ namespace CxxReflect { namespace Metadata {
         return Private::ReadBlobReference(GetDatabase(), GetIterator(), GetColumnOffset(4));
     }
 
-    TableReference MethodDefRow::GetFirstParameter() const
+    RowReference MethodDefRow::GetFirstParameter() const
     {
-        return Private::ReadTableReference(GetDatabase(), GetIterator(), TableId::Param, GetColumnOffset(5));
+        return Private::ReadRowReference(GetDatabase(), GetIterator(), TableId::Param, GetColumnOffset(5));
     }
 
-    TableReference MethodDefRow::GetLastParameter() const
+    RowReference MethodDefRow::GetLastParameter() const
     {
-        return Private::ComputeLastTableReference<
+        return Private::ComputeLastRowReference<
             TableId::MethodDef,
             TableId::Param
         >(GetDatabase(), GetIterator(), &MethodDefRow::GetLastParameter);
     }
 
-    TableReference MethodImplRow::GetClass() const
+    RowReference MethodImplRow::GetClass() const
     {
-        return Private::ReadTableReference(GetDatabase(), GetIterator(), TableId::TypeDef, GetColumnOffset(0));
+        return Private::ReadRowReference(GetDatabase(), GetIterator(), TableId::TypeDef, GetColumnOffset(0));
     }
 
-    TableReference MethodImplRow::GetMethodBody() const
+    RowReference MethodImplRow::GetMethodBody() const
     {
-        return Private::ReadTableReference(GetDatabase(), GetIterator(), CompositeIndex::MethodDefOrRef, GetColumnOffset(1));
+        return Private::ReadRowReference(GetDatabase(), GetIterator(), CompositeIndex::MethodDefOrRef, GetColumnOffset(1));
     }
 
-    TableReference MethodImplRow::GetMethodDeclaration() const
+    RowReference MethodImplRow::GetMethodDeclaration() const
     {
-        return Private::ReadTableReference(GetDatabase(), GetIterator(), CompositeIndex::MethodDefOrRef, GetColumnOffset(2));
+        return Private::ReadRowReference(GetDatabase(), GetIterator(), CompositeIndex::MethodDefOrRef, GetColumnOffset(2));
     }
 
     MethodSemanticsFlags MethodSemanticsRow::GetSemantics() const
@@ -1710,19 +1704,19 @@ namespace CxxReflect { namespace Metadata {
         return Private::ReadAs<MethodSemanticsAttribute>(GetIterator(), GetColumnOffset(0));
     }
 
-    TableReference MethodSemanticsRow::GetMethod() const
+    RowReference MethodSemanticsRow::GetMethod() const
     {
-        return Private::ReadTableReference(GetDatabase(), GetIterator(), TableId::MethodDef, GetColumnOffset(1));
+        return Private::ReadRowReference(GetDatabase(), GetIterator(), TableId::MethodDef, GetColumnOffset(1));
     }
 
-    TableReference MethodSemanticsRow::GetAssociation() const
+    RowReference MethodSemanticsRow::GetAssociation() const
     {
-        return Private::ReadTableReference(GetDatabase(), GetIterator(), CompositeIndex::HasSemantics, GetColumnOffset(2));
+        return Private::ReadRowReference(GetDatabase(), GetIterator(), CompositeIndex::HasSemantics, GetColumnOffset(2));
     }
 
-    TableReference MethodSpecRow::GetMethod() const
+    RowReference MethodSpecRow::GetMethod() const
     {
-        return Private::ReadTableReference(GetDatabase(), GetIterator(), CompositeIndex::MethodDefOrRef, GetColumnOffset(0));
+        return Private::ReadRowReference(GetDatabase(), GetIterator(), CompositeIndex::MethodDefOrRef, GetColumnOffset(0));
     }
 
     BlobReference MethodSpecRow::GetInstantiation() const
@@ -1740,14 +1734,14 @@ namespace CxxReflect { namespace Metadata {
         return Private::ReadStringReference(GetDatabase(), GetIterator(), GetColumnOffset(0));
     }
 
-    TableReference NestedClassRow::GetNestedClass() const
+    RowReference NestedClassRow::GetNestedClass() const
     {
-        return Private::ReadTableReference(GetDatabase(), GetIterator(), TableId::TypeDef, GetColumnOffset(0));
+        return Private::ReadRowReference(GetDatabase(), GetIterator(), TableId::TypeDef, GetColumnOffset(0));
     }
 
-    TableReference NestedClassRow::GetEnclosingClass() const
+    RowReference NestedClassRow::GetEnclosingClass() const
     {
-        return Private::ReadTableReference(GetDatabase(), GetIterator(), TableId::TypeDef, GetColumnOffset(1));
+        return Private::ReadRowReference(GetDatabase(), GetIterator(), TableId::TypeDef, GetColumnOffset(1));
     }
 
     ParameterFlags ParamRow::GetFlags() const
@@ -1780,19 +1774,19 @@ namespace CxxReflect { namespace Metadata {
         return Private::ReadBlobReference(GetDatabase(), GetIterator(), GetColumnOffset(2));
     }
 
-    TableReference PropertyMapRow::GetParent() const
+    RowReference PropertyMapRow::GetParent() const
     {
-        return Private::ReadTableReference(GetDatabase(), GetIterator(), TableId::TypeDef, GetColumnOffset(0));
+        return Private::ReadRowReference(GetDatabase(), GetIterator(), TableId::TypeDef, GetColumnOffset(0));
     }
 
-    TableReference PropertyMapRow::GetFirstProperty() const
+    RowReference PropertyMapRow::GetFirstProperty() const
     {
-        return Private::ReadTableReference(GetDatabase(), GetIterator(), TableId::Property, GetColumnOffset(1));
+        return Private::ReadRowReference(GetDatabase(), GetIterator(), TableId::Property, GetColumnOffset(1));
     }
 
-    TableReference PropertyMapRow::GetLastProperty() const
+    RowReference PropertyMapRow::GetLastProperty() const
     {
-        return Private::ComputeLastTableReference<
+        return Private::ComputeLastRowReference<
             TableId::PropertyMap,
             TableId::Property
         >(GetDatabase(), GetIterator(), &PropertyMapRow::GetFirstProperty);
@@ -1818,40 +1812,40 @@ namespace CxxReflect { namespace Metadata {
         return Private::ReadStringReference(GetDatabase(), GetIterator(), GetColumnOffset(2));
     }
 
-    TableReference TypeDefRow::GetExtends() const
+    RowReference TypeDefRow::GetExtends() const
     {
-        return Private::ReadTableReference(GetDatabase(), GetIterator(), CompositeIndex::TypeDefOrRef, GetColumnOffset(3));
+        return Private::ReadRowReference(GetDatabase(), GetIterator(), CompositeIndex::TypeDefOrRef, GetColumnOffset(3));
     }
 
-    TableReference TypeDefRow::GetFirstField() const
+    RowReference TypeDefRow::GetFirstField() const
     {
-        return Private::ReadTableReference(GetDatabase(), GetIterator(), TableId::Field, GetColumnOffset(4));
+        return Private::ReadRowReference(GetDatabase(), GetIterator(), TableId::Field, GetColumnOffset(4));
     }
 
-    TableReference TypeDefRow::GetLastField() const
+    RowReference TypeDefRow::GetLastField() const
     {
-        return Private::ComputeLastTableReference<
+        return Private::ComputeLastRowReference<
             TableId::TypeDef,
             TableId::Field
         >(GetDatabase(), GetIterator(), &TypeDefRow::GetFirstField);
     }
 
-    TableReference TypeDefRow::GetFirstMethod() const
+    RowReference TypeDefRow::GetFirstMethod() const
     {
-        return Private::ReadTableReference(GetDatabase(), GetIterator(), TableId::MethodDef, GetColumnOffset(5));
+        return Private::ReadRowReference(GetDatabase(), GetIterator(), TableId::MethodDef, GetColumnOffset(5));
     }
 
-    TableReference TypeDefRow::GetLastMethod() const
+    RowReference TypeDefRow::GetLastMethod() const
     {
-        return Private::ComputeLastTableReference<
+        return Private::ComputeLastRowReference<
             TableId::TypeDef,
             TableId::MethodDef
         >(GetDatabase(), GetIterator(), &TypeDefRow::GetFirstMethod);
     }
 
-    TableReference TypeRefRow::GetResolutionScope() const
+    RowReference TypeRefRow::GetResolutionScope() const
     {
-        return Private::ReadTableReference(GetDatabase(), GetIterator(), CompositeIndex::ResolutionScope, GetColumnOffset(0));
+        return Private::ReadRowReference(GetDatabase(), GetIterator(), CompositeIndex::ResolutionScope, GetColumnOffset(0));
     }
 
     StringReference TypeRefRow::GetName() const

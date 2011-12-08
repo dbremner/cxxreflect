@@ -406,12 +406,12 @@ namespace CxxReflect { namespace Metadata {
         CustomModifier();
         CustomModifier(ByteIterator first, ByteIterator last);
 
-        bool           IsOptional()       const;
-        bool           IsRequired()       const;
-        TableReference GetTypeReference() const;
+        bool         IsOptional()       const;
+        bool         IsRequired()       const;
+        RowReference GetTypeReference() const;
 
-        SizeType       ComputeSize()      const;
-        ByteIterator   SeekTo(Part part)  const;
+        SizeType     ComputeSize()      const;
+        ByteIterator SeekTo(Part part)  const;
     };
 
     CXXREFLECT_GENERATE_SCOPED_ENUM_OPERATORS(CustomModifier::Part)
@@ -649,9 +649,9 @@ namespace CxxReflect { namespace Metadata {
         ArrayShape    GetArrayShape()  const; // ARRAY only
 
         // CLASS and VALUETYPE:
-        bool           IsClassType()      const;
-        bool           IsValueType()      const;
-        TableReference GetTypeReference() const;
+        bool         IsClassType()      const;
+        bool         IsValueType()      const;
+        RowReference GetTypeReference() const;
 
         // FNPTR:
         bool            IsFunctionPointer()  const;
@@ -661,7 +661,7 @@ namespace CxxReflect { namespace Metadata {
         bool                    IsGenericInstance()          const;
         bool                    IsGenericClassTypeInstance() const;
         bool                    IsGenericValueTypeInstance() const;
-        TableReference          GetGenericTypeReference()    const;
+        RowReference            GetGenericTypeReference()    const;
         SizeType                GetGenericArgumentCount()    const;
         GenericArgumentIterator BeginGenericArguments()      const;
         GenericArgumentIterator EndGenericArguments()        const;
@@ -705,7 +705,7 @@ namespace CxxReflect { namespace Metadata {
 
     private:
 
-        bool operator()(TableReference    const& lhs, TableReference    const& rhs) const;
+        bool operator()(RowReference      const& lhs, RowReference      const& rhs) const;
 
         Detail::ValueInitialized<MetadataLoader const*> _loader;
         Detail::ValueInitialized<Database const*>       _lhsDatabase;

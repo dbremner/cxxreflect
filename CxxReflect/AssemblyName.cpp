@@ -87,7 +87,7 @@ namespace CxxReflect {
         return is;
     }
 
-    AssemblyName::AssemblyName(Assembly const& assembly, Metadata::TableReference const& reference, InternalKey)
+    AssemblyName::AssemblyName(Assembly const& assembly, Metadata::RowReference const& reference, InternalKey)
     {
         Metadata::Database const& database(assembly.GetContext(InternalKey()).GetDatabase());
         switch (reference.GetTable())
@@ -102,7 +102,7 @@ namespace CxxReflect {
             break;
 
         default:
-            Detail::VerifyFail("TableReference references unsupported table");
+            Detail::VerifyFail("RowReference references unsupported table");
         }
     }
 

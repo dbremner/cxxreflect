@@ -18,7 +18,7 @@ namespace CxxReflect {
 
         Method() { }
 
-        Method(Type const& declaringType, Type const& reflectedType, Metadata::TableReference const& method)
+        Method(Type const& declaringType, Type const& reflectedType, Metadata::RowReference const& method)
             : _declaringType(declaringType),
               _reflectedType(reflectedType),
               _method(method)
@@ -84,9 +84,9 @@ namespace CxxReflect {
 
         Metadata::MethodDefRow GetMethodDefRow() const;
 
-        Type                     _reflectedType;
-        Type                     _declaringType;
-        Metadata::TableReference _method;
+        Type                   _reflectedType;
+        Type                   _declaringType;
+        Metadata::RowReference _method;
     };
 
     //bool operator==(Method const& lhs, Method const& rhs); // TODO

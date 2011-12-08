@@ -2,6 +2,9 @@
 //                   Distributed under the Boost Software License, Version 1.0.                   //
 //     (See accompanying file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)    //
 
+// MetadataLoader provides bindings between the physical layer implementation of the metadata reader
+// (in CxxReflect::Metadata) and the logical layer interface (in CxxReflect).  The MetadataLoader
+// itself manages the loading of assemblies and owns all persistent data structures.
 #ifndef CXXREFLECT_METADATALOADER_HPP_
 #define CXXREFLECT_METADATALOADER_HPP_
 
@@ -12,109 +15,41 @@
 
 namespace CxxReflect { namespace Detail {
 
-    typedef Detail::LinearArrayAllocator<Byte, (1 << 16)> MethodSignatureAllocator;
-
-    class MethodReference
+    // Represents the information required to construct a Method object.
+    class MethodContext
     {
     public:
 
-        MethodReference()
-        {
-        }
+        MethodContext();
 
-        MethodReference(Metadata::DatabaseReference const typeDef,
-                        Metadata::TableReference    const methodDef)
-            : _typeDef(typeDef),
-              _methodDef(methodDef)
-        {
-            Detail::Verify([&]{ return typeDef.IsInitialized();   });
-            Detail::Verify([&]{ return methodDef.IsInitialized(); });
-        }
+        MethodContext(Metadata::FullReference const& typeDef,
+                      Metadata::RowReference  const& methodDef);
 
-        MethodReference(Metadata::DatabaseReference     const typeDef,
-                        Metadata::TableReference        const methodDef,
-                        Metadata::DatabaseReference     const typeSpec,
-                        MethodSignatureAllocator::Range const instantiatedSignature)
-            : _typeDef(typeDef),
-              _methodDef(methodDef),
-              _typeSpec(typeSpec),
-              _instantiatedSignature(instantiatedSignature)
-        {
-            Detail::Verify([&]{ return typeDef.IsInitialized();   });
-            Detail::Verify([&]{ return methodDef.IsInitialized(); });
-            Detail::Verify([&]{ return typeSpec.IsInitialized();  });
-            // Note: 'instantiatedSignature' may not be initialized
-        }
+        MethodContext(Metadata::FullReference const& typeDef,
+                      Metadata::RowReference  const& methodDef,
+                      Metadata::FullReference const& typeSpec,
+                      ByteRange               const  instantiatedSignature);
 
-        // Resolves the MethodReference as a Method using the provided reflected type
+        // Resolves the MethodContext as a Method using the provided reflected type
         Method Resolve(Type const& reflectedType) const;
 
-        Metadata::DatabaseReference GetDeclaringType() const
-        {
-            VerifyInitialized();
-            return _typeDef;
-        }
-        
-        Metadata::DatabaseReference GetMethod() const
-        {
-            VerifyInitialized();
-            return Metadata::DatabaseReference(&_typeDef.GetDatabase(), _methodDef);
-        }
+        Metadata::FullReference   GetDeclaringType()         const;
 
-        Metadata::MethodDefRow GetMethodDefinition() const
-        {
-            VerifyInitialized();
-            return _typeDef.GetDatabase().GetRow<Metadata::TableId::MethodDef>(_methodDef.GetIndex());
-        }
+        Metadata::FullReference   GetMethod()                const;
+        Metadata::MethodDefRow    GetMethodDefinition()      const;
+        Metadata::MethodSignature GetMethodSignature()       const;
 
-        Metadata::MethodSignature GetMethodSignature() const
-        {
-            VerifyInitialized();
-            if (HasInstantiatedSignature())
-            {
-                return Metadata::MethodSignature(
-                    _instantiatedSignature.Begin(),
-                    _instantiatedSignature.End());
-            }
-            else
-            {
-                return _typeDef
-                    .GetDatabase()
-                    .GetBlob(GetMethodDefinition().GetSignature())
-                    .As<Metadata::MethodSignature>();
-            }
-        }
+        bool                      HasInstantiatedType()      const;
+        Metadata::FullReference   GetInstantiatedType()      const;
 
-        bool HasInstantiatedType() const
-        {
-            return _typeSpec.IsInitialized();
-        }
+        bool                      HasInstantiatedSignature() const;
+        ByteRange                 GetInstantiatedSignature() const;
 
-        Metadata::DatabaseReference GetInstantiatedType() const
-        {
-            Verify([&]{ return HasInstantiatedType(); });
-            return _typeSpec;
-        }
-
-        bool HasInstantiatedSignature() const
-        {
-            return _instantiatedSignature.IsInitialized();
-        }
-
-        MethodSignatureAllocator::Range GetInstantiatedSignature() const
-        {
-            Verify([&]{ return HasInstantiatedSignature(); });
-            return _instantiatedSignature;
-        }
-
-        bool IsInitialized() const { return _typeDef.IsInitialized(); }
+        bool                      IsInitialized()            const;
 
     private:
 
-        void VerifyInitialized() const
-        {
-            Detail::Verify([&]{ return IsInitialized(); });
-        }
+        void                      VerifyInitialized()        const;
 
         // _typeDef is the type that defines the method.  _methodDef is the method definition; it is
         // resolved in the same database as _typeDef.  _typeSpec is the type through which the method
@@ -122,13 +57,64 @@ namespace CxxReflect { namespace Detail {
         // set and the method uses any of the _typeSpec's generic parameters, _instantiatedSignature
         // will be set and will point to a replacement signature that has all of the variables (Var!0)
         // replaced with their arguments.
-        Metadata::DatabaseReference     _typeDef;
-        Metadata::TableReference        _methodDef;
-        Metadata::DatabaseReference     _typeSpec;
-        MethodSignatureAllocator::Range _instantiatedSignature;
+        Metadata::FullReference _typeDef;
+        Metadata::RowReference  _methodDef;
+        Metadata::FullReference _typeSpec;
+        ByteRange               _instantiatedSignature;
     };
 
-    typedef Detail::LinearArrayAllocator<Detail::MethodReference, 2048> MethodTableAllocator;
+    typedef Range<MethodContext> MethodTable;
+
+    class MethodTableCollection
+    {
+    public:
+
+        typedef LinearArrayAllocator<Byte,          (1 << 16)> SignatureAllocator;
+        typedef LinearArrayAllocator<MethodContext, (1 << 11)> TableAllocator;
+        typedef Metadata::ClassVariableSignatureInstantiator   Instantiator;
+        typedef Metadata::FullReference                        FullReference;
+
+        MethodTableCollection(MetadataLoader const* const loader);
+
+        MethodTableCollection(MethodTableCollection&& other);
+        MethodTableCollection& operator=(MethodTableCollection&& other);
+
+        void Swap(MethodTableCollection& other);
+
+        MethodTable GetOrCreateMethodTable(FullReference const& type) const;
+
+    private:
+
+        typedef std::pair<FullReference, FullReference> TypeDefAndSpec;
+
+        MethodTableCollection(MethodTableCollection const&);
+        MethodTableCollection& operator=(MethodTableCollection const&);
+
+        // The provided 'type' may be a TypeDef, TypeRef, or TypeSpec.  This function returns a
+        // single TypeDef if 'type' is resolved to be a TypeDef, or resolves a pair containing the
+        // TypeSpec (in .second) and the primary TypeDef from the TypeSpec (in .first).  If it is
+        // a TypeSpec, it must be a GenericInst.
+        TypeDefAndSpec ResolveTypeDefAndSpec(FullReference const& type) const;
+
+        // The provided 'type' must be a GenericInst TypeSpec.  This function creates and returns a
+        // generic class variable instantiator from the arguments of the GenericInst.
+        Instantiator CreateInstantiator(FullReference const& type) const;
+
+        // Instantiates 'signature' using 'instantiator', allocates space for it in the signature
+        // allocator, and returns the result.
+        ByteRange Instantiate(Instantiator const& instantiator, Metadata::MethodSignature const& signature) const;
+
+        // Computes the correct override slot for 'newMethod' in the method table being built (in
+        // the _buffer).  The 'inheritedMethodCount' is the index of the first new method (i.e., the
+        // first method that was defined in the derived class).
+        void InsertMethodIntoBuffer(MethodContext const& newMethod, SizeType inheritedMethodCount) const;
+
+        ValueInitialized<MetadataLoader const*>         _loader;
+        SignatureAllocator                      mutable _signatureAllocator;
+        TableAllocator                          mutable _tableAllocator;
+        std::map<FullReference, MethodTable>    mutable _index;
+        std::vector<MethodContext>              mutable _buffer;
+    };
 
     // Represents all of the permanent information about an Assembly.  This is the implementation of
     // an 'Assembly' facade and includes parts of the implementation of other facades (e.g., it
@@ -139,20 +125,19 @@ namespace CxxReflect { namespace Detail {
     public:
 
         AssemblyContext(MetadataLoader const* const loader, String path, Metadata::Database&& database)
-            : _loader(loader), _path(std::move(path)), _database(std::move(database))
+            : _loader(loader), _path(std::move(path)), _database(std::move(database)), _methods(loader)
         {
             Detail::VerifyNotNull(_loader.Get());
             Detail::Verify([&]{ return !_path.empty(); });
         }
 
         AssemblyContext(AssemblyContext&& other)
-            : _loader(other._loader),
-                _path(std::move(other._path)),
-                _database(std::move(other._database)),
-                _name(std::move(other._name)),
-                _state(other._state),
-                _methodTableAllocator(std::move(other._methodTableAllocator)),
-                _methodTableIndices(std::move(other._methodTableIndices))
+            : _loader  (std::move(other._loader  )),
+              _path    (std::move(other._path    )),
+              _database(std::move(other._database)),
+              _name    (std::move(other._name    )),
+              _state   (std::move(other._state   )),
+              _methods (std::move(other._methods ))
         {
             other._loader.Get() = nullptr;
             other._state.Reset();
@@ -167,13 +152,12 @@ namespace CxxReflect { namespace Detail {
         void Swap(AssemblyContext& other)
         {
             using std::swap;
-            swap(other._loader,                _loader);
-            swap(other._path,                  _path);
-            swap(other._database,              _database);
-            swap(other._name,                  _name);
-            swap(other._state,                 _state);
-            swap(other._methodTableAllocator,  _methodTableAllocator);
-            swap(other._methodTableIndices,    _methodTableIndices);
+            swap(other._loader,   _loader  );
+            swap(other._path,     _path    );
+            swap(other._database, _database);
+            swap(other._name,     _name    );
+            swap(other._state,    _state   );
+            swap(other._methods,  _methods );
         }
 
         MetadataLoader     const& GetLoader()       const { VerifyInitialized(); return *_loader.Get(); }
@@ -181,12 +165,10 @@ namespace CxxReflect { namespace Detail {
         String             const& GetPath()         const { VerifyInitialized(); return _path;          }
         AssemblyName       const& GetAssemblyName() const;
 
-        Detail::MethodTableAllocator::Range GetMethodTableForType(SizeType const typeIndex) const
+        MethodTable const GetOrCreateMethodTable(Metadata::ElementReference const& type) const
         {
-            auto const it(_methodTableIndices.find(typeIndex));
-            return it != _methodTableIndices.end()
-                ? it->second
-                : Detail::MethodTableAllocator::Range();
+            // TODO BLOB REFERENCES COULD END UP HERER TOO
+            return _methods.GetOrCreateMethodTable(Metadata::FullReference(&_database, type.AsRowReference()));
         }
 
         bool IsInitialized() const
@@ -215,12 +197,9 @@ namespace CxxReflect { namespace Detail {
         String                                  _path;
         Metadata::Database                      _database;
 
-        mutable FlagSet<RealizationState>       _state;
-        mutable AssemblyName                    _name;
-
-        mutable MethodTableAllocator                            _methodTableAllocator;
-        mutable MethodSignatureAllocator                        _methodSignatureAllocator;
-        mutable std::map<SizeType, MethodTableAllocator::Range> _methodTableIndices;
+        FlagSet<RealizationState> mutable _state;
+        AssemblyName              mutable _name;
+        MethodTableCollection     mutable _methods;
     };
 
 } }
@@ -302,7 +281,7 @@ namespace CxxReflect {
         // or TypeSpec token.  If it is a TypeDef or a TypeRef, the token is returned as-is.  If it is
         // a TypeRef, it is resolved into either a TypeDef or a TypeSpec token in the defining
         // assembly.
-        Metadata::DatabaseReference ResolveType(Metadata::DatabaseReference const& typeReference, InternalKey) const;
+        Metadata::FullReference ResolveType(Metadata::FullReference const& typeReference, InternalKey) const;
 
     private:
 

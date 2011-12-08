@@ -2,14 +2,7 @@
 //                   Distributed under the Boost Software License, Version 1.0.                   //
 //     (See accompanying file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)    //
 
-// This header contains declarations and definitions of core types, functions, and constants used
-// throughout the CxxReflect library.
-//
-// The CxxReflect library is divided into several namespaces:
-// * ::CxxReflect              The public API
-// * ::CxxReflect::Detail      Implementation details that are not part of the public API
-// * ::CxxReflect::Metadata    The physical layer metatadata reader for parsing metadata files
-
+// Fundamental types, functions, and constants used throughout the library.
 #ifndef CXXREFLECT_CORE_HPP_
 #define CXXREFLECT_CORE_HPP_
 
@@ -21,7 +14,6 @@
 #include <cstdio>
 #include <cstring>
 #include <functional>
-#include <iosfwd>
 #include <iostream>
 #include <iterator>
 #include <map>
@@ -967,10 +959,10 @@ namespace CxxReflect { namespace Detail {
 
         static wchar_t const* TranslateMode(FileModeFlags const mode)
         {
-            #define CXXREFLECT_GENERATE(x, y, z)     \
-                static_cast<unsigned>(FileMode::x) | \
-                static_cast<unsigned>(FileMode::y) | \
-                static_cast<unsigned>(FileMode::z)
+            #define CXXREFLECT_GENERATE(x, y, z)                           \
+                static_cast<std::underlying_type<FileMode>::type>(FileMode::x) | \
+                static_cast<std::underlying_type<FileMode>::type>(FileMode::y) | \
+                static_cast<std::underlying_type<FileMode>::type>(FileMode::z)
 
             switch (mode.GetIntegral())
             {
@@ -1095,6 +1087,44 @@ namespace CxxReflect { namespace Detail {
         typedef T Type;
     };
 
+    template <typename T>
+    class Range
+    {
+    public:
+
+        typedef std::size_t SizeType;
+        typedef T           ValueType;
+        typedef T*          Pointer;
+
+        Range() { }
+
+        Range(Pointer const begin, Pointer const end)
+            : _begin(begin), _end(end)
+        {
+            VerifyInitialized();
+        }
+
+        template <typename U>
+        Range(Range<U> const& other)
+            : _begin(other.IsInitialized() ? other.Begin() : nullptr),
+              _end  (other.IsInitialized() ? other.End()   : nullptr)
+        {
+        }
+
+        Pointer  Begin()   const { VerifyInitialized(); return _begin.Get();                  }
+        Pointer  End()     const { VerifyInitialized(); return _end.Get();                    }
+        SizeType GetSize() const { VerifyInitialized(); return _end.Get() - _begin.Get();     }
+        bool     IsEmpty() const { VerifyInitialized(); return _begin.Get() == _end.Get();    }
+
+        bool IsInitialized() const { return _begin.Get() != nullptr && _end.Get() != nullptr; }
+
+    private:
+
+        void VerifyInitialized() const { Verify([&]{ return IsInitialized(); }); }
+
+        ValueInitialized<Pointer> _begin;
+        ValueInitialized<Pointer> _end;
+    };
 
     // A linear allocator for arrays; this is most useful for the allocation of strings.
     template <typename T, std::size_t TBlockSize>
@@ -1108,33 +1138,7 @@ namespace CxxReflect { namespace Detail {
 
         enum { BlockSize = TBlockSize };
 
-        class Range
-        {
-        public:
-
-            Range()
-                : _begin(nullptr), _end(nullptr)
-            {
-            }
-
-            Range(Pointer const begin, Pointer const end)
-                : _begin(begin), _end(end)
-            {
-                VerifyNotNull(begin);
-                VerifyNotNull(end);
-            }
-
-            Pointer Begin() const { return _begin;         }
-            Pointer End()   const { return _end;           }
-
-            bool    IsInitialized() const { return _begin != nullptr && _end != nullptr; }
-            bool    IsEmpty()       const { return _begin == _end;                       }
-
-        private:
-
-            Pointer _begin;
-            Pointer _end;
-        };
+        typedef Range<T> Range;
 
         LinearArrayAllocator()
         {
@@ -1197,11 +1201,14 @@ namespace CxxReflect { namespace Detail {
         BlockIterator _current;
     };
 
-    // TTableReference is always Metadata::TableReference.  We use a template parameter to make it
+
+
+
+    // TRowReference is always Metadata::RowReference.  We use a template parameter to make it
     // dependent so that we don't need it defined when we define the template.
-    template <typename TTableReference, typename TResult, typename TParameter>
+    template <typename TRowReference, typename TResult, typename TParameter>
     class TableTransformIterator
-        : public Comparable<TableTransformIterator<TTableReference, TResult, TParameter>>
+        : public Comparable<TableTransformIterator<TRowReference, TResult, TParameter>>
     {
     public:
 
@@ -1220,7 +1227,7 @@ namespace CxxReflect { namespace Detail {
         {
         }
 
-        TableTransformIterator(TParameter const parameter, TTableReference const current)
+        TableTransformIterator(TParameter const parameter, TRowReference const current)
             : _parameter(parameter), _current(current)
         {
         }
@@ -1237,7 +1244,7 @@ namespace CxxReflect { namespace Detail {
 
         TableTransformIterator& operator+=(DifferenceType const n)
         {
-            _current = TTableReference(_current.GetTable(), _current.GetIndex() + n);
+            _current = TRowReference(_current.GetTable(), _current.GetIndex() + n);
             return *this;
         }
 
@@ -1245,7 +1252,7 @@ namespace CxxReflect { namespace Detail {
 
         Reference operator[](DifferenceType const n) const
         {
-            return ValueType(_parameter, TTableReference(_current.GetTable(), _current.GetIndex() + n));
+            return ValueType(_parameter, TRowReference(_current.GetTable(), _current.GetIndex() + n));
         }
 
         friend TableTransformIterator operator+(TableTransformIterator it, DifferenceType n) { return it += n; }
@@ -1269,119 +1276,8 @@ namespace CxxReflect { namespace Detail {
 
     private:
 
-        TParameter      _parameter;
-        TTableReference _current;
-    };
-
-    template
-    <
-        typename TTableReference,
-        typename TResult,
-        typename TSource,
-        typename TFilterParameter,
-        typename TSourceProviderResult,
-        TSourceProviderResult (*FSourceProvider)(TSource const&),
-        bool (*FFilter)(TResult const&, TFilterParameter const&)
-    >
-    class NestedTableTransformIterator
-    {
-    public:
-
-        // TODO We could actually make this a bidirectional iterator, though computing the previous
-        // element could be rather expensive:  we'd need to trace sources forward from the original
-        // source until we find the source that owns the current range.
-        typedef std::forward_iterator_tag iterator_category;
-        typedef TResult                   value_type;
-        typedef TResult                   reference;
-        typedef Dereferenceable<TResult>  pointer;
-        typedef std::ptrdiff_t            difference_type;
-
-        typedef value_type                ValueType;
-        typedef reference                 Reference;
-        typedef pointer                   Pointer;
-        typedef difference_type           DifferenceType;
-
-        NestedTableTransformIterator()
-            : _originalSource(), _currentSource(), _currentElement(), _currentEndElement()
-        {
-        }
-
-        NestedTableTransformIterator(TSource const source,
-                                     TTableReference const current,
-                                     TTableReference const end,
-                                     TFilterParameter const& filter)
-            : _originalSource(source),
-              _currentSource(source),
-              _currentElement(current),
-              _currentEndElement(end),
-              _filter(filter)
-        {
-            if (current.GetIndex() == end.GetIndex())
-            {
-                _currentSource = TSource();
-                _currentElement = TTableReference();
-                _currentEndElement = TTableReference();
-            }
-            else
-            {
-                FilterAdvance();
-            }
-        }
-
-        Reference Get()        const { return ValueType(_currentSource, _originalSource, _currentElement); }
-        Reference operator*()  const { return ValueType(_currentSource, _originalSource, _currentElement); }
-        Pointer   operator->() const { return ValueType(_currentSource, _originalSource, _currentElement); }
-
-        NestedTableTransformIterator& operator++()
-        {
-            _currentElement = TTableReference(_currentElement.GetTable(), _currentElement.GetIndex() + 1);
-            FilterAdvance();
-            return *this;
-        }
-
-        NestedTableTransformIterator operator++(int)
-        {
-            auto const it(*this); ++*this; return it;
-        }
-
-        friend bool operator==(NestedTableTransformIterator const& lhs, NestedTableTransformIterator const& rhs)
-        {
-            return lhs._currentElement.GetIndex() == rhs._currentElement.GetIndex();
-        }
-
-        friend bool operator!=(NestedTableTransformIterator const& lhs, NestedTableTransformIterator const& rhs)
-        {
-            return !(lhs == rhs);
-        }
-
-    private:
-
-        void FilterAdvance()
-        {
-            if (_currentElement == _currentEndElement)
-            {
-                std::tie(_currentSource, _currentElement, _currentEndElement) = FSourceProvider(_currentSource);
-            }
-
-            while (_currentSource != nullptr
-                && !FFilter(ValueType(_currentSource, _originalSource, _currentElement), _filter))
-            {
-                _currentElement = TTableReference(_currentElement.GetTable(), _currentElement.GetIndex() + 1);
-
-                if (_currentElement == _currentEndElement)
-                {
-                    std::tie(_currentSource, _currentElement, _currentEndElement) = FSourceProvider(_currentSource);
-                }
-            }
-        }
-
-        TSource _originalSource;
-        TSource _currentSource;
-
-        TTableReference _currentElement;
-        TTableReference _currentEndElement;
-
-        TFilterParameter _filter;
+        TParameter    _parameter;
+        TRowReference _current;
     };
 
     // Platform functionality wrappers:  these functions use platform-specific, third-party, or non-
@@ -1399,7 +1295,7 @@ namespace CxxReflect { namespace Detail {
     bool FileExists(wchar_t const* filePath);
 
     class AssemblyContext;
-    class MethodReference;
+    class MethodContext;
 
 } }
 
@@ -1412,9 +1308,9 @@ namespace CxxReflect { namespace Metadata {
     class Stream;
     class StringCollection;
     class BlobReference;
+    class RowReference;
     class TableCollection;
     class Table;
-    class TableReference;
 
     class AssemblyRow;
     class AssemblyOsRow;
@@ -1474,7 +1370,9 @@ namespace CxxReflect {
     typedef wchar_t                            Character;
     typedef std::uint32_t                      SizeType;
     typedef std::uint8_t                       Byte;
-    typedef std::uint8_t const*                ByteIterator;
+    typedef Byte const*                        ByteIterator;
+    typedef Detail::Range<Byte const>          ByteRange;
+    typedef Detail::Range<Byte>                MutableByteRange;
     typedef std::uint32_t                      IndexType;
 
     typedef std::basic_string<Character>       String;
@@ -1505,7 +1403,7 @@ namespace CxxReflect {
         InternalKey() { }
 
         friend Detail::AssemblyContext;
-        friend Detail::MethodReference;
+        friend Detail::MethodContext;
 
         friend Assembly;
         friend AssemblyName;

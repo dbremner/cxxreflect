@@ -27,12 +27,12 @@ namespace CxxReflect {
     {
         // We intentionally skip the type at index 0; this isn't a real type, it's the internal
         // <module> "type" containing module-scope thingies.
-        return Assembly::TypeIterator(*this, Metadata::TableReference(Metadata::TableId::TypeDef, 1));
+        return Assembly::TypeIterator(*this, Metadata::RowReference(Metadata::TableId::TypeDef, 1));
     }
 
     Assembly::TypeIterator Assembly::EndTypes() const
     {
-        return TypeIterator(*this, Metadata::TableReference(
+        return TypeIterator(*this, Metadata::RowReference(
             Metadata::TableId::TypeDef,
             _context.Get()->GetDatabase().GetTables().GetTable(Metadata::TableId::TypeDef).GetRowCount()));
     }
@@ -69,12 +69,12 @@ namespace CxxReflect {
 
     Assembly::AssemblyNameIterator Assembly::BeginReferencedAssemblyNames() const
     {
-        return AssemblyNameIterator(*this, Metadata::TableReference(Metadata::TableId::AssemblyRef, 0));
+        return AssemblyNameIterator(*this, Metadata::RowReference(Metadata::TableId::AssemblyRef, 0));
     }
 
     Assembly::AssemblyNameIterator Assembly::EndReferencedAssemblyNames() const
     {
-        return Assembly::AssemblyNameIterator(*this, Metadata::TableReference(
+        return Assembly::AssemblyNameIterator(*this, Metadata::RowReference(
             Metadata::TableId::AssemblyRef,
             _context.Get()->GetDatabase().GetTables().GetTable(Metadata::TableId::AssemblyRef).GetRowCount()));
     }

@@ -62,8 +62,8 @@ namespace CxxReflect {
     {
     }
 
-    Type::Type(Assembly const& assembly, Metadata::TableReference const& type, InternalKey)
-        : _assembly(assembly), _type(Metadata::TableOrBlobReference(type))
+    Type::Type(Assembly const& assembly, Metadata::RowReference const& type, InternalKey)
+        : _assembly(assembly), _type(Metadata::ElementReference(type))
     {
         Detail::Verify([&] { return assembly.IsInitialized(); });
 
@@ -85,8 +85,8 @@ namespace CxxReflect {
             MetadataLoader const& loader(assembly.GetContext(InternalKey()).GetLoader());
             Metadata::Database const& database(assembly.GetContext(InternalKey()).GetDatabase());
 
-            Metadata::DatabaseReference const resolvedType(
-                loader.ResolveType(Metadata::DatabaseReference(&database, type), InternalKey()));
+            Metadata::FullReference const resolvedType(
+                loader.ResolveType(Metadata::FullReference(&database, type), InternalKey()));
 
             Detail::Verify([&]{ return resolvedType.IsInitialized(); });
 
@@ -94,8 +94,8 @@ namespace CxxReflect {
                 &loader.GetContextForDatabase(resolvedType.GetDatabase(), InternalKey()),
                 InternalKey());
 
-            _type = Metadata::TableOrBlobReference(resolvedType.GetTableReference());
-            Detail::Verify([&]{ return _type.AsTableReference().GetTable() == Metadata::TableId::TypeDef; });
+            _type = Metadata::ElementReference(resolvedType.AsRowReference());
+            Detail::Verify([&]{ return _type.AsRowReference().GetTable() == Metadata::TableId::TypeDef; });
 
             break;
         }
@@ -105,7 +105,7 @@ namespace CxxReflect {
             // Get the signature for the TypeSpec token and use that instead:
             Metadata::Database const& database(assembly.GetContext(InternalKey()).GetDatabase());
             Metadata::TypeSpecRow const typeSpec(database.GetRow<Metadata::TableId::TypeSpec>(type.GetIndex()));
-            _type = Metadata::TableOrBlobReference(typeSpec.GetSignature());
+            _type = Metadata::ElementReference(typeSpec.GetSignature());
 
             break;
         }
@@ -119,7 +119,7 @@ namespace CxxReflect {
     }
 
     Type::Type(Assembly const& assembly, Metadata::BlobReference const& type, InternalKey)
-        : _assembly(assembly), _type(Metadata::TableOrBlobReference(type))
+        : _assembly(assembly), _type(Metadata::ElementReference(type))
     {
         Detail::Verify([&] { return assembly.IsInitialized(); });
 
@@ -166,7 +166,7 @@ namespace CxxReflect {
             Type const primitiveType(systemObject.GetAssembly().GetType(StringReference(primitiveTypeName.c_str())));
 
             _assembly = primitiveType.GetAssembly();
-            _type = Metadata::TableReference::FromToken(primitiveType.GetMetadataToken());
+            _type = Metadata::RowReference::FromToken(primitiveType.GetMetadataToken());
         }
     }
 
@@ -283,7 +283,7 @@ namespace CxxReflect {
         return _assembly
             .GetContext(InternalKey())
             .GetDatabase()
-            .GetRow<Metadata::TableId::TypeDef>(_type.AsTableReference().GetIndex());
+            .GetRow<Metadata::TableId::TypeDef>(_type.AsRowReference().GetIndex());
     }
 
     Metadata::TypeSignature Type::GetTypeSpecSignature() const
@@ -296,80 +296,38 @@ namespace CxxReflect {
             .GetBlob(_type.AsBlobReference())
             .As<Metadata::TypeSignature>();
     }
-
+    /* TODO
     Detail::MethodTableAllocator::Range Type::GetOrCreateMethodTable() const
     {
         // TODO We need to handle TypeSpec Type objects here.
         typedef Detail::MethodTableAllocator::Range Range;
 
         Detail::AssemblyContext const& context(_assembly.GetContext(InternalKey()));
-        Range const existingRange(context.GetMethodTableForType(_type.AsTableReference().GetIndex()));
+        Range const existingRange(context.GetMethodTableForType(_type.AsRowReference().GetIndex()));
 
         if (existingRange.IsInitialized())
             return existingRange;
 
-        std::vector<Detail::MethodReference> methods;
+        std::vector<Detail::MethodContext> methods;
         return existingRange; // TODO
     }
+    */
 
     Type::MethodIterator Type::BeginMethods(BindingFlags flags) const
     {
-        // TODO TYPESPEC SUPPORT
-        Metadata::TypeDefRow const typeDef(GetTypeDefRow());
-        return MethodIterator(*this, typeDef.GetFirstMethod(), typeDef.GetLastMethod(), flags);
+        // TODO Implement
     }
 
     Type::MethodIterator Type::EndMethods() const
     {
-        return MethodIterator();
-    }
-
-    Type::NextMethodScopeResult Type::InternalNextMethodScope(Type const& currentScope)
-    {
-        Type const baseType(currentScope.GetBaseType());
-        if (!baseType || !baseType.IsTypeDef()) // TODO HANDLE TYPESPECS
-        {
-            return NextMethodScopeResult();
-        }
-
-        return NextMethodScopeResult(
-            baseType,
-            baseType.GetTypeDefRow().GetFirstMethod(),
-            baseType.GetTypeDefRow().GetLastMethod());
-    }
-
-    bool Type::InternalFilterMethod(Method const& method, BindingFlags const& flags)
-    {
-        // Constructors are never returned during method iteration
-        if (method.GetName() == L".ctor" || method.GetName() == L".cctor")
-            return false;
-
-        if (method.GetAttributes().WithMask(MethodAttribute::MemberAccessMask) != MethodAttribute::Public &&
-            !flags.IsSet(BindingAttribute::NonPublic))
-            return false;
-
-        if (method.GetDeclaringType() != method.GetReflectedType())
-        {
-            MethodFlags const attributes(method.GetAttributes());
-            //if (attributes.IsSet(MethodAttribute::Static))
-            //    return false;
-
-            //if (attributes.IsSet(MethodAttribute::Virtual) &&
-            //    attributes.WithMask(MethodAttribute::VTableLayoutMask) == MethodAttribute::ReuseSlot)
-            //    return false;
-
-            if (attributes.WithMask(MethodAttribute::MemberAccessMask) == MethodAttribute::Private)
-                return false;
-        }
-
-        return true;
+        // TODO Implement
     }
 
     Type Type::GetBaseType() const
     {
         return ResolveTypeDefTypeAndCall([&](Type const& t) -> Type
         {
-            Metadata::TableReference extends(t.GetTypeDefRow().GetExtends());
+            Metadata::RowReference const extends(t.GetTypeDefRow().GetExtends());
             if (!extends.IsValid())
                 return Type();
 
@@ -395,7 +353,7 @@ namespace CxxReflect {
                 database.Begin<Metadata::TableId::NestedClass>(),
                 database.End<Metadata::TableId::NestedClass>(),
                 _type,
-                [](Metadata::NestedClassRow const& r, Metadata::TableOrBlobReference const index)
+                [](Metadata::NestedClassRow const& r, Metadata::ElementReference const& index)
             {
                 return r.GetNestedClass() < index;
             }));
@@ -404,7 +362,7 @@ namespace CxxReflect {
                 throw std::logic_error("wtf");
 
             // TODO IS THE TYPE DEF CHECK DONE AT THE PHYSICAL LAYER?
-            Metadata::TableReference const enclosingType(it->GetEnclosingClass());
+            Metadata::RowReference const enclosingType(it->GetEnclosingClass());
             if (enclosingType.GetTable() != Metadata::TableId::TypeDef)
                 throw std::logic_error("wtf");
 
