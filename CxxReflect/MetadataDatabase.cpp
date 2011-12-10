@@ -747,9 +747,9 @@ namespace CxxReflect { namespace Metadata {
     RowReference RowReference::FromToken(TokenType const token)
     {
         Detail::Verify([&]{ return (token & ValueIndexMask) != 0; });
-        return RowReference(
-            static_cast<TableId>((token & ValueTableIdMask) >> ValueIndexBits),
-            (token & ValueIndexMask) - 1);
+        RowReference result;
+        result._value.Get() = token - 1;
+        return result;
     }
 
 

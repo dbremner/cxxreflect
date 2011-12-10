@@ -69,16 +69,34 @@
   </Binaries>
   <Reports>
     <Report>
-      <Path>D:\jm\dev\CxxReflect\AssemblyDumpCPP111123.vsp</Path>
+      <Path>D:\jm\dev\CxxReflect\AssemblyDumpCPP111209(8).vsp</Path>
     </Report>
     <Report>
-      <Path>D:\jm\dev\CxxReflect\AssemblyDumpCPP111123(1).vsp</Path>
+      <Path>D:\jm\dev\CxxReflect\AssemblyDumpCPP111209(9).vsp</Path>
     </Report>
     <Report>
-      <Path>D:\jm\dev\CxxReflect\AssemblyDumpCPP111123(2).vsp</Path>
+      <Path>D:\jm\dev\CxxReflect\AssemblyDumpCPP111209(10).vsp</Path>
     </Report>
     <Report>
-      <Path>D:\jm\dev\CxxReflect\AssemblyDumpCPP111123(3).vsp</Path>
+      <Path>D:\jm\dev\CxxReflect\AssemblyDumpCPP111209.vsp</Path>
+    </Report>
+    <Report>
+      <Path>D:\jm\dev\CxxReflect\AssemblyDumpCPP111209(1).vsp</Path>
+    </Report>
+    <Report>
+      <Path>D:\jm\dev\CxxReflect\AssemblyDumpCPP111209(2).vsp</Path>
+    </Report>
+    <Report>
+      <Path>D:\jm\dev\CxxReflect\AssemblyDumpCPP111209(3).vsp</Path>
+    </Report>
+    <Report>
+      <Path>D:\jm\dev\CxxReflect\AssemblyDumpCPP111209(4).vsp</Path>
+    </Report>
+    <Report>
+      <Path>D:\jm\dev\CxxReflect\AssemblyDumpCPP111209(5).vsp</Path>
+    </Report>
+    <Report>
+      <Path>D:\jm\dev\CxxReflect\AssemblyDumpCPP111209(6).vsp</Path>
     </Report>
   </Reports>
   <Launches>

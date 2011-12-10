@@ -592,25 +592,25 @@ namespace CxxReflect { namespace Metadata {
             // The TypeCode marks the start of the actual 'Type' signature element
             TypeCode       = 0x03,
 
-            ArrayType                = static_cast<SizeType>(Kind::Array)       + 0x0a,
-            ArrayShape               = static_cast<SizeType>(Kind::Array)       + 0x0b,
+            ArrayType                = static_cast<SizeType>(Kind::Array)       + 0x04,
+            ArrayShape               = static_cast<SizeType>(Kind::Array)       + 0x05,
 
-            SzArrayType              = static_cast<SizeType>(Kind::SzArray)     + 0x0a,
+            SzArrayType              = static_cast<SizeType>(Kind::SzArray)     + 0x04,
 
-            ClassTypeReference       = static_cast<SizeType>(Kind::ClassType)   + 0x0a,
+            ClassTypeReference       = static_cast<SizeType>(Kind::ClassType)   + 0x04,
 
-            MethodSignature          = static_cast<SizeType>(Kind::FnPtr)       + 0x0a,
+            MethodSignature          = static_cast<SizeType>(Kind::FnPtr)       + 0x04,
 
-            GenericInstTypeCode      = static_cast<SizeType>(Kind::GenericInst) + 0x0a,
-            GenericInstTypeReference = static_cast<SizeType>(Kind::GenericInst) + 0x0b,
-            GenericInstArgumentCount = static_cast<SizeType>(Kind::GenericInst) + 0x0c,
-            FirstGenericInstArgument = static_cast<SizeType>(Kind::GenericInst) + 0x0d,
+            GenericInstTypeCode      = static_cast<SizeType>(Kind::GenericInst) + 0x04,
+            GenericInstTypeReference = static_cast<SizeType>(Kind::GenericInst) + 0x05,
+            GenericInstArgumentCount = static_cast<SizeType>(Kind::GenericInst) + 0x06,
+            FirstGenericInstArgument = static_cast<SizeType>(Kind::GenericInst) + 0x07,
 
-            PointerTypeSignature     = static_cast<SizeType>(Kind::Ptr)         + 0x0a,
+            PointerTypeSignature     = static_cast<SizeType>(Kind::Ptr)         + 0x04,
 
-            VariableNumber           = static_cast<SizeType>(Kind::Var)         + 0x0a,
+            VariableNumber           = static_cast<SizeType>(Kind::Var)         + 0x04,
 
-            End            = 0xff
+            End            = 0x08
         };
 
         typedef SentinelIterator<
@@ -728,6 +728,8 @@ namespace CxxReflect { namespace Metadata {
             : _arguments(firstArgument, lastArgument)
         {
         }
+
+        bool HasArguments() const { return !_arguments.empty(); }
 
         // Instantiates 'signature' by replacing each generic class variables in it with the
         // corresponding generic argument provided in the constructor of this functor.  The returned

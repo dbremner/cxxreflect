@@ -158,7 +158,9 @@ namespace CxxReflect { namespace Detail {
 
         // When this function returns, we want to clear the buffer so it's ready for our next use.
         // We can't just clear it when the function is called because this function is recursive.
-        ScopeGuard const bufferCleanupGuard([&]{ _buffer.clear(); });
+        // Note that we use resize(0) because on Visual C++, clear() will destroy the underlying
+        // storage.  We want to keep the buffer intact so we can reuse it.
+        ScopeGuard const bufferCleanupGuard([&]{ _buffer.resize(0); });
 
         TypeDefAndSpec const typeDefAndSpec(ResolveTypeDefAndSpec(type));
         FullReference const& typeDefReference(typeDefAndSpec.first);
@@ -179,7 +181,7 @@ namespace CxxReflect { namespace Detail {
             std::transform(table.Begin(), table.End(), std::back_inserter(_buffer), [&](MethodContext const& m)
                 -> MethodContext
             {
-                if (!Instantiator::RequiresInstantiation(m.GetMethodSignature()))
+                if (!instantiator.HasArguments() || !Instantiator::RequiresInstantiation(m.GetMethodSignature()))
                     return m;
 
                 return MethodContext(
@@ -202,7 +204,7 @@ namespace CxxReflect { namespace Detail {
                 .GetBlob(methodDef.GetSignature())
                 .As<Metadata::MethodSignature>());
 
-            ByteRange const instantiatedSig(Instantiator::RequiresInstantiation(methodSig)
+            ByteRange const instantiatedSig(instantiator.HasArguments() && Instantiator::RequiresInstantiation(methodSig)
                 ? Instantiate(instantiator, methodSig)
                 : ByteRange(methodSig.BeginBytes(), methodSig.EndBytes()));
 

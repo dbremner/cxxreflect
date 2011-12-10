@@ -45,20 +45,45 @@ namespace { namespace Private {
     {
         CompressedIntBytes result;
 
-        result.Bytes[0] = ReadByte(it, last);
-        if      ((result.Bytes[0] & 0x80) == 0) { result.Count = 1;                          }
-        else if ((result.Bytes[0] & 0x40) == 0) { result.Count = 2; result.Bytes[0] ^= 0x80; }
-        else if ((result.Bytes[0] & 0x20) == 0) { result.Count = 4; result.Bytes[0] ^= 0xC0; }
+        if (it == last)
+            throw Private::ReadError(Private::IteratorReadUnexpectedEnd);
+
+        result.Bytes[0] = *it++;
+        if ((result.Bytes[0] & 0x80) == 0)
+        {
+            result.Count = 1;
+            return result;
+        }
+        else if ((result.Bytes[0] & 0x40) == 0)
+        {
+            result.Count = 2;
+            result.Bytes[1] = result.Bytes[0];
+            result.Bytes[1] ^= 0x80;
+
+            if (last - it < 1)
+                throw Private::ReadError(Private::IteratorReadUnexpectedEnd);
+
+            result.Bytes[0] = *it++;
+            return result;
+        }
+        else if ((result.Bytes[0] & 0x20) == 0)
+        {
+            result.Count = 4;
+            result.Bytes[3] = result.Bytes[0];
+            result.Bytes[3] ^= 0xC0;
+
+            if (last - it < 3)
+                throw Private::ReadError(Private::IteratorReadUnexpectedEnd);
+
+            result.Bytes[2] = *it++;
+            result.Bytes[1] = *it++;
+            result.Bytes[0] = *it++;
+            return result;
+        }
         else
         {
-            throw ReadError("Ill-formed length value");
+            throw Private::ReadError(Private::IteratorReadUnexpectedEnd);
         }
-
-        for (unsigned i(1); i < result.Count; ++i)
-            result.Bytes[i] = ReadByte(it, last);
-
-        // TODO Integrate this reversal into the above logic
-        std::reverse(result.Bytes.begin(), result.Bytes.begin() + result.Count);
 
         return result;
     }
@@ -232,8 +257,8 @@ namespace CxxReflect { namespace Metadata {
 
         // TODO Check assignable-to?  Shouldn't this always be the case for derived classes?
 
-        if (lhs.GetParameterCount() != rhs.GetParameterCount())
-            return false;
+        // if (lhs.GetParameterCount() != rhs.GetParameterCount())
+        //     return false;
 
         if (!Detail::RangeCheckedEqual(
                 lhs.BeginParameters(), lhs.EndParameters(),
@@ -1642,7 +1667,6 @@ namespace CxxReflect { namespace Metadata {
             if (partKind != Kind::Unknown && !IsKind(partKind))
             {
                 Detail::VerifyFail("Invalid signature part requested");
-                // TODO RETURN EARLY?
             }
 
             auto const ExtractPart([](Part const p)

@@ -100,7 +100,6 @@ namespace CxxReflect { namespace Metadata {
     // adjust the index so that it is zero-based instead of one-based.  The invalid token value uses
     // all bits one instead of all bits zero.
     class RowReference
-        : Detail::Comparable<RowReference>
     {
     public:
 
@@ -155,6 +154,8 @@ namespace CxxReflect { namespace Metadata {
             return lhs._value.Get() < rhs._value.Get();
         }
 
+        CXXREFLECT_GENERATE_COMPARISON_OPERATORS(RowReference)
+
         static RowReference FromToken(TokenType const token);
 
     private:
@@ -179,7 +180,6 @@ namespace CxxReflect { namespace Metadata {
     // an unresolved reference simply has an index.  It must be resolved into the blob stream so
     // that its length can be computed.  A resolved reference has both an index and a size.
     class BlobReference
-        : Detail::Comparable<BlobReference>
     {
     public:
 
@@ -222,6 +222,8 @@ namespace CxxReflect { namespace Metadata {
             return lhs._index.Get() < rhs._index.Get();
         }
 
+        CXXREFLECT_GENERATE_COMPARISON_OPERATORS(BlobReference)
+
     private:
 
         void VerifyInitialized() const
@@ -239,7 +241,6 @@ namespace CxxReflect { namespace Metadata {
     // Represents a reference to either a blob or a row, along with the database in which the blob
     // or row is resolvable.
     class BaseElementReference
-        : Detail::Comparable<BaseElementReference>
     {
     public:
 
@@ -294,6 +295,8 @@ namespace CxxReflect { namespace Metadata {
         {
             return lhs._index.Get() < rhs._index.Get();
         }
+
+        CXXREFLECT_GENERATE_COMPARISON_OPERATORS(BaseElementReference)
 
     protected:
 
@@ -714,7 +717,6 @@ namespace CxxReflect { namespace Metadata {
     // The core metadata database interface.  This loads the database from the assembly file and
     // initializes all of the data structures required for accessing the metadata.
     class Database
-        : public Detail::Comparable<Database>
     {
     public:
 
@@ -793,6 +795,8 @@ namespace CxxReflect { namespace Metadata {
             return std::less<Database const*>()(&lhs, &rhs);
         }
 
+        CXXREFLECT_GENERATE_COMPARISON_OPERATORS(Database)
+
     private:
 
         Database(Database const&);
@@ -818,7 +822,6 @@ namespace CxxReflect { namespace Metadata {
     // This iterator type provides a random access container interface for the metadata database.
     template <TableId TId>
     class RowIterator
-        : Detail::Comparable<RowIterator<TId>>
     {
     public:
 
@@ -886,6 +889,8 @@ namespace CxxReflect { namespace Metadata {
             VerifyComparable(lhs, rhs);
             return lhs._index.Get() < rhs._index.Get();
         }
+
+        CXXREFLECT_GENERATE_COMPARISON_OPERATORS(RowIterator)
 
     private:
 

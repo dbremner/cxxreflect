@@ -165,19 +165,36 @@ namespace CxxReflect { namespace Detail {
             return lhs Op ::CxxReflect::Detail::AsInteger(rhs);                       \
         }
 
-    #define CXXREFLECT_GENERATE_SCOPED_ENUM_OPERATORS(E)                  \
-        CXXREFLECT_GENERATE_SCOPED_ENUM_OPERATORS_BINARY_EVAL_EVAL(E, |)  \
-        CXXREFLECT_GENERATE_SCOPED_ENUM_OPERATORS_BINARY_EVAL_EVAL(E, &)  \
-        CXXREFLECT_GENERATE_SCOPED_ENUM_OPERATORS_BINARY_EVAL_EVAL(E, ^)  \
-        CXXREFLECT_GENERATE_SCOPED_ENUM_OPERATORS_BINARY_EREF_EVAL(E, |)  \
-        CXXREFLECT_GENERATE_SCOPED_ENUM_OPERATORS_BINARY_EREF_EVAL(E, &)  \
-        CXXREFLECT_GENERATE_SCOPED_ENUM_OPERATORS_BINARY_EREF_EVAL(E, ^)  \
-        CXXREFLECT_GENERATE_SCOPED_ENUM_OPERATORS_BINARY_COMPARE  (E, ==) \
-        CXXREFLECT_GENERATE_SCOPED_ENUM_OPERATORS_BINARY_COMPARE  (E, !=) \
-        CXXREFLECT_GENERATE_SCOPED_ENUM_OPERATORS_BINARY_COMPARE  (E, < ) \
-        CXXREFLECT_GENERATE_SCOPED_ENUM_OPERATORS_BINARY_COMPARE  (E, > ) \
-        CXXREFLECT_GENERATE_SCOPED_ENUM_OPERATORS_BINARY_COMPARE  (E, <=) \
+    #define CXXREFLECT_GENERATE_SCOPED_ENUM_OPERATORS(E)                              \
+        CXXREFLECT_GENERATE_SCOPED_ENUM_OPERATORS_BINARY_EVAL_EVAL(E, |)              \
+        CXXREFLECT_GENERATE_SCOPED_ENUM_OPERATORS_BINARY_EVAL_EVAL(E, &)              \
+        CXXREFLECT_GENERATE_SCOPED_ENUM_OPERATORS_BINARY_EVAL_EVAL(E, ^)              \
+        CXXREFLECT_GENERATE_SCOPED_ENUM_OPERATORS_BINARY_EREF_EVAL(E, |)              \
+        CXXREFLECT_GENERATE_SCOPED_ENUM_OPERATORS_BINARY_EREF_EVAL(E, &)              \
+        CXXREFLECT_GENERATE_SCOPED_ENUM_OPERATORS_BINARY_EREF_EVAL(E, ^)              \
+        CXXREFLECT_GENERATE_SCOPED_ENUM_OPERATORS_BINARY_COMPARE  (E, ==)             \
+        CXXREFLECT_GENERATE_SCOPED_ENUM_OPERATORS_BINARY_COMPARE  (E, !=)             \
+        CXXREFLECT_GENERATE_SCOPED_ENUM_OPERATORS_BINARY_COMPARE  (E, < )             \
+        CXXREFLECT_GENERATE_SCOPED_ENUM_OPERATORS_BINARY_COMPARE  (E, > )             \
+        CXXREFLECT_GENERATE_SCOPED_ENUM_OPERATORS_BINARY_COMPARE  (E, <=)             \
         CXXREFLECT_GENERATE_SCOPED_ENUM_OPERATORS_BINARY_COMPARE  (E, >=)
+
+
+
+    // Generators for frequently-defined operators.  Note that we explicitly do not use base classes
+    // for these:  Visual C++ will not fully perform the empty-base optimization when multiple
+    // inheritance is used.  This has significant performance implications.
+    #define CXXREFLECT_GENERATE_EQUALITY_OPERATORS(T)                                 \
+        friend bool operator!=(T const& lhs, T const& rhs) { return !(lhs == rhs); }
+
+    #define CXXREFLECT_GENERATE_RELATIONAL_OPERATORS(T) \
+        friend bool operator> (T const& lhs, T const& rhs) { return   rhs <  lhs ; }  \
+        friend bool operator<=(T const& lhs, T const& rhs) { return !(rhs <  lhs); }  \
+        friend bool operator>=(T const& lhs, T const& rhs) { return !(lhs <  rhs); }
+
+    #define CXXREFLECT_GENERATE_COMPARISON_OPERATORS(T)                               \
+        CXXREFLECT_GENERATE_EQUALITY_OPERATORS(T)                                     \
+        CXXREFLECT_GENERATE_RELATIONAL_OPERATORS(T)
 
 
 
@@ -414,7 +431,6 @@ namespace CxxReflect { namespace Detail {
 
     template <typename T>
     class EnhancedCString
-        : public Comparable<EnhancedCString<T>>
     {
     public:
 
@@ -503,15 +519,52 @@ namespace CxxReflect { namespace Detail {
         const_pointer c_str() const { return _first; }
         const_pointer data()  const { return _first; }
 
+        // We avoid using equal_range and lexicographic_compare here because they potentially
+        // require two passes over each string:  once to compute end(), which is lazy, and once to
+        // perform the comparison.  We can do the computation and comparison in one pass, which
+        // we do in compare_until_end<compare>().
+
         friend bool operator==(EnhancedCString const& lhs, EnhancedCString const& rhs)
         {
-            return RangeCheckedEqual(lhs.begin(), lhs.end(), rhs.begin(), rhs.end());
+            return compare_until_end<std::equal_to>(lhs, rhs);
         }
 
         friend bool operator<(EnhancedCString const& lhs, EnhancedCString const& rhs)
         {
-            return std::lexicographical_compare(lhs.begin(), lhs.end(), rhs.begin(), rhs.end());
+            return compare_until_end<std::less>(lhs, rhs);
         }
+
+        template <template <typename> class TCompare>
+        static bool compare_until_end(EnhancedCString const& lhs, EnhancedCString const& rhs)
+        {
+            const_pointer lhs_it(lhs.begin());
+            const_pointer rhs_it(rhs.begin());
+
+            if (lhs_it == nullptr && rhs_it == nullptr)
+                return TCompare<value_type>()(0, 0);
+
+            else if (lhs_it == nullptr && rhs_it != nullptr)
+                return TCompare<value_type>()(0, 1);
+
+            else if (lhs_it != nullptr && rhs_it == nullptr)
+                return TCompare<value_type>()(1, 0);
+
+            while (*lhs_it != 0 && *rhs_it != 0 && TCompare<value_type>()(*lhs_it, *rhs_it))
+            {
+                ++lhs_it;
+                ++rhs_it;
+            }
+
+            if (lhs._last == nullptr && *lhs_it == '\0')
+                lhs._last = lhs_it + 1;
+
+            if (rhs._last == nullptr && *rhs_it == '\0')
+                rhs._last = rhs_it + 1;
+
+            return *lhs_it == 0 && *rhs_it == 0;
+        }
+
+        CXXREFLECT_GENERATE_COMPARISON_OPERATORS(EnhancedCString)
 
         // TODO Consider implementing some of the rest of the std::string interface
 
@@ -627,8 +680,6 @@ namespace CxxReflect { namespace Detail {
 
     template <typename TEnumeration>
     class FlagSet
-        : //TODO public SafeBoolConvertible<FlagSet<TEnumeration>>,
-          public Comparable<FlagSet<TEnumeration>>
     {
     public:
 
@@ -672,16 +723,18 @@ namespace CxxReflect { namespace Detail {
 
         FlagSet WithMask(EnumerationType const mask) const
         {
-            return WithMask(static_cast<IntegralType>(mask));
+            return _value & static_cast<IntegralType>(mask);
         }
 
         FlagSet WithMask(IntegralType const mask) const
         {
-            return FlagSet(_value & mask);
+            return _value & mask;
         }
 
         friend bool operator==(FlagSet const& lhs, FlagSet const& rhs) { return lhs._value == rhs._value; }
         friend bool operator< (FlagSet const& lhs, FlagSet const& rhs) { return lhs._value <  rhs._value; }
+
+        CXXREFLECT_GENERATE_COMPARISON_OPERATORS(FlagSet)
 
     private:
 
@@ -777,9 +830,9 @@ namespace CxxReflect { namespace Detail {
         // fgetpos   GetPosition
         // fgets
         // fopen     [Constructor]
-        // fprintf
+        // fprintf   operator<<
         // fputc     PutChar
-        // fputs
+        // fputs     operator<<
         // fread     Read
         // freopen   [Not Implemented]
         // fscanf
@@ -789,7 +842,7 @@ namespace CxxReflect { namespace Detail {
         // fwrite    Write
         // getc      GetChar
         // putc      PutChar
-        // puts
+        // puts      operator<<
         // rewind    [Not Implemented]
 
         enum OriginType
@@ -833,7 +886,7 @@ namespace CxxReflect { namespace Detail {
         void Close()
         {
             // This is safe to call on a closed stream
-            FILE* localHandle(_handle);
+            FILE* const localHandle(_handle);
             _handle = nullptr;
 
             if (localHandle != nullptr && fclose(localHandle) == EOF)
@@ -1208,7 +1261,6 @@ namespace CxxReflect { namespace Detail {
     // dependent so that we don't need it defined when we define the template.
     template <typename TRowReference, typename TResult, typename TParameter>
     class TableTransformIterator
-        : public Comparable<TableTransformIterator<TRowReference, TResult, TParameter>>
     {
     public:
 
@@ -1274,6 +1326,8 @@ namespace CxxReflect { namespace Detail {
             return lhs._current.GetIndex() < rhs._current.GetIndex();
         }
 
+        CXXREFLECT_GENERATE_COMPARISON_OPERATORS(TableTransformIterator)
+
     private:
 
         TParameter    _parameter;
@@ -1296,6 +1350,7 @@ namespace CxxReflect { namespace Detail {
 
     class AssemblyContext;
     class MethodContext;
+    class MethodTableCollection;
 
 } }
 
@@ -1399,11 +1454,16 @@ namespace CxxReflect {
     // bugs elsewhere in the library.
     class InternalKey
     {
-    public: // TODO THIS SHOULD BE PRIVATE!
+    public: // TODO SHOULD BE PRIVATE
+
         InternalKey() { }
 
         friend Detail::AssemblyContext;
         friend Detail::MethodContext;
+        friend Detail::MethodTableCollection;
+
+        template <typename TRowReference, typename TResult, typename TParameter>
+        friend class Detail::TableTransformIterator;
 
         friend Assembly;
         friend AssemblyName;
