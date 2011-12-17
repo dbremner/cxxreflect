@@ -48,6 +48,7 @@ namespace { namespace Private {
         if (it == last)
             throw Private::ReadError(Private::IteratorReadUnexpectedEnd);
 
+        // Note:  we've manually unrolled this for performance.  Thank you, Mr. Profiler.
         result.Bytes[0] = *it++;
         if ((result.Bytes[0] & 0x80) == 0)
         {
@@ -84,8 +85,6 @@ namespace { namespace Private {
         {
             throw Private::ReadError(Private::IteratorReadUnexpectedEnd);
         }
-
-        return result;
     }
 
     std::int32_t ReadCompressedInt32(ByteIterator& it, ByteIterator const last)

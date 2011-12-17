@@ -6,21 +6,75 @@
 #define CXXREFLECT_PARAMETER_HPP_
 
 #include "CxxReflect/Core.hpp"
+#include "CxxReflect/MetadataSignature.hpp"
+
+namespace CxxReflect { namespace Detail {
+
+    template <bool (Metadata::TypeSignature::CustomModifierIterator::*FFilter)()>
+    class CustomModifierIterator
+    {
+    public:
+
+        typedef std::forward_iterator_tag                       iterator_category;
+        typedef Type                                            value_type;
+        typedef Type                                            reference;
+        typedef Dereferenceable<Type>                           pointer;
+        typedef std::ptrdiff_t                                  difference_type;
+
+        typedef value_type                                      ValueType;
+        typedef reference                                       Reference;
+        typedef pointer                                         Pointer;
+        typedef Metadata::TypeSignature::CustomModifierIterator InnerIterator;
+
+        CustomModifierIterator()
+        {
+        }
+
+        CustomModifierIterator(Method const& method, InnerIterator const& current)
+            : _method(method), _current(current)
+        {
+        }
+
+    private:
+
+        enum Kind : std::uint8_t
+        {
+            Optional,
+            Required
+        };
+
+        void AdvanceCurrentToNext()
+        {
+            while ((_kind.Get() == Optional ? _current->IsOptional() : _current->IsRequired())
+                && (_current != InnerIterator()))
+            {
+                ++_current;
+            }
+        }
+
+        ValueInitialized<Kind> _kind;
+        InnerIterator          _current;
+    };
+
+} }
 
 namespace CxxReflect {
 
     class Parameter
-        : public Detail::SafeBoolConvertible<Parameter>,
-          public Detail::EqualityComparable<Parameter>,
-          public Detail::RelationalComparable<Parameter>
     {
     public:
 
         typedef void /* TODO */ OptionalCustomModifierIterator;
         typedef void /* TODO */ RequiredCustomModifierIterator;
 
+        Parameter();
+
+        Parameter(Method                  const& method,
+                  Metadata::RowReference  const& parameter,
+                  Metadata::TypeSignature const& signature);
+
         ParameterFlags GetAttributes() const;
-        // DefaultValue
+
         bool IsIn()       const;
         bool IsLcid()     const;
         bool IsOptional() const;
@@ -29,13 +83,15 @@ namespace CxxReflect {
 
         Method GetDeclaringMethod() const;
 
-        std::uint32_t GetMetadataToken() const;
+        SizeType        GetMetadataToken() const;
 
-        StringReference GetName()     const;
+        StringReference GetName()          const;
 
-        Type GetType();
-        SizeType        GetPosition() const;
-        // RawDefaultValue
+        Type            GetType()          const;
+        SizeType        GetPosition()      const;
+
+        // TODO DefaultValue
+        // TODO RawDefaultValue
 
         OptionalCustomModifierIterator BeginOptionalCustomModifiers() const;
         OptionalCustomModifierIterator EndOptionalCustomModifiers()   const;
@@ -43,20 +99,29 @@ namespace CxxReflect {
         RequiredCustomModifierIterator BeginRequiredCustomModifiers() const;
         RequiredCustomModifierIterator EndRequiredCustomModifiers()   const;
 
-        // GetCustomAttributes
-        // IsDefined
+        // TODO GetCustomAttributes
+        // TODO IsDefined
+
+        bool IsInitialized() const;
+
+        bool operator!() const;
 
         friend bool operator==(Parameter const& lhs, Parameter const& rhs); // TODO
         friend bool operator< (Parameter const& lhs, Parameter const& rhs); // TODO
+
+        CXXREFLECT_GENERATE_COMPARISON_OPERATORS(Parameter)
+        CXXREFLECT_GENERATE_SAFE_BOOL_CONVERSION(Parameter)
 
         // -- The following members of System.Reflection.ParameterInfo are not implemented --
         // Member     Use GetDeclaringMethod;
 
     private:
 
-        Parameter(Parameter const&);
-        Parameter& operator=(Parameter const&);
+        void VerifyInitialized() const;
 
+        Method                  _method;
+        Metadata::RowReference  _parameter;
+        Metadata::TypeSignature _signature;
     };
 
 }

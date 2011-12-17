@@ -123,7 +123,6 @@ namespace CxxReflect { namespace Metadata {
               TValue(*FMaterialize)(ByteIterator&, ByteIterator),
               bool(*FSentinelCheck)(ByteIterator,  ByteIterator)>
     class SentinelIterator
-        : Detail::EqualityComparable<SentinelIterator<TValue, FMaterialize, FSentinelCheck>>
     {
     public:
 
@@ -164,6 +163,8 @@ namespace CxxReflect { namespace Metadata {
             return lhs._current.Get() == rhs._current.Get();
         }
 
+        CXXREFLECT_GENERATE_EQUALITY_OPERATORS(SentinelIterator)
+
     private:
 
         void Materialize()
@@ -202,7 +203,6 @@ namespace CxxReflect { namespace Metadata {
               TValue(*FMaterialize)(ByteIterator&, ByteIterator),
               bool(*FSentinelCheck)(ByteIterator,  ByteIterator) = &AlwaysFalseSentinelCheck<ByteIterator>>
     class CountingIterator
-        : Detail::EqualityComparable<CountingIterator<TValue, FMaterialize, FSentinelCheck>>
     {
     public:
 
@@ -255,6 +255,8 @@ namespace CxxReflect { namespace Metadata {
 
             return false;
         }
+
+        CXXREFLECT_GENERATE_EQUALITY_OPERATORS(CountingIterator)
 
     private:
 

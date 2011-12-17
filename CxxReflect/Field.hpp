@@ -5,7 +5,7 @@
 #ifndef CXXREFLECT_FIELD_HPP_
 #define CXXREFLECT_FIELD_HPP_
 
-#include "CxxReflect/CoreDeclarations.hpp"
+#include "CxxReflect/Core.hpp"
 
 namespace CxxReflect {
 
@@ -49,8 +49,6 @@ namespace CxxReflect {
         // SetValueDirect
 
     private:
-
-        CXXREFLECT_NONCOPYABLE(Field);
 
     };
 

@@ -5,7 +5,7 @@
 #ifndef CXXREFLECT_EVENT_HPP_
 #define CXXREFLECT_EVENT_HPP_
 
-#include "CxxReflect/CoreDeclarations.hpp"
+#include "CxxReflect/Core.hpp"
 
 namespace CxxReflect {
 
@@ -34,8 +34,6 @@ namespace CxxReflect {
         // RemoveEventHandler
 
     private:
-
-        CXXREFLECT_NONCOPYABLE(Event);
 
     };
 

@@ -8,15 +8,7 @@
 // to validate that the CxxReflect library is functionally equivalent (where appropriate) to the
 // .NET Reflection API. 
 
-#include "CxxReflect/Assembly.hpp"
-#include "CxxReflect/AssemblyName.hpp"
-#include "CxxReflect/MetadataLoader.hpp"
-#include "CxxReflect/MetadataSignature.hpp"
-#include "CxxReflect/Method.hpp"
-#include "CxxReflect/Type.hpp"
-
-#include <algorithm>
-#include <cstdio>
+#include "CxxReflect/CxxReflect.hpp"
 
 using namespace CxxReflect;
 
@@ -70,7 +62,7 @@ namespace
         os << L" -- Type [" << t.GetFullName().c_str() << L"] [$" << Detail::HexFormat(t.GetMetadataToken()) << L"]\n";
         os << L"     -- AssemblyQualifiedName [" << t.GetAssemblyQualifiedName().c_str() << L"]\n";
         os << L"     -- BaseType [" << (t.GetBaseType() ? t.GetBaseType().GetFullName().c_str() : L"NO BASE TYPE") << L"]\n";
-        os << L"         -- AssemblyQualifiedName [" << (t.GetBaseType() ? t.GetBaseType().GetAssemblyQualifiedName().c_str() : L"NO BASE TYPE") << L"]\n"; // TODO DO WE NEED TO DUMP FULL TYPE INFO?
+        os << L"         -- AssemblyQualifiedName [" << (t.GetBaseType().IsInitialized() ? t.GetBaseType().GetAssemblyQualifiedName().c_str() : L"NO BASE TYPE") << L"]\n"; // TODO DO WE NEED TO DUMP FULL TYPE INFO?
 
         #define F(n) (t.n() ? 1 : 0)
         os << L"     -- IsTraits [" 
@@ -86,61 +78,18 @@ namespace
         os << L"    !!BeginMethods\n";
         Type methodsType = t.IsEnum() ? t.GetBaseType() : t;
 
-        Detail::MethodTable allMethods(t.GetAssembly().GetContext(InternalKey()).GetOrCreateMethodTable(
-            RowReference::FromToken(t.GetMetadataToken())));
+        std::vector<Method> allMethods(t.BeginMethods(BindingAttribute::Public | BindingAttribute::NonPublic | BindingAttribute::Static | BindingAttribute::Instance | BindingAttribute::FlattenHierarchy), t.EndMethods());
 
-        std::sort(allMethods.Begin(), allMethods.End(), [](Detail::MethodContext const& lhs, Detail::MethodContext const& rhs)
+        std::sort(allMethods.begin(), allMethods.end(), [](Method const& lhs, Method const& rhs)
         {
-            return lhs.GetMethod().AsRowReference().GetToken() < rhs.GetMethod().AsRowReference().GetToken();
+            return lhs.GetMetadataToken() < rhs.GetMetadataToken();;
         });
-
-        std::for_each(allMethods.Begin(), allMethods.End(), [&](Detail::MethodContext const& m)
-        {
-            MethodDefRow const mdr(m
-                .GetMethod()
-                .GetDatabase()
-                .GetRow<TableId::MethodDef>(m.GetMethod().AsRowReference().GetIndex()));
-
-            // Inherited type:
-            if (m.GetDeclaringType().AsRowReference().GetToken() != t.GetMetadataToken() ||
-                m.GetMethod().GetDatabase() != t.GetAssembly().GetContext(InternalKey()).GetDatabase())
-            {
-                //if (mdr.GetFlags().IsSet(MethodAttribute::Static))
-                //    return;
-
-                if (mdr.GetFlags().WithMask(MethodAttribute::MemberAccessMask) == MethodAttribute::Private &&
-                    !IsExplicitInterfaceImplementation(mdr.GetName()))
-                    return;
-
-                if (mdr.GetFlags().WithMask(MethodAttribute::MemberAccessMask) == MethodAttribute::Private &&
-                    mdr.GetFlags().IsSet(MethodAttribute::Static))
-                    return;
-            }
-
-            if (mdr.GetFlags().IsSet(MethodAttribute::SpecialName) && mdr.GetName() == L".ctor")
-                return;
-
-            if (mdr.GetFlags().IsSet(MethodAttribute::SpecialName) && mdr.GetName() == L".cctor")
-                return;
-
-            //if (String(mdr.GetName().c_str()).substr(0, 8) == L"<.cctor>")
-            //    return;
-
-            os << L"     -- Method [" << mdr.GetName().c_str() << L"] [$" << Detail::HexFormat(mdr.GetSelfReference().GetToken()) << L"]\n";
-        });
-
-        /*
-        BindingFlags const bindings(
-            BindingAttribute::FlattenHierarchy |
-            BindingAttribute::Instance         |
-            BindingAttribute::NonPublic        |
-            BindingAttribute::Public           |
-            BindingAttribute::Static);
-        std::for_each(methodsType.BeginMethods(bindings), methodsType.EndMethods(), [&](Method const& m)
+        
+        std::for_each(allMethods.begin(), allMethods.end(), [&](Method const& m)
         {
             Dump(os, m);
         });
-        */
+
         os << L"    !!EndMethods\n";
     }
 

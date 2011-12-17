@@ -5,8 +5,7 @@
 #ifndef CXXREFLECT_METHOD_HPP_
 #define CXXREFLECT_METHOD_HPP_
 
-#include "CxxReflect/Core.hpp"
-#include "CxxReflect/Type.hpp"
+#include "CxxReflect/Handles.hpp"
 
 namespace CxxReflect {
 
@@ -16,28 +15,19 @@ namespace CxxReflect {
 
         enum { InvalidVtableSlot = static_cast<SizeType>(-1) };
 
-        Method() { }
+        Method();
+        Method(Type const& reflectedType, Detail::MethodContext const* context, InternalKey);
 
-        Method(Type const& declaringType, Type const& reflectedType, Metadata::RowReference const& method)
-            : _declaringType(declaringType),
-              _reflectedType(reflectedType),
-              _method(method)
-        {
-            Detail::Verify([&]{ return declaringType != nullptr; });
-            Detail::Verify([&]{ return reflectedType != nullptr; });
-            Detail::Verify([&]{ return method.IsValid(); });
-        }
+        Detail::MethodContext const& GetContext(InternalKey) const { return *_context.Get(); }
 
-        Type GetDeclaringType() const { return _declaringType; }
-        Type GetReflectedType() const { return _reflectedType; }
+        Type GetDeclaringType() const;
+        Type GetReflectedType() const;
 
-        bool ContainsGenericParameters() const;
-
-        MethodFlags GetAttributes() const;
-        CallingConvention GetCallingConvention() const;
-        SizeType GetMetadataToken() const;
-
-        StringReference GetName() const;
+        bool              ContainsGenericParameters() const;
+        MethodFlags       GetAttributes()             const;
+        CallingConvention GetCallingConvention()      const;
+        SizeType          GetMetadataToken()          const;
+        StringReference   GetName()                   const;
 
         bool IsAbstract()                const;
         bool IsAssembly()                const;
@@ -54,6 +44,8 @@ namespace CxxReflect {
         bool IsSpecialName()             const;
         bool IsStatic()                  const;
         bool IsVirtual()                 const;
+
+        bool IsInitialized()             const;
 
         // Module
         // ReturnParameter            -- Non-constructor only
@@ -80,23 +72,20 @@ namespace CxxReflect {
         //
         // Invoke                    N/A in reflection-only
 
+        friend bool operator==(Method const& lhs, Method const& rhs);
+        friend bool operator< (Method const& lhs, Method const& rhs);
+
+        CXXREFLECT_GENERATE_COMPARISON_OPERATORS(Method)
+
     private:
+
+        void VerifyInitialized() const;
 
         Metadata::MethodDefRow GetMethodDefRow() const;
 
-        Type                   _reflectedType;
-        Type                   _declaringType;
-        Metadata::RowReference _method;
+        Detail::TypeHandle                                     _reflectedType;
+        Detail::ValueInitialized<Detail::MethodContext const*> _context;
     };
-
-    //bool operator==(Method const& lhs, Method const& rhs); // TODO
-    //bool operator< (Method const& lhs, Method const& rhs); // TODO
-
-    /*inline bool operator!=(Method const& lhs, Method const& rhs) { return !(lhs == rhs); }
-    inline bool operator> (Method const& lhs, Method const& rhs) { return  (rhs <  lhs); }
-    inline bool operator>=(Method const& lhs, Method const& rhs) { return !(lhs <  rhs); }
-    inline bool operator<=(Method const& lhs, Method const& rhs) { return !(rhs <  lhs); }*/
-
 }
 
 #endif

@@ -84,6 +84,7 @@
     <ClInclude Include="CxxReflect.hpp" />
     <ClInclude Include="File.hpp" />
     <ClInclude Include="Guid.hpp" />
+    <ClInclude Include="Handles.hpp" />
     <ClInclude Include="MetadataSignature.hpp" />
     <ClInclude Include="MetadataDatabase.hpp" />
     <ClInclude Include="MetadataLoader.hpp" />
@@ -98,6 +99,7 @@
     <ClCompile Include="AssemblyName.cpp" />
     <ClCompile Include="CustomAttribute.cpp" />
     <ClCompile Include="Guid.cpp" />
+    <ClCompile Include="Handles.cpp" />
     <ClCompile Include="MetadataSignature.cpp" />
     <ClCompile Include="MetadataDatabase.cpp" />
     <ClCompile Include="MetadataLoader.cpp" />

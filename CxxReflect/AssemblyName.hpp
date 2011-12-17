@@ -10,7 +10,6 @@
 namespace CxxReflect {
 
     class Version
-        : Detail::Comparable<Version>
     {
     public:
 
@@ -54,6 +53,8 @@ namespace CxxReflect {
             return false;
         }
 
+        CXXREFLECT_GENERATE_COMPARISON_OPERATORS(Version)
+
     private:
 
         std::uint16_t _major;
@@ -68,7 +69,6 @@ namespace CxxReflect {
     typedef std::array<std::uint8_t, 8> PublicKeyToken;
 
     class AssemblyName
-        : Detail::Comparable<AssemblyName>
     {
     public:
 
@@ -120,7 +120,7 @@ namespace CxxReflect {
                 && lhs.GetPublicKeyToken() == rhs.GetPublicKeyToken();
         }
 
-        friend bool operator< (AssemblyName const& lhs, AssemblyName const& rhs)
+        friend bool operator<(AssemblyName const& lhs, AssemblyName const& rhs)
         {
             if (lhs.GetName()           < rhs.GetName())           { return true;  }
             if (rhs.GetName()           < lhs.GetName())           { return false; }
@@ -131,6 +131,8 @@ namespace CxxReflect {
             if (lhs.GetPublicKeyToken() < rhs.GetPublicKeyToken()) { return true;  }
             return false;
         }
+
+        CXXREFLECT_GENERATE_COMPARISON_OPERATORS(AssemblyName)
 
     private:
 

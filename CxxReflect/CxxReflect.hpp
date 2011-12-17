@@ -5,23 +5,15 @@
 #ifndef CXXREFLECT_CXXREFLECT_HPP_
 #define CXXREFLECT_CXXREFLECT_HPP_
 
-
-//          _________                 __________          _____.__                   __           //
-//          \_   ___ \___  ______  ___\______   \  ____ _/ ____\  |    ____   ____ _/  |_         //
-//          /    \  \/\  \/  /\  \/  / |       _/_/ __ \\   __\|  |  _/ __ \_/ ___\\   __\        //
-//          \     \____>    <  >    <  |    |   \\  ___/ |  |  |  |__\  ___/\  \___ |  |          //
-//           \______  /__/\_ \/__/\_ \ |____|_  / \___  >|__|  |____/ \___  >\___  >|__|          //
-//                  \/      \/      \/        \/      \/                  \/     \/               //
-
-
 #include "CxxReflect/Assembly.hpp"
 #include "CxxReflect/AssemblyName.hpp"
-#include "CxxReflect/CoreDeclarations.hpp"
+#include "CxxReflect/Core.hpp"
 #include "CxxReflect/CustomAttribute.hpp"
 #include "CxxReflect/Event.hpp"
-#include "CxxReflect/Exceptions.hpp"
 #include "CxxReflect/Field.hpp"
-#include "CxxReflect/MetadataReader.hpp"
+#include "CxxReflect/MetadataDatabase.hpp"
+#include "CxxReflect/MetadataLoader.hpp"
+#include "CxxReflect/MetadataSignature.hpp"
 #include "CxxReflect/Method.hpp"
 #include "CxxReflect/Parameter.hpp"
 #include "CxxReflect/Property.hpp"

@@ -2,6 +2,7 @@
 //                   Distributed under the Boost Software License, Version 1.0.                   //
 //     (See accompanying file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)    //
 
+#include "CxxReflect/Assembly.hpp"
 #include "CxxReflect/AssemblyName.hpp"
 #include "CxxReflect/MetadataLoader.hpp"
 #include "CxxReflect/MetadataSignature.hpp"
@@ -170,6 +171,11 @@ namespace CxxReflect {
         }
     }
 
+    Assembly Type::GetAssembly() const
+    {
+        return _assembly.Realize();
+    }
+
     bool Type::AccumulateFullNameInto(OutputStream& os) const
     {
         // TODO ENSURE WE ESCAPE THE TYPE NAME CORRECTLY
@@ -210,7 +216,7 @@ namespace CxxReflect {
                     return false;
                 }
 
-                Type const genericType(_assembly, signature.GetGenericTypeReference(), InternalKey());
+                Type const genericType(_assembly.Realize(), signature.GetGenericTypeReference(), InternalKey());
                 genericType.AccumulateFullNameInto(os);
 
                 os << L'[';
@@ -221,9 +227,9 @@ namespace CxxReflect {
                 {
                     os << L'[';
                     Type const argumentType(
-                        _assembly,
+                        _assembly.Realize(),
                         Metadata::BlobReference(
-                            argumentSignature.BeginBytes() - _assembly.GetContext(InternalKey()).GetDatabase().GetBlobs().Begin(),
+                            argumentSignature.BeginBytes() - _assembly.Realize().GetContext(InternalKey()).GetDatabase().GetBlobs().Begin(),
                             argumentSignature.EndBytes() - argumentSignature.BeginBytes()), InternalKey());
                     argumentType.AccumulateAssemblyQualifiedNameInto(os);
                     os << L']';
@@ -233,16 +239,16 @@ namespace CxxReflect {
             }
             case Metadata::TypeSignature::Kind::ClassType:
             {
-                Type const classType(_assembly, signature.GetTypeReference(), InternalKey());
+                Type const classType(_assembly.Realize(), signature.GetTypeReference(), InternalKey());
                 classType.AccumulateFullNameInto(os);
                 break;
             }
             case Metadata::TypeSignature::Kind::SzArray:
             {
                 Type const classType(
-                    _assembly,
+                    _assembly.Realize(),
                     Metadata::BlobReference(
-                        signature.GetArrayType().BeginBytes() - _assembly.GetContext(InternalKey()).GetDatabase().GetBlobs().Begin(),
+                        signature.GetArrayType().BeginBytes() - _assembly.Realize().GetContext(InternalKey()).GetDatabase().GetBlobs().Begin(),
                         signature.GetArrayType().EndBytes() - signature.BeginBytes()),
                     InternalKey());
 
@@ -272,7 +278,7 @@ namespace CxxReflect {
     {
         if (AccumulateFullNameInto(os))
         {
-            os << L", " << _assembly.GetName().GetFullName();
+            os << L", " << _assembly.Realize().GetName().GetFullName();
         }
     }
 
@@ -281,6 +287,7 @@ namespace CxxReflect {
         Detail::Verify([&]{ return IsTypeDef(); });
 
         return _assembly
+            .Realize()
             .GetContext(InternalKey())
             .GetDatabase()
             .GetRow<Metadata::TableId::TypeDef>(_type.AsRowReference().GetIndex());
@@ -291,6 +298,7 @@ namespace CxxReflect {
         Detail::Verify([&]{ return IsTypeSpec(); });
 
         return _assembly
+            .Realize()
             .GetContext(InternalKey())
             .GetDatabase()
             .GetBlob(_type.AsBlobReference())
@@ -315,12 +323,13 @@ namespace CxxReflect {
 
     Type::MethodIterator Type::BeginMethods(BindingFlags flags) const
     {
-        // TODO Implement
+        Detail::MethodTable const& table(_assembly.Realize().GetContext(InternalKey()).GetOrCreateMethodTable(_type));
+        return MethodIterator(*this, table.Begin(), table.End(), flags);
     }
 
     Type::MethodIterator Type::EndMethods() const
     {
-        // TODO Implement
+        return MethodIterator();
     }
 
     Type Type::GetBaseType() const
@@ -336,7 +345,7 @@ namespace CxxReflect {
             case Metadata::TableId::TypeDef:
             case Metadata::TableId::TypeRef:
             case Metadata::TableId::TypeSpec:
-                return Type(_assembly, extends, InternalKey());
+                return Type(_assembly.Realize(), extends, InternalKey());
 
             default:
                 throw std::logic_error("wtf");
@@ -348,7 +357,7 @@ namespace CxxReflect {
     {
         if (IsNested())
         {
-            Metadata::Database const& database(_assembly.GetContext(InternalKey()).GetDatabase());
+            Metadata::Database const& database(_assembly.Realize().GetContext(InternalKey()).GetDatabase());
             auto const it(std::lower_bound(
                 database.Begin<Metadata::TableId::NestedClass>(),
                 database.End<Metadata::TableId::NestedClass>(),
@@ -366,7 +375,7 @@ namespace CxxReflect {
             if (enclosingType.GetTable() != Metadata::TableId::TypeDef)
                 throw std::logic_error("wtf");
 
-            return Type(_assembly, enclosingType, InternalKey());
+            return Type(_assembly.Realize(), enclosingType, InternalKey());
         }
 
         // TODO OTHER KINDS OF DECLARING TYPES
@@ -640,7 +649,7 @@ namespace CxxReflect {
     {
         if (!IsTypeDef()) { return false; }
 
-        if (!Private::IsSystemAssembly(_assembly)) { return false; }
+        if (!Private::IsSystemAssembly(_assembly.Realize())) { return false; }
 
         if (GetTypeDefRow().GetNamespace() != L"System") { return false; }
 
@@ -727,6 +736,24 @@ namespace CxxReflect {
         // TODO CHECK BEHAVIOR FOR TYPESPECS
 
         return TodoNotYetImplementedFlag;
+    }
+
+    bool operator==(Type const& lhs, Type const& rhs)
+    {
+        return lhs.GetAssembly() == rhs.GetAssembly()
+            && lhs.GetMetadataToken() == rhs.GetMetadataToken();
+    }
+
+    // We provide a total ordering of Types across all loaded assemblies.  Types within a given
+    // assembly are ordered by metadata token; types in different assemblies have an unspecified
+    // total ordering.
+    bool operator<(Type const& lhs, Type const& rhs)
+    {
+        if (lhs.GetAssembly() < rhs.GetAssembly())
+            return true;
+
+        return lhs.GetAssembly() == rhs.GetAssembly()
+            && lhs.GetMetadataToken() == rhs.GetMetadataToken();
     }
 
 }

@@ -31,6 +31,9 @@
     <ClCompile Include="MetadataSignature.cpp">
       <Filter>Sources</Filter>
     </ClCompile>
+    <ClCompile Include="Handles.cpp">
+      <Filter>Sources</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Assembly.hpp">
@@ -82,6 +85,9 @@
       <Filter>Headers</Filter>
     </ClInclude>
     <ClInclude Include="MetadataSignature.hpp">
+      <Filter>Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="Handles.hpp">
       <Filter>Headers</Filter>
     </ClInclude>
   </ItemGroup>

@@ -155,6 +155,7 @@ namespace CxxReflect { namespace Metadata {
         }
 
         CXXREFLECT_GENERATE_COMPARISON_OPERATORS(RowReference)
+        CXXREFLECT_GENERATE_ADDITION_SUBTRACTION_OPERATORS(RowReference, _value.Get(), std::int32_t)
 
         static RowReference FromToken(TokenType const token);
 

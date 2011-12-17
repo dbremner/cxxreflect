@@ -5,15 +5,11 @@
 #ifndef CXXREFLECT_ASSEMBLY_HPP_
 #define CXXREFLECT_ASSEMBLY_HPP_
 
-#include "CxxReflect/Core.hpp"
-#include "CxxReflect/MetadataDatabase.hpp"
-#include "CxxReflect/MetadataLoader.hpp"
+#include <CxxReflect/Handles.hpp>
 
 namespace CxxReflect {
 
     class Assembly
-        : public Detail::SafeBoolConvertible<Assembly>,
-          public Detail::Comparable<Assembly>
     {
     public:
 
@@ -37,10 +33,10 @@ namespace CxxReflect {
         AssemblyName const& GetName() const;
         String       const& GetPath() const;
 
-        typedef Detail::TableTransformIterator<Metadata::RowReference, File,   Assembly>       FileIterator;
-        typedef Detail::TableTransformIterator<Metadata::RowReference, Module, Assembly>       ModuleIterator;
-        typedef Detail::TableTransformIterator<Metadata::RowReference, Type,   Assembly>       TypeIterator;
-        typedef Detail::TableTransformIterator<Metadata::RowReference, AssemblyName, Assembly> AssemblyNameIterator;
+        typedef Detail::InstantiatingIterator<Metadata::RowReference, File,   Assembly>       FileIterator;
+        typedef Detail::InstantiatingIterator<Metadata::RowReference, Module, Assembly>       ModuleIterator;
+        typedef Detail::InstantiatingIterator<Metadata::RowReference, Type,   Assembly>       TypeIterator;
+        typedef Detail::InstantiatingIterator<Metadata::RowReference, AssemblyName, Assembly> AssemblyNameIterator;
 
         SizeType             GetReferencedAssemblyCount()   const;
         AssemblyNameIterator BeginReferencedAssemblyNames() const;
@@ -121,6 +117,9 @@ namespace CxxReflect {
         {
             return lhs._context.Get() <  rhs._context.Get();
         }
+
+        CXXREFLECT_GENERATE_COMPARISON_OPERATORS(Assembly)
+        CXXREFLECT_GENERATE_SAFE_BOOL_CONVERSION(Assembly)
 
     private:
 

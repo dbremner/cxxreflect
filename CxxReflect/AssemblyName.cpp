@@ -5,6 +5,7 @@
 #include "CxxReflect/Assembly.hpp"
 #include "CxxReflect/AssemblyName.hpp"
 #include "CxxReflect/MetadataDatabase.hpp"
+#include "CxxReflect/MetadataLoader.hpp"
 
 namespace { namespace Private {
 

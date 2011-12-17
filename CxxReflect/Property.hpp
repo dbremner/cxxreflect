@@ -5,7 +5,7 @@
 #ifndef CXXREFLECT_PROPERTY_HPP_
 #define CXXREFLECT_PROPERTY_HPP_
 
-#include "CxxReflect/CoreDeclarations.hpp"
+#include "CxxReflect/Core.hpp"
 
 namespace CxxReflect {
 
@@ -41,8 +41,6 @@ namespace CxxReflect {
         // -- The following members of System.Reflection.PropertyInfo are not implemented --
 
     private:
-
-        CXXREFLECT_NONCOPYABLE(Property);
 
     };
 

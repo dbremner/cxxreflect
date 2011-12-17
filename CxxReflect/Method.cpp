@@ -2,10 +2,62 @@
 //                   Distributed under the Boost Software License, Version 1.0.                   //
 //     (See accompanying file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)    //
 
+#include "CxxReflect/Assembly.hpp"
 #include "CxxReflect/MetadataLoader.hpp"
 #include "CxxReflect/Method.hpp"
+#include "CxxReflect/Type.hpp"
 
 namespace CxxReflect {
+
+    Method::Method()
+    {
+    }
+
+    Method::Method(Type const& reflectedType, Detail::MethodContext const* const context, InternalKey)
+        : _reflectedType(reflectedType),
+          _context(context)
+    {
+        Detail::VerifyNotNull(context);
+        Detail::Verify([&]{ return reflectedType.IsInitialized(); });
+        Detail::Verify([&]{ return context->IsInitialized();      });
+    }
+
+    bool Method::IsInitialized() const
+    {
+        return _reflectedType.IsInitialized() && _context.Get() != nullptr;
+    }
+
+    void Method::VerifyInitialized() const
+    {
+        Detail::Verify([&]{ return IsInitialized(); });
+    }
+
+    Type Method::GetDeclaringType() const
+    {
+        VerifyInitialized();
+        MetadataLoader          const& loader  (_reflectedType.Realize().GetAssembly().GetContext(InternalKey()).GetLoader());
+        Metadata::Database      const& database(_context.Get()->GetDeclaringType().GetDatabase());
+        Detail::AssemblyContext const& context (loader.GetContextForDatabase(database, InternalKey()));
+        Assembly                const  assembly(&context, InternalKey());
+
+        return Type(assembly, _context.Get()->GetDeclaringType().AsRowReference(), InternalKey());
+    }
+
+    Type Method::GetReflectedType() const
+    {
+        VerifyInitialized();
+        return _reflectedType.Realize();
+    }
+
+    bool operator==(Method const& lhs, Method const& rhs)
+    {
+        return lhs._context.Get() == rhs._context.Get();
+    }
+
+    bool operator<(Method const& lhs, Method const& rhs)
+    {
+        return std::less<Detail::MethodContext const*>()(lhs._context.Get(), rhs._context.Get());
+    }
 
     bool Method::ContainsGenericParameters() const
     {
@@ -19,22 +71,19 @@ namespace CxxReflect {
 
     CallingConvention Method::GetCallingConvention() const
     {
-        return CallingConvention(); // TODO
+        Metadata::SignatureAttribute const convention(_context.Get()->GetMethodSignature().GetCallingConvention());
+        return static_cast<CallingConvention>(static_cast<unsigned>(convention));
     }
 
     SizeType Method::GetMetadataToken() const
     {
-        return _method.GetToken();
+        return _context.Get()->GetMethod().AsRowReference().GetToken();
     }
 
     Metadata::MethodDefRow Method::GetMethodDefRow() const
     {
-        Detail::Verify([&]{ return _method.GetTable() == Metadata::TableId::MethodDef; });
-        return _declaringType
-            .GetAssembly()
-            .GetContext(InternalKey())
-            .GetDatabase()
-            .GetRow<Metadata::TableId::MethodDef>(_method.GetIndex());
+        VerifyInitialized();
+        return _context.Get()->GetMethodDefinition();
     }
 
     StringReference Method::GetName() const

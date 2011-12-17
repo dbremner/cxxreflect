@@ -5,23 +5,184 @@
 #ifndef CXXREFLECT_TYPE_HPP_
 #define CXXREFLECT_TYPE_HPP_
 
-#include "CxxReflect/Assembly.hpp"
-#include "CxxReflect/Core.hpp"
-#include "CxxReflect/MetadataDatabase.hpp"
+#include "CxxReflect/Handles.hpp"
+
+namespace CxxReflect { namespace Detail {
+
+    template <typename TType, typename TMethod>
+    class MethodIterator
+    {
+    public:
+
+        typedef std::forward_iterator_tag iterator_category;
+        typedef TMethod                   value_type;
+        typedef TMethod                   reference;
+        typedef Dereferenceable<TMethod>  pointer;
+        typedef std::ptrdiff_t            difference_type;
+
+        typedef value_type                ValueType;
+        typedef reference                 Reference;
+        typedef pointer                   Pointer;
+        typedef MethodContext const*      InnerIterator;
+
+        MethodIterator()
+        {
+        }
+
+        MethodIterator(TType         const& reflectedType,
+                       InnerIterator const  current,
+                       InnerIterator const  last,
+                       BindingFlags  const  filter)
+            : _reflectedType(reflectedType), _current(current), _last(last), _filter(filter)
+        {
+            Verify([&]{ return reflectedType.IsInitialized(); });
+            VerifyNotNull(current);
+            VerifyNotNull(last);
+            FilterAdvance();
+        }
+
+        Reference operator*() const
+        {
+            VerifyDereferenceable();
+            return ValueType(_reflectedType, _current.Get(), InternalKey());
+        }
+
+        Pointer operator->() const
+        {
+            VerifyDereferenceable();
+            return ValueType(_reflectedType, _current.Get(), InternalKey());
+        }
+
+        MethodIterator& operator++()
+        {
+            VerifyDereferenceable();
+            ++_current.Get();
+            FilterAdvance();
+            return *this;
+        }
+
+        MethodIterator operator++(int)
+        {
+            MethodIterator const it(*this);
+            ++*this;
+            return it;
+        }
+
+        bool IsInitialized() const
+        {
+            return _current.Get() != nullptr && _last.Get() !=  nullptr;
+        }
+
+        bool IsDereferenceable() const
+        {
+            return IsInitialized() && _current.Get() != _last.Get();
+        }
+
+        friend bool operator==(MethodIterator const& lhs, MethodIterator const& rhs)
+        {
+            return !lhs.IsDereferenceable() && !rhs.IsDereferenceable()
+                || lhs._current.Get() == rhs._current.Get();
+        }
+
+        CXXREFLECT_GENERATE_EQUALITY_OPERATORS(MethodIterator)
+
+    private:
+
+        void VerifyInitialized()     const { Verify([&]{ return IsInitialized();     }); }
+        void VerifyDereferenceable() const { Verify([&]{ return IsDereferenceable(); }); }
+
+        void FilterAdvance()
+        {
+            while (_current.Get() != _last.Get() && IsFilteredElement())
+                ++_current.Get();
+        }
+
+        bool IsFilteredElement() const
+        {
+            MethodFlags const currentFlags(_current.Get()->GetMethodDefinition().GetFlags());
+
+            if (currentFlags.IsSet(MethodAttribute::Static))
+            {
+                if (!_filter.IsSet(BindingAttribute::Static))
+                    return true;
+            }
+            else
+            {
+                if (!_filter.IsSet(BindingAttribute::Instance))
+                    return true;
+            }
+
+            if (currentFlags.WithMask(MethodAttribute::MemberAccessMask) == MethodAttribute::Public)
+            {
+                if (!_filter.IsSet(BindingAttribute::Public))
+                    return true;
+            }
+            else
+            {
+                if (!_filter.IsSet(BindingAttribute::NonPublic))
+                    return true;
+            }
+
+            Metadata::RowReference const currentType(_current.Get()->GetDeclaringType().AsRowReference());
+            bool const currentTypeIsDeclaringType(_reflectedType.GetMetadataToken() == currentType.GetToken());
+
+            if (!currentTypeIsDeclaringType)
+            {
+                if (_filter.IsSet(BindingAttribute::DeclaredOnly))
+                    return true;
+
+                // Static members are not inherited, but they are returned with FlattenHierarchy
+                if (currentFlags.IsSet(MethodAttribute::Static) && !_filter.IsSet(BindingAttribute::FlattenHierarchy))
+                    return true;
+
+                StringReference const methodName(_current.Get()->GetMethodDefinition().GetName());
+
+                // Nonpublic methods inherited from base classes are never returned, except for
+                // explicit interface implementations, which may be returned:
+                if (currentFlags.WithMask(MethodAttribute::MemberAccessMask) == MethodAttribute::Private)
+                {
+                    if (currentFlags.IsSet(MethodAttribute::Static))
+                        return true;
+
+                    if (!std::any_of(methodName.begin(), methodName.end(), [](Character const c) { return c == L'.'; }))
+                        return true;
+                }
+            }
+
+            // Constructors are never returned as methods:
+            if (currentFlags.IsSet(MethodAttribute::SpecialName))
+            {
+                StringReference const name(_current.Get()->GetMethodDefinition().GetName());
+                if (name == L".ctor" || name == L".cctor")
+                    return true;
+            }
+
+            return false;
+        }
+
+        ValueInitialized<InnerIterator> _current;
+        ValueInitialized<InnerIterator> _last;
+        TType                           _reflectedType;
+        BindingFlags                    _filter;
+    };
+
+} }
 
 namespace CxxReflect {
 
     class Type
-        : public Detail::SafeBoolConvertible<Type>,
-          public Detail::Comparable<Type>
     {
     public:
+
+        typedef Detail::MethodIterator<Type, Method> MethodIterator;
 
         Type();
         Type(Assembly const& assembly, Metadata::RowReference  const& type, InternalKey);
         Type(Assembly const& assembly, Metadata::BlobReference const& type, InternalKey);
 
-        Assembly const& GetAssembly() const { return _assembly; }
+        Assembly GetAssembly() const;
+
+        Metadata::ElementReference GetSelfReference(InternalKey) const { return _type; }
 
         SizeType GetMetadataToken() const
         {
@@ -72,9 +233,8 @@ namespace CxxReflect {
         bool IsValueType()               const;
         bool IsVisible()                 const;
 
-        typedef void MethodIterator; // TODO
         MethodIterator BeginMethods(BindingFlags flags = BindingAttribute::Default) const;
-        MethodIterator EndMethods()   const;
+        MethodIterator EndMethods() const;
 
         // TODO This interface is very incomplete
 
@@ -107,23 +267,11 @@ namespace CxxReflect {
         // IsSecuritySafeCritical
         // IsSecurityTransparent
 
-        friend bool operator==(Type const& lhs, Type const& rhs)
-        {
-            return lhs.GetAssembly() == rhs.GetAssembly()
-                && lhs.GetMetadataToken() == rhs.GetMetadataToken();
-        }
+        friend bool operator==(Type const&, Type const&);
+        friend bool operator< (Type const&, Type const&);
 
-        // We provide a total ordering of Types across all loaded assemblies.  Types within a given
-        // assembly are ordered by metadata token; types in different assemblies have an unspecified
-        // total ordering.
-        friend bool operator<(Type const& lhs, Type const& rhs)
-        {
-            if (lhs.GetAssembly() < rhs.GetAssembly())
-                return true;
-
-            return lhs.GetAssembly() == rhs.GetAssembly()
-                && lhs.GetMetadataToken() == rhs.GetMetadataToken();
-        }
+        CXXREFLECT_GENERATE_COMPARISON_OPERATORS(Type)
+        CXXREFLECT_GENERATE_SAFE_BOOL_CONVERSION(Type)
 
     private:
 
@@ -167,9 +315,7 @@ namespace CxxReflect {
         bool AccumulateFullNameInto(OutputStream& os) const;
         void AccumulateAssemblyQualifiedNameInto(OutputStream& os) const;
 
-        // TODO Detail::MethodTableAllocator::Range GetOrCreateMethodTable() const;
-
-        Assembly                   _assembly;
+        Detail::AssemblyHandle     _assembly;
         Metadata::ElementReference _type;
     };
 

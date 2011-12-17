@@ -45,7 +45,7 @@ namespace CxxReflect { namespace Detail {
             _typeDef.AsRowReference(),
             InternalKey());
 
-        return Method(declaringType, reflectedType, _methodDef);
+        return Method(reflectedType, this, InternalKey());
     }
 
     Metadata::FullReference MethodContext::GetDeclaringType() const
@@ -463,7 +463,7 @@ namespace CxxReflect {
                 InternalKey());
 
             Type resolvedType(definingAssembly.GetType(typeRef.GetNamespace(), typeRef.GetName()));
-            if (!resolvedType)
+            if (!resolvedType.IsInitialized())
                 throw RuntimeError("Failed to resolve type in module");
 
             return Metadata::FullReference(
@@ -482,11 +482,11 @@ namespace CxxReflect {
                 InternalKey());
 
             Assembly const definingAssembly(LoadAssembly(definingAssemblyName));
-            if (definingAssembly == nullptr)
+            if (!definingAssembly.IsInitialized())
                 throw RuntimeError("Failed to resolve assembly reference");
 
             Type const resolvedType(definingAssembly.GetType(typeRef.GetNamespace(), typeRef.GetName()));
-            if (resolvedType == nullptr)
+            if (!resolvedType.IsInitialized())
                 throw RuntimeError("Failed to resolve type in assembly");
 
             return Metadata::FullReference(
