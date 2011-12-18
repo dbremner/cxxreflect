@@ -99,7 +99,7 @@ namespace CxxReflect { namespace Detail {
 
         bool IsFilteredElement() const
         {
-            MethodFlags const currentFlags(_current.Get()->GetMethodDefinition().GetFlags());
+            MethodFlags const currentFlags(_current.Get()->GetMemberRow().GetFlags());
 
             if (currentFlags.IsSet(MethodAttribute::Static))
             {
@@ -135,7 +135,7 @@ namespace CxxReflect { namespace Detail {
                 if (currentFlags.IsSet(MethodAttribute::Static) && !_filter.IsSet(BindingAttribute::FlattenHierarchy))
                     return true;
 
-                StringReference const methodName(_current.Get()->GetMethodDefinition().GetName());
+                StringReference const methodName(_current.Get()->GetMemberRow().GetName());
 
                 // Nonpublic methods inherited from base classes are never returned, except for
                 // explicit interface implementations, which may be returned:
@@ -152,7 +152,7 @@ namespace CxxReflect { namespace Detail {
             // Constructors are never returned as methods:
             if (currentFlags.IsSet(MethodAttribute::SpecialName))
             {
-                StringReference const name(_current.Get()->GetMethodDefinition().GetName());
+                StringReference const name(_current.Get()->GetMemberRow().GetName());
                 if (name == L".ctor" || name == L".cctor")
                     return true;
             }

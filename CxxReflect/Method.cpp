@@ -71,19 +71,19 @@ namespace CxxReflect {
 
     CallingConvention Method::GetCallingConvention() const
     {
-        Metadata::SignatureAttribute const convention(_context.Get()->GetMethodSignature().GetCallingConvention());
+        Metadata::SignatureAttribute const convention(_context.Get()->GetMemberSignature().GetCallingConvention());
         return static_cast<CallingConvention>(static_cast<unsigned>(convention));
     }
 
     SizeType Method::GetMetadataToken() const
     {
-        return _context.Get()->GetMethod().AsRowReference().GetToken();
+        return _context.Get()->GetMember().AsRowReference().GetToken();
     }
 
     Metadata::MethodDefRow Method::GetMethodDefRow() const
     {
         VerifyInitialized();
-        return _context.Get()->GetMethodDefinition();
+        return _context.Get()->GetMemberRow();
     }
 
     StringReference Method::GetName() const

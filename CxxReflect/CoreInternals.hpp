@@ -14,55 +14,60 @@
 
 namespace CxxReflect { namespace Detail {
 
-    // Represents the information required to construct a Method object.
-    class MethodContext
+    template <typename TMember, typename TMemberRow, typename TMemberSignature>
+    class MemberContext
     {
     public:
 
-        MethodContext();
+        typedef TMember          MemberType;
+        typedef TMemberRow       MemberRowType;
+        typedef TMemberSignature MemberSignatureType;
 
-        MethodContext(Metadata::FullReference const& typeDef,
-                      Metadata::RowReference  const& methodDef);
+        MemberContext();
 
-        MethodContext(Metadata::FullReference const& typeDef,
-                      Metadata::RowReference  const& methodDef,
-                      Metadata::FullReference const& typeSpec,
-                      ByteRange               const  instantiatedSignature);
+        MemberContext(Metadata::FullReference const& declaringType,
+                      Metadata::RowReference  const& member);
 
-        // Resolves the MethodContext as a Method using the provided reflected type
-        Method Resolve(Type const& reflectedType) const;
+        MemberContext(Metadata::FullReference const& declaringType,
+                      Metadata::RowReference  const& member,
+                      Metadata::FullReference const& instantiatingType,
+                      ByteRange               const& instantiatedSignature);
 
-        Metadata::FullReference   GetDeclaringType()         const;
+        MemberType Resolve(Type const& reflectedType) const;
 
-        Metadata::FullReference   GetMethod()                const;
-        Metadata::MethodDefRow    GetMethodDefinition()      const;
-        Metadata::MethodSignature GetMethodSignature()       const;
+        Metadata::FullReference GetDeclaringType()         const;
 
-        bool                      HasInstantiatedType()      const;
-        Metadata::FullReference   GetInstantiatedType()      const;
+        Metadata::FullReference GetMember()                const;
+        MemberRowType           GetMemberRow()             const;
+        MemberSignatureType     GetMemberSignature()       const;
 
-        bool                      HasInstantiatedSignature() const;
-        ByteRange                 GetInstantiatedSignature() const;
+        bool                    HasInstantiatingType()     const;
+        Metadata::FullReference GetInstantiatingType()     const;
 
-        bool                      IsInitialized()            const;
+        bool                    HasInstantiatedSignature() const;
+        ByteRange               GetInstantiatedSignature() const;
+
+        bool                    IsInitialized()            const;
 
     private:
 
-        void                      VerifyInitialized()        const;
+        void                    VerifyInitialized()        const;
 
-        // _typeDef is the type that defines the method.  _methodDef is the method definition; it is
-        // resolved in the same database as _typeDef.  _typeSpec is the type through which the method
-        // is referred; this is usually set for e.g. an instantiated generic type.  If _typeSpec is
-        // set and the method uses any of the _typeSpec's generic parameters, _instantiatedSignature
-        // will be set and will point to a replacement signature that has all of the variables (Var!0)
-        // replaced with their arguments.
-        Metadata::FullReference _typeDef;
-        Metadata::RowReference  _methodDef;
-        Metadata::FullReference _typeSpec;
+        Metadata::FullReference _declaringType;
+        Metadata::RowReference  _member;
+        Metadata::FullReference _instantiatingType;
         ByteRange               _instantiatedSignature;
     };
 
-    typedef Range<MethodContext> MethodTable;
+    typedef MemberContext<Event,    Metadata::EventRow,     Metadata::TypeSignature    > EventContext;
+    typedef MemberContext<Field,    Metadata::FieldRow,     Metadata::FieldSignature   > FieldContext;
+    typedef MemberContext<Method,   Metadata::MethodDefRow, Metadata::MethodSignature  > MethodContext;
+    typedef MemberContext<Property, Metadata::PropertyRow,  Metadata::PropertySignature> PropertyContext;
+
+    typedef Range<EventContext>    EventTable;
+    typedef Range<FieldContext>    FieldTable;
+    typedef Range<MethodContext>   MethodTable;
+    typedef Range<PropertyContext> PropertyTable;
 
 
 

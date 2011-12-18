@@ -1279,8 +1279,10 @@ namespace CxxReflect { namespace Detail {
 
     bool FileExists(wchar_t const* filePath);
 
+    template <typename TMember, typename TMemberRow, typename TMemberSignature>
+    class MemberContext;
+
     class AssemblyContext;
-    class MethodContext;
     class MethodTableCollection;
 
     template <typename TType, typename TMethod>
@@ -1377,14 +1379,29 @@ namespace CxxReflect {
 
     class Assembly;
     class AssemblyName;
+    class Event;
+    class Field;
     class File;
     class IMetadataResolver;
     class MetadataLoader;
     class Method;
     class Module;
     class Parameter;
+    class Property;
     class Type;
     class Version;
+}
+
+namespace CxxReflect { namespace Detail {
+
+    typedef MemberContext<Event,    Metadata::EventRow,     Metadata::TypeSignature    > EventContext;
+    typedef MemberContext<Field,    Metadata::FieldRow,     Metadata::FieldSignature   > FieldContext;
+    typedef MemberContext<Method,   Metadata::MethodDefRow, Metadata::MethodSignature  > MethodContext;
+    typedef MemberContext<Property, Metadata::PropertyRow,  Metadata::PropertySignature> PropertyContext;
+
+} }
+
+namespace CxxReflect {
 
     // There are many functions that should not be part of the public interface of the library, but
     // which we need to be able to access from other parts of the CxxReflect library.  To do this,
@@ -1398,9 +1415,8 @@ namespace CxxReflect {
 
         InternalKey() { }
 
-        friend Detail::AssemblyContext;
-        friend Detail::MethodContext;
-        friend Detail::MethodTableCollection;
+        template <typename TMember, typename TMemberRow, typename TMemberSignature>
+        friend class Detail::MemberContext;
 
         template <typename TType, typename TMethod>
         friend class Detail::MethodIterator;
@@ -1410,6 +1426,7 @@ namespace CxxReflect {
 
         friend Assembly;
         friend AssemblyName;
+        friend Event;
         friend File;
         friend MetadataLoader;
         friend Method;
@@ -1417,6 +1434,9 @@ namespace CxxReflect {
         friend Parameter;
         friend Type;
         friend Version;
+
+        friend Detail::AssemblyContext;
+        friend Detail::MethodTableCollection;
 
         friend Detail::AssemblyHandle;
         friend Detail::MethodHandle;

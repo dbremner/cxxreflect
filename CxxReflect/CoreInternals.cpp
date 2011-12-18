@@ -11,111 +11,130 @@
 
 namespace CxxReflect { namespace Detail {
 
-    MethodContext::MethodContext()
+    template <typename TMember, typename TMemberRow, typename TMemberSignature>
+    MemberContext<TMember, TMemberRow, TMemberSignature>::MemberContext()
     {
     }
 
-    MethodContext::MethodContext(Metadata::FullReference const& typeDef,
-                                 Metadata::RowReference  const& methodDef)
-        : _typeDef  (typeDef  ),
-          _methodDef(methodDef)
+    template <typename TMember, typename TMemberRow, typename TMemberSignature>
+    MemberContext<TMember, TMemberRow, TMemberSignature>::MemberContext(
+        Metadata::FullReference const& declaringType,
+        Metadata::RowReference  const& member)
+        : _declaringType(declaringType),
+          _member       (member       )
     {
-        Verify([&]{ return typeDef.IsInitialized();   });
-        Verify([&]{ return methodDef.IsInitialized(); });
+        VerifyInitialized();
+        Verify([&]{ return declaringType.IsRowReference(); });
     }
 
-    MethodContext::MethodContext(Metadata::FullReference const& typeDef,
-                                 Metadata::RowReference  const& methodDef,
-                                 Metadata::FullReference const& typeSpec,
-                                 ByteRange               const  instantiatedSignature)
-        : _typeDef              (typeDef              ),
-          _methodDef            (methodDef            ),
-          _typeSpec             (typeSpec             ),
+    template <typename TMember, typename TMemberRow, typename TMemberSignature>
+    MemberContext<TMember, TMemberRow, TMemberSignature>::MemberContext(
+        Metadata::FullReference const& declaringType,
+        Metadata::RowReference  const& member,
+        Metadata::FullReference const& instantiatingType,
+        ByteRange               const& instantiatedSignature)
+        : _declaringType        (declaringType        ),
+          _member               (member               ),
+          _instantiatingType    (instantiatingType    ),
           _instantiatedSignature(instantiatedSignature)
     {
-        Verify([&]{ return typeDef.IsInitialized();   });
-        Verify([&]{ return methodDef.IsInitialized(); });
-        // TODO Verify([&]{ return typeSpec.IsInitialized();  });
-        // Note: 'instantiatedSignature' may be uninitialized.
+        VerifyInitialized();
+        Verify([&]{ return declaringType.IsRowReference(); });
     }
 
-    Method MethodContext::Resolve(Type const& reflectedType) const
-    {
-        Type const declaringType(
-            Assembly(&reflectedType.GetAssembly().GetContext(InternalKey()), InternalKey()),
-            _typeDef.AsRowReference(),
-            InternalKey());
-
-        return Method(reflectedType, this, InternalKey());
-    }
-
-    Metadata::FullReference MethodContext::GetDeclaringType() const
+    template <typename TMember, typename TMemberRow, typename TMemberSignature>
+    TMember MemberContext<TMember, TMemberRow, TMemberSignature>::Resolve(Type const& reflectedType) const
     {
         VerifyInitialized();
-        return _typeDef;
-    }
-        
-    Metadata::FullReference MethodContext::GetMethod() const
-    {
-        VerifyInitialized();
-        return Metadata::FullReference(&_typeDef.GetDatabase(), _methodDef);
+        return TMember(reflectedType, this, InternalKey());
     }
 
-    Metadata::MethodDefRow MethodContext::GetMethodDefinition() const
+    template <typename TMember, typename TMemberRow, typename TMemberSignature>
+    Metadata::FullReference MemberContext<TMember, TMemberRow, TMemberSignature>::GetDeclaringType() const
     {
         VerifyInitialized();
-        return _typeDef.GetDatabase().GetRow<Metadata::TableId::MethodDef>(_methodDef);
+        return _declaringType;
     }
 
-    Metadata::MethodSignature MethodContext::GetMethodSignature() const
+    template <typename TMember, typename TMemberRow, typename TMemberSignature>
+    Metadata::FullReference MemberContext<TMember, TMemberRow, TMemberSignature>::GetMember() const
+    {
+        VerifyInitialized();
+        return Metadata::FullReference(&_declaringType.GetDatabase(), _member);
+    }
+
+    template <typename TMember, typename TMemberRow, typename TMemberSignature>
+    TMemberRow MemberContext<TMember, TMemberRow, TMemberSignature>::GetMemberRow() const
+    {
+        Metadata::TableId const TId(static_cast<Metadata::TableId>(Metadata::RowTypeToTableId<TMemberRow>::Value));
+        VerifyInitialized();
+        return _declaringType
+            .GetDatabase()
+            .GetRow<TId>(_member);
+    }
+
+    template <typename TMember, typename TMemberRow, typename TMemberSignature>
+    TMemberSignature MemberContext<TMember, TMemberRow, TMemberSignature>::GetMemberSignature() const
     {
         VerifyInitialized();
         if (HasInstantiatedSignature())
         {
-            return Metadata::MethodSignature(
-                _instantiatedSignature.Begin(),
-                _instantiatedSignature.End());
+            return Metadata::MethodSignature(_instantiatedSignature.Begin(), _instantiatedSignature.End());
         }
         else
         {
-            return _typeDef
+            return _declaringType
                 .GetDatabase()
-                .GetBlob(GetMethodDefinition().GetSignature())
-                .As<Metadata::MethodSignature>();
+                .GetBlob(GetMemberRow().GetSignature())
+                .As<TMemberSignature>();
         }
     }
 
-    bool MethodContext::HasInstantiatedType() const
+    template <typename TMember, typename TMemberRow, typename TMemberSignature>
+    bool MemberContext<TMember, TMemberRow, TMemberSignature>::HasInstantiatingType() const
     {
-        return _typeSpec.IsInitialized();
+        VerifyInitialized();
+        return _instantiatingType.IsInitialized();
     }
 
-    Metadata::FullReference MethodContext::GetInstantiatedType() const
+    template <typename TMember, typename TMemberRow, typename TMemberSignature>
+    Metadata::FullReference MemberContext<TMember, TMemberRow, TMemberSignature>::GetInstantiatingType() const
     {
-        Verify([&]{ return HasInstantiatedType(); });
-        return _typeSpec;
+        Verify([&]{ return HasInstantiatingType(); });
+        return _instantiatingType;
     }
 
-    bool MethodContext::HasInstantiatedSignature() const
+    template <typename TMember, typename TMemberRow, typename TMemberSignature>
+    bool MemberContext<TMember, TMemberRow, TMemberSignature>::HasInstantiatedSignature() const
     {
+        VerifyInitialized();
         return _instantiatedSignature.IsInitialized();
     }
 
-    ByteRange MethodContext::GetInstantiatedSignature() const
+    template <typename TMember, typename TMemberRow, typename TMemberSignature>
+    ByteRange MemberContext<TMember, TMemberRow, TMemberSignature>::GetInstantiatedSignature() const
     {
         Verify([&]{ return HasInstantiatedSignature(); });
         return _instantiatedSignature;
     }
 
-    bool MethodContext::IsInitialized() const
+    template <typename TMember, typename TMemberRow, typename TMemberSignature>
+    bool MemberContext<TMember, TMemberRow, TMemberSignature>::IsInitialized() const
     {
-        return _typeDef.IsInitialized();
+        return _declaringType.IsInitialized() && _member.IsInitialized();
     }
 
-    void MethodContext::VerifyInitialized() const
+    template <typename TMember, typename TMemberRow, typename TMemberSignature>
+    void MemberContext<TMember, TMemberRow, TMemberSignature>::VerifyInitialized() const
     {
         Verify([&]{ return IsInitialized(); });
     }
+
+    //TODO template class MemberContext<Event,    Metadata::EventRow,     Metadata::TypeSignature    >;
+    //TODO template class MemberContext<Field,    Metadata::FieldRow,     Metadata::FieldSignature   >;
+    template class MemberContext<Method,   Metadata::MethodDefRow, Metadata::MethodSignature  >;
+    //TODO template class MemberContext<Property, Metadata::PropertyRow,  Metadata::PropertySignature>;
+
 
 
 
@@ -182,14 +201,14 @@ namespace CxxReflect { namespace Detail {
             std::transform(table.Begin(), table.End(), std::back_inserter(_buffer), [&](MethodContext const& m)
                 -> MethodContext
             {
-                if (!instantiator.HasArguments() || !Instantiator::RequiresInstantiation(m.GetMethodSignature()))
+                if (!instantiator.HasArguments() || !Instantiator::RequiresInstantiation(m.GetMemberSignature()))
                     return m;
 
                 return MethodContext(
                     m.GetDeclaringType(),
-                    m.GetMethod().AsRowReference(),
-                    m.GetInstantiatedType(),
-                    Instantiate(instantiator, m.GetMethodSignature()));
+                    m.GetMember().AsRowReference(),
+                    m.GetInstantiatingType(),
+                    Instantiate(instantiator, m.GetMemberSignature()));
             });
         }
 
@@ -300,8 +319,8 @@ namespace CxxReflect { namespace Detail {
     void MethodTableCollection::InsertMethodIntoBuffer(MethodContext const& newMethod,
                                                        SizeType      const  inheritedMethodCount) const
     {
-        Metadata::MethodDefRow    const newMethodDef(newMethod.GetMethodDefinition());
-        Metadata::MethodSignature const newMethodSig(newMethod.GetMethodSignature());
+        Metadata::MethodDefRow    const newMethodDef(newMethod.GetMemberRow());
+        Metadata::MethodSignature const newMethodSig(newMethod.GetMemberSignature());
 
         // If the method occupies a new slot, it does not override any other method.  A static
         // method is always a new method.
@@ -317,8 +336,8 @@ namespace CxxReflect { namespace Detail {
         auto const bufferIt(std::find_if(bufferBegin, _buffer.rend(), [&](MethodContext const& oldMethod)
             -> bool
         {
-            Metadata::MethodDefRow    const oldMethodDef(oldMethod.GetMethodDefinition());
-            Metadata::MethodSignature const oldMethodSig(oldMethod.GetMethodSignature());
+            Metadata::MethodDefRow    const oldMethodDef(oldMethod.GetMemberRow());
+            Metadata::MethodSignature const oldMethodSig(oldMethod.GetMemberSignature());
 
             if (!oldMethodDef.GetFlags().IsSet(MethodAttribute::Virtual))
                 return false;
