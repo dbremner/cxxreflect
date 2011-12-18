@@ -5,15 +5,13 @@
 #ifndef CXXREFLECT_METHOD_HPP_
 #define CXXREFLECT_METHOD_HPP_
 
-#include "CxxReflect/Handles.hpp"
+#include "CxxReflect/CoreInternals.hpp"
 
 namespace CxxReflect {
 
     class Method
     {
     public:
-
-        enum { InvalidVtableSlot = static_cast<SizeType>(-1) };
 
         Method();
         Method(Type const& reflectedType, Detail::MethodContext const* context, InternalKey);

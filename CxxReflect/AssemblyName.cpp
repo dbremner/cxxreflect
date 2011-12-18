@@ -4,7 +4,6 @@
 
 #include "CxxReflect/Assembly.hpp"
 #include "CxxReflect/AssemblyName.hpp"
-#include "CxxReflect/MetadataDatabase.hpp"
 #include "CxxReflect/MetadataLoader.hpp"
 
 namespace { namespace Private {
@@ -42,9 +41,15 @@ namespace { namespace Private {
             database.GetBlob(row.GetPublicKey()),
             flags.IsSet(AssemblyAttribute::PublicKey)));
 
+        Version const version(
+            row.GetVersion().GetMajor(),
+            row.GetVersion().GetMinor(),
+            row.GetVersion().GetBuild(),
+            row.GetVersion().GetRevision());
+
         name = CxxReflect::AssemblyName(
             row.GetName().c_str(),
-            row.GetVersion(),
+            version,
             row.GetCulture().c_str(),
             publicKeyToken,
             flags);

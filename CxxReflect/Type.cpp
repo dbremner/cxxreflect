@@ -3,9 +3,7 @@
 //     (See accompanying file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)    //
 
 #include "CxxReflect/Assembly.hpp"
-#include "CxxReflect/AssemblyName.hpp"
 #include "CxxReflect/MetadataLoader.hpp"
-#include "CxxReflect/MetadataSignature.hpp"
 #include "CxxReflect/Method.hpp"
 #include "CxxReflect/Type.hpp"
 

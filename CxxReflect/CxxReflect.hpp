@@ -6,14 +6,10 @@
 #define CXXREFLECT_CXXREFLECT_HPP_
 
 #include "CxxReflect/Assembly.hpp"
-#include "CxxReflect/AssemblyName.hpp"
-#include "CxxReflect/Core.hpp"
 #include "CxxReflect/CustomAttribute.hpp"
 #include "CxxReflect/Event.hpp"
 #include "CxxReflect/Field.hpp"
-#include "CxxReflect/MetadataDatabase.hpp"
 #include "CxxReflect/MetadataLoader.hpp"
-#include "CxxReflect/MetadataSignature.hpp"
 #include "CxxReflect/Method.hpp"
 #include "CxxReflect/Parameter.hpp"
 #include "CxxReflect/Property.hpp"

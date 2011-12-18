@@ -31,7 +31,13 @@
     <ClCompile Include="MetadataSignature.cpp">
       <Filter>Sources</Filter>
     </ClCompile>
-    <ClCompile Include="Handles.cpp">
+    <ClCompile Include="File.cpp">
+      <Filter>Sources</Filter>
+    </ClCompile>
+    <ClCompile Include="CoreInternals.cpp">
+      <Filter>Sources</Filter>
+    </ClCompile>
+    <ClCompile Include="Parameter.cpp">
       <Filter>Sources</Filter>
     </ClCompile>
   </ItemGroup>
@@ -87,7 +93,7 @@
     <ClInclude Include="MetadataSignature.hpp">
       <Filter>Headers</Filter>
     </ClInclude>
-    <ClInclude Include="Handles.hpp">
+    <ClInclude Include="CoreInternals.hpp">
       <Filter>Headers</Filter>
     </ClInclude>
   </ItemGroup>

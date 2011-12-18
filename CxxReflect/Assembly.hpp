@@ -5,7 +5,7 @@
 #ifndef CXXREFLECT_ASSEMBLY_HPP_
 #define CXXREFLECT_ASSEMBLY_HPP_
 
-#include <CxxReflect/Handles.hpp>
+#include "CxxReflect/CoreInternals.hpp"
 
 namespace CxxReflect {
 
@@ -13,29 +13,14 @@ namespace CxxReflect {
     {
     public:
 
-        Assembly()
-        {
-        }
-
-        Assembly(Detail::AssemblyContext const* const context, InternalKey)
-            : _context(context)
-        {
-            Detail::VerifyNotNull(context);
-        }
-
-        bool IsInitialized() const
-        {
-            return _context.Get() != nullptr;
-        }
-
-        bool operator!() const { return !IsInitialized(); }
+        Assembly();
 
         AssemblyName const& GetName() const;
         String       const& GetPath() const;
 
-        typedef Detail::InstantiatingIterator<Metadata::RowReference, File,   Assembly>       FileIterator;
-        typedef Detail::InstantiatingIterator<Metadata::RowReference, Module, Assembly>       ModuleIterator;
-        typedef Detail::InstantiatingIterator<Metadata::RowReference, Type,   Assembly>       TypeIterator;
+        typedef Detail::InstantiatingIterator<Metadata::RowReference, File,         Assembly> FileIterator;
+        typedef Detail::InstantiatingIterator<Metadata::RowReference, Module,       Assembly> ModuleIterator;
+        typedef Detail::InstantiatingIterator<Metadata::RowReference, Type,         Assembly> TypeIterator;
         typedef Detail::InstantiatingIterator<Metadata::RowReference, AssemblyName, Assembly> AssemblyNameIterator;
 
         SizeType             GetReferencedAssemblyCount()   const;
@@ -62,8 +47,6 @@ namespace CxxReflect {
         Type GetType(StringReference namespaceName,
                      StringReference unqualifiedTypeName,
                      bool            caseInsensitive = false) const;
-
-        Detail::AssemblyContext const& GetContext(InternalKey) const;
 
         // EntryPoint
         // ImageRuntimeVersion
@@ -108,25 +91,24 @@ namespace CxxReflect {
         // ReflectionOnlyLoadFrom Use MetadataLoader::LoadAssembly()
         // UnsafeLoadFrom         Not applicable outside of runtime
 
-        friend bool operator==(Assembly const& lhs, Assembly const& rhs)
-        {
-            return lhs._context.Get() == rhs._context.Get();
-        }
+        bool IsInitialized() const;
+        bool operator!()     const;
 
-        friend bool operator<(Assembly const& lhs, Assembly const& rhs)
-        {
-            return lhs._context.Get() <  rhs._context.Get();
-        }
+        friend bool operator==(Assembly const& lhs, Assembly const& rhs);
+        friend bool operator< (Assembly const& lhs, Assembly const& rhs);
 
         CXXREFLECT_GENERATE_COMPARISON_OPERATORS(Assembly)
         CXXREFLECT_GENERATE_SAFE_BOOL_CONVERSION(Assembly)
 
+    public: // Internal Members
+
+        Assembly(Detail::AssemblyContext const* context, InternalKey);
+
+        Detail::AssemblyContext const& GetContext(InternalKey) const;
+
     private:
 
-        void VerifyInitialized() const
-        {
-            Detail::Verify([&] { return IsInitialized(); }, "Assembly not initialized");
-        }
+        void VerifyInitialized() const;
 
         Metadata::AssemblyRow GetAssemblyRow() const;
 

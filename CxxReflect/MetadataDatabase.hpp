@@ -357,6 +357,38 @@ namespace CxxReflect { namespace Metadata {
 
 
 
+
+    // Represents an assembly version
+    class FourComponentVersion
+    {
+    public:
+
+        typedef std::uint16_t Component;
+
+        FourComponentVersion()
+        {
+        }
+
+        FourComponentVersion(Component major, Component minor, Component build, Component revision)
+            : _major(major), _minor(minor), _build(build), _revision(revision)
+        {
+        }
+
+        Component GetMajor()    const { return _major.Get();    }
+        Component GetMinor()    const { return _minor.Get();    }
+        Component GetBuild()    const { return _build.Get();    }
+        Component GetRevision() const { return _revision.Get(); }
+
+    private:
+
+        Detail::ValueInitialized<Component> _major;
+        Detail::ValueInitialized<Component> _minor;
+        Detail::ValueInitialized<Component> _build;
+        Detail::ValueInitialized<Component> _revision;
+    };
+
+
+
     // Represents a metadata stream.  A metadata stream is a sequence of bytes in the assembly that
     // contains metadata.  When we are constructed, we bulk copy the entire sequence of bytes into
     // an array in memory, then provide access to that data via offsets into the stream.
@@ -979,7 +1011,7 @@ namespace CxxReflect { namespace Metadata {
     public:
 
         AssemblyHashAlgorithm GetHashAlgorithm() const;
-        Version               GetVersion()       const;
+        FourComponentVersion  GetVersion()       const;
         AssemblyFlags         GetFlags()         const;
         BlobReference         GetPublicKey()     const;
         StringReference       GetName()          const;
@@ -1006,12 +1038,12 @@ namespace CxxReflect { namespace Metadata {
     {
     public:
 
-        Version         GetVersion()   const;
-        AssemblyFlags   GetFlags()     const;
-        BlobReference   GetPublicKey() const;
-        StringReference GetName()      const;
-        StringReference GetCulture()   const;
-        BlobReference   GetHashValue() const;
+        FourComponentVersion GetVersion()   const;
+        AssemblyFlags        GetFlags()     const;
+        BlobReference        GetPublicKey() const;
+        StringReference      GetName()      const;
+        StringReference      GetCulture()   const;
+        BlobReference        GetHashValue() const;
     };
 
     class AssemblyRefOsRow : public BaseRow<TableId::AssemblyRefOs>

@@ -629,7 +629,6 @@ namespace CxxReflect { namespace Metadata {
         SizeType     ComputeSize()     const;
         ByteIterator SeekTo(Part part) const;
         Kind         GetKind()         const;
-        bool         IsInitialized()   const;
         bool         IsKind(Kind kind) const;
 
         // FieldSig, PropertySig, Param, RetType signatures, and PTR and SZARRAY Type signatures:

@@ -5,8 +5,7 @@
 #ifndef CXXREFLECT_PARAMETER_HPP_
 #define CXXREFLECT_PARAMETER_HPP_
 
-#include "CxxReflect/Core.hpp"
-#include "CxxReflect/MetadataSignature.hpp"
+#include "CxxReflect/CoreInternals.hpp"
 
 namespace CxxReflect { namespace Detail {
 
@@ -69,10 +68,6 @@ namespace CxxReflect {
 
         Parameter();
 
-        Parameter(Method                  const& method,
-                  Metadata::RowReference  const& parameter,
-                  Metadata::TypeSignature const& signature);
-
         ParameterFlags GetAttributes() const;
 
         bool IsIn()       const;
@@ -93,21 +88,20 @@ namespace CxxReflect {
         // TODO DefaultValue
         // TODO RawDefaultValue
 
-        OptionalCustomModifierIterator BeginOptionalCustomModifiers() const;
-        OptionalCustomModifierIterator EndOptionalCustomModifiers()   const;
+        OptionalCustomModifierIterator BeginOptionalCustomModifiers() const; // TODO
+        OptionalCustomModifierIterator EndOptionalCustomModifiers()   const; // TODO
 
-        RequiredCustomModifierIterator BeginRequiredCustomModifiers() const;
-        RequiredCustomModifierIterator EndRequiredCustomModifiers()   const;
+        RequiredCustomModifierIterator BeginRequiredCustomModifiers() const; // TODO
+        RequiredCustomModifierIterator EndRequiredCustomModifiers()   const; // TODO
 
         // TODO GetCustomAttributes
         // TODO IsDefined
 
         bool IsInitialized() const;
+        bool operator!()     const;
 
-        bool operator!() const;
-
-        friend bool operator==(Parameter const& lhs, Parameter const& rhs); // TODO
-        friend bool operator< (Parameter const& lhs, Parameter const& rhs); // TODO
+        friend bool operator==(Parameter const&, Parameter const&);
+        friend bool operator< (Parameter const&, Parameter const&);
 
         CXXREFLECT_GENERATE_COMPARISON_OPERATORS(Parameter)
         CXXREFLECT_GENERATE_SAFE_BOOL_CONVERSION(Parameter)
@@ -115,11 +109,23 @@ namespace CxxReflect {
         // -- The following members of System.Reflection.ParameterInfo are not implemented --
         // Member     Use GetDeclaringMethod;
 
+    public: // Internal Members
+
+        Parameter(Method                  const& method,
+                  Metadata::RowReference  const& parameter,
+                  Metadata::TypeSignature const& signature,
+                  InternalKey);
+
+        Metadata::RowReference  const& GetSelfReference(InternalKey) const;
+        Metadata::TypeSignature const& GetSelfSignature(InternalKey) const;
+
     private:
 
         void VerifyInitialized() const;
 
-        Method                  _method;
+        Metadata::ParamRow GetParamRow() const;
+
+        Detail::MethodHandle    _method;
         Metadata::RowReference  _parameter;
         Metadata::TypeSignature _signature;
     };

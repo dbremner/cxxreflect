@@ -3,8 +3,9 @@
 //     (See accompanying file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)    //
 
 #include "CxxReflect/Assembly.hpp"
-#include "CxxReflect/AssemblyName.hpp"
+#include "CxxReflect/File.hpp"
 #include "CxxReflect/MetadataLoader.hpp"
+#include "CxxReflect/Module.hpp"
 #include "CxxReflect/Type.hpp"
 
 namespace { namespace Private {
@@ -23,15 +24,98 @@ namespace { namespace Private {
 
 namespace CxxReflect {
 
+    Assembly::Assembly()
+    {
+    }
+
+    Assembly::Assembly(Detail::AssemblyContext const* const context, InternalKey)
+        : _context(context)
+    {
+        VerifyInitialized();
+    }
+
+    AssemblyName const& Assembly::GetName() const
+    {
+        VerifyInitialized();
+        return _context.Get()->GetAssemblyName();
+    }
+
+    String const& Assembly::GetPath() const
+    {
+        VerifyInitialized();
+        return _context.Get()->GetPath();
+    }
+
+    SizeType Assembly::GetReferencedAssemblyCount() const
+    {
+        return _context.Get()->GetDatabase().GetTables().GetTable(Metadata::TableId::AssemblyRef).GetRowCount();
+    }
+
+    Assembly::AssemblyNameIterator Assembly::BeginReferencedAssemblyNames() const
+    {
+        return AssemblyNameIterator(*this, Metadata::RowReference(Metadata::TableId::AssemblyRef, 0));
+    }
+
+    Assembly::AssemblyNameIterator Assembly::EndReferencedAssemblyNames() const
+    {
+        return AssemblyNameIterator(*this, Metadata::RowReference(
+            Metadata::TableId::AssemblyRef,
+            _context.Get()->GetDatabase().GetTables().GetTable(Metadata::TableId::AssemblyRef).GetRowCount()));
+    }
+
+    Assembly::FileIterator Assembly::BeginFiles() const
+    {
+        VerifyInitialized();
+        return FileIterator(*this, Metadata::RowReference(Metadata::TableId::File, 0));
+    }
+
+    Assembly::FileIterator Assembly::EndFiles() const
+    {
+        VerifyInitialized();
+        return FileIterator(*this, Metadata::RowReference(
+            Metadata::TableId::File,
+            _context.Get()->GetDatabase().GetTables().GetTable(Metadata::TableId::File).GetRowCount()));
+    }
+
+    File Assembly::GetFile(StringReference const name) const
+    {
+        FileIterator const it(std::find_if(BeginFiles(), EndFiles(), [&](File const& file)
+        {
+            return file.GetName() == name;
+        }));
+
+        return it != EndFiles() ? *it : File();
+    }
+
+    Assembly::ModuleIterator Assembly::BeginModules() const
+    {
+        Detail::VerifyFail("NYI");
+        return ModuleIterator();
+    }
+
+    Assembly::ModuleIterator Assembly::EndModules() const
+    {
+        Detail::VerifyFail("NYI");
+        return ModuleIterator();
+    }
+
+    Module Assembly::GetModule(StringReference const /*name*/) const
+    {
+        Detail::VerifyFail("NYI");
+        return Module();
+    }
+
     Assembly::TypeIterator Assembly::BeginTypes() const
     {
+        VerifyInitialized();
         // We intentionally skip the type at index 0; this isn't a real type, it's the internal
         // <module> "type" containing module-scope thingies.
-        return Assembly::TypeIterator(*this, Metadata::RowReference(Metadata::TableId::TypeDef, 1));
+        return TypeIterator(*this, Metadata::RowReference(Metadata::TableId::TypeDef, 1));
     }
 
     Assembly::TypeIterator Assembly::EndTypes() const
     {
+        VerifyInitialized();
         return TypeIterator(*this, Metadata::RowReference(
             Metadata::TableId::TypeDef,
             _context.Get()->GetDatabase().GetTables().GetTable(Metadata::TableId::TypeDef).GetRowCount()));
@@ -50,7 +134,7 @@ namespace CxxReflect {
 
     Type Assembly::GetType(StringReference const namespaceName,
                            StringReference const unqualifiedTypeName,
-                           bool const caseInsensitive) const
+                           bool            const caseInsensitive) const
     {
         Private::StringComparer const compare(Private::GetStringComparer(caseInsensitive));
         auto const it(std::find_if(BeginTypes(), EndTypes(), [&](Type const& t)
@@ -62,28 +146,19 @@ namespace CxxReflect {
         return it != EndTypes() ? *it : Type();
     }
 
-    SizeType Assembly::GetReferencedAssemblyCount() const
+    bool Assembly::IsInitialized() const
     {
-        return _context.Get()->GetDatabase().GetTables().GetTable(Metadata::TableId::AssemblyRef).GetRowCount();
+        return _context.Get() != nullptr;
     }
 
-    Assembly::AssemblyNameIterator Assembly::BeginReferencedAssemblyNames() const
+    bool Assembly::operator!() const
     {
-        return AssemblyNameIterator(*this, Metadata::RowReference(Metadata::TableId::AssemblyRef, 0));
+        return !IsInitialized();
     }
 
-    Assembly::AssemblyNameIterator Assembly::EndReferencedAssemblyNames() const
+    void Assembly::VerifyInitialized() const
     {
-        return Assembly::AssemblyNameIterator(*this, Metadata::RowReference(
-            Metadata::TableId::AssemblyRef,
-            _context.Get()->GetDatabase().GetTables().GetTable(Metadata::TableId::AssemblyRef).GetRowCount()));
-    }
-
-    AssemblyName const& Assembly::GetName() const
-    {
-        VerifyInitialized();
-
-        return _context.Get()->GetAssemblyName();
+        Detail::Verify([&]{ return IsInitialized(); });
     }
 
     Metadata::AssemblyRow Assembly::GetAssemblyRow() const
@@ -102,6 +177,16 @@ namespace CxxReflect {
     {
         VerifyInitialized();
         return *_context.Get();
+    }
+
+    bool operator==(Assembly const& lhs, Assembly const& rhs)
+    {
+        return lhs._context.Get() == rhs._context.Get();
+    }
+
+    bool operator<(Assembly const& lhs, Assembly const& rhs)
+    {
+        return std::less<Detail::AssemblyContext const*>()(lhs._context.Get(), rhs._context.Get());
     }
 
 }

@@ -5,9 +5,7 @@
 #ifndef CXXREFLECT_FILE_HPP_
 #define CXXREFLECT_FILE_HPP_
 
-#include "CxxReflect/Assembly.hpp"
-#include "CxxReflect/Core.hpp"
-#include "CxxReflect/MetadataDatabase.hpp"
+#include "CxxReflect/CoreInternals.hpp"
 
 namespace CxxReflect {
 
@@ -15,32 +13,36 @@ namespace CxxReflect {
     {
     public:
 
-        File()
-            : _assembly(), _type()
-        {
-        }
+        File();
 
-        File(Assembly const assembly, Metadata::RowReference const file)
-            : _assembly(assembly), _file(file)
-        {
-            Detail::Verify([&] { return assembly.IsInitialized();             });
-            Detail::Verify([&] { return file.GetIndex() != std::uint32_t(-1); });
-        }
+        FileFlags       GetAttributes()    const;
+        StringReference GetName()          const;
+        Assembly        GetAssembly()      const;
+        bool            ContainsMetadata() const;
 
-        Assembly GetAssembly() const { return _assembly; }
+        // TODO GetHashValue()?
+        // TODO Consider providing interface to locate and open the file
 
-        // TODO This interface is very incomplete
+        bool IsInitialized() const;
+        bool operator!()     const;
 
-        bool IsInitialized() const { return _assembly.IsInitialized(); }
+        friend bool operator==(File const&, File const&);
+        friend bool operator< (File const&, File const&);
+
+        CXXREFLECT_GENERATE_COMPARISON_OPERATORS(File)
+        CXXREFLECT_GENERATE_SAFE_BOOL_CONVERSION(File)
+
+    public: // Internal Members
+
+        File(Assembly assembly, Metadata::RowReference file, InternalKey);
 
     private:
 
-        void VerifyInitialized() const
-        {
-            Detail::Verify([&] { return IsInitialized(); }, "Type is not initialized");
-        }
+        void VerifyInitialized() const;
 
-        Assembly               _assembly;
+        Metadata::FileRow GetFileRow() const;
+
+        Detail::AssemblyHandle _assembly;
         Metadata::RowReference _file;
     };
 

@@ -2,9 +2,8 @@
 //                   Distributed under the Boost Software License, Version 1.0.                   //
 //     (See accompanying file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)    //
 
-#include "CxxReflect/MetadataDatabase.hpp"
+#include "CxxReflect/CoreInternals.hpp"
 #include "CxxReflect/MetadataLoader.hpp"
-#include "CxxReflect/MetadataSignature.hpp"
 
 // TODO:  There are parts of the signature reading that are embarrasingly inefficient, requiring
 // multiple scans of the signature just to read each part from it.  We should come back and clean

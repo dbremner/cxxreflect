@@ -78,7 +78,7 @@ namespace CxxReflect {
 
         // This constructor facilitates transformation from an Assembly or AssemblyRef table row
         // into its corresponding AssemblyName representation.  This is an infrastructure member.
-        AssemblyName(class Assembly const& assembly, Metadata::RowReference const& row, InternalKey);
+        AssemblyName(class Assembly const& assembly, class Metadata::RowReference const& row, InternalKey);
 
         AssemblyName(String const& fullName);
 

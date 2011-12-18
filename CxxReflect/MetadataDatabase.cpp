@@ -2,8 +2,7 @@
 //                   Distributed under the Boost Software License, Version 1.0.                   //
 //     (See accompanying file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)    //
 
-#include "CxxReflect/AssemblyName.hpp"
-#include "CxxReflect/MetadataDatabase.hpp"
+#include "CxxReflect/CoreInternals.hpp"
 
 namespace { namespace Private {
 
@@ -157,7 +156,7 @@ namespace { namespace Private {
         return rvaAndSize._rva - section._virtualAddress + section._rawDataOffset;
     }
 
-    struct FourComponentVersion
+    struct RawFourComponentVersion
     {
         std::uint16_t _major;
         std::uint16_t _minor;
@@ -165,7 +164,7 @@ namespace { namespace Private {
         std::uint16_t _revision;
     };
 
-    static_assert(sizeof(FourComponentVersion) == 8, "Invalid FourComponentVersion Definition");
+    static_assert(sizeof(RawFourComponentVersion) == 8, "Invalid FourComponentVersion Definition");
 
     struct PeSectionsAndCliHeader
     {
@@ -1264,11 +1263,11 @@ namespace CxxReflect { namespace Metadata {
         return Private::ReadAs<AssemblyHashAlgorithm>(GetIterator(), GetColumnOffset(0));
     }
 
-    Version AssemblyRow::GetVersion() const
+    FourComponentVersion AssemblyRow::GetVersion() const
     {
-        Private::FourComponentVersion const version(
-            Private::ReadAs<Private::FourComponentVersion>(GetIterator(), GetColumnOffset(1)));
-        return Version(version._major, version._minor, version._build, version._revision);
+        Private::RawFourComponentVersion const version(
+            Private::ReadAs<Private::RawFourComponentVersion>(GetIterator(), GetColumnOffset(1)));
+        return FourComponentVersion(version._major, version._minor, version._build, version._revision);
     }
 
     AssemblyFlags AssemblyRow::GetFlags() const
@@ -1311,11 +1310,11 @@ namespace CxxReflect { namespace Metadata {
         return Private::ReadAs<std::uint32_t>(GetIterator(), GetColumnOffset(0));
     }
 
-    Version AssemblyRefRow::GetVersion() const
+    FourComponentVersion AssemblyRefRow::GetVersion() const
     {
-        Private::FourComponentVersion const version(
-            Private::ReadAs<Private::FourComponentVersion>(GetIterator(), GetColumnOffset(0)));
-        return Version(version._major, version._minor, version._build, version._revision);
+        Private::RawFourComponentVersion const version(
+            Private::ReadAs<Private::RawFourComponentVersion>(GetIterator(), GetColumnOffset(0)));
+        return FourComponentVersion(version._major, version._minor, version._build, version._revision);
     }
 
     AssemblyFlags AssemblyRefRow::GetFlags() const

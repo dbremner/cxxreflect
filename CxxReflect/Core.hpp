@@ -1288,6 +1288,7 @@ namespace CxxReflect { namespace Detail {
 
     class AssemblyHandle;
     class MethodHandle;
+    class ParameterHandle;
     class TypeHandle;
 
 } }
@@ -1381,6 +1382,7 @@ namespace CxxReflect {
     class MetadataLoader;
     class Method;
     class Module;
+    class Parameter;
     class Type;
     class Version;
 
@@ -1412,11 +1414,13 @@ namespace CxxReflect {
         friend MetadataLoader;
         friend Method;
         friend Module;
+        friend Parameter;
         friend Type;
         friend Version;
 
         friend Detail::AssemblyHandle;
         friend Detail::MethodHandle;
+        friend Detail::ParameterHandle;
         friend Detail::TypeHandle;
 
         friend Metadata::ArrayShape;

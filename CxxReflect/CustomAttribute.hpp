@@ -5,7 +5,7 @@
 #ifndef CXXREFLECT_CUSTOMATTRIBUTE_HPP_
 #define CXXREFLECT_CUSTOMATTRIBUTE_HPP_
 
-#include "CxxReflect/Core.hpp"
+#include "CxxReflect/CoreInternals.hpp"
 
 namespace CxxReflect {
 
