@@ -9,6 +9,80 @@
 #include "CxxReflect/Parameter.hpp"
 #include "CxxReflect/Type.hpp"
 
+namespace { namespace Private {
+
+    using namespace CxxReflect;
+    using namespace CxxReflect::Detail;
+
+    void PlaceMemberIntoBuffer(MetadataLoader            const& loader,
+                               std::vector<EventContext>      & buffer,
+                               EventContext              const& newEvent,
+                               SizeType                  const  inheritedEventCount);
+
+    void PlaceMemberIntoBuffer(MetadataLoader            const& loader,
+                               std::vector<FieldContext>      & buffer,
+                               FieldContext              const& newField,
+                               SizeType                  const  inheritedFieldCount);
+
+    void PlaceMemberIntoBuffer(MetadataLoader             const& loader,
+                               std::vector<MethodContext>      & buffer,
+                               MethodContext              const& newMethod,
+                               SizeType                   const  inheritedMethodCount)
+    {
+        Metadata::MethodDefRow    const newMethodDef(newMethod.GetMemberRow());
+        Metadata::MethodSignature const newMethodSig(newMethod.GetMemberSignature());
+
+        // If the method occupies a new slot, it does not override any other method.  A static
+        // method is always a new method.
+        if (newMethodDef.GetFlags().WithMask(MethodAttribute::VTableLayoutMask) == MethodAttribute::NewSlot ||
+            newMethodDef.GetFlags().IsSet(MethodAttribute::Static))
+        {
+            buffer.push_back(newMethod);
+            return;
+        }
+
+        bool isNewMethod(true);
+        auto const bufferBegin(buffer.rbegin() + (buffer.size() - inheritedMethodCount));
+        auto const bufferIt(std::find_if(bufferBegin, buffer.rend(), [&](MethodContext const& oldMethod)
+            -> bool
+        {
+            Metadata::MethodDefRow    const oldMethodDef(oldMethod.GetMemberRow());
+            Metadata::MethodSignature const oldMethodSig(oldMethod.GetMemberSignature());
+
+            // TODO Does this correctly handle hiding of base-class methods?
+            if (!oldMethodDef.GetFlags().IsSet(MethodAttribute::Virtual))
+                return false;
+
+            if (oldMethodDef.GetName() != newMethodDef.GetName())
+                return false;
+
+            Metadata::SignatureComparer const compareSignatures(
+                &loader,
+                &oldMethod.GetDeclaringType().GetDatabase(),
+                &newMethod.GetDeclaringType().GetDatabase());
+
+            // If the signature of the method in the derived class is different from the signature
+            // of the method in the base class, it is not an override:
+            if (!compareSignatures(oldMethodSig, newMethodSig))
+                return false;
+
+            // If the base class method is final, the derived class method is a new method:
+            isNewMethod = oldMethodDef.GetFlags().IsSet(MethodAttribute::Final);
+            return true;
+        }));
+
+        isNewMethod
+            ? (void)buffer.push_back(newMethod)
+            : (void)(*bufferIt = newMethod);
+    }
+
+    void PlaceMemberIntoBuffer(MetadataLoader               const& loader,
+                               std::vector<PropertyContext>      & buffer,
+                               PropertyContext              const& newProperty,
+                               SizeType                     const  inheritedPropertyCount);
+
+} }
+
 namespace CxxReflect { namespace Detail {
 
     template <typename TMember, typename TMemberRow, typename TMemberSignature>
@@ -139,13 +213,17 @@ namespace CxxReflect { namespace Detail {
 
 
 
-    MethodTableCollection::MethodTableCollection(MetadataLoader const* const loader)
+    template <typename TMember, typename TMemberRow, typename TMemberSignature>
+    MemberTableCollection<TMember, TMemberRow, TMemberSignature>::MemberTableCollection(
+        MetadataLoader const* const loader)
         : _loader(loader)
     {
         VerifyNotNull(loader);
     }
 
-    MethodTableCollection::MethodTableCollection(MethodTableCollection&& other)
+    template <typename TMember, typename TMemberRow, typename TMemberSignature>
+    MemberTableCollection<TMember, TMemberRow, TMemberSignature>::MemberTableCollection(
+        MemberTableCollection&& other)
         : _loader            (std::move(other._loader            )),
           _signatureAllocator(std::move(other._signatureAllocator)),
           _tableAllocator    (std::move(other._tableAllocator    )),
@@ -154,13 +232,16 @@ namespace CxxReflect { namespace Detail {
     {
     }
 
-    MethodTableCollection& MethodTableCollection::operator=(MethodTableCollection&& other)
+    template <typename TMember, typename TMemberRow, typename TMemberSignature>
+    MemberTableCollection<TMember, TMemberRow, TMemberSignature>&
+    MemberTableCollection<TMember, TMemberRow, TMemberSignature>::operator=(MemberTableCollection&& other)
     {
         Swap(other);
         return *this;
     }
 
-    void MethodTableCollection::Swap(MethodTableCollection& other)
+    template <typename TMember, typename TMemberRow, typename TMemberSignature>
+    void MemberTableCollection<TMember, TMemberRow, TMemberSignature>::Swap(MemberTableCollection& other)
     {
         using std::swap;
         swap(other._loader,             _loader            );
@@ -170,21 +251,22 @@ namespace CxxReflect { namespace Detail {
         swap(other._buffer,             _buffer            );
     }
 
-    MethodTable MethodTableCollection::GetOrCreateMethodTable(FullReference const& type) const
+    template <typename TMember, typename TMemberRow, typename TMemberSignature>
+    typename MemberTableCollection<TMember, TMemberRow, TMemberSignature>::MemberTableType
+    MemberTableCollection<TMember, TMemberRow, TMemberSignature>::GetOrCreateMemberTable(FullReference const& type) const
     {
         auto const it(_index.find(type));
         if (it != end(_index))
             return it->second;
 
         // When this function returns, we want to clear the buffer so it's ready for our next use.
-        // We can't just clear it when the function is called because this function is recursive.
         // Note that we use resize(0) because on Visual C++, clear() will destroy the underlying
         // storage.  We want to keep the buffer intact so we can reuse it.
         ScopeGuard const bufferCleanupGuard([&]{ _buffer.resize(0); });
 
-        TypeDefAndSpec const typeDefAndSpec(ResolveTypeDefAndSpec(type));
-        FullReference const& typeDefReference(typeDefAndSpec.first);
-        FullReference const& typeSpecReference(typeDefAndSpec.second);
+        TypeDefAndSpec const  typeDefAndSpec(ResolveTypeDefAndSpec(type));
+        FullReference  const& typeDefReference(typeDefAndSpec.first);
+        FullReference  const& typeSpecReference(typeDefAndSpec.second);
 
         Metadata::Database const& database(typeDefReference.GetDatabase());
 
@@ -196,15 +278,15 @@ namespace CxxReflect { namespace Detail {
         Metadata::RowReference const baseTypeReference(typeDef.GetExtends());
         if (baseTypeReference.IsValid())
         {
-            MethodTable const table(GetOrCreateMethodTable(Metadata::FullReference(&database, baseTypeReference)));
+            MethodTable const table(GetOrCreateMemberTable(FullReference(&database, baseTypeReference)));
 
-            std::transform(table.Begin(), table.End(), std::back_inserter(_buffer), [&](MethodContext const& m)
-                -> MethodContext
+            std::transform(table.Begin(), table.End(), std::back_inserter(_buffer), [&](MemberContextType const& m)
+                -> MemberContextType
             {
                 if (!instantiator.HasArguments() || !Instantiator::RequiresInstantiation(m.GetMemberSignature()))
                     return m;
 
-                return MethodContext(
+                return MemberContextType(
                     m.GetDeclaringType(),
                     m.GetMember().AsRowReference(),
                     m.GetInstantiatingType(),
@@ -214,27 +296,28 @@ namespace CxxReflect { namespace Detail {
 
         SizeType const inheritedMethodCount(_buffer.size());
 
-        auto const beginMethod(database.Begin<Metadata::TableId::MethodDef>());
-        auto const firstMethod(beginMethod + typeDef.GetFirstMethod().GetIndex());
-        auto const lastMethod (beginMethod + typeDef.GetLastMethod().GetIndex());
+        Metadata::TableId const TId(static_cast<Metadata::TableId>(Metadata::RowTypeToTableId<MemberRowType>::Value));
+        auto const beginMember(database.Begin<TId>());
+        auto const firstMember(beginMember + typeDef.GetFirstMethod().GetIndex());
+        auto const lastMember (beginMember + typeDef.GetLastMethod().GetIndex());
 
-        std::for_each(firstMethod, lastMethod, [&](Metadata::MethodDefRow const& methodDef)
+        std::for_each(firstMember, lastMember, [&](MemberRowType const& memberDef)
         {
-            Metadata::MethodSignature const methodSig(database
-                .GetBlob(methodDef.GetSignature())
-                .As<Metadata::MethodSignature>());
+            MemberSignatureType const memberSig(database
+                .GetBlob(memberDef.GetSignature())
+                .As<MemberSignatureType>());
 
-            ByteRange const instantiatedSig(instantiator.HasArguments() && Instantiator::RequiresInstantiation(methodSig)
-                ? Instantiate(instantiator, methodSig)
-                : ByteRange(methodSig.BeginBytes(), methodSig.EndBytes()));
+            ByteRange const instantiatedSig(instantiator.HasArguments() && Instantiator::RequiresInstantiation(memberSig)
+                ? Instantiate(instantiator, memberSig)
+                : ByteRange(memberSig.BeginBytes(), memberSig.EndBytes()));
 
-            Metadata::RowReference const methodDefReference(methodDef.GetSelfReference());
+            Metadata::RowReference const memberDefReference(memberDef.GetSelfReference());
 
-            MethodContext const MethodContext(instantiatedSig.IsInitialized()
-                ? MethodContext(typeDefReference, methodDefReference, typeSpecReference, instantiatedSig)
-                : MethodContext(typeDefReference, methodDefReference));
+            MemberContextType const memberContext(instantiatedSig.IsInitialized()
+                ? MethodContext(typeDefReference, memberDefReference, typeSpecReference, instantiatedSig)
+                : MethodContext(typeDefReference, memberDefReference));
 
-            InsertMethodIntoBuffer(MethodContext, inheritedMethodCount);
+            InsertMemberIntoBuffer(memberContext, inheritedMethodCount);
         });
 
         MethodTable const range(_tableAllocator.Allocate(_buffer.size()));
@@ -244,8 +327,9 @@ namespace CxxReflect { namespace Detail {
         return range;
     }
 
-    MethodTableCollection::TypeDefAndSpec
-    MethodTableCollection::ResolveTypeDefAndSpec(FullReference const& type) const
+    template <typename TMember, typename TMemberRow, typename TMemberSignature>
+    typename MemberTableCollection<TMember, TMemberRow, TMemberSignature>::TypeDefAndSpec
+    MemberTableCollection<TMember, TMemberRow, TMemberSignature>::ResolveTypeDefAndSpec(FullReference const& type) const
     {
         FullReference const resolvedType(_loader.Get()->ResolveType(type, InternalKey()));
 
@@ -279,7 +363,9 @@ namespace CxxReflect { namespace Detail {
         return std::make_pair(reResolvedType, resolvedType);
     }
 
-    MethodTableCollection::Instantiator MethodTableCollection::CreateInstantiator(FullReference const& type) const
+    template <typename TMember, typename TMemberRow, typename TMemberSignature>
+    typename MemberTableCollection<TMember, TMemberRow, TMemberSignature>::Instantiator
+    MemberTableCollection<TMember, TMemberRow, TMemberSignature>::CreateInstantiator(FullReference const& type) const
     {
         if (!type.IsInitialized() || type.AsRowReference().GetTable() != Metadata::TableId::TypeSpec)
             return Metadata::ClassVariableSignatureInstantiator();
@@ -296,16 +382,16 @@ namespace CxxReflect { namespace Detail {
             signature.EndGenericArguments());
     }
 
-    ByteRange MethodTableCollection::Instantiate(Instantiator              const& instantiator,
-                                                 Metadata::MethodSignature const& signature) const
+    template <typename TMember, typename TMemberRow, typename TMemberSignature>
+    ByteRange MemberTableCollection<TMember, TMemberRow, TMemberSignature>::Instantiate(
+        Instantiator        const& instantiator,
+        MemberSignatureType const& signature) const
     {
         Verify([&]{ return signature.IsInitialized(); });
         Verify([&]{ return Instantiator::RequiresInstantiation(signature); });
 
         Metadata::MethodSignature const& instantiation(instantiator.Instantiate(signature));
-        SizeType const instantiationSize(std::distance(
-            instantiation.BeginBytes(),
-            instantiation.EndBytes()));
+        SizeType const instantiationSize(std::distance(instantiation.BeginBytes(), instantiation.EndBytes()));
 
         MutableByteRange const ownedInstantiation(_signatureAllocator.Allocate(instantiationSize));
 
@@ -316,54 +402,18 @@ namespace CxxReflect { namespace Detail {
         return ownedInstantiation;
     }
 
-    void MethodTableCollection::InsertMethodIntoBuffer(MethodContext const& newMethod,
-                                                       SizeType      const  inheritedMethodCount) const
+    template <typename TMember, typename TMemberRow, typename TMemberSignature>
+    void MemberTableCollection<TMember, TMemberRow, TMemberSignature>::InsertMemberIntoBuffer(
+        MemberContextType const& newMember,
+        SizeType          const  inheritedMemberCount) const
     {
-        Metadata::MethodDefRow    const newMethodDef(newMethod.GetMemberRow());
-        Metadata::MethodSignature const newMethodSig(newMethod.GetMemberSignature());
-
-        // If the method occupies a new slot, it does not override any other method.  A static
-        // method is always a new method.
-        if (newMethodDef.GetFlags().WithMask(MethodAttribute::VTableLayoutMask) == MethodAttribute::NewSlot ||
-            newMethodDef.GetFlags().IsSet(MethodAttribute::Static))
-        {
-            _buffer.push_back(newMethod);
-            return;
-        }
-
-        bool isNewMethod(true);
-        auto const bufferBegin(_buffer.rbegin() + (_buffer.size() - inheritedMethodCount));
-        auto const bufferIt(std::find_if(bufferBegin, _buffer.rend(), [&](MethodContext const& oldMethod)
-            -> bool
-        {
-            Metadata::MethodDefRow    const oldMethodDef(oldMethod.GetMemberRow());
-            Metadata::MethodSignature const oldMethodSig(oldMethod.GetMemberSignature());
-
-            if (!oldMethodDef.GetFlags().IsSet(MethodAttribute::Virtual))
-                return false;
-
-            if (oldMethodDef.GetName() != newMethodDef.GetName())
-                return false;
-
-            Metadata::SignatureComparer const compareSignatures(
-                _loader.Get(),
-                &oldMethod.GetDeclaringType().GetDatabase(),
-                &newMethod.GetDeclaringType().GetDatabase());
-
-            // If the signature of the method in the derived class is different from the signature
-            // of the method in the base class, it does not replace it, because it is HideBySig:
-            if (!compareSignatures(oldMethodSig, newMethodSig))
-                return false;
-
-            // If the base class method is final, the derived class method is a new method:
-            isNewMethod = oldMethodDef.GetFlags().IsSet(MethodAttribute::Final);
-            return true;
-        }));
-
-        isNewMethod
-            ? (void)_buffer.push_back(newMethod)
-            : (void)(*bufferIt = newMethod);
+        return Private::PlaceMemberIntoBuffer(*_loader.Get(), _buffer, newMember, inheritedMemberCount);
     }
+
+    //TODO template class MemberContext<Event,    Metadata::EventRow,     Metadata::TypeSignature    >;
+    //TODO template class MemberContext<Field,    Metadata::FieldRow,     Metadata::FieldSignature   >;
+    template class MemberTableCollection<Method,   Metadata::MethodDefRow, Metadata::MethodSignature  >;
+    //TODO template class MemberContext<Property, Metadata::PropertyRow,  Metadata::PropertySignature>;
 
 
 
@@ -432,7 +482,7 @@ namespace CxxReflect { namespace Detail {
     MethodTable const AssemblyContext::GetOrCreateMethodTable(Metadata::ElementReference const& type) const
     {
         // TODO BLOB REFERENCES COULD END UP HERER TOO
-        return _methods.GetOrCreateMethodTable(Metadata::FullReference(&_database, type.AsRowReference()));
+        return _methods.GetOrCreateMemberTable(Metadata::FullReference(&_database, type.AsRowReference()));
     }
 
     void AssemblyContext::RealizeName() const

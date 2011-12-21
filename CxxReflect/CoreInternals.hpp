@@ -69,11 +69,74 @@ namespace CxxReflect { namespace Detail {
     typedef Range<MethodContext>   MethodTable;
     typedef Range<PropertyContext> PropertyTable;
 
+    template <typename TMember, typename TMemberRow, typename TMemberSignature>
+    class MemberTableCollection
+    {
+    public:
+
+        typedef TMember                                              MemberType;
+        typedef TMemberRow                                           MemberRowType;
+        typedef TMemberSignature                                     MemberSignatureType;
+
+        typedef MemberContext<TMember, TMemberRow, TMemberSignature> MemberContextType;
+        typedef Range<MemberContextType>                             MemberTableType;
+
+        typedef LinearArrayAllocator<Byte,              (1 << 16)>   SignatureAllocator;
+        typedef LinearArrayAllocator<MemberContextType, (1 << 11)>   TableAllocator;
+
+        typedef Metadata::ClassVariableSignatureInstantiator         Instantiator;
+        typedef Metadata::FullReference                              FullReference;
+
+        MemberTableCollection(MetadataLoader const* loader);
+        MemberTableCollection(MemberTableCollection&& other);
+        MemberTableCollection& operator=(MemberTableCollection&& other);
+
+        void Swap(MemberTableCollection& other);
+        
+        MemberTableType GetOrCreateMemberTable(FullReference const& type) const;
+
+    private:
+
+        typedef std::pair<FullReference, FullReference> TypeDefAndSpec;
+
+        MemberTableCollection(MemberTableCollection const&);
+        MemberTableCollection& operator=(MemberTableCollection const&);
+
+        // The provided 'type' may be a TypeDef, TypeRef, or TypeSpec.  This function returns a
+        // single TypeDef if 'type' is resolved to be a TypeDef, or resolves a pair containing the
+        // TypeSpec (in .second) and the primary TypeDef from the TypeSpec (in .first).  If it is
+        // a TypeSpec, it must be a GenericInst.
+        TypeDefAndSpec ResolveTypeDefAndSpec(FullReference const& type) const;
+
+        // The provided 'type' must be a GenericInst TypeSpec.  This function creates and returns a
+        // generic class variable instantiator from the arguments of the GenericInst.
+        Instantiator CreateInstantiator(FullReference const& type) const;
+
+        // Instantiates 'signature' using 'instantiator', allocates space for it in the signature
+        // allocator, and returns the result.
+        ByteRange Instantiate(Instantiator const& instantiator, MemberSignatureType const& signature) const;
+
+        // Computes the correct override or hiding slot for 'newMember' in the member table being
+        // built (in _buffer).  The 'inheritedMemberCount' is the index of the first new member
+        // (i.e., the first member that was defined in the derived class).
+        void InsertMemberIntoBuffer(MemberContextType const& newMember, SizeType inheritedMemberCount) const;
+
+        ValueInitialized<MetadataLoader const*>          _loader;
+        SignatureAllocator                       mutable _signatureAllocator;
+        TableAllocator                           mutable _tableAllocator;
+        std::map<FullReference, MemberTableType> mutable _index;
+        std::vector<MemberContextType>           mutable _buffer;
+    };
+
+    typedef MemberTableCollection<Event,    Metadata::EventRow,     Metadata::TypeSignature    > EventTableCollection;
+    typedef MemberTableCollection<Field,    Metadata::FieldRow,     Metadata::FieldSignature   > FieldTableCollection;
+    typedef MemberTableCollection<Method,   Metadata::MethodDefRow, Metadata::MethodSignature  > MethodTableCollection;
+    typedef MemberTableCollection<Property, Metadata::PropertyRow,  Metadata::PropertySignature> PropertyTableCollection;
 
 
 
 
-    class MethodTableCollection
+    class MethodTableCollection2
     {
     public:
 
@@ -82,12 +145,12 @@ namespace CxxReflect { namespace Detail {
         typedef Metadata::ClassVariableSignatureInstantiator   Instantiator;
         typedef Metadata::FullReference                        FullReference;
 
-        MethodTableCollection(MetadataLoader const* const loader);
+        MethodTableCollection2(MetadataLoader const* const loader);
 
-        MethodTableCollection(MethodTableCollection&& other);
-        MethodTableCollection& operator=(MethodTableCollection&& other);
+        MethodTableCollection2(MethodTableCollection2&& other);
+        MethodTableCollection2& operator=(MethodTableCollection2&& other);
 
-        void Swap(MethodTableCollection& other);
+        void Swap(MethodTableCollection2& other);
 
         MethodTable GetOrCreateMethodTable(FullReference const& type) const;
 
@@ -95,8 +158,8 @@ namespace CxxReflect { namespace Detail {
 
         typedef std::pair<FullReference, FullReference> TypeDefAndSpec;
 
-        MethodTableCollection(MethodTableCollection const&);
-        MethodTableCollection& operator=(MethodTableCollection const&);
+        MethodTableCollection2(MethodTableCollection2 const&);
+        MethodTableCollection2& operator=(MethodTableCollection2 const&);
 
         // The provided 'type' may be a TypeDef, TypeRef, or TypeSpec.  This function returns a
         // single TypeDef if 'type' is resolved to be a TypeDef, or resolves a pair containing the

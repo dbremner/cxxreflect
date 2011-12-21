@@ -1282,8 +1282,10 @@ namespace CxxReflect { namespace Detail {
     template <typename TMember, typename TMemberRow, typename TMemberSignature>
     class MemberContext;
 
+    template <typename TMember, typename TMemberRow, typename TMemberSignature>
+    class MemberTableCollection;
+
     class AssemblyContext;
-    class MethodTableCollection;
 
     template <typename TType, typename TMethod>
     class MethodIterator;
@@ -1418,6 +1420,9 @@ namespace CxxReflect {
         template <typename TMember, typename TMemberRow, typename TMemberSignature>
         friend class Detail::MemberContext;
 
+        template <typename TMember, typename TMemberRow, typename TMemberSignature>
+        friend class Detail::MemberTableCollection;
+
         template <typename TType, typename TMethod>
         friend class Detail::MethodIterator;
 
@@ -1436,7 +1441,6 @@ namespace CxxReflect {
         friend Version;
 
         friend Detail::AssemblyContext;
-        friend Detail::MethodTableCollection;
 
         friend Detail::AssemblyHandle;
         friend Detail::MethodHandle;

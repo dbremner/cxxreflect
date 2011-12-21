@@ -11,16 +11,6 @@
 #include "CxxReflect/CxxReflect.hpp"
 
 using namespace CxxReflect;
-
-namespace
-{
-    bool IsExplicitInterfaceImplementation(StringReference const methodName)
-    {
-        // TODO THIS IS A HACK
-        return std::any_of(methodName.begin(), methodName.end(), [](Character const c) { return c == L'.'; });
-    }
-}
-
 using namespace CxxReflect::Metadata;
 
 namespace
@@ -107,6 +97,8 @@ int main()
     std::unique_ptr<IMetadataResolver> resolver(new DirectoryBasedMetadataResolver(directories));
 
     MetadataLoader loader(std::move(resolver));
+
+    //Assembly a(loader.LoadAssembly(L"C:\\Users\\james\\Documents\\Visual Studio 11\\Projects\\ConsoleApplication4\\ConsoleApplication4\\bin\\Debug\\ConsoleApplication4.exe"));
 
     Assembly a(loader.LoadAssembly(L"C:\\Windows\\Microsoft.NET\\Framework\\v4.0.30319\\mscorlib.dll"));
 

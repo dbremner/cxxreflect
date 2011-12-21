@@ -12,14 +12,14 @@ namespace { namespace Private {
 
     PublicKeyToken ComputePublicKeyToken(Metadata::Blob const blob, bool const isFullPublicKey)
     {
-        PublicKeyToken result;
+        PublicKeyToken result((PublicKeyToken()));
 
         if (isFullPublicKey)
         {
             Detail::Sha1Hash const hash(Detail::ComputeSha1Hash(blob.Begin(), blob.End()));
             std::copy(hash.rbegin(), hash.rbegin() + 8, result.begin());
         }
-        else
+        else if (blob.GetSize() > 0) // TODO WHY WOULD THIS BE ZERO?
         {
             if (blob.GetSize() != 8)
                 throw std::runtime_error("wtf");
