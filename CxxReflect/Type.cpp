@@ -11,41 +11,55 @@ namespace { namespace Private {
 
     using namespace CxxReflect;
 
-    bool IsSystemAssembly(Assembly const& assembly)
+    template <typename T>
+    bool CoreFilterMember(BindingFlags const filter, bool const isDeclaringType, T const& current)
     {
-        // The system assembly has no assembly references; it is usually mscorlib.dll, but it could
-        // be named something else (e.g., Platform.winmd in WinRT?)
-        return assembly.GetReferencedAssemblyCount() == 0;
-    }
+        typedef typename Detail::Identity<decltype(current.GetMemberRow().GetFlags())>::Type::EnumerationType AttributeType;
+        auto currentFlags(current.GetMemberRow().GetFlags());
 
-    bool IsSystemType(Type const& type,
-                      StringReference const& typeNamespace,
-                      StringReference const& typeName)
-    {
-        return IsSystemAssembly(type.GetAssembly())
-            && type.GetNamespace() == typeNamespace
-            && type.GetName() == typeName;
-    }
-
-    bool IsDerivedFromSystemType(Type const& type,
-                                 StringReference const& typeNamespace,
-                                 StringReference const& typeName,
-                                 bool const includeSelf)
-    {
-        Type currentType(type);
-        if (!includeSelf && currentType)
+        if (currentFlags.IsSet(AttributeType::Static))
         {
-            currentType = type.GetBaseType();
+            if (!filter.IsSet(BindingAttribute::Static))
+                return true;
+        }
+        else
+        {
+            if (!filter.IsSet(BindingAttribute::Instance))
+                return true;
         }
 
-        while (currentType)
+        if (currentFlags.WithMask(AttributeType::MemberAccessMask) == AttributeType::Public)
         {
-            if (IsSystemType(currentType, typeNamespace, typeName))
-            {
+            if (!filter.IsSet(BindingAttribute::Public))
                 return true;
-            }
+        }
+        else
+        {
+            if (!filter.IsSet(BindingAttribute::NonPublic))
+                return true;
+        }
 
-            currentType = currentType.GetBaseType();
+        if (!isDeclaringType)
+        {
+            if (filter.IsSet(BindingAttribute::DeclaredOnly))
+                return true;
+
+            // Static members are not inherited, but they are returned with FlattenHierarchy
+            if (currentFlags.IsSet(AttributeType::Static) && !filter.IsSet(BindingAttribute::FlattenHierarchy))
+                return true;
+
+            StringReference const memberName(current.GetMemberRow().GetName());
+
+            // Nonpublic methods inherited from base classes are never returned, except for
+            // explicit interface implementations, which may be returned:
+            if (currentFlags.WithMask(AttributeType::MemberAccessMask) == AttributeType::Private)
+            {
+                if (currentFlags.IsSet(AttributeType::Static))
+                    return true;
+
+                if (!std::any_of(memberName.begin(), memberName.end(), [](Character const c) { return c == L'.'; }))
+                    return true;
+            }
         }
 
         return false;
@@ -111,7 +125,7 @@ namespace CxxReflect {
 
         default:
         {
-            Detail::VerifyFail();
+            Detail::VerifyFail("Unexpected argument");
             break;
         }
         }
@@ -120,7 +134,8 @@ namespace CxxReflect {
     Type::Type(Assembly const& assembly, Metadata::BlobReference const& type, InternalKey)
         : _assembly(assembly), _type(Metadata::ElementReference(type))
     {
-        Detail::Verify([&] { return assembly.IsInitialized(); });
+        Detail::Verify([&]{ return assembly.IsInitialized(); });
+        Detail::Verify([&]{ return type.IsInitialized();     });
 
         Metadata::TypeSignature const signature(assembly
             .GetContext(InternalKey())
@@ -130,39 +145,8 @@ namespace CxxReflect {
 
         if (signature.GetKind() == Metadata::TypeSignature::Kind::Primitive)
         {
-            String primitiveTypeName;
-            switch (signature.GetPrimitiveElementType())
-            {
-            case Metadata::ElementType::Boolean: primitiveTypeName = L"System.Boolean"; break;
-            case Metadata::ElementType::Char:    primitiveTypeName = L"System.Char";    break;
-            case Metadata::ElementType::I1:      primitiveTypeName = L"System.SByte";   break;
-            case Metadata::ElementType::U1:      primitiveTypeName = L"System.Byte";    break;
-            case Metadata::ElementType::I2:      primitiveTypeName = L"System.Int16";   break;
-            case Metadata::ElementType::U2:      primitiveTypeName = L"System.UInt16";  break;
-            case Metadata::ElementType::I4:      primitiveTypeName = L"System.Int32";   break;
-            case Metadata::ElementType::U4:      primitiveTypeName = L"System.UInt32";  break;
-            case Metadata::ElementType::I8:      primitiveTypeName = L"System.Int64";   break;
-            case Metadata::ElementType::U8:      primitiveTypeName = L"System.UInt64";  break;
-            case Metadata::ElementType::R4:      primitiveTypeName = L"System.Short";   break;
-            case Metadata::ElementType::R8:      primitiveTypeName = L"System.Double";  break;
-            case Metadata::ElementType::I:       primitiveTypeName = L"System.IntPtr";  break;
-            case Metadata::ElementType::U:       primitiveTypeName = L"System.UIntPtr"; break;
-            case Metadata::ElementType::Object:  primitiveTypeName = L"System.Object";  break;
-            case Metadata::ElementType::String:  primitiveTypeName = L"System.String";  break;
-            case Metadata::ElementType::Void:    primitiveTypeName = L"System.Void";    break;
-
-            case Metadata::ElementType::TypedByRef:
-            default:
-                Detail::VerifyFail("Not Yet Implemented");
-                break;
-            }
-
-            // Find the system assembly:
-            Type systemObject(*assembly.BeginTypes());
-            while (systemObject.GetBaseType())
-                systemObject = systemObject.GetBaseType();
-
-            Type const primitiveType(systemObject.GetAssembly().GetType(StringReference(primitiveTypeName.c_str())));
+            Type const primitiveType(Utility::GetPrimitiveType(_assembly.Realize(), signature.GetPrimitiveElementType()));
+            Detail::Verify([&]{ return primitiveType.IsInitialized(); });
 
             _assembly = primitiveType.GetAssembly();
             _type = Metadata::RowReference::FromToken(primitiveType.GetMetadataToken());
@@ -319,8 +303,57 @@ namespace CxxReflect {
     }
     */
 
-    Type::MethodIterator Type::BeginMethods(BindingFlags flags) const
+    Type::MethodIterator Type::BeginConstructors(BindingFlags flags) const
     {
+        VerifyInitialized();
+        Detail::Verify([&]{ return !flags.IsSet(0x10000000); });
+
+        flags.Set(BindingAttribute::InternalUseOnly_Constructor);
+        flags.Set(BindingAttribute::DeclaredOnly);
+        flags.Unset(BindingAttribute::FlattenHierarchy);
+
+        Detail::MethodTable const& table(_assembly.Realize().GetContext(InternalKey()).GetOrCreateMethodTable(_type));
+        return MethodIterator(*this, table.Begin(), table.End(), flags);
+    }
+
+    Type::MethodIterator Type::EndConstructors() const
+    {
+        return MethodIterator();
+    }
+
+    Type::EventIterator Type::BeginEvents(BindingFlags const flags) const
+    {
+        VerifyInitialized();
+        Detail::Verify([&]{ return !flags.IsSet(0x10000000); });
+
+        Detail::EventTable const& table(_assembly.Realize().GetContext(InternalKey()).GetOrCreateEventTable(_type));
+        return EventIterator(*this, table.Begin(), table.End(), flags);
+    }
+
+    Type::EventIterator Type::EndEvents() const
+    {
+        return EventIterator();
+    }
+
+    Type::FieldIterator Type::BeginFields(BindingFlags const flags) const
+    {
+        VerifyInitialized();
+        Detail::Verify([&]{ return !flags.IsSet(0x10000000); });
+
+        Detail::FieldTable const& table(_assembly.Realize().GetContext(InternalKey()).GetOrCreateFieldTable(_type));
+        return FieldIterator(*this, table.Begin(), table.End(), flags);
+    }
+
+    Type::FieldIterator Type::EndFields() const
+    {
+        return FieldIterator();
+    }
+
+    Type::MethodIterator Type::BeginMethods(BindingFlags const flags) const
+    {
+        VerifyInitialized();
+        Detail::Verify([&]{ return !flags.IsSet(0x10000000); });
+
         Detail::MethodTable const& table(_assembly.Realize().GetContext(InternalKey()).GetOrCreateMethodTable(_type));
         return MethodIterator(*this, table.Begin(), table.End(), flags);
     }
@@ -328,6 +361,20 @@ namespace CxxReflect {
     Type::MethodIterator Type::EndMethods() const
     {
         return MethodIterator();
+    }
+
+    Type::PropertyIterator Type::BeginProperties(BindingFlags const flags) const
+    {
+        VerifyInitialized();
+        Detail::Verify([&]{ return !flags.IsSet(0x10000000); });
+
+        Detail::PropertyTable const& table(_assembly.Realize().GetContext(InternalKey()).GetOrCreatePropertyTable(_type));
+        return PropertyIterator(*this, table.Begin(), table.End(), flags);
+    }
+
+    Type::PropertyIterator Type::EndProperties() const
+    {
+        return PropertyIterator();
     }
 
     Type Type::GetBaseType() const
@@ -479,7 +526,7 @@ namespace CxxReflect {
     {
         return ResolveTypeDefTypeAndCall([](Type const& t)
         {
-            return Private::IsDerivedFromSystemType(t, L"System", L"__ComObject", true);
+            return Utility::IsDerivedFromSystemType(t, L"System", L"__ComObject", true);
         });
     }
 
@@ -487,7 +534,7 @@ namespace CxxReflect {
     {
         return ResolveTypeDefTypeAndCall([](Type const& t)
         {
-            return Private::IsDerivedFromSystemType(t, L"System", L"ContextBoundObject", true);
+            return Utility::IsDerivedFromSystemType(t, L"System", L"ContextBoundObject", true);
         });
     }
 
@@ -495,7 +542,7 @@ namespace CxxReflect {
     {
         if (!IsTypeDef()) { return false; }
 
-        return Private::IsDerivedFromSystemType(*this, L"System", L"Enum", false);
+        return Utility::IsDerivedFromSystemType(*this, L"System", L"Enum", false);
     }
 
     bool Type::IsExplicitLayout() const
@@ -560,7 +607,7 @@ namespace CxxReflect {
     {
         return ResolveTypeDefTypeAndCall([](Type const& t)
         {
-            return Private::IsDerivedFromSystemType(t, L"System", L"MarshalByRefObject", true);
+            return Utility::IsDerivedFromSystemType(t, L"System", L"MarshalByRefObject", true);
         });
     }
 
@@ -647,7 +694,7 @@ namespace CxxReflect {
     {
         if (!IsTypeDef()) { return false; }
 
-        if (!Private::IsSystemAssembly(_assembly.Realize())) { return false; }
+        if (!Utility::IsSystemAssembly(_assembly.Realize())) { return false; }
 
         if (GetTypeDefRow().GetNamespace() != L"System") { return false; }
 
@@ -687,7 +734,7 @@ namespace CxxReflect {
         {
             return t.GetTypeDefRow().GetFlags().IsSet(TypeAttribute::Serializable)
                 || t.IsEnum()
-                || Private::IsDerivedFromSystemType(t, L"System", L"MulticastDelegate", true);
+                || Utility::IsDerivedFromSystemType(t, L"System", L"MulticastDelegate", true);
         });
     }
 
@@ -710,8 +757,8 @@ namespace CxxReflect {
 
     bool Type::IsValueType() const
     {
-        return Private::IsDerivedFromSystemType(*this, L"System", L"ValueType", false)
-            && !Private::IsSystemType(*this, L"System", L"Enum");
+        return Utility::IsDerivedFromSystemType(*this, L"System", L"ValueType", false)
+            && !Utility::IsSystemType(*this, L"System", L"Enum");
     }
 
     bool Type::IsVisible() const
@@ -753,5 +800,53 @@ namespace CxxReflect {
         return lhs.GetAssembly() == rhs.GetAssembly()
             && lhs.GetMetadataToken() == rhs.GetMetadataToken();
     }
+
+    bool Type::FilterEvent(BindingFlags const /*filter*/, Type const& /*reflectedType*/, Detail::EventContext const& /*current*/)
+    {
+        // Metadata::RowReference const currentType(current.GetDeclaringType().AsRowReference());
+        // bool const currentTypeIsDeclaringType(reflectedType.GetMetadataToken() == currentType.GetToken());
+
+        // TODO To filter events, we need to compute the most accessible related method.
+
+        return false;
+    }
+
+    bool Type::FilterField(BindingFlags const filter, Type const& reflectedType, Detail::FieldContext const& current)
+    {
+        Metadata::RowReference const currentType(current.GetDeclaringType().AsRowReference());
+        bool const currentTypeIsDeclaringType(reflectedType.GetMetadataToken() == currentType.GetToken());
+
+        if (Private::CoreFilterMember(filter, currentTypeIsDeclaringType, current))
+            return true;
+
+        return false;
+    }
+
+    bool Type::FilterMethod(BindingFlags const filter, Type const& reflectedType, Detail::MethodContext const& current)
+    {
+        Metadata::RowReference const currentType(current.GetDeclaringType().AsRowReference());
+        bool const currentTypeIsDeclaringType(reflectedType.GetMetadataToken() == currentType.GetToken());
+
+        if (Private::CoreFilterMember(filter, currentTypeIsDeclaringType, current))
+            return true;
+
+        StringReference const name(current.GetMemberRow().GetName());
+        bool const isConstructor(
+            current.GetMemberRow().GetFlags().IsSet(MethodAttribute::SpecialName) && 
+            (name == L".ctor" || name == L".cctor"));
+
+        return isConstructor != filter.IsSet(BindingAttribute::InternalUseOnly_Constructor);
+    }
+
+    bool Type::FilterProperty(BindingFlags const /*filter*/, Type const& /*reflectedType*/, Detail::PropertyContext const& /*current*/)
+    {
+        // Metadata::RowReference const currentType(current.GetDeclaringType().AsRowReference());
+        // bool const currentTypeIsDeclaringType(reflectedType.GetMetadataToken() == currentType.GetToken());
+
+        // TODO To filter properties, we need to compute the most accessible related method.
+
+        return false;
+    }
+
 
 }

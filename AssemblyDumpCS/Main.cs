@@ -16,6 +16,13 @@ using System.Text;
 
 class Program
 {
+    const BindingFlags AllBindingFlags =
+            BindingFlags.FlattenHierarchy |
+            BindingFlags.Instance |
+            BindingFlags.NonPublic |
+            BindingFlags.Public |
+            BindingFlags.Static;
+
     static void Dump(StringBuilder sb, Assembly a)
     {
         sb.AppendLine(String.Format("Assembly [{0}]", a.FullName));
@@ -67,23 +74,41 @@ class Program
         sb.AppendLine(String.Format("     -- Name [{0}]", t.Name));
         sb.AppendLine(String.Format("     -- Namespace [{0}]", t.Namespace));
 
+        sb.AppendLine("    !!BeginConstructors");
+        foreach (ConstructorInfo c in t.GetConstructors(AllBindingFlags).OrderBy(c => c.MetadataToken))
+        {
+            Dump(sb, c);
+        }
+        sb.AppendLine("    !!EndConstructors");
+
         sb.AppendLine("    !!BeginMethods");
-        BindingFlags flags = 
-            BindingFlags.FlattenHierarchy |
-            BindingFlags.Instance         |
-            BindingFlags.NonPublic        |
-            BindingFlags.Public           |
-            BindingFlags.Static;
-        foreach (MethodInfo m in t.GetMethods(flags).OrderBy(m => m.MetadataToken))
+        foreach (MethodInfo m in t.GetMethods(AllBindingFlags).OrderBy(m => m.MetadataToken))
         {
             Dump(sb, m);
         }
         sb.AppendLine("    !!EndMethods");
+
+        sb.AppendLine("    !!BeginFields");
+        foreach (FieldInfo f in t.GetFields(AllBindingFlags).OrderBy(f => f.MetadataToken))
+        {
+            Dump(sb, f);
+        }
+        sb.AppendLine("    !!EndFields");
+    }
+
+    static void Dump(StringBuilder sb, ConstructorInfo c)
+    {
+        sb.AppendLine(String.Format("     -- Method [{0}] [${1:x8}]", c.Name, c.MetadataToken));
     }
 
     static void Dump(StringBuilder sb, MethodInfo m)
     {
         sb.AppendLine(String.Format("     -- Method [{0}] [${1:x8}]", m.Name, m.MetadataToken));
+    }
+
+    static void Dump(StringBuilder sb, FieldInfo f)
+    {
+        sb.AppendLine(String.Format("     -- Field [{0}] [${1:x8}]", f.Name, f.MetadataToken));
     }
 
     static void Main(string[] args)

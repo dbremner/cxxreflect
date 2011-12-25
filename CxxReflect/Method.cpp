@@ -27,9 +27,20 @@ namespace CxxReflect {
         return _reflectedType.IsInitialized() && _context.Get() != nullptr;
     }
 
+    bool Method::operator!() const
+    {
+        return !IsInitialized();
+    }
+
     void Method::VerifyInitialized() const
     {
         Detail::Verify([&]{ return IsInitialized(); });
+    }
+
+    Detail::MethodContext const& Method::GetContext(InternalKey) const
+    {
+        VerifyInitialized();
+        return *_context.Get();
     }
 
     Type Method::GetDeclaringType() const

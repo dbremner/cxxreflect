@@ -9,27 +9,33 @@
 
 namespace CxxReflect { namespace Detail {
 
-    template <typename TType, typename TMethod>
-    class MethodIterator
+    template
+    <
+        typename TType,
+        typename TMember,
+        typename TMemberContext,
+        bool (*FFilter)(BindingFlags, TType const&, TMemberContext const&)
+    >
+    class MemberIterator
     {
     public:
 
         typedef std::forward_iterator_tag iterator_category;
-        typedef TMethod                   value_type;
-        typedef TMethod                   reference;
-        typedef Dereferenceable<TMethod>  pointer;
+        typedef TMember                   value_type;
+        typedef TMember                   reference;
+        typedef Dereferenceable<TMember>  pointer;
         typedef std::ptrdiff_t            difference_type;
 
         typedef value_type                ValueType;
         typedef reference                 Reference;
         typedef pointer                   Pointer;
-        typedef MethodContext const*      InnerIterator;
+        typedef TMemberContext const*     InnerIterator;
 
-        MethodIterator()
+        MemberIterator()
         {
         }
 
-        MethodIterator(TType         const& reflectedType,
+        MemberIterator(TType         const& reflectedType,
                        InnerIterator const  current,
                        InnerIterator const  last,
                        BindingFlags  const  filter)
@@ -53,7 +59,7 @@ namespace CxxReflect { namespace Detail {
             return ValueType(_reflectedType, _current.Get(), InternalKey());
         }
 
-        MethodIterator& operator++()
+        MemberIterator& operator++()
         {
             VerifyDereferenceable();
             ++_current.Get();
@@ -61,9 +67,9 @@ namespace CxxReflect { namespace Detail {
             return *this;
         }
 
-        MethodIterator operator++(int)
+        MemberIterator operator++(int)
         {
-            MethodIterator const it(*this);
+            MemberIterator const it(*this);
             ++*this;
             return it;
         }
@@ -78,13 +84,13 @@ namespace CxxReflect { namespace Detail {
             return IsInitialized() && _current.Get() != _last.Get();
         }
 
-        friend bool operator==(MethodIterator const& lhs, MethodIterator const& rhs)
+        friend bool operator==(MemberIterator const& lhs, MemberIterator const& rhs)
         {
             return !lhs.IsDereferenceable() && !rhs.IsDereferenceable()
                 || lhs._current.Get() == rhs._current.Get();
         }
 
-        CXXREFLECT_GENERATE_EQUALITY_OPERATORS(MethodIterator)
+        CXXREFLECT_GENERATE_EQUALITY_OPERATORS(MemberIterator)
 
     private:
 
@@ -93,71 +99,8 @@ namespace CxxReflect { namespace Detail {
 
         void FilterAdvance()
         {
-            while (_current.Get() != _last.Get() && IsFilteredElement())
+            while (_current.Get() != _last.Get() && FFilter(_filter, _reflectedType, *_current.Get()))
                 ++_current.Get();
-        }
-
-        bool IsFilteredElement() const
-        {
-            MethodFlags const currentFlags(_current.Get()->GetMemberRow().GetFlags());
-
-            if (currentFlags.IsSet(MethodAttribute::Static))
-            {
-                if (!_filter.IsSet(BindingAttribute::Static))
-                    return true;
-            }
-            else
-            {
-                if (!_filter.IsSet(BindingAttribute::Instance))
-                    return true;
-            }
-
-            if (currentFlags.WithMask(MethodAttribute::MemberAccessMask) == MethodAttribute::Public)
-            {
-                if (!_filter.IsSet(BindingAttribute::Public))
-                    return true;
-            }
-            else
-            {
-                if (!_filter.IsSet(BindingAttribute::NonPublic))
-                    return true;
-            }
-
-            Metadata::RowReference const currentType(_current.Get()->GetDeclaringType().AsRowReference());
-            bool const currentTypeIsDeclaringType(_reflectedType.GetMetadataToken() == currentType.GetToken());
-
-            if (!currentTypeIsDeclaringType)
-            {
-                if (_filter.IsSet(BindingAttribute::DeclaredOnly))
-                    return true;
-
-                // Static members are not inherited, but they are returned with FlattenHierarchy
-                if (currentFlags.IsSet(MethodAttribute::Static) && !_filter.IsSet(BindingAttribute::FlattenHierarchy))
-                    return true;
-
-                StringReference const methodName(_current.Get()->GetMemberRow().GetName());
-
-                // Nonpublic methods inherited from base classes are never returned, except for
-                // explicit interface implementations, which may be returned:
-                if (currentFlags.WithMask(MethodAttribute::MemberAccessMask) == MethodAttribute::Private)
-                {
-                    if (currentFlags.IsSet(MethodAttribute::Static))
-                        return true;
-
-                    if (!std::any_of(methodName.begin(), methodName.end(), [](Character const c) { return c == L'.'; }))
-                        return true;
-                }
-            }
-
-            // Constructors are never returned as methods:
-            if (currentFlags.IsSet(MethodAttribute::SpecialName))
-            {
-                StringReference const name(_current.Get()->GetMemberRow().GetName());
-                if (name == L".ctor" || name == L".cctor")
-                    return true;
-            }
-
-            return false;
         }
 
         ValueInitialized<InnerIterator> _current;
@@ -172,9 +115,19 @@ namespace CxxReflect {
 
     class Type
     {
+    private:
+
+        static bool FilterEvent   (BindingFlags, Type const&, Detail::EventContext    const&);
+        static bool FilterField   (BindingFlags, Type const&, Detail::FieldContext    const&);
+        static bool FilterMethod  (BindingFlags, Type const&, Detail::MethodContext   const&);
+        static bool FilterProperty(BindingFlags, Type const&, Detail::PropertyContext const&);
+
     public:
 
-        typedef Detail::MethodIterator<Type, Method> MethodIterator;
+        typedef Detail::MemberIterator<Type, Event,    Detail::EventContext,    &Type::FilterEvent   > EventIterator;
+        typedef Detail::MemberIterator<Type, Field,    Detail::FieldContext,    &Type::FilterField   > FieldIterator;
+        typedef Detail::MemberIterator<Type, Method,   Detail::MethodContext,   &Type::FilterMethod  > MethodIterator;
+        typedef Detail::MemberIterator<Type, Property, Detail::PropertyContext, &Type::FilterProperty> PropertyIterator;
 
         Type();
         Type(Assembly const& assembly, Metadata::RowReference  const& type, InternalKey);
@@ -233,8 +186,20 @@ namespace CxxReflect {
         bool IsValueType()               const;
         bool IsVisible()                 const;
 
+        MethodIterator BeginConstructors(BindingFlags flags = BindingAttribute::Default) const;
+        MethodIterator EndConstructors() const;
+
+        EventIterator BeginEvents(BindingFlags flags = BindingAttribute::Default) const;
+        EventIterator EndEvents() const;
+
+        FieldIterator BeginFields(BindingFlags flags = BindingAttribute::Default) const;
+        FieldIterator EndFields() const;
+
         MethodIterator BeginMethods(BindingFlags flags = BindingAttribute::Default) const;
         MethodIterator EndMethods() const;
+
+        PropertyIterator BeginProperties(BindingFlags flags = BindingAttribute::Default) const;
+        PropertyIterator EndProperties() const;
 
         // TODO This interface is very incomplete
 

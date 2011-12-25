@@ -40,6 +40,15 @@
     <ClCompile Include="Parameter.cpp">
       <Filter>Sources</Filter>
     </ClCompile>
+    <ClCompile Include="Property.cpp">
+      <Filter>Sources</Filter>
+    </ClCompile>
+    <ClCompile Include="Field.cpp">
+      <Filter>Sources</Filter>
+    </ClCompile>
+    <ClCompile Include="Event.cpp">
+      <Filter>Sources</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Assembly.hpp">

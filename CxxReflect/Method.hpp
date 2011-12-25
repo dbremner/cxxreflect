@@ -16,7 +16,7 @@ namespace CxxReflect {
         Method();
         Method(Type const& reflectedType, Detail::MethodContext const* context, InternalKey);
 
-        Detail::MethodContext const& GetContext(InternalKey) const { return *_context.Get(); }
+        Detail::MethodContext const& GetContext(InternalKey) const;
 
         Type GetDeclaringType() const;
         Type GetReflectedType() const;
@@ -44,6 +44,7 @@ namespace CxxReflect {
         bool IsVirtual()                 const;
 
         bool IsInitialized()             const;
+        bool operator!()                 const;
 
         // Module
         // ReturnParameter            -- Non-constructor only
@@ -74,6 +75,7 @@ namespace CxxReflect {
         friend bool operator< (Method const& lhs, Method const& rhs);
 
         CXXREFLECT_GENERATE_COMPARISON_OPERATORS(Method)
+        CXXREFLECT_GENERATE_SAFE_BOOL_CONVERSION(Method)
 
     private:
 

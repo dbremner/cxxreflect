@@ -13,6 +13,17 @@ namespace CxxReflect {
     {
     public:
 
+        Event();
+        Event(Type const& reflectedType, Detail::EventContext const* context, InternalKey);
+
+        Detail::EventContext const& GetContext(InternalKey) const;
+
+        Type GetDeclaringType() const;
+        Type GetReflectedType() const;
+
+        bool IsInitialized() const;
+        bool operator!()     const;
+
         // Attributes
         // DeclaringType
         // EventHandlerType
@@ -33,17 +44,22 @@ namespace CxxReflect {
         // IsDefined
         // RemoveEventHandler
 
+        friend bool operator==(Event const& lhs, Event const& rhs);
+        friend bool operator< (Event const& lhs, Event const& rhs);
+
+        CXXREFLECT_GENERATE_COMPARISON_OPERATORS(Event)
+        CXXREFLECT_GENERATE_SAFE_BOOL_CONVERSION(Event)
+
     private:
 
+        void VerifyInitialized() const;
+
+        Metadata::EventRow GetEventRow() const;
+
+        Detail::TypeHandle                                    _reflectedType;
+        Detail::ValueInitialized<Detail::EventContext const*> _context;
+
     };
-
-    bool operator==(Event const& lhs, Event const& rhs); // TODO
-    bool operator< (Event const& lhs, Event const& rhs); // TODO
-
-    inline bool operator!=(Event const& lhs, Event const& rhs) { return !(lhs == rhs); }
-    inline bool operator> (Event const& lhs, Event const& rhs) { return  (rhs <  lhs); }
-    inline bool operator>=(Event const& lhs, Event const& rhs) { return !(lhs <  rhs); }
-    inline bool operator<=(Event const& lhs, Event const& rhs) { return !(rhs <  lhs); }
 
 }
 

@@ -98,6 +98,8 @@
     <ClCompile Include="Assembly.cpp" />
     <ClCompile Include="AssemblyName.cpp" />
     <ClCompile Include="CustomAttribute.cpp" />
+    <ClCompile Include="Event.cpp" />
+    <ClCompile Include="Field.cpp" />
     <ClCompile Include="File.cpp" />
     <ClCompile Include="Guid.cpp" />
     <ClCompile Include="CoreInternals.cpp" />
@@ -107,6 +109,7 @@
     <ClCompile Include="Method.cpp" />
     <ClCompile Include="Parameter.cpp" />
     <ClCompile Include="PlatformWin32.cpp" />
+    <ClCompile Include="Property.cpp" />
     <ClCompile Include="Type.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

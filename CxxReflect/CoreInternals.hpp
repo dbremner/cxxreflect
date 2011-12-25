@@ -136,60 +136,6 @@ namespace CxxReflect { namespace Detail {
 
 
 
-    class MethodTableCollection2
-    {
-    public:
-
-        typedef LinearArrayAllocator<Byte,          (1 << 16)> SignatureAllocator;
-        typedef LinearArrayAllocator<MethodContext, (1 << 11)> TableAllocator;
-        typedef Metadata::ClassVariableSignatureInstantiator   Instantiator;
-        typedef Metadata::FullReference                        FullReference;
-
-        MethodTableCollection2(MetadataLoader const* const loader);
-
-        MethodTableCollection2(MethodTableCollection2&& other);
-        MethodTableCollection2& operator=(MethodTableCollection2&& other);
-
-        void Swap(MethodTableCollection2& other);
-
-        MethodTable GetOrCreateMethodTable(FullReference const& type) const;
-
-    private:
-
-        typedef std::pair<FullReference, FullReference> TypeDefAndSpec;
-
-        MethodTableCollection2(MethodTableCollection2 const&);
-        MethodTableCollection2& operator=(MethodTableCollection2 const&);
-
-        // The provided 'type' may be a TypeDef, TypeRef, or TypeSpec.  This function returns a
-        // single TypeDef if 'type' is resolved to be a TypeDef, or resolves a pair containing the
-        // TypeSpec (in .second) and the primary TypeDef from the TypeSpec (in .first).  If it is
-        // a TypeSpec, it must be a GenericInst.
-        TypeDefAndSpec ResolveTypeDefAndSpec(FullReference const& type) const;
-
-        // The provided 'type' must be a GenericInst TypeSpec.  This function creates and returns a
-        // generic class variable instantiator from the arguments of the GenericInst.
-        Instantiator CreateInstantiator(FullReference const& type) const;
-
-        // Instantiates 'signature' using 'instantiator', allocates space for it in the signature
-        // allocator, and returns the result.
-        ByteRange Instantiate(Instantiator const& instantiator, Metadata::MethodSignature const& signature) const;
-
-        // Computes the correct override slot for 'newMethod' in the method table being built (in
-        // the _buffer).  The 'inheritedMethodCount' is the index of the first new method (i.e., the
-        // first method that was defined in the derived class).
-        void InsertMethodIntoBuffer(MethodContext const& newMethod, SizeType inheritedMethodCount) const;
-
-        ValueInitialized<MetadataLoader const*>         _loader;
-        SignatureAllocator                      mutable _signatureAllocator;
-        TableAllocator                          mutable _tableAllocator;
-        std::map<FullReference, MethodTable>    mutable _index;
-        std::vector<MethodContext>              mutable _buffer;
-    };
-
-
-
-
 
     // Represents all of the permanent information about an Assembly.  This is the implementation of
     // an 'Assembly' facade and includes parts of the implementation of other facades (e.g., it
@@ -211,7 +157,10 @@ namespace CxxReflect { namespace Detail {
         String             const& GetPath()         const;
         AssemblyName       const& GetAssemblyName() const;
 
-        MethodTable const GetOrCreateMethodTable(Metadata::ElementReference const& type) const;
+        EventTable    const GetOrCreateEventTable   (Metadata::ElementReference const& type) const;
+        FieldTable    const GetOrCreateFieldTable   (Metadata::ElementReference const& type) const;
+        MethodTable   const GetOrCreateMethodTable  (Metadata::ElementReference const& type) const;
+        PropertyTable const GetOrCreatePropertyTable(Metadata::ElementReference const& type) const;
 
         bool IsInitialized() const;
 
@@ -235,7 +184,10 @@ namespace CxxReflect { namespace Detail {
 
         FlagSet<RealizationState> mutable _state;
         AssemblyName              mutable _name;
+        EventTableCollection      mutable _events;
+        FieldTableCollection      mutable _fields;
         MethodTableCollection     mutable _methods;
+        PropertyTableCollection   mutable _properties;
     };
 
 
@@ -354,5 +306,38 @@ namespace CxxReflect { namespace Detail {
     };
 
 } }
+
+namespace CxxReflect {
+
+    class Utility
+    {
+    public:
+
+        // Tests whether 'assembly' is the system assembly (i.e., the assembly that references no
+        // other assemblies).  This is usually mscorlib.dll.
+        static bool IsSystemAssembly(Assembly const& assembly);
+
+        // Tests whether 'type' is the system type named 'systemTypeNamespace.systemTypeSimpleName'.
+        static bool IsSystemType(Type            const& type,
+                                 StringReference const& systemTypeNamespace,
+                                 StringReference const& systemTypeSimpleName);
+
+        // Tests whether 'type' is derived from the named system type, optionally including the type
+        // itself.  This is used to test whether a type is contextual, an enumeration, etc.
+        static bool IsDerivedFromSystemType(Type            const& type,
+                                            StringReference const& systemTypeNamespace,
+                                            StringReference const& systemTypeSimpleName,
+                                            bool                   includeSelf);
+
+        static Assembly GetSystemAssembly(Type const& referenceType);
+        static Assembly GetSystemAssembly(Assembly const& referenceAssembly);
+
+        static Type GetSystemObjectType(Type const& referenceType);
+        static Type GetSystemObjectType(Assembly const& referenceAssembly);
+
+        static Type GetPrimitiveType(Assembly const& referenceAssembly, Metadata::ElementType elementType);
+    };
+
+}
 
 #endif

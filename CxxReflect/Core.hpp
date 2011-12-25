@@ -663,6 +663,9 @@ namespace CxxReflect { namespace Detail {
         void Set(EnumerationType const mask) { _value |= AsInteger(mask); }
         void Set(IntegralType    const mask) { _value |= mask;            }
 
+        void Unset(EnumerationType const mask) { _value &= ~AsInteger(mask); }
+        void Unset(IntegralType    const mask) { _value &= ~mask;            }
+
         void Reset() { _value = 0; }
 
         bool IsSet(EnumerationType const mask) const { return WithMask(mask) != 0; }
@@ -1278,6 +1281,45 @@ namespace CxxReflect { namespace Detail {
     Sha1Hash ComputeSha1Hash(std::uint8_t const* first, std::uint8_t const* last);
 
     bool FileExists(wchar_t const* filePath);
+} }
+
+namespace CxxReflect {
+
+    enum class AssemblyAttribute             : std::uint32_t;
+    enum class AssemblyHashAlgorithm         : std::uint32_t;
+    enum class BindingAttribute              : std::uint32_t;
+    enum class CallingConvention             : std::uint8_t;
+    enum class EventAttribute                : std::uint16_t;
+    enum class FieldAttribute                : std::uint16_t;
+    enum class FileAttribute                 : std::uint32_t;
+    enum class GenericParameterAttribute     : std::uint16_t;
+    enum class ManifestResourceAttribute     : std::uint32_t;
+    enum class MethodAttribute               : std::uint16_t;
+    enum class MethodImplementationAttribute : std::uint16_t;
+    enum class MethodSemanticsAttribute      : std::uint16_t;
+    enum class ParameterAttribute            : std::uint16_t;
+    enum class PInvokeAttribute              : std::uint16_t;
+    enum class PropertyAttribute             : std::uint16_t;
+    enum class TypeAttribute                 : std::uint32_t;
+
+    typedef Detail::FlagSet<AssemblyAttribute>             AssemblyFlags;
+    typedef Detail::FlagSet<BindingAttribute>              BindingFlags;
+    typedef Detail::FlagSet<EventAttribute>                EventFlags;
+    typedef Detail::FlagSet<FieldAttribute>                FieldFlags;
+    typedef Detail::FlagSet<FileAttribute>                 FileFlags;
+    typedef Detail::FlagSet<GenericParameterAttribute>     GenericParameterFlags;
+    typedef Detail::FlagSet<ManifestResourceAttribute>     ManifestResourceFlags;
+    typedef Detail::FlagSet<MethodAttribute>               MethodFlags;
+    typedef Detail::FlagSet<MethodImplementationAttribute> MethodImplementationFlags;
+    typedef Detail::FlagSet<MethodSemanticsAttribute>      MethodSemanticsFlags;
+    typedef Detail::FlagSet<ParameterAttribute>            ParameterFlags;
+    typedef Detail::FlagSet<PInvokeAttribute>              PInvokeFlags;
+    typedef Detail::FlagSet<PropertyAttribute>             PropertyFlags;
+    typedef Detail::FlagSet<TypeAttribute>                 TypeFlags;
+
+}
+
+namespace CxxReflect { namespace Detail {
 
     template <typename TMember, typename TMemberRow, typename TMemberSignature>
     class MemberContext;
@@ -1287,8 +1329,14 @@ namespace CxxReflect { namespace Detail {
 
     class AssemblyContext;
 
-    template <typename TType, typename TMethod>
-    class MethodIterator;
+    template
+    <
+        typename TType,
+        typename TMember,
+        typename TMemberContext,
+        bool (*FFilter)(BindingFlags, TType const&, TMemberContext const&)
+    >
+    class MemberIterator;
 
     class AssemblyHandle;
     class MethodHandle;
@@ -1391,6 +1439,7 @@ namespace CxxReflect {
     class Parameter;
     class Property;
     class Type;
+    class Utility;
     class Version;
 }
 
@@ -1423,8 +1472,14 @@ namespace CxxReflect {
         template <typename TMember, typename TMemberRow, typename TMemberSignature>
         friend class Detail::MemberTableCollection;
 
-        template <typename TType, typename TMethod>
-        friend class Detail::MethodIterator;
+        template
+        <
+            typename TType,
+            typename TMember,
+            typename TMemberContext,
+            bool (*FFilter)(BindingFlags, TType const&, TMemberContext const&)
+        >
+        friend class Detail::MemberIterator;
 
         template <typename TCurrent, typename TResult, typename TParameter>
         friend class Detail::InstantiatingIterator;
@@ -1432,12 +1487,15 @@ namespace CxxReflect {
         friend Assembly;
         friend AssemblyName;
         friend Event;
+        friend Field;
         friend File;
         friend MetadataLoader;
         friend Method;
         friend Module;
         friend Parameter;
+        friend Property;
         friend Type;
+        friend Utility;
         friend Version;
 
         friend Detail::AssemblyContext;
@@ -1479,14 +1537,16 @@ namespace CxxReflect {
     // The subset of System.Reflection.BindingFlags that are useful for reflection-only
     enum class BindingAttribute : std::uint32_t
     {
-        Default          = 0x0000,
-        IgnoreCase       = 0x0001,
-        DeclaredOnly     = 0x0002,
-        Instance         = 0x0004,
-        Static           = 0x0008,
-        Public           = 0x0010,
-        NonPublic        = 0x0020,
-        FlattenHierarchy = 0x0040
+        Default                     = 0x00000000,
+        IgnoreCase                  = 0x00000001,
+        DeclaredOnly                = 0x00000002,
+        Instance                    = 0x00000004,
+        Static                      = 0x00000008,
+        Public                      = 0x00000010,
+        NonPublic                   = 0x00000020,
+        FlattenHierarchy            = 0x00000040,
+
+        InternalUseOnly_Constructor = 0x10000001
     };
 
     enum class CallingConvention : std::uint8_t
@@ -1506,6 +1566,7 @@ namespace CxxReflect {
     enum class FieldAttribute : std::uint16_t
     {
         FieldAccessMask    = 0x0007,
+        MemberAccessMask   = 0x0007,
 
         CompilerControlled = 0x0000,
         Private            = 0x0001,
@@ -1691,21 +1752,6 @@ namespace CxxReflect {
         HasSecurity             = 0x00040000,
         IsTypeForwarder         = 0x00200000
     };
-
-    typedef Detail::FlagSet<AssemblyAttribute>             AssemblyFlags;
-    typedef Detail::FlagSet<BindingAttribute>              BindingFlags;
-    typedef Detail::FlagSet<EventAttribute>                EventFlags;
-    typedef Detail::FlagSet<FieldAttribute>                FieldFlags;
-    typedef Detail::FlagSet<FileAttribute>                 FileFlags;
-    typedef Detail::FlagSet<GenericParameterAttribute>     GenericParameterFlags;
-    typedef Detail::FlagSet<ManifestResourceAttribute>     ManifestResourceFlags;
-    typedef Detail::FlagSet<MethodAttribute>               MethodFlags;
-    typedef Detail::FlagSet<MethodImplementationAttribute> MethodImplementationFlags;
-    typedef Detail::FlagSet<MethodSemanticsAttribute>      MethodSemanticsFlags;
-    typedef Detail::FlagSet<ParameterAttribute>            ParameterFlags;
-    typedef Detail::FlagSet<PInvokeAttribute>              PInvokeFlags;
-    typedef Detail::FlagSet<PropertyAttribute>             PropertyFlags;
-    typedef Detail::FlagSet<TypeAttribute>                 TypeFlags;
 
     CXXREFLECT_GENERATE_SCOPED_ENUM_OPERATORS(AssemblyAttribute)
     CXXREFLECT_GENERATE_SCOPED_ENUM_OPERATORS(BindingAttribute)

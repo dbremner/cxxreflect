@@ -348,6 +348,23 @@ namespace CxxReflect { namespace Metadata {
             VerifyInitialized();
         }
 
+        FullReference(Database const* const database, BlobReference const& r)
+            : BaseElementReference(r), _database(database)
+        {
+            Detail::VerifyNotNull(database);
+            VerifyInitialized();
+        }
+
+        FullReference(Database const* const database, ElementReference const& r)
+            : BaseElementReference(r.IsRowReference()
+                ? BaseElementReference(r.AsRowReference())
+                : BaseElementReference(r.AsBlobReference())),
+              _database(database)
+        {
+            Detail::VerifyNotNull(database);
+            VerifyInitialized();
+        }
+
         Database const& GetDatabase() const { return *_database.Get(); }
 
     private:
@@ -358,7 +375,7 @@ namespace CxxReflect { namespace Metadata {
 
 
 
-    // Represents an assembly version
+    // Represents a four-component assembly version number (major.minor.build.revision).
     class FourComponentVersion
     {
     public:

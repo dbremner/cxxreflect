@@ -13,6 +13,17 @@ namespace CxxReflect {
     {
     public:
 
+        Property();
+        Property(Type const& reflectedType, Detail::PropertyContext const* context, InternalKey);
+
+        Detail::PropertyContext const& GetContext(InternalKey) const;
+
+        Type GetDeclaringType() const;
+        Type GetReflectedType() const;
+
+        bool IsInitialized() const;
+        bool operator!()     const;
+
         // Attributes
         // CanRead
         // CanWrite
@@ -40,17 +51,23 @@ namespace CxxReflect {
 
         // -- The following members of System.Reflection.PropertyInfo are not implemented --
 
+        friend bool operator==(Property const& lhs, Property const& rhs);
+        friend bool operator< (Property const& lhs, Property const& rhs);
+
+        CXXREFLECT_GENERATE_COMPARISON_OPERATORS(Property)
+        CXXREFLECT_GENERATE_SAFE_BOOL_CONVERSION(Property)
+
     private:
 
+        void VerifyInitialized() const;
+
+        Metadata::PropertyRow GetPropertyRow() const;
+
+        Detail::TypeHandle                                       _reflectedType;
+        Detail::ValueInitialized<Detail::PropertyContext const*> _context;
+
+
     };
-
-    bool operator==(Property const& lhs, Property const& rhs); // TODO
-    bool operator< (Property const& lhs, Property const& rhs); // TODO
-
-    inline bool operator!=(Property const& lhs, Property const& rhs) { return !(lhs == rhs); }
-    inline bool operator> (Property const& lhs, Property const& rhs) { return  (rhs <  lhs); }
-    inline bool operator>=(Property const& lhs, Property const& rhs) { return !(lhs <  rhs); }
-    inline bool operator<=(Property const& lhs, Property const& rhs) { return !(rhs <  lhs); }
 
 }
 

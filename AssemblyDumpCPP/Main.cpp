@@ -15,6 +15,17 @@ using namespace CxxReflect::Metadata;
 
 namespace
 {
+    BindingAttribute const AllBindingFlags = (BindingAttribute::Public | BindingAttribute::NonPublic | BindingAttribute::Static | BindingAttribute::Instance | BindingAttribute::FlattenHierarchy);
+
+    struct MetadataTokenMemberComparer
+    {
+        template <typename TMember>
+        bool operator()(TMember const& lhs, TMember const& rhs) const
+        {
+            return lhs.GetMetadataToken() < rhs.GetMetadataToken();
+        }
+    };
+
     // The CLR hides or modifies some types in the reflection API; we don't get those modifications
     // when we read the metadata directly, so we just ignore those types here in the test program.
     bool IsKnownProblemType(Type const& t)
@@ -23,9 +34,11 @@ namespace
             || (t.GetNamespace() == L"System.Runtime.Remoting.Proxies"               && t.GetName() == L"__TransparentProxy")
             || (t.GetNamespace() == L"System.Runtime.InteropServices.WindowsRuntime" && t.GetName() == L"DisposableRuntimeClass");
     }
+
     void Dump(Detail::FileHandle& os, Assembly const& a);
     void Dump(Detail::FileHandle& os, Type     const& t);
     void Dump(Detail::FileHandle& os, Method   const& m);
+    void Dump(Detail::FileHandle& os, Field    const& f);
 
     void Dump(Detail::FileHandle& os, Assembly const& a)
     {
@@ -65,27 +78,43 @@ namespace
 
         os << L"     -- Name [" << t.GetName().c_str() << L"]\n";
         os << L"     -- Namespace [" << t.GetNamespace().c_str() << L"]\n";
-        os << L"    !!BeginMethods\n";
-        Type methodsType = t.IsEnum() ? t.GetBaseType() : t;
 
-        std::vector<Method> allMethods(t.BeginMethods(BindingAttribute::Public | BindingAttribute::NonPublic | BindingAttribute::Static | BindingAttribute::Instance | BindingAttribute::FlattenHierarchy), t.EndMethods());
-
-        std::sort(allMethods.begin(), allMethods.end(), [](Method const& lhs, Method const& rhs)
+        os << L"    !!BeginConstructors\n";
+        std::vector<Method> allConstructors(t.BeginConstructors(AllBindingFlags), t.EndConstructors());
+        std::sort(allConstructors.begin(), allConstructors.end(), MetadataTokenMemberComparer());
+        std::for_each(allConstructors.begin(), allConstructors.end(), [&](Method const& m)
         {
-            return lhs.GetMetadataToken() < rhs.GetMetadataToken();;
+            Dump(os, m);
         });
-        
+        os << L"    !!EndConstructors\n";
+
+        os << L"    !!BeginMethods\n";
+        std::vector<Method> allMethods(t.BeginMethods(AllBindingFlags), t.EndMethods());
+        std::sort(allMethods.begin(), allMethods.end(), MetadataTokenMemberComparer());
         std::for_each(allMethods.begin(), allMethods.end(), [&](Method const& m)
         {
             Dump(os, m);
         });
-
         os << L"    !!EndMethods\n";
+
+        os << L"    !!BeginFields\n";
+        std::vector<Field> allFields(t.BeginFields(AllBindingFlags), t.EndFields());
+        std::sort(allFields.begin(), allFields.end(), MetadataTokenMemberComparer());
+        std::for_each(allFields.begin(), allFields.end(), [&](Field const& m)
+        {
+            Dump(os, m);
+        });
+        os << L"    !!EndFields\n";
     }
 
     void Dump(Detail::FileHandle& os, Method const& m)
     {
         os << L"     -- Method [" << m.GetName().c_str() << L"] [$" << Detail::HexFormat(m.GetMetadataToken()) << L"]\n"; // TODO
+    }
+
+    void Dump(Detail::FileHandle& os, Field const& f)
+    {
+        os << L"     -- Field [" << f.GetName().c_str() << L"] [$" << Detail::HexFormat(f.GetMetadataToken()) << L"]\n"; // TODO
     }
 }
 
