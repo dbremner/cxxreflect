@@ -8,9 +8,7 @@
 #include "CxxReflect/Module.hpp"
 #include "CxxReflect/Type.hpp"
 
-namespace { namespace Private {
-
-    using namespace CxxReflect;
+namespace CxxReflect { namespace { namespace Private {
 
     typedef int (*StringComparer)(wchar_t const*, wchar_t const*);
 
@@ -20,7 +18,7 @@ namespace { namespace Private {
         return caseInsensitive ? _wcsicmp : wcscmp;
     }
 
-} }
+} } }
 
 namespace CxxReflect {
 

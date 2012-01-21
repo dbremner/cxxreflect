@@ -4,10 +4,7 @@
 
 #include "CxxReflect/CoreInternals.hpp"
 
-namespace { namespace Private {
-
-    using namespace CxxReflect;
-    using namespace CxxReflect::Metadata;
+namespace CxxReflect { namespace Metadata { namespace { namespace Private {
 
     // The PE headers and related structures are naturally aligned, so we shouldn't need any custom
     // pragmas, attributes, or directives to pack the structures.  We use static assertions to ensure
@@ -725,7 +722,7 @@ namespace { namespace Private {
         }
     }
 
-} }
+} } } }
 
 namespace CxxReflect { namespace Metadata {
 

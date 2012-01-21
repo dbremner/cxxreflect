@@ -1,4 +1,4 @@
-//#include "CxxReflect/CxxReflect.hpp"
+#include "CxxReflect/CxxReflect.hpp"
 
 namespace WinRTTestStub
 {
@@ -52,6 +52,7 @@ int main(Platform::Array<Platform::String^>^ arguments)
         for (auto it(begin(dependencies)); it != end(dependencies); ++it)
         {
             auto px = (*it)->InstalledLocation->Path;
+            auto py = (*it)->Id->FullName;
         }
     }
     catch (Platform::COMException^ ex)
@@ -59,34 +60,19 @@ int main(Platform::Array<Platform::String^>^ arguments)
         Platform::String^ message = ex->Message;
     }
 
-
-/*    Windows::Foundation::Collections::IVectorView<Windows::ApplicationModel::Package^>^ dependencies(package->Dependencies);
-
-    for (auto it(begin(dependencies)); it != end(dependencies); ++it)
-    {
-        Windows::ApplicationModel::Package^ dependencyPackage(*it);
-        try
-        {
-        auto name = dependencyPackage->Id->FullName;
-        auto loc = dependencyPackage->InstalledLocation;
-        auto path = loc->DisplayName;
-        }
-        catch (Platform::COMException^ comException)
-        {
-
-        }
-    }
-
+    using namespace CxxReflect;
     
-    /*
     WinRTTestStub::StringMaker^ stringMaker(ref new WinRTTestStub::StringMaker());
 
     Type const type(WinRTPackageMetadata::GetTypeOf(stringMaker));
+    StringReference const typeNamespace(type.GetNamespace());
+    StringReference const typeName(type.GetName());
 
     CxxReflect::BindingFlags bindingFlags(BindingAttribute::Public | BindingAttribute::Instance);
 
     Method const method(type.GetMethod(L"MakeHelloWorldString", bindingFlags));
 
     std::vector<Method> const stringMakerMethods(type.BeginMethods(), type.EndMethods());
-    */
+    
+    return 0;
 }

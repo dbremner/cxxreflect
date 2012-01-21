@@ -448,7 +448,7 @@ namespace CxxReflect {
         // The platform metadata and system assembly are special-cased to use our platform metadata:
         if (simpleName == L"platform" || simpleName == L"mscorlib")
         {
-            return _packageRoot + L"CxxReflectPlatform.winmd";
+            return _packageRoot + Detail::PlatformMetadataFileName;
         }
 
         Detail::VerifyFail("Not Yet Implemented");
@@ -463,7 +463,7 @@ namespace CxxReflect {
         // The platform metadata and system assembly are special-cased to use our platform metadata:
         if (simpleName == L"platform" || simpleName == L"mscorlib")
         {
-            return _packageRoot + L"CxxReflectPlatform.winmd";
+            return _packageRoot + Detail::PlatformMetadataFileName;
         }
 
         // The assembly name must be a prefix of the namespace-qualified type name, per WinRT rules:
@@ -525,7 +525,7 @@ namespace CxxReflect {
         if (lowercaseNamespaceName.substr(0, 8) == L"platform" ||
             lowercaseNamespaceName.substr(0, 6) == L"system")
         {
-            return _packageRoot + L"CxxReflectPlatform.winmd";
+            return _packageRoot + Detail::PlatformMetadataFileName;
         }
 
         // TODO Should we throw here or return an empty string?

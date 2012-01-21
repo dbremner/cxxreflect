@@ -6,7 +6,7 @@
 #include "CxxReflect/AssemblyName.hpp"
 #include "CxxReflect/MetadataLoader.hpp"
 
-namespace { namespace Private {
+namespace CxxReflect { namespace { namespace Private {
 
     using namespace CxxReflect;
 
@@ -55,7 +55,7 @@ namespace { namespace Private {
             flags);
     }
 
-} }
+} } }
 
 namespace CxxReflect {
 

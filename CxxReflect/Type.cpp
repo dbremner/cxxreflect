@@ -7,9 +7,7 @@
 #include "CxxReflect/Method.hpp"
 #include "CxxReflect/Type.hpp"
 
-namespace { namespace Private {
-
-    using namespace CxxReflect;
+namespace CxxReflect { namespace { namespace Private {
 
     template <typename T>
     bool CoreFilterMember(BindingFlags const filter, bool const isDeclaringType, T const& current)
@@ -65,7 +63,7 @@ namespace { namespace Private {
         return false;
     }
 
-} }
+} } }
 
 namespace CxxReflect {
 

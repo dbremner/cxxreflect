@@ -9,10 +9,7 @@
 // multiple scans of the signature just to read each part from it.  We should come back and clean
 // this up once we have everything working neatly.
 
-namespace { namespace Private {
-
-    using namespace CxxReflect;
-    using namespace CxxReflect::Metadata;
+namespace CxxReflect { namespace Metadata { namespace { namespace Private {
 
     char const* const IteratorReadUnexpectedEnd("Unexpectedly reached end of range");
 
@@ -45,7 +42,7 @@ namespace { namespace Private {
         CompressedIntBytes result;
 
         if (it == last)
-            throw Private::ReadError(Private::IteratorReadUnexpectedEnd);
+            throw ReadError(Private::IteratorReadUnexpectedEnd);
 
         // Note:  we've manually unrolled this for performance.  Thank you, Mr. Profiler.
         result.Bytes[0] = *it++;
@@ -61,7 +58,7 @@ namespace { namespace Private {
             result.Bytes[1] ^= 0x80;
 
             if (last - it < 1)
-                throw Private::ReadError(Private::IteratorReadUnexpectedEnd);
+                throw ReadError(Private::IteratorReadUnexpectedEnd);
 
             result.Bytes[0] = *it++;
             return result;
@@ -73,7 +70,7 @@ namespace { namespace Private {
             result.Bytes[3] ^= 0xC0;
 
             if (last - it < 3)
-                throw Private::ReadError(Private::IteratorReadUnexpectedEnd);
+                throw ReadError(Private::IteratorReadUnexpectedEnd);
 
             result.Bytes[2] = *it++;
             result.Bytes[1] = *it++;
@@ -82,7 +79,7 @@ namespace { namespace Private {
         }
         else
         {
-            throw Private::ReadError(Private::IteratorReadUnexpectedEnd);
+            throw ReadError(Private::IteratorReadUnexpectedEnd);
         }
     }
 
@@ -185,7 +182,7 @@ namespace { namespace Private {
             || value == ElementType::CustomModifierRequired;
     }
 
-} }
+} } } }
 
 namespace CxxReflect { namespace Metadata {
 

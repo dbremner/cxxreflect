@@ -12,10 +12,7 @@
 #include "CxxReflect/Property.hpp"
 #include "CxxReflect/Type.hpp"
 
-namespace { namespace Private {
-
-    using namespace CxxReflect;
-    using namespace CxxReflect::Detail;
+namespace CxxReflect { namespace Detail { namespace { namespace Private {
 
     // TODO We could refactor much of the code in these four 'PlaceMemberIntoBuffer' functions.
 
@@ -172,7 +169,7 @@ namespace { namespace Private {
         return 0; // TODO
     }
 
-} }
+} } } }
 
 namespace CxxReflect { namespace Detail {
 
