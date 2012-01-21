@@ -789,7 +789,7 @@ namespace CxxReflect { namespace Metadata {
     {
         VerifyInitialized();
 
-        return SeekTo(Part::End) - BeginBytes();
+        return static_cast<SizeType>(SeekTo(Part::End) - BeginBytes());
     }
 
     ByteIterator ArrayShape::SeekTo(Part const part) const
@@ -884,7 +884,7 @@ namespace CxxReflect { namespace Metadata {
     {
         VerifyInitialized();
 
-        return SeekTo(Part::End) - BeginBytes();
+        return static_cast<SizeType>(SeekTo(Part::End) - BeginBytes());
     }
 
     ByteIterator CustomModifier::SeekTo(Part const part) const
@@ -938,7 +938,7 @@ namespace CxxReflect { namespace Metadata {
     {
         VerifyInitialized();
 
-        return SeekTo(Part::End) - BeginBytes();
+        return static_cast<SizeType>(SeekTo(Part::End) - BeginBytes());
     }
 
     ByteIterator FieldSignature::SeekTo(Part const part) const
@@ -1024,7 +1024,7 @@ namespace CxxReflect { namespace Metadata {
     {
         VerifyInitialized();
 
-        return SeekTo(Part::End) - BeginBytes();
+        return static_cast<SizeType>(SeekTo(Part::End) - BeginBytes());
     }
 
     ByteIterator PropertySignature::SeekTo(Part const part) const
@@ -1220,7 +1220,7 @@ namespace CxxReflect { namespace Metadata {
         VerifyInitialized();
 
         SizeType const parameterCount(GetParameterCount());
-        SizeType const actualParameters(std::distance(BeginParameters(), EndParameters()));
+        SizeType const actualParameters(static_cast<SizeType>(std::distance(BeginParameters(), EndParameters())));
         SizeType const varArgParameters(parameterCount - actualParameters);
 
         return ParameterIterator(SeekTo(Part::FirstVarargParam), EndBytes(), 0, varArgParameters);
@@ -1231,7 +1231,7 @@ namespace CxxReflect { namespace Metadata {
         VerifyInitialized();
 
         SizeType const parameterCount(GetParameterCount());
-        SizeType const actualParameters(std::distance(BeginParameters(), EndParameters()));
+        SizeType const actualParameters(static_cast<SizeType>(std::distance(BeginParameters(), EndParameters())));
         SizeType const varArgParameters(parameterCount - actualParameters);
 
         return ParameterIterator(nullptr, nullptr, varArgParameters, varArgParameters);
@@ -1241,7 +1241,7 @@ namespace CxxReflect { namespace Metadata {
     {
         VerifyInitialized();
 
-        return SeekTo(Part::End) - BeginBytes();
+        return static_cast<SizeType>(SeekTo(Part::End) - BeginBytes());
     }
 
     ByteIterator MethodSignature::SeekTo(Part const part) const
@@ -1326,7 +1326,7 @@ namespace CxxReflect { namespace Metadata {
     {
         VerifyInitialized();
 
-        return SeekTo(Part::End) - BeginBytes();
+        return static_cast<SizeType>(SeekTo(Part::End) - BeginBytes());
     }
 
     TypeSignature::Kind TypeSignature::GetKind() const

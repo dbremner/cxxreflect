@@ -14,5 +14,6 @@
 #include "CxxReflect/Parameter.hpp"
 #include "CxxReflect/Property.hpp"
 #include "CxxReflect/Type.hpp"
+#include "CxxReflect/WinRTIntegration.hpp"
 
 #endif

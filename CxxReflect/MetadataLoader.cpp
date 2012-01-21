@@ -52,6 +52,11 @@ namespace CxxReflect {
         Detail::VerifyNotNull(_resolver.get());
     }
 
+    IMetadataResolver const& MetadataLoader::GetResolver() const
+    {
+        return *_resolver.get();
+    }
+
     Detail::AssemblyContext const& MetadataLoader::GetContextForDatabase(Metadata::Database const& database, InternalKey) const
     {
         typedef std::pair<String const, Detail::AssemblyContext> ValueType;

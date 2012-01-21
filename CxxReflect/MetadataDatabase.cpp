@@ -151,7 +151,7 @@ namespace { namespace Private {
 
     typedef std::array<PeCliStreamHeader, 5> PeCliStreamHeaderSequence;
 
-    std::size_t ComputeOffsetFromRva(PeSectionHeader section, PeRvaAndSize rvaAndSize)
+    SizeType ComputeOffsetFromRva(PeSectionHeader section, PeRvaAndSize rvaAndSize)
     {
         return rvaAndSize._rva - section._virtualAddress + section._rawDataOffset;
     }
@@ -243,7 +243,7 @@ namespace { namespace Private {
         if (metadataSectionIt == peHeader._sections.end())
             throw ReadError("Failed to locate PE file section containing CLI metadata");
 
-        std::size_t metadataOffset(ComputeOffsetFromRva(
+        SizeType metadataOffset(ComputeOffsetFromRva(
             *metadataSectionIt,
             peHeader._cliHeader._metadata));
 
@@ -307,21 +307,21 @@ namespace { namespace Private {
         (tableSizes[Detail::AsInteger(TableId::y)] <                                 \
         (1ull << (16 - CompositeIndexTagSize[Detail::AsInteger(CompositeIndex::x)])))
 
-    std::size_t ComputeTypeDefOrRefIndexSize(TableIdSizeArray const& tableSizes)
+    SizeType ComputeTypeDefOrRefIndexSize(TableIdSizeArray const& tableSizes)
     {
         return CXXREFLECT_GENERATE(TypeDefOrRef, TypeDef)
             && CXXREFLECT_GENERATE(TypeDefOrRef, TypeRef)
             && CXXREFLECT_GENERATE(TypeDefOrRef, TypeSpec) ? 2 : 4;
     }
 
-    std::size_t ComputeHasConstantIndexSize(TableIdSizeArray const& tableSizes)
+    SizeType ComputeHasConstantIndexSize(TableIdSizeArray const& tableSizes)
     {
         return CXXREFLECT_GENERATE(HasConstant, Field)
             && CXXREFLECT_GENERATE(HasConstant, Param)
             && CXXREFLECT_GENERATE(HasConstant, Property) ? 2 : 4;
     }
 
-    std::size_t ComputeHasCustomAttributeIndexSize(TableIdSizeArray const& tableSizes)
+    SizeType ComputeHasCustomAttributeIndexSize(TableIdSizeArray const& tableSizes)
     {
         return CXXREFLECT_GENERATE(HasCustomAttribute, MethodDef)
             && CXXREFLECT_GENERATE(HasCustomAttribute, Field)
@@ -346,20 +346,20 @@ namespace { namespace Private {
             && CXXREFLECT_GENERATE(HasCustomAttribute, MethodSpec) ? 2 : 4;
     }
 
-    std::size_t ComputeHasFieldMarshalIndexSize(TableIdSizeArray const& tableSizes)
+    SizeType ComputeHasFieldMarshalIndexSize(TableIdSizeArray const& tableSizes)
     {
         return CXXREFLECT_GENERATE(HasFieldMarshal, Field)
             && CXXREFLECT_GENERATE(HasFieldMarshal, Param) ? 2 : 4;
     }
 
-    std::size_t ComputeHasDeclSecurityIndexSize(TableIdSizeArray const& tableSizes)
+    SizeType ComputeHasDeclSecurityIndexSize(TableIdSizeArray const& tableSizes)
     {
         return CXXREFLECT_GENERATE(HasDeclSecurity, TypeDef)
             && CXXREFLECT_GENERATE(HasDeclSecurity, MethodDef)
             && CXXREFLECT_GENERATE(HasDeclSecurity, Assembly) ? 2 : 4;
     }
 
-    std::size_t ComputeMemberRefParentIndexSize(TableIdSizeArray const& tableSizes)
+    SizeType ComputeMemberRefParentIndexSize(TableIdSizeArray const& tableSizes)
     {
         return CXXREFLECT_GENERATE(MemberRefParent, TypeDef)
             && CXXREFLECT_GENERATE(MemberRefParent, TypeRef)
@@ -368,38 +368,38 @@ namespace { namespace Private {
             && CXXREFLECT_GENERATE(MemberRefParent, TypeSpec) ? 2 : 4;
     }
 
-    std::size_t ComputeHasSemanticsIndexSize(TableIdSizeArray const& tableSizes)
+    SizeType ComputeHasSemanticsIndexSize(TableIdSizeArray const& tableSizes)
     {
         return CXXREFLECT_GENERATE(HasSemantics, Event)
             && CXXREFLECT_GENERATE(HasSemantics, Property) ? 2 : 4;
     }
 
-    std::size_t ComputeMethodDefOrRefIndexSize(TableIdSizeArray const& tableSizes)
+    SizeType ComputeMethodDefOrRefIndexSize(TableIdSizeArray const& tableSizes)
     {
         return CXXREFLECT_GENERATE(MethodDefOrRef, MethodDef)
             && CXXREFLECT_GENERATE(MethodDefOrRef, MemberRef) ? 2 : 4;
     }
 
-    std::size_t ComputeMemberForwardedIndexSize(TableIdSizeArray const& tableSizes)
+    SizeType ComputeMemberForwardedIndexSize(TableIdSizeArray const& tableSizes)
     {
         return CXXREFLECT_GENERATE(MemberForwarded, Field)
             && CXXREFLECT_GENERATE(MemberForwarded, MethodDef) ? 2 : 4;
     }
 
-    std::size_t ComputeImplementationIndexSize(TableIdSizeArray const& tableSizes)
+    SizeType ComputeImplementationIndexSize(TableIdSizeArray const& tableSizes)
     {
         return CXXREFLECT_GENERATE(Implementation, File)
             && CXXREFLECT_GENERATE(Implementation, AssemblyRef)
             && CXXREFLECT_GENERATE(Implementation, ExportedType) ? 2 : 4;
     }
 
-    std::size_t ComputeCustomAttributeTypeIndexSize(TableIdSizeArray const& tableSizes)
+    SizeType ComputeCustomAttributeTypeIndexSize(TableIdSizeArray const& tableSizes)
     {
         return CXXREFLECT_GENERATE(CustomAttributeType, MethodDef)
             && CXXREFLECT_GENERATE(CustomAttributeType, MemberRef) ? 2 : 4;
     }
 
-    std::size_t ComputeResolutionScopeIndexSize(TableIdSizeArray const& tableSizes)
+    SizeType ComputeResolutionScopeIndexSize(TableIdSizeArray const& tableSizes)
     {
         return CXXREFLECT_GENERATE(ResolutionScope, Module)
             && CXXREFLECT_GENERATE(ResolutionScope, ModuleRef)
@@ -407,7 +407,7 @@ namespace { namespace Private {
             && CXXREFLECT_GENERATE(ResolutionScope, TypeRef) ? 2 : 4;
     }
 
-    std::size_t ComputeTypeOrMethodDefIndexSize(TableIdSizeArray const& tableSizes)
+    SizeType ComputeTypeOrMethodDefIndexSize(TableIdSizeArray const& tableSizes)
     {
         return CXXREFLECT_GENERATE(TypeOrMethodDef, TypeDef)
             && CXXREFLECT_GENERATE(TypeOrMethodDef, MethodDef) ? 2 : 4;
@@ -709,7 +709,7 @@ namespace { namespace Private {
     template <TableId TSourceId, TableId TTargetId, typename TFirstFunction>
     RowReference ComputeLastRowReference(Database const& database, ByteIterator const data, TFirstFunction const first)
     {
-        SizeType const byteOffset(data - database.GetTables().GetTable(TSourceId).Begin());
+        SizeType const byteOffset(static_cast<SizeType>(data - database.GetTables().GetTable(TSourceId).Begin()));
         SizeType const rowSize(database.GetTables().GetTable(TSourceId).GetRowSize());
         SizeType const logicalIndex(byteOffset / rowSize);
 

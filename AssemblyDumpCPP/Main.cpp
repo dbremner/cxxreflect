@@ -114,7 +114,17 @@ namespace
 
     void Dump(Detail::FileHandle& os, Field const& f)
     {
-        os << L"     -- Field [" << f.GetName().c_str() << L"] [$" << Detail::HexFormat(f.GetMetadataToken()) << L"]\n"; // TODO
+        os << L"     -- Field [" << f.GetName().c_str() << L"] [$" << Detail::HexFormat(f.GetMetadataToken()) << L"]\n";
+
+        #define F(n) (f.n() ? 1 : 0)
+        os << L"         -- Attributes [" << Detail::HexFormat(f.GetAttributes().GetIntegral()) << L"]\n";
+        os << L"         -- Declaring Type [" << f.GetDeclaringType().GetFullName().c_str() << L"]\n";
+        os << L"         -- IsTraits "
+           << L"[" << F(IsAssembly) << F(IsFamily) << F(IsFamilyAndAssembly) << F(IsFamilyOrAssembly) << F(IsInitOnly) << F(IsLiteral) << F(IsNotSerialized) << F(IsPinvokeImpl) << L"] "
+           << L"[" << F(IsPrivate) << F(IsPublic) << F(IsSpecialName) << F(IsStatic) << L"    ]\n";
+        #undef F
+
+        // TODO
     }
 }
 

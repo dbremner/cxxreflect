@@ -12,42 +12,6 @@
 
 namespace CxxReflect {
 
-    class IMetadataResolver
-    {
-    public:
-
-        virtual ~IMetadataResolver();
-
-        // When an attempt is made to load an assembly by name, the MetadataLoader calls this
-        // overload to resolve the assembly.
-        virtual String ResolveAssembly(AssemblyName const& assemblyName) const = 0;
-
-        // When an attempt is made to load an assembly and a type from that assembly is known, this
-        // overload is called.  This allows us to support WinRT type universes wherein type
-        // resolution is namespace-oriented rather than assembly-oriented.  For non-WinRT resolver
-        // implementations, this function may simply defer to the above overload.
-        virtual String ResolveAssembly(AssemblyName const& assemblyName,
-                                       String       const& namespaceQualifiedTypeName) const = 0;
-    };
-
-    #ifdef CXXREFLECT_ENABLE_WINRT_RESOLVER
-
-    class WinRTMetadataResolver : public IMetadataResolver
-    {
-    public:
-
-        WinRTMetadataResolver();
-
-        String ResolveAssembly(AssemblyName const& assemblyName) const;
-        String ResolveAssembly(AssemblyName const& assemblyName, String const& namespaceQualifiedTypeName) const;
-
-    private:
-
-        // TODO Implement
-    };
-
-    #endif
-
     class DirectoryBasedMetadataResolver : public IMetadataResolver
     {
     public:
@@ -74,6 +38,8 @@ namespace CxxReflect {
 
         Assembly LoadAssembly(String path) const;
         Assembly LoadAssembly(AssemblyName const& name) const;
+
+        IMetadataResolver const& GetResolver() const;
 
     public: // internals
 

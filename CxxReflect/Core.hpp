@@ -8,12 +8,15 @@
 
 #include <algorithm>
 #include <array>
+#include <atomic>
 #include <bitset>
 #include <cctype>
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
+#include <cwchar>
 #include <functional>
+#include <future>
 #include <iostream>
 #include <iterator>
 #include <map>
@@ -23,6 +26,7 @@
 #include <sstream>
 #include <stdexcept>
 #include <string>
+#include <thread>
 #include <type_traits>
 #include <utility>
 #include <vector>
@@ -37,7 +41,7 @@
 #define CXXREFLECT_LOGIC_CHECKS
 #endif
 
-#define CXXREFLECT_ENABLE_WINRT_RESOLVER
+#define CXXREFLECT_ENABLE_FEATURE_WINRT
 
 namespace CxxReflect {
 
@@ -62,16 +66,16 @@ namespace CxxReflect {
 
     struct HResultException : RuntimeError
     {
-        explicit HResultException(int const hresult, char const* const message = "")
+        explicit HResultException(long const hresult, char const* const message = "")
             : RuntimeError(message), _hresult(hresult)
         {
         }
 
-        int GetHResult() const { return _hresult; }
+        long GetHResult() const { return _hresult; }
 
     private:
 
-        int _hresult;
+        long _hresult;
     };
 
 }
@@ -111,6 +115,12 @@ namespace CxxReflect { namespace Detail {
              throw VerificationFailure(message);
     }
 
+    inline void VerifySuccess(long hresult)
+    {
+        if (hresult < 0)
+            throw HResultException(hresult);
+    }
+
     #else
 
     inline void VerifyFail(char const* = "") { }
@@ -120,7 +130,15 @@ namespace CxxReflect { namespace Detail {
     template <typename TCallable>
     void Verify(TCallable&&, char const* = "") { }
 
+    inline void VerifySuccess(long) { }
+
     #endif
+
+    inline void ThrowOnFailure(long hresult)
+    {
+        if (hresult < 0)
+            throw HResultException(hresult);
+    }
 
 
 
@@ -200,34 +218,36 @@ namespace CxxReflect { namespace Detail {
 
     // Generators for addition and subtraction operators for types that are pointer-like (i.e. types
     // that use indices or pointers of some kind to point to elements in a sequence).
-    #define CXXREFLECT_GENERATE_ADDITION_OPERATORS(type, get_value, difference)             \
-        type& operator++()    { *this += 1; return *this;                       }           \
-        type  operator++(int) { auto const it(*this); *this += 1; return *this; }           \
+    #define CXXREFLECT_GENERATE_ADDITION_OPERATORS(the_type, get_value, difference)         \
+        the_type& operator++()    { *this += 1; return *this;                       }       \
+        the_type  operator++(int) { auto const it(*this); *this += 1; return *this; }       \
                                                                                             \
-        type& operator+=(difference const n)                                                \
+        the_type& operator+=(difference const n)                                            \
         {                                                                                   \
-            (*this).get_value = (*this).get_value + n;                                      \
+            typedef std::remove_reference<decltype((*this).get_value)>::type ValueType;     \
+            (*this).get_value = static_cast<ValueType>((*this).get_value + n);              \
             return *this;                                                                   \
         }                                                                                   \
                                                                                             \
-        friend type operator+(type it, difference n) { return it += n; }                    \
-        friend type operator+(difference n, type it) { return it += n; }
+        friend the_type operator+(the_type it, difference n) { return it += n; }            \
+        friend the_type operator+(difference n, the_type it) { return it += n; }
 
-    #define CXXREFLECT_GENERATE_SUBTRACTION_OPERATORS(type, get_value, difference)          \
-        type& operator--()    { *this -= 1; return *this;                       }           \
-        type  operator--(int) { auto const it(*this); *this -= 1; return *this; }           \
+    #define CXXREFLECT_GENERATE_SUBTRACTION_OPERATORS(the_type, get_value, difference)      \
+        the_type& operator--()    { *this -= 1; return *this;                       }       \
+        the_type  operator--(int) { auto const it(*this); *this -= 1; return *this; }       \
                                                                                             \
-        type& operator-=(difference const n)                                                \
+        the_type& operator-=(difference const n)                                            \
         {                                                                                   \
-            (*this).get_value = (*this).get_value - n;                                      \
+            typedef std::remove_reference<decltype((*this).get_value)>::type ValueType;     \
+            (*this).get_value = static_cast<ValueType>((*this).get_value - n);              \
             return *this;                                                                   \
         }                                                                                   \
                                                                                             \
-        friend type operator-(type it, difference n) { return it += n; }                    \
+        friend the_type operator-(the_type it, difference n) { return it -= n; }            \
                                                                                             \
-        friend difference operator-(type lhs, type rhs)                                     \
+        friend difference operator-(the_type lhs, the_type rhs)                             \
         {                                                                                   \
-            return lhs.get_value - rhs.get_value;                                           \
+            return static_cast<difference>(lhs.get_value - rhs.get_value);                  \
         }
 
 
@@ -406,12 +426,12 @@ namespace CxxReflect { namespace Detail {
         // We mark this explicit so that the constructor templates taking value_type[N] are
         // preferred for string literals (and other arrays); that constructor provides O(1) end
         // pointer computation.
-        explicit EnhancedCString(pointer const first)
+        explicit EnhancedCString(const_pointer const first)
             : _first(first), _last(nullptr)
         {
         }
 
-        EnhancedCString(pointer const first, pointer const last)
+        EnhancedCString(const_pointer const first, const_pointer const last)
             : _first(first), _last(last)
         {
         }
@@ -585,6 +605,17 @@ namespace CxxReflect { namespace Detail {
     {
         os << s.c_str();
         return os;
+    }
+
+
+
+
+
+    template <typename TString>
+    TString MakeLowercase(TString s)
+    {
+        std::transform(s.begin(), s.end(), s.begin(), (int(*)(std::wint_t))std::tolower);
+        return s;
     }
 
 
@@ -1229,7 +1260,7 @@ namespace CxxReflect { namespace Detail {
         typedef TResult                         value_type;
         typedef TResult                         reference;
         typedef Dereferenceable<TResult>        pointer;
-        typedef std::ptrdiff_t                  difference_type;
+        typedef std::int32_t                    difference_type;
 
         InstantiatingIterator()
         {
@@ -1284,235 +1315,6 @@ namespace CxxReflect { namespace Detail {
 } }
 
 namespace CxxReflect {
-
-    enum class AssemblyAttribute             : std::uint32_t;
-    enum class AssemblyHashAlgorithm         : std::uint32_t;
-    enum class BindingAttribute              : std::uint32_t;
-    enum class CallingConvention             : std::uint8_t;
-    enum class EventAttribute                : std::uint16_t;
-    enum class FieldAttribute                : std::uint16_t;
-    enum class FileAttribute                 : std::uint32_t;
-    enum class GenericParameterAttribute     : std::uint16_t;
-    enum class ManifestResourceAttribute     : std::uint32_t;
-    enum class MethodAttribute               : std::uint16_t;
-    enum class MethodImplementationAttribute : std::uint16_t;
-    enum class MethodSemanticsAttribute      : std::uint16_t;
-    enum class ParameterAttribute            : std::uint16_t;
-    enum class PInvokeAttribute              : std::uint16_t;
-    enum class PropertyAttribute             : std::uint16_t;
-    enum class TypeAttribute                 : std::uint32_t;
-
-    typedef Detail::FlagSet<AssemblyAttribute>             AssemblyFlags;
-    typedef Detail::FlagSet<BindingAttribute>              BindingFlags;
-    typedef Detail::FlagSet<EventAttribute>                EventFlags;
-    typedef Detail::FlagSet<FieldAttribute>                FieldFlags;
-    typedef Detail::FlagSet<FileAttribute>                 FileFlags;
-    typedef Detail::FlagSet<GenericParameterAttribute>     GenericParameterFlags;
-    typedef Detail::FlagSet<ManifestResourceAttribute>     ManifestResourceFlags;
-    typedef Detail::FlagSet<MethodAttribute>               MethodFlags;
-    typedef Detail::FlagSet<MethodImplementationAttribute> MethodImplementationFlags;
-    typedef Detail::FlagSet<MethodSemanticsAttribute>      MethodSemanticsFlags;
-    typedef Detail::FlagSet<ParameterAttribute>            ParameterFlags;
-    typedef Detail::FlagSet<PInvokeAttribute>              PInvokeFlags;
-    typedef Detail::FlagSet<PropertyAttribute>             PropertyFlags;
-    typedef Detail::FlagSet<TypeAttribute>                 TypeFlags;
-
-}
-
-namespace CxxReflect { namespace Detail {
-
-    template <typename TMember, typename TMemberRow, typename TMemberSignature>
-    class MemberContext;
-
-    template <typename TMember, typename TMemberRow, typename TMemberSignature>
-    class MemberTableCollection;
-
-    class AssemblyContext;
-
-    template
-    <
-        typename TType,
-        typename TMember,
-        typename TMemberContext,
-        bool (*FFilter)(BindingFlags, TType const&, TMemberContext const&)
-    >
-    class MemberIterator;
-
-    class AssemblyHandle;
-    class MethodHandle;
-    class ParameterHandle;
-    class TypeHandle;
-
-} }
-
-// We forward declare all of physical metadata types so that we don't need to include the
-// MetadataDatabase header everywhere; in many cases, declarations are enough.  These types should
-// be treated as internal and should not be used by clients of the CxxReflect library.
-namespace CxxReflect { namespace Metadata {
-
-    class Database;
-    class Stream;
-    class StringCollection;
-    class BlobReference;
-    class RowReference;
-    class TableCollection;
-    class Table;
-
-    class AssemblyRow;
-    class AssemblyOsRow;
-    class AssemblyProcessorRow;
-    class AssemblyRefRow;
-    class AssemblyRefOsRow;
-    class AssemblyRefProcessorRow;
-    class ClassLayoutRow;
-    class ConstantRow;
-    class CustomAttributeRow;
-    class DeclSecurityRow;
-    class EventMapRow;
-    class EventRow;
-    class ExportedTypeRow;
-    class FieldRow;
-    class FieldLayoutRow;
-    class FieldMarshalRow;
-    class FieldRvaRow;
-    class FileRow;
-    class GenericParamRow;
-    class GenericParamConstraintRow;
-    class ImplMapRow;
-    class InterfaceImplRow;
-    class ManifestResourceRow;
-    class MemberRefRow;
-    class MethodDefRow;
-    class MethodImplRow;
-    class MethodSemanticsRow;
-    class MethodSpecRow;
-    class ModuleRow;
-    class ModuleRefRow;
-    class NestedClassRow;
-    class ParamRow;
-    class PropertyRow;
-    class PropertyMapRow;
-    class StandaloneSigRow;
-    class TypeDefRow;
-    class TypeRefRow;
-    class TypeSpecRow;
-
-    class ArrayShape;
-    class CustomModifier;
-    class FieldSignature;
-    class MethodSignature;
-    class PropertySignature;
-    class TypeSignature;
-    class SignatureComparer;
-
-} }
-
-namespace CxxReflect {
-
-    // These types are used throughout the library.  TODO:  Currently we assume that wchar_t is
-    // a UTF-16 string representation, as is the case on Windows.  We should make that more general
-    // and allow multiple encodings in the public interface and support platforms that use other
-    // encodings by default for wchar_t.
-    typedef wchar_t                            Character;
-    typedef std::uint32_t                      SizeType;
-    typedef std::uint8_t                       Byte;
-    typedef Byte const*                        ByteIterator;
-    typedef Detail::Range<Byte const>          ByteRange;
-    typedef Detail::Range<Byte>                MutableByteRange;
-    typedef std::uint32_t                      IndexType;
-
-    typedef std::basic_string<Character>       String;
-    typedef Detail::EnhancedCString<Character> StringReference;
-
-    typedef std::basic_ostream<Character>      OutputStream;
-    typedef std::basic_istream<Character>      InputStream;
-
-    class Assembly;
-    class AssemblyName;
-    class Event;
-    class Field;
-    class File;
-    class IMetadataResolver;
-    class MetadataLoader;
-    class Method;
-    class Module;
-    class Parameter;
-    class Property;
-    class Type;
-    class Utility;
-    class Version;
-}
-
-namespace CxxReflect { namespace Detail {
-
-    typedef MemberContext<Event,    Metadata::EventRow,     Metadata::TypeSignature    > EventContext;
-    typedef MemberContext<Field,    Metadata::FieldRow,     Metadata::FieldSignature   > FieldContext;
-    typedef MemberContext<Method,   Metadata::MethodDefRow, Metadata::MethodSignature  > MethodContext;
-    typedef MemberContext<Property, Metadata::PropertyRow,  Metadata::PropertySignature> PropertyContext;
-
-} }
-
-namespace CxxReflect {
-
-    // There are many functions that should not be part of the public interface of the library, but
-    // which we need to be able to access from other parts of the CxxReflect library.  To do this,
-    // all "internal" member functions have a parameter of this "InternalKey" class type, which can
-    // only be constructed by a subset of the CxxReflect library types.  This is better than direct
-    // befriending, both because it is centralized and because it protects class invariants from
-    // bugs elsewhere in the library.
-    class InternalKey
-    {
-    private:
-
-        InternalKey() { }
-
-        template <typename TMember, typename TMemberRow, typename TMemberSignature>
-        friend class Detail::MemberContext;
-
-        template <typename TMember, typename TMemberRow, typename TMemberSignature>
-        friend class Detail::MemberTableCollection;
-
-        template
-        <
-            typename TType,
-            typename TMember,
-            typename TMemberContext,
-            bool (*FFilter)(BindingFlags, TType const&, TMemberContext const&)
-        >
-        friend class Detail::MemberIterator;
-
-        template <typename TCurrent, typename TResult, typename TParameter>
-        friend class Detail::InstantiatingIterator;
-
-        friend Assembly;
-        friend AssemblyName;
-        friend Event;
-        friend Field;
-        friend File;
-        friend MetadataLoader;
-        friend Method;
-        friend Module;
-        friend Parameter;
-        friend Property;
-        friend Type;
-        friend Utility;
-        friend Version;
-
-        friend Detail::AssemblyContext;
-
-        friend Detail::AssemblyHandle;
-        friend Detail::MethodHandle;
-        friend Detail::ParameterHandle;
-        friend Detail::TypeHandle;
-
-        friend Metadata::ArrayShape;
-        friend Metadata::CustomModifier;
-        friend Metadata::FieldSignature;
-        friend Metadata::MethodSignature;
-        friend Metadata::PropertySignature;
-        friend Metadata::TypeSignature;
-        friend Metadata::SignatureComparer;
-    };
 
     enum class AssemblyAttribute : std::uint32_t
     {
@@ -1768,6 +1570,235 @@ namespace CxxReflect {
     CXXREFLECT_GENERATE_SCOPED_ENUM_OPERATORS(PropertyAttribute)
     CXXREFLECT_GENERATE_SCOPED_ENUM_OPERATORS(TypeAttribute)
 
+    typedef Detail::FlagSet<AssemblyAttribute>             AssemblyFlags;
+    typedef Detail::FlagSet<BindingAttribute>              BindingFlags;
+    typedef Detail::FlagSet<EventAttribute>                EventFlags;
+    typedef Detail::FlagSet<FieldAttribute>                FieldFlags;
+    typedef Detail::FlagSet<FileAttribute>                 FileFlags;
+    typedef Detail::FlagSet<GenericParameterAttribute>     GenericParameterFlags;
+    typedef Detail::FlagSet<ManifestResourceAttribute>     ManifestResourceFlags;
+    typedef Detail::FlagSet<MethodAttribute>               MethodFlags;
+    typedef Detail::FlagSet<MethodImplementationAttribute> MethodImplementationFlags;
+    typedef Detail::FlagSet<MethodSemanticsAttribute>      MethodSemanticsFlags;
+    typedef Detail::FlagSet<ParameterAttribute>            ParameterFlags;
+    typedef Detail::FlagSet<PInvokeAttribute>              PInvokeFlags;
+    typedef Detail::FlagSet<PropertyAttribute>             PropertyFlags;
+    typedef Detail::FlagSet<TypeAttribute>                 TypeFlags;
+
+}
+
+namespace CxxReflect { namespace Detail {
+
+    template <typename TMember, typename TMemberRow, typename TMemberSignature>
+    class MemberContext;
+
+    template <typename TMember, typename TMemberRow, typename TMemberSignature>
+    class MemberTableCollection;
+
+    class AssemblyContext;
+
+    template
+    <
+        typename TType,
+        typename TMember,
+        typename TMemberContext,
+        bool (*FFilter)(BindingFlags, TType const&, TMemberContext const&)
+    >
+    class MemberIterator;
+
+    class AssemblyHandle;
+    class MethodHandle;
+    class ParameterHandle;
+    class TypeHandle;
+
+} }
+
+// We forward declare all of physical metadata types so that we don't need to include the
+// MetadataDatabase header everywhere; in many cases, declarations are enough.  These types should
+// be treated as internal and should not be used by clients of the CxxReflect library.
+namespace CxxReflect { namespace Metadata {
+
+    class Database;
+    class Stream;
+    class StringCollection;
+    class BlobReference;
+    class RowReference;
+    class TableCollection;
+    class Table;
+
+    class AssemblyRow;
+    class AssemblyOsRow;
+    class AssemblyProcessorRow;
+    class AssemblyRefRow;
+    class AssemblyRefOsRow;
+    class AssemblyRefProcessorRow;
+    class ClassLayoutRow;
+    class ConstantRow;
+    class CustomAttributeRow;
+    class DeclSecurityRow;
+    class EventMapRow;
+    class EventRow;
+    class ExportedTypeRow;
+    class FieldRow;
+    class FieldLayoutRow;
+    class FieldMarshalRow;
+    class FieldRvaRow;
+    class FileRow;
+    class GenericParamRow;
+    class GenericParamConstraintRow;
+    class ImplMapRow;
+    class InterfaceImplRow;
+    class ManifestResourceRow;
+    class MemberRefRow;
+    class MethodDefRow;
+    class MethodImplRow;
+    class MethodSemanticsRow;
+    class MethodSpecRow;
+    class ModuleRow;
+    class ModuleRefRow;
+    class NestedClassRow;
+    class ParamRow;
+    class PropertyRow;
+    class PropertyMapRow;
+    class StandaloneSigRow;
+    class TypeDefRow;
+    class TypeRefRow;
+    class TypeSpecRow;
+
+    class ArrayShape;
+    class CustomModifier;
+    class FieldSignature;
+    class MethodSignature;
+    class PropertySignature;
+    class TypeSignature;
+    class SignatureComparer;
+
+} }
+
+namespace CxxReflect {
+
+    // These types are used throughout the library.  TODO:  Currently we assume that wchar_t is
+    // a UTF-16 string representation, as is the case on Windows.  We should make that more general
+    // and allow multiple encodings in the public interface and support platforms that use other
+    // encodings by default for wchar_t.
+    typedef wchar_t                            Character;
+    typedef std::uint32_t                      SizeType;
+    typedef std::uint8_t                       Byte;
+    typedef Byte const*                        ByteIterator;
+    typedef Detail::Range<Byte const>          ByteRange;
+    typedef Detail::Range<Byte>                MutableByteRange;
+    typedef std::uint32_t                      IndexType;
+
+    typedef std::basic_string<Character>       String;
+    typedef Detail::EnhancedCString<Character> StringReference;
+
+    typedef std::basic_ostream<Character>      OutputStream;
+    typedef std::basic_istream<Character>      InputStream;
+
+    class Assembly;
+    class AssemblyName;
+    class Event;
+    class Field;
+    class File;
+    class IMetadataResolver;
+    class MetadataLoader;
+    class Method;
+    class Module;
+    class Parameter;
+    class Property;
+    class Type;
+    class Utility;
+    class Version;
+
+    class IMetadataResolver
+    {
+    public:
+
+        virtual ~IMetadataResolver();
+
+        // When an attempt is made to load an assembly by name, the MetadataLoader calls this
+        // overload to resolve the assembly.
+        virtual String ResolveAssembly(AssemblyName const& assemblyName) const = 0;
+
+        // When an attempt is made to load an assembly and a type from that assembly is known, this
+        // overload is called.  This allows us to support WinRT type universes wherein type
+        // resolution is namespace-oriented rather than assembly-oriented.  For non-WinRT resolver
+        // implementations, this function may simply defer to the above overload.
+        virtual String ResolveAssembly(AssemblyName const& assemblyName,
+                                       String       const& namespaceQualifiedTypeName) const = 0;
+    };
+}
+
+namespace CxxReflect { namespace Detail {
+
+    typedef MemberContext<Event,    Metadata::EventRow,     Metadata::TypeSignature    > EventContext;
+    typedef MemberContext<Field,    Metadata::FieldRow,     Metadata::FieldSignature   > FieldContext;
+    typedef MemberContext<Method,   Metadata::MethodDefRow, Metadata::MethodSignature  > MethodContext;
+    typedef MemberContext<Property, Metadata::PropertyRow,  Metadata::PropertySignature> PropertyContext;
+
+} }
+
+namespace CxxReflect {
+
+    // There are many functions that should not be part of the public interface of the library, but
+    // which we need to be able to access from other parts of the CxxReflect library.  To do this,
+    // all "internal" member functions have a parameter of this "InternalKey" class type, which can
+    // only be constructed by a subset of the CxxReflect library types.  This is better than direct
+    // befriending, both because it is centralized and because it protects class invariants from
+    // bugs elsewhere in the library.
+    class InternalKey
+    {
+    private:
+
+        InternalKey() { }
+
+        template <typename TMember, typename TMemberRow, typename TMemberSignature>
+        friend class Detail::MemberContext;
+
+        template <typename TMember, typename TMemberRow, typename TMemberSignature>
+        friend class Detail::MemberTableCollection;
+
+        template
+        <
+            typename TType,
+            typename TMember,
+            typename TMemberContext,
+            bool (*FFilter)(BindingFlags, TType const&, TMemberContext const&)
+        >
+        friend class Detail::MemberIterator;
+
+        template <typename TCurrent, typename TResult, typename TParameter>
+        friend class Detail::InstantiatingIterator;
+
+        friend Assembly;
+        friend AssemblyName;
+        friend Event;
+        friend Field;
+        friend File;
+        friend MetadataLoader;
+        friend Method;
+        friend Module;
+        friend Parameter;
+        friend Property;
+        friend Type;
+        friend Utility;
+        friend Version;
+
+        friend Detail::AssemblyContext;
+
+        friend Detail::AssemblyHandle;
+        friend Detail::MethodHandle;
+        friend Detail::ParameterHandle;
+        friend Detail::TypeHandle;
+
+        friend Metadata::ArrayShape;
+        friend Metadata::CustomModifier;
+        friend Metadata::FieldSignature;
+        friend Metadata::MethodSignature;
+        friend Metadata::PropertySignature;
+        friend Metadata::TypeSignature;
+        friend Metadata::SignatureComparer;
+    };
 }
 
 #endif

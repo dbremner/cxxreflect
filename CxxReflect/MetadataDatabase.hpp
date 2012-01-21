@@ -910,8 +910,8 @@ namespace CxxReflect { namespace Metadata {
         RowIterator& operator--()    { --_index.Get(); return *this;                }
         RowIterator  operator--(int) { RowIterator it(*this); --*this; return it;   }
 
-        RowIterator& operator+=(DifferenceType const n) { _index.Get() += n; return *this; }
-        RowIterator& operator-=(DifferenceType const n) { _index.Get() -= n; return *this; }
+        RowIterator& operator+=(DifferenceType const n) { _index.Get() += static_cast<IndexType>(n); return *this; }
+        RowIterator& operator-=(DifferenceType const n) { _index.Get() -= static_cast<IndexType>(n); return *this; }
 
         Reference operator[](DifferenceType const n) const
         {
@@ -979,7 +979,7 @@ namespace CxxReflect { namespace Metadata {
             VerifyInitialized();
 
             Table    const& table(GetDatabase().GetTables().GetTable(TTableId));
-            SizeType const  index((GetIterator() - table.Begin()) / table.GetRowSize());
+            SizeType const  index(static_cast<SizeType>((GetIterator() - table.Begin()) / table.GetRowSize()));
             return RowReference(TTableId, index);
         }
 

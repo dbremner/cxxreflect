@@ -109,6 +109,13 @@ class Program
     static void Dump(StringBuilder sb, FieldInfo f)
     {
         sb.AppendLine(String.Format("     -- Field [{0}] [${1:x8}]", f.Name, f.MetadataToken));
+
+        Func<bool, int> F = (x) => x ? 1 : 0;
+        sb.AppendLine(String.Format("         -- Attributes [{0:x8}]", (int)f.Attributes));
+        sb.AppendLine(String.Format("         -- Declaring Type [{0}]", f.DeclaringType.FullName));
+        sb.AppendLine(String.Format("         -- IsTraits [{0}{1}{2}{3}{4}{5}{6}{7}] [{8}{9}{10}{11}    ]",
+            F(f.IsAssembly), F(f.IsFamily), F(f.IsFamilyAndAssembly), F(f.IsFamilyOrAssembly), F(f.IsInitOnly), F(f.IsLiteral), F(f.IsNotSerialized), F(f.IsPinvokeImpl),
+            F(f.IsPrivate), F(f.IsPublic), F(f.IsSpecialName), F(f.IsStatic)));
     }
 
     static void Main(string[] args)

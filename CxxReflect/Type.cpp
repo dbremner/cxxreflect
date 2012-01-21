@@ -211,8 +211,8 @@ namespace CxxReflect {
                     Type const argumentType(
                         _assembly.Realize(),
                         Metadata::BlobReference(
-                            argumentSignature.BeginBytes() - _assembly.Realize().GetContext(InternalKey()).GetDatabase().GetBlobs().Begin(),
-                            argumentSignature.EndBytes() - argumentSignature.BeginBytes()), InternalKey());
+                            static_cast<SizeType>(argumentSignature.BeginBytes() - _assembly.Realize().GetContext(InternalKey()).GetDatabase().GetBlobs().Begin()),
+                            static_cast<SizeType>(argumentSignature.EndBytes() - argumentSignature.BeginBytes())), InternalKey());
                     argumentType.AccumulateAssemblyQualifiedNameInto(os);
                     os << L']';
                 });
@@ -230,8 +230,8 @@ namespace CxxReflect {
                 Type const classType(
                     _assembly.Realize(),
                     Metadata::BlobReference(
-                        signature.GetArrayType().BeginBytes() - _assembly.Realize().GetContext(InternalKey()).GetDatabase().GetBlobs().Begin(),
-                        signature.GetArrayType().EndBytes() - signature.BeginBytes()),
+                        static_cast<SizeType>(signature.GetArrayType().BeginBytes() - _assembly.Realize().GetContext(InternalKey()).GetDatabase().GetBlobs().Begin()),
+                        static_cast<SizeType>(signature.GetArrayType().EndBytes() - signature.BeginBytes())),
                     InternalKey());
 
                 classType.AccumulateFullNameInto(os);
@@ -361,6 +361,21 @@ namespace CxxReflect {
     Type::MethodIterator Type::EndMethods() const
     {
         return MethodIterator();
+    }
+
+    Method Type::GetMethod(StringReference const name, BindingFlags const flags) const
+    {
+        auto const isNamedMethod([&](Method const& method)
+        {
+            return method.GetName() == name;
+        });
+
+        MethodIterator it(std::find_if(BeginMethods(flags), EndMethods(), isNamedMethod));
+
+        if (it == EndMethods() || std::find_if(std::next(it), EndMethods(), isNamedMethod) != EndMethods())
+            throw RuntimeError("Non-unique method");
+
+        return *it;
     }
 
     Type::PropertyIterator Type::BeginProperties(BindingFlags const flags) const

@@ -19,19 +19,19 @@ namespace { namespace Private {
 
     // TODO We could refactor much of the code in these four 'PlaceMemberIntoBuffer' functions.
 
-    void PlaceMemberIntoBuffer(MetadataLoader            const& loader,
+    void PlaceMemberIntoBuffer(MetadataLoader            const&,
                                std::vector<EventContext>      & buffer,
                                EventContext              const& newEvent,
-                               SizeType                  const  inheritedEventCount)
+                               SizeType                  const )
     {
         // TODO
         buffer.push_back(newEvent);
     }
 
-    void PlaceMemberIntoBuffer(MetadataLoader            const& loader,
+    void PlaceMemberIntoBuffer(MetadataLoader            const&,
                                std::vector<FieldContext>      & buffer,
                                FieldContext              const& newField,
-                               SizeType                  const  inheritedFieldCount)
+                               SizeType                  const )
     {
         // Fields are hide by name and sig (in theory), but the .NET Reflection API will return all
         // of them, regardless of whether they are technically hidden.
@@ -90,10 +90,10 @@ namespace { namespace Private {
             : (void)(*bufferIt = newMethod);
     }
 
-    void PlaceMemberIntoBuffer(MetadataLoader               const& loader,
+    void PlaceMemberIntoBuffer(MetadataLoader               const&,
                                std::vector<PropertyContext>      & buffer,
                                PropertyContext              const& newProperty,
-                               SizeType                     const  inheritedPropertyCount)
+                               SizeType                     const  )
     {
         // TODO
         buffer.push_back(newProperty);
@@ -111,15 +111,37 @@ namespace { namespace Private {
     }
 
     template <typename TMemberRow>
-    IndexType GetFirstMemberIndex(Metadata::Database const& database, Metadata::TypeDefRow const& type)
-    {
-        return 0; // TODO WE NEED TO SPECIALIZE THIS AND UNDEFINE THE PRIMARY TEMPLATE
-    }
+    IndexType GetFirstMemberIndex(Metadata::Database const& database, Metadata::TypeDefRow const& type);
 
     template <typename TMemberRow>
-    IndexType GetLastMemberIndex(Metadata::Database const& database, Metadata::TypeDefRow const& type)
+    IndexType GetLastMemberIndex(Metadata::Database const& database, Metadata::TypeDefRow const& type);
+
+    template <>
+    IndexType GetFirstMemberIndex<Metadata::EventRow>(Metadata::Database   const&,
+                                                      Metadata::TypeDefRow const&)
     {
-        return 0; // TODO WE NEED TO SPECIALIZE THIS AND UNDEFINE THE PRIMARY TEMPLATE
+        return 0; // TODO
+    }
+
+    template <>
+    IndexType GetLastMemberIndex<Metadata::EventRow>(Metadata::Database   const&,
+                                                     Metadata::TypeDefRow const&)
+    {
+        return 0; // TODO
+    }
+
+    template <>
+    IndexType GetFirstMemberIndex<Metadata::FieldRow>(Metadata::Database   const&,
+                                                      Metadata::TypeDefRow const& type)
+    {
+        return type.GetFirstField().GetIndex();
+    }
+
+    template <>
+    IndexType GetLastMemberIndex<Metadata::FieldRow>(Metadata::Database   const&,
+                                                     Metadata::TypeDefRow const& type)
+    {
+        return type.GetLastField().GetIndex();
     }
 
     template <>
@@ -137,17 +159,17 @@ namespace { namespace Private {
     }
 
     template <>
-    IndexType GetFirstMemberIndex<Metadata::FieldRow>(Metadata::Database   const&,
-                                                      Metadata::TypeDefRow const& type)
+    IndexType GetFirstMemberIndex<Metadata::PropertyRow>(Metadata::Database   const&,
+                                                         Metadata::TypeDefRow const&)
     {
-        return type.GetFirstField().GetIndex();
+        return 0; // TODO
     }
 
     template <>
-    IndexType GetLastMemberIndex<Metadata::FieldRow>(Metadata::Database   const&,
-                                                     Metadata::TypeDefRow const& type)
+    IndexType GetLastMemberIndex<Metadata::PropertyRow>(Metadata::Database   const&,
+                                                        Metadata::TypeDefRow const&)
     {
-        return type.GetLastField().GetIndex();
+        return 0; // TODO
     }
 
 } }
@@ -363,7 +385,7 @@ namespace CxxReflect { namespace Detail {
             });
         }
 
-        SizeType const inheritedMemberCount(_buffer.size());
+        SizeType const inheritedMemberCount(static_cast<SizeType>(_buffer.size()));
 
         Metadata::TableId const TId(static_cast<Metadata::TableId>(Metadata::RowTypeToTableId<MemberRowType>::Value));
         auto const beginMember(database.Begin<TId>());
@@ -460,7 +482,8 @@ namespace CxxReflect { namespace Detail {
         Verify([&]{ return Instantiator::RequiresInstantiation(signature); });
 
         MemberSignatureType const& instantiation(instantiator.Instantiate(signature));
-        SizeType const instantiationSize(std::distance(instantiation.BeginBytes(), instantiation.EndBytes()));
+        SizeType const instantiationSize(
+            static_cast<SizeType>(std::distance(instantiation.BeginBytes(), instantiation.EndBytes())));
 
         MutableByteRange const ownedInstantiation(_signatureAllocator.Allocate(instantiationSize));
 

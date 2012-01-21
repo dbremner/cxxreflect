@@ -40,11 +40,11 @@ namespace CxxReflect { namespace Detail {
         if (!CryptCreateHash(provider, CALG_SHA1, 0, 0, &hash))
             throw std::logic_error("wtf");
 
-        if (!CryptHashData(hash, first, last - first, 0))
+        if (!CryptHashData(hash, first, static_cast<DWORD>(last - first), 0))
             throw std::logic_error("wtf");
 
         Sha1Hash result = { 0 };
-        DWORD resultLength(result.size());
+        DWORD resultLength(static_cast<DWORD>(result.size()));
         if (!CryptGetHashParam(hash, HP_HASHVAL, result.data(), &resultLength, 0) || resultLength != 20)
             throw std::logic_error("wtf");
 
@@ -53,6 +53,7 @@ namespace CxxReflect { namespace Detail {
 
     bool FileExists(wchar_t const* path)
     {
+        
         return GetFileAttributes(path) != INVALID_FILE_ATTRIBUTES;
     }
 

@@ -197,6 +197,7 @@ namespace CxxReflect {
 
         MethodIterator BeginMethods(BindingFlags flags = BindingAttribute::Default) const;
         MethodIterator EndMethods() const;
+        Method         GetMethod(StringReference name, BindingFlags flags = BindingAttribute::Default) const;
 
         PropertyIterator BeginProperties(BindingFlags flags = BindingAttribute::Default) const;
         PropertyIterator EndProperties() const;

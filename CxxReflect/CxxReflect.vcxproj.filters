@@ -49,6 +49,9 @@
     <ClCompile Include="Event.cpp">
       <Filter>Sources</Filter>
     </ClCompile>
+    <ClCompile Include="WinRTIntegration.cpp">
+      <Filter>Sources</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Assembly.hpp">
@@ -105,6 +108,9 @@
     <ClInclude Include="CoreInternals.hpp">
       <Filter>Headers</Filter>
     </ClInclude>
+    <ClInclude Include="WinRTIntegration.hpp">
+      <Filter>Headers</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Headers">
@@ -113,5 +119,8 @@
     <Filter Include="Sources">
       <UniqueIdentifier>{21a358cf-7e9e-4215-851a-6e982b685c52}</UniqueIdentifier>
     </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="CxxReflectPlatform.il" />
   </ItemGroup>
 </Project>
