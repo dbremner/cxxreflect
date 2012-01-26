@@ -123,4 +123,7 @@
   <ItemGroup>
     <CustomBuild Include="CxxReflectPlatform.il" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include="CxxReflect.props" />
+  </ItemGroup>
 </Project>

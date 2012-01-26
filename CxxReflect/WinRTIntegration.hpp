@@ -93,7 +93,7 @@ namespace CxxReflect {
 // require a consumer of the library to also include a source file with this definition, we just
 // define it here, inline, if and only if it is actually being included by a consumer (and not by
 // the library proper).
-#if (WINAPI_FAMILY) == (WINAPI_PARTITION_APP)
+#ifdef __cplusplus_winrt
 
 namespace CxxReflect { namespace Detail {
 
@@ -131,6 +131,6 @@ namespace CxxReflect {
 
 }
 
-#endif // WINAPI_FAMILY == WINAPI_PARTITION_APP
+#endif // __cplusplus_winrt
 #endif // CXXREFLECT_ENABLE_FEATURE_WINRT
 #endif

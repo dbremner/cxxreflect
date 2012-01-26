@@ -1,54 +1,93 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?> 
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
-  
-  <!--
-  Common properties shared by all configuration
-  -->
-  <PropertyGroup>
-    <CharacterSet>Unicode</CharacterSet>
-    <CxxReflectLibrariesPath>$(SolutionDir)Build\$(Platform)\$(Configuration)\</CxxReflectLibrariesPath>
-    <IntDir>$(SolutionDir)Build\Intermediate\$(ProjectName)\$(Platform)\$(Configuration)\</IntDir>
-    <OutDir>$(SolutionDir)Build\$(Platform)\$(Configuration)\</OutDir>
-    <OutputPath>$(SolutionDir)Build\$(Platform)\$(Configuration)\</OutputPath>
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|ARM">
+      <Configuration>Debug</Configuration>
+      <Platform>ARM</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug|Win32">
+      <Configuration>Debug</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|ARM">
+      <Configuration>Release</Configuration>
+      <Platform>ARM</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+
+  <PropertyGroup Label="Globals">
+    <MinimumVisualStudioVersion>11.0</MinimumVisualStudioVersion>
+    <RootNamespace>$(MSBuildProjectName)</RootNamespace>
+    <VCTargetsPath Condition="'$(VCTargetsPath11)' != '' and '$(VSVersion)' == '' and '$(VisualStudioVersion)' == ''">$(VCTargetsPath11)</VCTargetsPath>
   </PropertyGroup>
-  
-  <PropertyGroup Condition="'$(Configuration)'=='Debug'">
+
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+
+  <!-- The BuildLog Path must be set before we include Microsoft.Cpp.props -->
+  <ItemDefinitionGroup>
+    <BuildLog>
+      <Path>$(SolutionDir)Build\Intermediate\$(Platform)\$(Configuration)\$(MSBuildProjectName)\$(MsBuildProjectName).log</Path>
+    </BuildLog>
+  </ItemDefinitionGroup>
+
+  <PropertyGroup Label="Configuration">
+    <PlatformToolset>v110</PlatformToolset>
+  </PropertyGroup>
+
+  <PropertyGroup Label="Configuration" Condition="'$(Configuration)' == 'Debug'">
     <UseDebugLibraries>true</UseDebugLibraries>
   </PropertyGroup>
-  
-  <PropertyGroup Condition="'$(Configuration)'=='Release'">
+
+  <PropertyGroup Label="Configuration" Condition="'$(Configuration)' == 'Release'">
     <UseDebugLibraries>false</UseDebugLibraries>
     <WholeProgramOptimization>true</WholeProgramOptimization>
   </PropertyGroup>
-  
+
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+
+  <PropertyGroup>
+    <OutDir>$(SolutionDir)Build\Output\$(Platform)\$(Configuration)\$(MSBuildProjectName)\</OutDir>
+    <IntDir>$(SolutionDir)Build\Intermediate\$(Platform)\$(Configuration)\$(MSBuildProjectName)\</IntDir>
+
+    <CxxReflectOutDir>$(SolutionDir)Build\Output\$(Platform)\$(Configuration)\CxxReflect\</CxxReflectOutDir>
+  </PropertyGroup>
+
   <ItemDefinitionGroup>
-    <BuildLog>
-      <Path>$(SolutionDir)Build\Intermediate\$(ProjectName)\$(Platform)\$(Configuration)\$(MSBuildProjectName).log</Path>
-    </BuildLog>
     <ClCompile>
-      <AdditionalIncludeDirectories>$(SolutionDir);$(IntermediateOutputPath);$(ProjectDir)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)</AdditionalIncludeDirectories>
       <ErrorReporting>None</ErrorReporting>
       <MinimalRebuild>false</MinimalRebuild>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
-      <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <PreprocessorDefinitions>NOMINMAX;_CRT_SECURE_NO_WARNINGS;_UNICODE;UNICODE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <WarningLevel>Level4</WarningLevel>
     </ClCompile>
     <Link>
-      <AdditionalLibraryDirectories>$(CxxReflectLibrariesPath)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>CxxReflect.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>CxxReflect.lib;advapi32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>$(CxxReflectOutDir);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
   </ItemDefinitionGroup>
-  <ItemDefinitionGroup Condition="'$(Configuration)'=='Debug'">
+
+  <ItemDefinitionGroup Condition="'$(Configuration)' == 'Debug'">
     <ClCompile>
       <BrowseInformation>true</BrowseInformation>
       <Optimization>Disabled</Optimization>
     </ClCompile>
-    <Link>
-      <GenerateDebugInformation>true</GenerateDebugInformation>
-    </Link>
   </ItemDefinitionGroup>
-  <ItemDefinitionGroup Condition="'$(Configuration)'=='Release'">
+
+  <ItemDefinitionGroup Condition="'$(Configuration)' == 'Release'">
     <ClCompile>
       <BrowseInformation>false</BrowseInformation>
       <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
@@ -60,22 +99,16 @@
     </ClCompile>
     <Link>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
-      <GenerateDebugInformation>true</GenerateDebugInformation>
       <OptimizeReferences>true</OptimizeReferences>
       <Profile>true</Profile>
     </Link>
   </ItemDefinitionGroup>
-  <ItemGroup>
-    <BuildMacro Include="CxxReflectLibraryPath">
-      <Value>$(CxxReflectLibraryPath)</Value>
-    </BuildMacro>
-    <BuildMacro Include="CxxReflectIncludePath">
-      <Value>$(CxxReflectIncludePath)</Value>
-    </BuildMacro>
-  </ItemGroup>
+
+  <!-- All projects reference the core CxxReflect.lib project -->
   <ItemGroup Condition="'$(ProjectName)'!='CxxReflect'">
     <ProjectReference Include="$(SolutionDir)CxxReflect\CxxReflect.vcxproj">
       <Project>{64dc7dff-d2e4-4086-be24-02f0b9d71128}</Project>
     </ProjectReference>
   </ItemGroup>
+
 </Project>

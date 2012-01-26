@@ -32,27 +32,21 @@
     <DefaultLanguage>en-US</DefaultLanguage>
     <VCTargetsPath Condition="'$(VCTargetsPath11)' != '' and '$(VSVersion)' == '' and '$(VisualStudioVersion)' == ''">$(VCTargetsPath11)</VCTargetsPath>
     <MinimumVisualStudioVersion>11.0</MinimumVisualStudioVersion>
-    <MetroStyleApplication>true</MetroStyleApplication>
-  </PropertyGroup>
+    <AppContainerApplication>true</AppContainerApplication>
+</PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <PlatformToolset>v110</PlatformToolset>
-    <Immersive>true</Immersive>
   </PropertyGroup>
-  <Import Project="..\CxxReflect\CxxReflect.props" />
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <Import Project="..\CxxReflect\CxxReflect.props" />
   <PropertyGroup>
     <PackageCertificateKeyFile>WinRTTestStub_TemporaryKey.pfx</PackageCertificateKeyFile>
     <PackageCertificateThumbprint>17B85F0F51933D06555301D361DBDD74B82A7C6C</PackageCertificateThumbprint>
     <AppxAutoIncrementPackageRevision>True</AppxAutoIncrementPackageRevision>
   </PropertyGroup>
-  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-    <ClCompile>
-      <PrecompiledHeader>NotUsing</PrecompiledHeader>
-    </ClCompile>
-  </ItemDefinitionGroup>
-  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+  <ItemDefinitionGroup>
     <ClCompile>
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
     </ClCompile>
@@ -61,7 +55,7 @@
     <AppxManifest Include="Package.appxmanifest">
       <SubType>Designer</SubType>
     </AppxManifest>
-    <None Include="$(CxxReflectLibrariesPath)CxxReflectPlatform.dat">
+    <None Include="$(CxxReflectLibrariesDir)CxxReflectPlatform.dat">
       <DeploymentContent>true</DeploymentContent>
     </None>
     <None Include="WinRTTestStub_TemporaryKey.pfx" />

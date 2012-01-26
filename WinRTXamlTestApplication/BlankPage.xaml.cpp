@@ -6,7 +6,6 @@
 #include "pch.h"
 #include "BlankPage.xaml.h"
 
-#define NOMINMAX
 #include "CxxReflect/CxxReflect.hpp"
 
 using namespace WinRTXamlTestApplication;
@@ -27,10 +26,13 @@ using namespace Windows::UI::Xaml::Navigation;
 void F()
 {
     std::wistringstream iss;
+    std::wstring v;
+    iss >> v;
 }
 
 BlankPage::BlankPage()
 {
+    F();
     if (IsEnabled && !IsEnabled)
         CxxReflect::BeginWinRTPackageMetadataInitialization();
 

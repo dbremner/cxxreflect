@@ -44,6 +44,7 @@ HRESULT VirtualInvokeThunk(unsigned index, REFIID iid, TThis thisptr, TArg0 cons
 
 int main(Platform::Array<Platform::String^>^ arguments)
 {
+    CxxReflect::BeginWinRTPackageMetadataInitialization();
     try
     {
         auto package(Windows::ApplicationModel::Package::Current);

@@ -8,9 +8,11 @@ namespace CxxReflect {
 
     Guid::Guid(String const& guid)
     {
+        /* TODO LINKER ISSUES
         std::wistringstream iss(guid.c_str());
         if (!(iss >> *this >> std::ws) || !iss.eof())
             throw std::logic_error("wtf");
+        */
     }
 
     Guid::Guid(Element0 m0, Element1 m1, Element2 m2)
