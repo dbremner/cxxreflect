@@ -48,10 +48,10 @@
   <ItemGroup>
     <CustomBuild Include="CxxReflectPlatform.il">
       <ExcludedFromBuild>false</ExcludedFromBuild>
-      <DeploymentContent>false</DeploymentContent>
+      <DeploymentContent>true</DeploymentContent>
       <FileType>Document</FileType>
-      <Command>ilasm /nologo /dll /clock /noautoinherit /output=$(OutputPath)\%(Filename).dat %(FullPath)</Command>
-      <Outputs>$(OutputPath)\CxxReflectPlatform.dat</Outputs>
+      <Command>ilasm /nologo /dll /clock /noautoinherit /output=$(OutDir)%(Filename).dat %(FullPath)</Command>
+      <Outputs>$(OutDir)%(Filename).dat</Outputs>
       <TreatOutputAsContent>true</TreatOutputAsContent>
     </CustomBuild>
   </ItemGroup>
