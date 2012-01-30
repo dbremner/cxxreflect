@@ -63,6 +63,36 @@ namespace CxxReflect { namespace { namespace Private {
         return false;
     }
 
+    struct InterfaceStrictWeakOrdering
+    {
+        typedef Metadata::InterfaceImplRow InterfaceImplRow;
+        typedef Metadata::RowReference     RowReference;
+
+        bool operator()(InterfaceImplRow const& lhs, InterfaceImplRow const& rhs) const volatile
+        {
+            Detail::Verify([&]{ return lhs.GetClass().GetTable() == Metadata::TableId::TypeDef; });
+            Detail::Verify([&]{ return rhs.GetClass().GetTable() == Metadata::TableId::TypeDef; });
+
+            return lhs.GetClass().GetIndex() < rhs.GetClass().GetIndex();
+        }
+
+        bool operator()(InterfaceImplRow const& lhs, RowReference const& rhs) const volatile
+        {
+            Detail::Verify([&]{ return lhs.GetClass().GetTable() == Metadata::TableId::TypeDef; });
+            Detail::Verify([&]{ return rhs.GetTable()            == Metadata::TableId::TypeDef; });
+
+            return lhs.GetClass().GetIndex() < rhs.GetIndex();
+        }
+
+        bool operator()(RowReference const& lhs, InterfaceImplRow const& rhs) const volatile
+        {
+            Detail::Verify([&]{ return lhs.GetTable()            == Metadata::TableId::TypeDef; });
+            Detail::Verify([&]{ return rhs.GetClass().GetTable() == Metadata::TableId::TypeDef; });
+
+            return lhs.GetIndex() < rhs.GetClass().GetIndex();
+        }
+    };
+
 } } }
 
 namespace CxxReflect {
@@ -284,29 +314,13 @@ namespace CxxReflect {
             .GetBlob(_type.AsBlobReference())
             .As<Metadata::TypeSignature>();
     }
-    /* TODO
-    Detail::MethodTableAllocator::Range Type::GetOrCreateMethodTable() const
-    {
-        // TODO We need to handle TypeSpec Type objects here.
-        typedef Detail::MethodTableAllocator::Range Range;
-
-        Detail::AssemblyContext const& context(_assembly.GetContext(InternalKey()));
-        Range const existingRange(context.GetMethodTableForType(_type.AsRowReference().GetIndex()));
-
-        if (existingRange.IsInitialized())
-            return existingRange;
-
-        std::vector<Detail::MethodContext> methods;
-        return existingRange; // TODO
-    }
-    */
 
     Type::MethodIterator Type::BeginConstructors(BindingFlags flags) const
     {
         VerifyInitialized();
-        Detail::Verify([&]{ return !flags.IsSet(0x10000000); });
+        Detail::Verify([&]{ return !flags.IsSet(BindingAttribute::InternalUseOnlyMask); });
 
-        flags.Set(BindingAttribute::InternalUseOnly_Constructor);
+        flags.Set(BindingAttribute::InternalUseOnlyConstructor);
         flags.Set(BindingAttribute::DeclaredOnly);
         flags.Unset(BindingAttribute::FlattenHierarchy);
 
@@ -322,7 +336,7 @@ namespace CxxReflect {
     Type::EventIterator Type::BeginEvents(BindingFlags const flags) const
     {
         VerifyInitialized();
-        Detail::Verify([&]{ return !flags.IsSet(0x10000000); });
+        Detail::Verify([&]{ return !flags.IsSet(BindingAttribute::InternalUseOnlyMask); });
 
         Detail::EventTable const& table(_assembly.Realize().GetContext(InternalKey()).GetOrCreateEventTable(_type));
         return EventIterator(*this, table.Begin(), table.End(), flags);
@@ -336,7 +350,7 @@ namespace CxxReflect {
     Type::FieldIterator Type::BeginFields(BindingFlags const flags) const
     {
         VerifyInitialized();
-        Detail::Verify([&]{ return !flags.IsSet(0x10000000); });
+        Detail::Verify([&]{ return !flags.IsSet(BindingAttribute::InternalUseOnlyMask); });
 
         Detail::FieldTable const& table(_assembly.Realize().GetContext(InternalKey()).GetOrCreateFieldTable(_type));
         return FieldIterator(*this, table.Begin(), table.End(), flags);
@@ -350,7 +364,7 @@ namespace CxxReflect {
     Type::MethodIterator Type::BeginMethods(BindingFlags const flags) const
     {
         VerifyInitialized();
-        Detail::Verify([&]{ return !flags.IsSet(0x10000000); });
+        Detail::Verify([&]{ return !flags.IsSet(BindingAttribute::InternalUseOnlyMask); });
 
         Detail::MethodTable const& table(_assembly.Realize().GetContext(InternalKey()).GetOrCreateMethodTable(_type));
         return MethodIterator(*this, table.Begin(), table.End(), flags);
@@ -388,6 +402,42 @@ namespace CxxReflect {
     Type::PropertyIterator Type::EndProperties() const
     {
         return PropertyIterator();
+    }
+
+    Type::InterfacesRange Type::GetInterfacesRange() const
+    {
+        VerifyInitialized();
+
+        Assembly const assembly(_assembly.Realize());
+        Metadata::Database const& database(assembly.GetContext(InternalKey()).GetDatabase());
+
+        auto const first(database.Begin<Metadata::TableId::InterfaceImpl>());
+        auto const last(database.End<Metadata::TableId::InterfaceImpl>());
+
+        auto const range(std::equal_range(first, last, _type.AsRowReference(), Private::InterfaceStrictWeakOrdering()));
+        return std::make_pair(range.first->GetSelfReference(), range.second->GetSelfReference());
+    }
+
+    Type::InterfaceIterator Type::BeginInterfaces() const
+    {
+        VerifyInitialized();
+
+        Assembly const assembly(_assembly.Realize());
+        Metadata::Database const& database(assembly.GetContext(InternalKey()).GetDatabase());
+        InterfacesRange const& range(GetInterfacesRange());
+
+        return InterfaceIterator(assembly, Metadata::FullReference(&database, range.first));
+    }
+
+    Type::InterfaceIterator Type::EndInterfaces() const
+    {
+        VerifyInitialized();
+
+        Assembly const assembly(_assembly.Realize());
+        Metadata::Database const& database(assembly.GetContext(InternalKey()).GetDatabase());
+        InterfacesRange const& range(GetInterfacesRange());
+
+        return InterfaceIterator(assembly, Metadata::FullReference(&database, range.second));
     }
 
     Type Type::GetBaseType() const
@@ -848,7 +898,7 @@ namespace CxxReflect {
             current.GetMemberRow().GetFlags().IsSet(MethodAttribute::SpecialName) && 
             (name == L".ctor" || name == L".cctor"));
 
-        return isConstructor != filter.IsSet(BindingAttribute::InternalUseOnly_Constructor);
+        return isConstructor != filter.IsSet(BindingAttribute::InternalUseOnlyConstructor);
     }
 
     bool Type::FilterProperty(BindingFlags const /*filter*/, Type const& /*reflectedType*/, Detail::PropertyContext const& /*current*/)

@@ -966,7 +966,7 @@ namespace CxxReflect {
         case Metadata::ElementType::U4:      primitiveTypeName = L"UInt32";  break;
         case Metadata::ElementType::I8:      primitiveTypeName = L"Int64";   break;
         case Metadata::ElementType::U8:      primitiveTypeName = L"UInt64";  break;
-        case Metadata::ElementType::R4:      primitiveTypeName = L"Short";   break;
+        case Metadata::ElementType::R4:      primitiveTypeName = L"Single";  break;
         case Metadata::ElementType::R8:      primitiveTypeName = L"Double";  break;
         case Metadata::ElementType::I:       primitiveTypeName = L"IntPtr";  break;
         case Metadata::ElementType::U:       primitiveTypeName = L"UIntPtr"; break;

@@ -78,6 +78,14 @@ namespace
 
         os << L"     -- Name [" << t.GetName().c_str() << L"]\n";
         os << L"     -- Namespace [" << t.GetNamespace().c_str() << L"]\n";
+        os << L"    !!BeginInterfaces\n";
+        std::vector<Type> allInterfaces(t.BeginInterfaces(), t.EndInterfaces());
+        std::sort(allInterfaces.begin(), allInterfaces.end(), MetadataTokenMemberComparer());
+        std::for_each(allInterfaces.begin(), allInterfaces.end(), [&](Type const& it)
+        {
+            os << L"     -- Interface [" << it.GetFullName().c_str() << L"] [$" << Detail::HexFormat(it.GetMetadataToken()) << L"]\n";
+        });
+        os << L"    !!EndInterfaces\n";
 
         os << L"    !!BeginConstructors\n";
         std::vector<Method> allConstructors(t.BeginConstructors(AllBindingFlags), t.EndConstructors());
@@ -137,10 +145,8 @@ int main()
 
     MetadataLoader loader(std::move(resolver));
 
-    //Assembly a(loader.LoadAssembly(L"C:\\Users\\james\\Documents\\Visual Studio 11\\Projects\\ConsoleApplication4\\ConsoleApplication4\\bin\\Debug\\ConsoleApplication4.exe"));
-
     Assembly a(loader.LoadAssembly(L"C:\\Windows\\Microsoft.NET\\Framework\\v4.0.30319\\mscorlib.dll"));
 
-    Detail::FileHandle fs(L"d:\\jm\\mscorlib.cpp.txt", Detail::FileMode::Write);
+    Detail::FileHandle fs(L"c:\\jm\\mscorlib.cpp.txt", Detail::FileMode::Write);
     Dump(fs, a);
 }

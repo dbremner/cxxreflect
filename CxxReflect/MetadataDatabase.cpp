@@ -540,7 +540,8 @@ namespace CxxReflect { namespace Metadata { namespace { namespace Private {
         case  5: return RowReference(TableId::InterfaceImpl,          split.second);
         case  6: return RowReference(TableId::MemberRef,              split.second);
         case  7: return RowReference(TableId::Module,                 split.second);
-        // case  8: return RowReference(TableId::Permission,          split.second); // TODO WHAT IS THIS?
+        // TODO WTF is the 'Permission' table?
+        // case  8: return RowReference(TableId::Permission,          split.second);
         case  9: return RowReference(TableId::Property,               split.second);
         case 10: return RowReference(TableId::Event,                  split.second);
         case 11: return RowReference(TableId::StandaloneSig,          split.second);

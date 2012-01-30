@@ -298,12 +298,11 @@ namespace CxxReflect { namespace Metadata {
         }
 
         CXXREFLECT_GENERATE_COMPARISON_OPERATORS(BaseElementReference)
+        CXXREFLECT_GENERATE_ADDITION_SUBTRACTION_OPERATORS(BaseElementReference, _index.Get(), std::int32_t)
 
     protected:
 
         void VerifyInitialized() const { Detail::Verify([&]{ return IsInitialized(); }); }
-
-    private:
 
         enum : ValueType
         {
@@ -332,6 +331,11 @@ namespace CxxReflect { namespace Metadata {
             : BaseElementReference(reference)
         {
         }
+
+        // TODO This is rather messy:  these operators really only apply to row references, not to
+        // blob references, so they should only be available when we have a row reference.
+        CXXREFLECT_GENERATE_COMPARISON_OPERATORS(ElementReference)
+        CXXREFLECT_GENERATE_ADDITION_SUBTRACTION_OPERATORS(ElementReference, _index.Get(), std::int32_t)
     };
 
     class FullReference
@@ -366,6 +370,11 @@ namespace CxxReflect { namespace Metadata {
         }
 
         Database const& GetDatabase() const { return *_database.Get(); }
+
+        // TODO This is rather messy:  these operators really only apply to row references, not to
+        // blob references, so they should only be available when we have a row reference.
+        CXXREFLECT_GENERATE_COMPARISON_OPERATORS(FullReference)
+        CXXREFLECT_GENERATE_ADDITION_SUBTRACTION_OPERATORS(FullReference, _index.Get(), std::int32_t)
 
     private:
 

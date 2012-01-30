@@ -577,14 +577,14 @@ namespace CxxReflect { namespace Detail {
     template <typename T, typename U>
     bool operator==(EnhancedCString<T> const& lhs, U const* const rhs)
     {
-        StringReference const temporaryRhs(rhs);
+        EnhancedCString<U> const temporaryRhs(rhs);
         return RangeCheckedEqual(lhs.begin(), lhs.end(), temporaryRhs.begin(), temporaryRhs.end());
     }
 
     template <typename T, typename U>
     bool operator==(U const* const lhs, EnhancedCString<U> const& rhs)
     {
-        StringReference const temporaryLhs(lhs);
+        EnhancedCString<T> const temporaryLhs(lhs);
         return RangeCheckedEqual(temporaryLhs.begin(), temporaryLhs.end(), rhs.begin(), rhs.end());
     }
 
@@ -1247,11 +1247,23 @@ namespace CxxReflect { namespace Detail {
 
 
 
+    struct IdentityTransformer
+    {
+        template <typename T>
+        T operator()(T const& x) const volatile
+        {
+            return x;
+        }
+    };
+
+
+
+
     // An iterator that instantiates objects of type TResult from a range pointed to by TCurrent
     // pointers or indices.  Each TResult is constructed by calling its constructor that takes a
     // TParameter, a TCurrent, and an InternalKey.  The parameter is the value provided when the
     // InstantiatingIterator is constructed; the current is the current value of the iterator.
-    template <typename TCurrent, typename TResult, typename TParameter>
+    template <typename TCurrent, typename TResult, typename TParameter, typename TTransformer = IdentityTransformer>
     class InstantiatingIterator
     {
     public:
@@ -1271,13 +1283,13 @@ namespace CxxReflect { namespace Detail {
         {
         }
 
-        reference Get()        const { return value_type(_parameter, _current, InternalKey()); }
-        reference operator*()  const { return value_type(_parameter, _current, InternalKey()); }
-        pointer   operator->() const { return value_type(_parameter, _current, InternalKey()); }
+        reference Get()        const { return value_type(_parameter, TTransformer()(_current), InternalKey()); }
+        reference operator*()  const { return value_type(_parameter, TTransformer()(_current), InternalKey()); }
+        pointer   operator->() const { return value_type(_parameter, TTransformer()(_current), InternalKey()); }
 
         reference operator[](difference_type const n) const
         {
-            return value_type(_parameter, _current + n);
+            return value_type(_parameter, TTransformer()(_current + n));
         }
 
         friend bool operator==(InstantiatingIterator const& lhs, InstantiatingIterator const& rhs)
@@ -1348,7 +1360,8 @@ namespace CxxReflect {
         NonPublic                   = 0x00000020,
         FlattenHierarchy            = 0x00000040,
 
-        InternalUseOnly_Constructor = 0x10000001
+        InternalUseOnlyMask        = 0x10000000,
+        InternalUseOnlyConstructor = 0x10000001
     };
 
     enum class CallingConvention : std::uint8_t
@@ -1767,7 +1780,7 @@ namespace CxxReflect {
         >
         friend class Detail::MemberIterator;
 
-        template <typename TCurrent, typename TResult, typename TParameter>
+        template <typename TCurrent, typename TResult, typename TParameter, typename TTransformer>
         friend class Detail::InstantiatingIterator;
 
         friend Assembly;

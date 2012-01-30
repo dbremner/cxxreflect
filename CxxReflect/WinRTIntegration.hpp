@@ -14,6 +14,7 @@
 #include <ppl.h>
 
 struct IInspectable;
+struct IUnknown;
 
 namespace CxxReflect { namespace Detail {
 

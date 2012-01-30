@@ -74,6 +74,13 @@ class Program
         sb.AppendLine(String.Format("     -- Name [{0}]", t.Name));
         sb.AppendLine(String.Format("     -- Namespace [{0}]", t.Namespace));
 
+        sb.AppendLine(String.Format("    !!BeginInterfaces"));
+        foreach (Type it in t.GetInterfaces().OrderBy(x => x.MetadataToken))
+        {
+            sb.AppendLine(String.Format("     -- Interface [{0}] [${1:x8}]", it.FullName, it.MetadataToken));
+        }
+        sb.AppendLine(String.Format("    !!EndInterfaces"));
+
         sb.AppendLine("    !!BeginConstructors");
         foreach (ConstructorInfo c in t.GetConstructors(AllBindingFlags).OrderBy(c => c.MetadataToken))
         {
@@ -124,6 +131,6 @@ class Program
         StringBuilder result = new StringBuilder();
         Dump(result, Assembly.ReflectionOnlyLoadFrom(assemblyPath));
 
-        File.WriteAllText("d:\\jm\\mscorlib.cs.txt", result.ToString());
+        File.WriteAllText("c:\\jm\\mscorlib.cs.txt", result.ToString());
     }
 }

@@ -109,6 +109,18 @@ namespace CxxReflect { namespace Detail {
         BindingFlags                    _filter;
     };
 
+    struct InterfaceImplTransformer
+    {
+        Metadata::RowReference operator()(Metadata::FullReference r) const volatile
+        {
+            Detail::Verify([&]{ return r.AsRowReference().GetTable() == Metadata::TableId::InterfaceImpl; });
+            return r
+                .GetDatabase()
+                .GetRow<Metadata::TableId::InterfaceImpl>(r.AsRowReference().GetIndex())
+                .GetInterface();
+        }
+    };
+
 } }
 
 namespace CxxReflect {
@@ -129,6 +141,10 @@ namespace CxxReflect {
         typedef Detail::MemberIterator<Type, Method,   Detail::MethodContext,   &Type::FilterMethod  > MethodIterator;
         typedef Detail::MemberIterator<Type, Property, Detail::PropertyContext, &Type::FilterProperty> PropertyIterator;
 
+        typedef Detail::InstantiatingIterator<
+            Metadata::FullReference, Type, Assembly, Detail::InterfaceImplTransformer
+        > InterfaceIterator;
+
         Type();
         Type(Assembly const& assembly, Metadata::RowReference  const& type, InternalKey);
         Type(Assembly const& assembly, Metadata::BlobReference const& type, InternalKey);
@@ -144,6 +160,10 @@ namespace CxxReflect {
 
         Type GetBaseType() const;
         Type GetDeclaringType() const;
+
+        InterfaceIterator BeginInterfaces()     const;
+        InterfaceIterator EndInterfaces()       const;
+        Type GetInterface(StringReference name) const;
 
         String          GetAssemblyQualifiedName() const;
         String          GetFullName()              const;
@@ -251,6 +271,10 @@ namespace CxxReflect {
 
         Metadata::TypeDefRow    GetTypeDefRow()        const;
         Metadata::TypeSignature GetTypeSpecSignature() const;
+
+        typedef std::pair<Metadata::RowReference, Metadata::RowReference> InterfacesRange;
+
+        InterfacesRange GetInterfacesRange() const;
 
         #define CXXREFLECT_GENERATE decltype(std::declval<TCallback>()(std::declval<Type>()))
 

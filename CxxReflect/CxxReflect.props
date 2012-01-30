@@ -63,7 +63,7 @@
       <Path>$(IntDir)$(MsBuildProjectName).log</Path>
     </BuildLog>
     <ClCompile>
-      <AdditionalIncludeDirectories>$(SolutionDir)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\;$(IncludePath);$(VCInstallDir)Include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <ErrorReporting>None</ErrorReporting>
       <MinimalRebuild>false</MinimalRebuild>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
