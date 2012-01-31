@@ -222,6 +222,9 @@ namespace CxxReflect {
         PropertyIterator BeginProperties(BindingFlags flags = BindingAttribute::Default) const;
         PropertyIterator EndProperties() const;
 
+        CustomAttributeIterator BeginCustomAttributes() const;
+        CustomAttributeIterator EndCustomAttributes()   const;
+
         // TODO This interface is very incomplete
 
         bool IsInitialized() const

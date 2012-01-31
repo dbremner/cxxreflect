@@ -35,10 +35,11 @@ namespace
             || (t.GetNamespace() == L"System.Runtime.InteropServices.WindowsRuntime" && t.GetName() == L"DisposableRuntimeClass");
     }
 
-    void Dump(Detail::FileHandle& os, Assembly const& a);
-    void Dump(Detail::FileHandle& os, Type     const& t);
-    void Dump(Detail::FileHandle& os, Method   const& m);
-    void Dump(Detail::FileHandle& os, Field    const& f);
+    void Dump(Detail::FileHandle& os, Assembly        const& a);
+    void Dump(Detail::FileHandle& os, CustomAttribute const& c);
+    void Dump(Detail::FileHandle& os, Field           const& f);
+    void Dump(Detail::FileHandle& os, Method          const& m);
+    void Dump(Detail::FileHandle& os, Type            const& t);
 
     void Dump(Detail::FileHandle& os, Assembly const& a)
     {
@@ -87,6 +88,15 @@ namespace
         });
         os << L"    !!EndInterfaces\n";
 
+        os << L"    !!BeginCustomAttributes\n";
+        std::vector<CustomAttribute> allCustomAttributes(t.BeginCustomAttributes(), t.EndCustomAttributes());
+        std::sort(allCustomAttributes.begin(), allCustomAttributes.end(), MetadataTokenMemberComparer());
+        std::for_each(allCustomAttributes.begin(), allCustomAttributes.end(), [&](CustomAttribute const& c)
+        {
+            Dump(os, c);
+        });
+        os << L"    !!EndCustomAttributes\n";
+
         os << L"    !!BeginConstructors\n";
         std::vector<Method> allConstructors(t.BeginConstructors(AllBindingFlags), t.EndConstructors());
         std::sort(allConstructors.begin(), allConstructors.end(), MetadataTokenMemberComparer());
@@ -134,6 +144,12 @@ namespace
 
         // TODO
     }
+
+    void Dump(Detail::FileHandle& os, CustomAttribute const& c)
+    {
+        os << L"     -- CustomAttribute [" << c.GetConstructor().GetDeclaringType().GetFullName().c_str() << L"]\n";
+        // TODO
+    }
 }
 
 int main()
@@ -146,6 +162,14 @@ int main()
     MetadataLoader loader(std::move(resolver));
 
     Assembly a(loader.LoadAssembly(L"C:\\Windows\\Microsoft.NET\\Framework\\v4.0.30319\\mscorlib.dll"));
+    /*
+    Database const& db(a.GetContext(InternalKey()).GetDatabase());
+    for (auto it(db.Begin<Metadata::TableId::CustomAttribute>());
+         it != db.End<Metadata::TableId::CustomAttribute>();
+         ++it)
+    {
+        std::cout << (int)it->GetParent().GetTable() << "/" << it->GetParent().GetIndex() << std::endl;
+    }*/
 
     Detail::FileHandle fs(L"c:\\jm\\mscorlib.cpp.txt", Detail::FileMode::Write);
     Dump(fs, a);

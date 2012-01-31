@@ -1360,8 +1360,8 @@ namespace CxxReflect {
         NonPublic                   = 0x00000020,
         FlattenHierarchy            = 0x00000040,
 
-        InternalUseOnlyMask        = 0x10000000,
-        InternalUseOnlyConstructor = 0x10000001
+        InternalUseOnlyMask         = 0x10000000,
+        InternalUseOnlyConstructor  = 0x10000001
     };
 
     enum class CallingConvention : std::uint8_t
@@ -1710,6 +1710,7 @@ namespace CxxReflect {
 
     class Assembly;
     class AssemblyName;
+    class CustomAttribute;
     class Event;
     class Field;
     class File;
@@ -1722,6 +1723,8 @@ namespace CxxReflect {
     class Type;
     class Utility;
     class Version;
+
+    typedef Detail::InstantiatingIterator<Metadata::RowReference, CustomAttribute, Assembly> CustomAttributeIterator;
 
     class IMetadataResolver
     {
@@ -1761,7 +1764,7 @@ namespace CxxReflect {
     // bugs elsewhere in the library.
     class InternalKey
     {
-    private:
+    public: // TODO MAKE PRIVATE AGAIN!
 
         InternalKey() { }
 
@@ -1785,6 +1788,7 @@ namespace CxxReflect {
 
         friend Assembly;
         friend AssemblyName;
+        friend CustomAttribute;
         friend Event;
         friend Field;
         friend File;

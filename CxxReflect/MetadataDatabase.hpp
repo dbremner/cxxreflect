@@ -909,6 +909,8 @@ namespace CxxReflect { namespace Metadata {
             Detail::Verify([&]{ return index != static_cast<IndexType>(-1); });
         }
 
+        RowReference GetReference()  const { return RowReference(TId, _index.Get()); } 
+
         Reference    Get()           const { return _database.Get()->GetRow<TId>(_index.Get()); }
         Reference    operator*()     const { return _database.Get()->GetRow<TId>(_index.Get()); }
         Pointer      operator->()    const { return _database.Get()->GetRow<TId>(_index.Get()); }

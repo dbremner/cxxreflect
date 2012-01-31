@@ -17,6 +17,11 @@ namespace CxxReflect {
         typedef void /* TODO */ NamedArgumentIterator;
 
         CustomAttribute();
+        CustomAttribute(Assembly const& assembly, Metadata::RowReference const& customAttribute, InternalKey);
+
+        SizeType GetMetadataToken() const;
+
+        // TODO Implement some sort of GetParent() functionality.
 
         Method GetConstructor() const;
 
@@ -26,8 +31,29 @@ namespace CxxReflect {
         NamedArgumentIterator BeginNamedArguments() const;
         NamedArgumentIterator EndNamedArguments()   const;
 
+        bool IsInitialized() const;
+
+        bool operator!() const { return !IsInitialized(); }
+
+        friend bool operator==(CustomAttribute const&, CustomAttribute const&);
+        friend bool operator< (CustomAttribute const&, CustomAttribute const&);
+
+        CXXREFLECT_GENERATE_COMPARISON_OPERATORS(CustomAttribute)
+        CXXREFLECT_GENERATE_SAFE_BOOL_CONVERSION(CustomAttribute)
+
+    public: // Internals
+
+        static CustomAttributeIterator BeginFor(Assembly const& assembly, Metadata::RowReference const& parent, InternalKey);
+        static CustomAttributeIterator EndFor  (Assembly const& assembly, Metadata::RowReference const& parent, InternalKey);
+
     private:
 
+        void VerifyInitialized() const;
+
+        // The value, if non-null, is resolved in the same scope as the parent.
+        Metadata::FullReference _parent;
+        Metadata::RowReference  _attribute;
+        Detail::MethodHandle    _constructor;
     };
 
 }

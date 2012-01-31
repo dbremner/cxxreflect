@@ -3,6 +3,7 @@
 //     (See accompanying file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)    //
 
 #include "CxxReflect/Assembly.hpp"
+#include "CxxReflect/CustomAttribute.hpp"
 #include "CxxReflect/MetadataLoader.hpp"
 #include "CxxReflect/Method.hpp"
 #include "CxxReflect/Type.hpp"
@@ -402,6 +403,24 @@ namespace CxxReflect {
     Type::PropertyIterator Type::EndProperties() const
     {
         return PropertyIterator();
+    }
+
+    CustomAttributeIterator Type::BeginCustomAttributes() const
+    {
+        // TODO In theory, a custom attribute can be applied to a TypeRef or TypeSpec too.
+        return ResolveTypeDefTypeAndCall([&](Type const& t)
+        {
+            return CustomAttribute::BeginFor(t.GetAssembly(), t.GetTypeDefRow().GetSelfReference(), InternalKey());
+        });
+    }
+
+    CustomAttributeIterator Type::EndCustomAttributes() const
+    {
+        // TODO In theory, a custom attribute can be applied to a TypeRef or TypeSpec too.
+        return ResolveTypeDefTypeAndCall([&](Type const& t)
+        {
+            return CustomAttribute::EndFor(t.GetAssembly(), t.GetTypeDefRow().GetSelfReference(), InternalKey());
+        });
     }
 
     Type::InterfacesRange Type::GetInterfacesRange() const
