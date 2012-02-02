@@ -11,7 +11,9 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "AssemblyDumpCPP", "Assembly
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{FF0B4992-AB90-42A3-AA05-74BF7EEA91F4}"
 	ProjectSection(SolutionItems) = preProject
+		LICENSE_1_0.txt = LICENSE_1_0.txt
 		PerformanceAnalysis.psess = PerformanceAnalysis.psess
+		README.txt = README.txt
 	EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "WinRTTestStub", "WinRTTestStub\WinRTTestStub.vcxproj", "{A5A0E898-6A87-4004-9771-691D8EAF6966}"
@@ -22,6 +24,8 @@ EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "WinRTXamlTestApplication", "WinRTXamlTestApplication\WinRTXamlTestApplication.vcxproj", "{1E87945A-62D5-42C6-BF56-8FD6F394BE63}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "WinRTStub", "WinRTStub\WinRTStub.vcxproj", "{4F7F27FF-D783-482F-8290-1B365C39A3A7}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Test Projects", "Test Projects", "{85CFFE22-464D-46EE-9891-AA18F2ECBA38}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -176,5 +180,13 @@ Global
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{1AF4E75F-885B-43C0-B499-30AEA9F41B9F} = {85CFFE22-464D-46EE-9891-AA18F2ECBA38}
+		{1E87945A-62D5-42C6-BF56-8FD6F394BE63} = {85CFFE22-464D-46EE-9891-AA18F2ECBA38}
+		{4F7F27FF-D783-482F-8290-1B365C39A3A7} = {85CFFE22-464D-46EE-9891-AA18F2ECBA38}
+		{7C1FC03B-173F-40F5-8774-A69FECD19927} = {85CFFE22-464D-46EE-9891-AA18F2ECBA38}
+		{9BF0F378-26C8-4169-825F-A0ECC00D1E2E} = {85CFFE22-464D-46EE-9891-AA18F2ECBA38}
+		{A5A0E898-6A87-4004-9771-691D8EAF6966} = {85CFFE22-464D-46EE-9891-AA18F2ECBA38}
 	EndGlobalSection
 EndGlobal

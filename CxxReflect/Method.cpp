@@ -2,7 +2,10 @@
 //                   Distributed under the Boost Software License, Version 1.0.                   //
 //     (See accompanying file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)    //
 
+#include "CxxReflect/PrecompiledHeaders.hpp"
+
 #include "CxxReflect/Assembly.hpp"
+#include "CxxReflect/CustomAttribute.hpp"
 #include "CxxReflect/MetadataLoader.hpp"
 #include "CxxReflect/Method.hpp"
 #include "CxxReflect/Type.hpp"
@@ -179,6 +182,48 @@ namespace CxxReflect {
     bool Method::IsVirtual() const
     {
         return GetAttributes().IsSet(MethodAttribute::Virtual);
+    }
+
+    CustomAttributeIterator Method::BeginCustomAttributes() const
+    {
+        VerifyInitialized();
+
+        // TODO Is this usage of AsRowReference() safe?
+        return CustomAttribute::BeginFor(
+            _context.Get()->Resolve(_reflectedType.Realize()).GetDeclaringType().GetAssembly(),
+            _context.Get()->GetMember().AsRowReference(),
+            InternalKey());
+    }
+
+    CustomAttributeIterator Method::EndCustomAttributes() const
+    {
+        VerifyInitialized();
+
+        // TODO Is this usage of AsRowReference() safe?
+        return CustomAttribute::EndFor(
+            _context.Get()->Resolve(_reflectedType.Realize()).GetDeclaringType().GetAssembly(),
+            _context.Get()->GetMember().AsRowReference(),
+            InternalKey());
+    }
+
+    Method::ParameterIterator Method::BeginParameters() const
+    {
+        VerifyInitialized();
+
+        return ParameterIterator(*this, Detail::ParameterData(
+            _context.Get()->GetMemberRow().GetFirstParameter(),
+            _context.Get()->GetMemberSignature().BeginParameters(),
+            InternalKey()));
+    }
+
+    Method::ParameterIterator Method::EndParameters() const
+    {
+        VerifyInitialized();
+
+        return ParameterIterator(*this, Detail::ParameterData(
+            _context.Get()->GetMemberRow().GetLastParameter(),
+            _context.Get()->GetMemberSignature().EndParameters(),
+            InternalKey()));
     }
 
 }

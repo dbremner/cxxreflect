@@ -13,6 +13,8 @@ namespace CxxReflect {
     {
     public:
 
+        typedef Detail::InstantiatingIterator<Detail::ParameterData, Parameter, Method, Detail::IdentityTransformer, std::forward_iterator_tag> ParameterIterator;
+
         Method();
         Method(Type const& reflectedType, Detail::MethodContext const* context, InternalKey);
 
@@ -46,13 +48,18 @@ namespace CxxReflect {
         bool IsInitialized()             const;
         bool operator!()                 const;
 
+        CustomAttributeIterator BeginCustomAttributes() const;
+        CustomAttributeIterator EndCustomAttributes()   const;
+
+        ParameterIterator BeginParameters() const;
+        ParameterIterator EndParameters()   const;
+
         // Module
         // ReturnParameter            -- Non-constructor only
         // ReturnType                 -- Non-constructor only
         // ReturnTypeCustomAttributes -- Non-constructor only
 
         // GetBaseDefinition          -- Non-constructor only
-        // GetCustomAttributes
         // GetGenericArguments
         // GetGenericMethodDefinition -- Non-constructor only
         // GetMethodBody

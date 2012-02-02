@@ -5,6 +5,13 @@
     <ProjectGuid>{64DC7DFF-D2E4-4086-BE24-02F0B9D71128}</ProjectGuid>
   </PropertyGroup>
   <Import Project="$(SolutionDir)CxxReflect\CxxReflect.props" />
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <PrecompiledHeader>Use</PrecompiledHeader>
+      <PrecompiledHeaderFile>CxxReflect/PrecompiledHeaders.hpp</PrecompiledHeaderFile>
+      <PrecompiledHeaderOutputFile>$(IntDir)$(TargetName).pch</PrecompiledHeaderOutputFile>
+    </ClCompile>
+  </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="Assembly.hpp" />
     <ClInclude Include="AssemblyName.hpp" />
@@ -22,7 +29,9 @@
     <ClInclude Include="Method.hpp" />
     <ClInclude Include="Module.hpp" />
     <ClInclude Include="Parameter.hpp" />
+    <ClInclude Include="PrecompiledHeaders.hpp" />
     <ClInclude Include="Property.hpp" />
+    <ClInclude Include="StandardLibrary.hpp" />
     <ClInclude Include="Type.hpp" />
     <ClInclude Include="WinRTIntegration.hpp" />
   </ItemGroup>
@@ -41,6 +50,9 @@
     <ClCompile Include="Method.cpp" />
     <ClCompile Include="Parameter.cpp" />
     <ClCompile Include="PlatformWin32.cpp" />
+    <ClCompile Include="PrecompiledHeaders.cpp">
+      <PrecompiledHeader>Create</PrecompiledHeader>
+    </ClCompile>
     <ClCompile Include="Property.cpp" />
     <ClCompile Include="Type.cpp" />
     <ClCompile Include="WinRTIntegration.cpp" />

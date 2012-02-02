@@ -17,15 +17,6 @@ namespace
 {
     BindingAttribute const AllBindingFlags = (BindingAttribute::Public | BindingAttribute::NonPublic | BindingAttribute::Static | BindingAttribute::Instance | BindingAttribute::FlattenHierarchy);
 
-    struct MetadataTokenMemberComparer
-    {
-        template <typename TMember>
-        bool operator()(TMember const& lhs, TMember const& rhs) const
-        {
-            return lhs.GetMetadataToken() < rhs.GetMetadataToken();
-        }
-    };
-
     // The CLR hides or modifies some types in the reflection API; we don't get those modifications
     // when we read the metadata directly, so we just ignore those types here in the test program.
     bool IsKnownProblemType(Type const& t)
@@ -39,6 +30,7 @@ namespace
     void Dump(Detail::FileHandle& os, CustomAttribute const& c);
     void Dump(Detail::FileHandle& os, Field           const& f);
     void Dump(Detail::FileHandle& os, Method          const& m);
+    void Dump(Detail::FileHandle& os, Parameter       const& p);
     void Dump(Detail::FileHandle& os, Type            const& t);
 
     void Dump(Detail::FileHandle& os, Assembly const& a)
@@ -81,7 +73,7 @@ namespace
         os << L"     -- Namespace [" << t.GetNamespace().c_str() << L"]\n";
         os << L"    !!BeginInterfaces\n";
         std::vector<Type> allInterfaces(t.BeginInterfaces(), t.EndInterfaces());
-        std::sort(allInterfaces.begin(), allInterfaces.end(), MetadataTokenMemberComparer());
+        std::sort(allInterfaces.begin(), allInterfaces.end(), MetadataTokenLessThanComparer());
         std::for_each(allInterfaces.begin(), allInterfaces.end(), [&](Type const& it)
         {
             os << L"     -- Interface [" << it.GetFullName().c_str() << L"] [$" << Detail::HexFormat(it.GetMetadataToken()) << L"]\n";
@@ -90,7 +82,7 @@ namespace
 
         os << L"    !!BeginCustomAttributes\n";
         std::vector<CustomAttribute> allCustomAttributes(t.BeginCustomAttributes(), t.EndCustomAttributes());
-        std::sort(allCustomAttributes.begin(), allCustomAttributes.end(), MetadataTokenMemberComparer());
+        std::sort(allCustomAttributes.begin(), allCustomAttributes.end(), MetadataTokenLessThanComparer());
         std::for_each(allCustomAttributes.begin(), allCustomAttributes.end(), [&](CustomAttribute const& c)
         {
             Dump(os, c);
@@ -99,7 +91,7 @@ namespace
 
         os << L"    !!BeginConstructors\n";
         std::vector<Method> allConstructors(t.BeginConstructors(AllBindingFlags), t.EndConstructors());
-        std::sort(allConstructors.begin(), allConstructors.end(), MetadataTokenMemberComparer());
+        std::sort(allConstructors.begin(), allConstructors.end(), MetadataTokenLessThanComparer());
         std::for_each(allConstructors.begin(), allConstructors.end(), [&](Method const& m)
         {
             Dump(os, m);
@@ -108,7 +100,7 @@ namespace
 
         os << L"    !!BeginMethods\n";
         std::vector<Method> allMethods(t.BeginMethods(AllBindingFlags), t.EndMethods());
-        std::sort(allMethods.begin(), allMethods.end(), MetadataTokenMemberComparer());
+        std::sort(allMethods.begin(), allMethods.end(), MetadataTokenLessThanComparer());
         std::for_each(allMethods.begin(), allMethods.end(), [&](Method const& m)
         {
             Dump(os, m);
@@ -117,7 +109,7 @@ namespace
 
         os << L"    !!BeginFields\n";
         std::vector<Field> allFields(t.BeginFields(AllBindingFlags), t.EndFields());
-        std::sort(allFields.begin(), allFields.end(), MetadataTokenMemberComparer());
+        std::sort(allFields.begin(), allFields.end(), MetadataTokenLessThanComparer());
         std::for_each(allFields.begin(), allFields.end(), [&](Field const& m)
         {
             Dump(os, m);
@@ -127,7 +119,22 @@ namespace
 
     void Dump(Detail::FileHandle& os, Method const& m)
     {
-        os << L"     -- Method [" << m.GetName().c_str() << L"] [$" << Detail::HexFormat(m.GetMetadataToken()) << L"]\n"; // TODO
+        os << L"     -- Method [" << m.GetName().c_str() << L"] [$" << Detail::HexFormat(m.GetMetadataToken()) << L"]\n";
+        os << L"        !!BeginParameters\n";
+        std::for_each(m.BeginParameters(), m.EndParameters(), [&](Parameter const& p)
+        {
+            Dump(os, p);
+        });
+        os << L"        !!EndParameters\n";
+
+        // TODO
+    }
+
+    void Dump(Detail::FileHandle& os, Parameter const& p)
+    {
+        os << L"         -- [" << p.GetName().c_str() << L"] [" << p.GetType().GetFullName().c_str() << L"]\n";
+
+        // TODO
     }
 
     void Dump(Detail::FileHandle& os, Field const& f)

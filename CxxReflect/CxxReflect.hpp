@@ -2,6 +2,7 @@
 //                   Distributed under the Boost Software License, Version 1.0.                   //
 //     (See accompanying file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)    //
 
+// Public interfaces header.  All clients should include just this header; it pulls in everything.
 #ifndef CXXREFLECT_CXXREFLECT_HPP_
 #define CXXREFLECT_CXXREFLECT_HPP_
 
@@ -9,8 +10,10 @@
 #include "CxxReflect/CustomAttribute.hpp"
 #include "CxxReflect/Event.hpp"
 #include "CxxReflect/Field.hpp"
+#include "CxxReflect/File.hpp"
 #include "CxxReflect/MetadataLoader.hpp"
 #include "CxxReflect/Method.hpp"
+#include "CxxReflect/Module.hpp"
 #include "CxxReflect/Parameter.hpp"
 #include "CxxReflect/Property.hpp"
 #include "CxxReflect/Type.hpp"

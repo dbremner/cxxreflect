@@ -45,6 +45,8 @@ namespace CxxReflect {
         ByteArray _data;
     };
 
+    static_assert(sizeof(Guid) == sizeof(Guid::ByteArray), "Guid should have no unnamed padding bytes");
+
     inline bool operator==(Guid const& lhs, Guid const& rhs) { return lhs.AsByteArray() == rhs.AsByteArray(); }
     inline bool operator< (Guid const& lhs, Guid const& rhs) { return lhs.AsByteArray() <  rhs.AsByteArray(); }
 

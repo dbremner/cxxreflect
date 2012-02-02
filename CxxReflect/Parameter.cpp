@@ -2,6 +2,8 @@
 //                   Distributed under the Boost Software License, Version 1.0.                   //
 //     (See accompanying file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)    //
 
+#include "CxxReflect/PrecompiledHeaders.hpp"
+
 #include "CxxReflect/Assembly.hpp"
 #include "CxxReflect/Method.hpp"
 #include "CxxReflect/Parameter.hpp"
@@ -13,11 +15,10 @@ namespace CxxReflect {
     {
     }
 
-    Parameter::Parameter(Method                  const& method,
-                         Metadata::RowReference  const& parameter,
-                         Metadata::TypeSignature const& signature,
+    Parameter::Parameter(Method                const& method,
+                         Detail::ParameterData const& parameterData,
                          InternalKey)
-        : _method(method), _parameter(parameter), _signature(signature)
+        : _method(method), _parameter(parameterData.GetParameter()), _signature(parameterData.GetSignature())
     {
         VerifyInitialized();
     }
@@ -73,8 +74,20 @@ namespace CxxReflect {
 
     Type Parameter::GetType() const
     {
-        Detail::VerifyFail("NYI");
-        return Type();
+        VerifyInitialized();
+
+        Assembly           const  assembly(_method.Realize().GetDeclaringType().GetAssembly());
+        Metadata::Database const& database(assembly.GetContext(InternalKey()).GetDatabase());
+
+        // TODO It might be useful to create a helper for this in Database; we do it several places.
+        ByteIterator const blobsStart(database.GetBlobs().Begin());
+        SizeType     const signatureFirst(_signature.BeginBytes() - blobsStart);
+        SizeType     const signatureLast (_signature.EndBytes()   - blobsStart);
+
+        return Type(
+            _method.Realize().GetDeclaringType().GetAssembly(),
+            Metadata::BlobReference(signatureFirst, signatureLast - signatureFirst),
+            InternalKey());
     }
 
     SizeType Parameter::GetPosition() const

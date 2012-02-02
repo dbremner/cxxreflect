@@ -2,6 +2,8 @@
 //                   Distributed under the Boost Software License, Version 1.0.                   //
 //     (See accompanying file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)    //
 
+#include "CxxReflect/PrecompiledHeaders.hpp"
+
 #include "CxxReflect/Assembly.hpp"
 #include "CxxReflect/CoreInternals.hpp"
 #include "CxxReflect/Event.hpp"
@@ -771,7 +773,12 @@ namespace CxxReflect { namespace Detail {
 
         Method const declaringMethod(reflectedType, _methodContext.Get(), InternalKey());
 
-        return Parameter(declaringMethod, _parameterReference, _parameterSignature, InternalKey());
+        /* TODO return Parameter(
+            declaringMethod,
+            ParameterData(_parameterReference, _parameterSignature, InternalKey()),
+            InternalKey());*/
+
+        return Parameter();
     }
 
     bool ParameterHandle::IsInitialized() const
@@ -848,6 +855,78 @@ namespace CxxReflect { namespace Detail {
     bool operator< (TypeHandle const& lhs, TypeHandle const& rhs)
     {
         return lhs.Realize() < rhs.Realize();
+    }
+
+
+
+
+
+    ParameterData::ParameterData()
+    {
+    }
+
+    ParameterData::ParameterData(Metadata::RowReference                       const& parameter,
+                                 Metadata::MethodSignature::ParameterIterator const& signature,
+                                 InternalKey)
+        : _parameter(parameter), _signature(signature)
+    {
+        VerifyInitialized();
+    }
+
+    bool ParameterData::IsInitialized() const
+    {
+        return _parameter.IsInitialized();
+    }
+
+    void ParameterData::VerifyInitialized() const
+    {
+        Verify([&]{ return IsInitialized(); });
+    }
+
+    ParameterData& ParameterData::operator++()
+    {
+        VerifyInitialized();
+
+        ++_parameter;
+        ++_signature;
+        return *this;
+    }
+
+    ParameterData ParameterData::operator++(int)
+    {
+        ParameterData const it(*this);
+        ++*this;
+        return it;
+    }
+
+    bool operator==(ParameterData const& lhs, ParameterData const& rhs)
+    {
+        lhs.VerifyInitialized();
+        rhs.VerifyInitialized();
+
+        return lhs._parameter == rhs._parameter;
+    }
+
+    bool operator< (ParameterData const& lhs, ParameterData const& rhs)
+    {
+        lhs.VerifyInitialized();
+        rhs.VerifyInitialized();
+
+        return lhs._parameter < rhs._parameter;
+    }
+
+    Metadata::RowReference const& ParameterData::GetParameter() const
+    {
+        VerifyInitialized();
+
+        return _parameter;
+    }
+
+    Metadata::TypeSignature const& ParameterData::GetSignature() const
+    {
+        VerifyInitialized();
+
+        return *_signature;
     }
 
 } }

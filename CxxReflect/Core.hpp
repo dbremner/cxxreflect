@@ -6,30 +6,7 @@
 #ifndef CXXREFLECT_CORE_HPP_
 #define CXXREFLECT_CORE_HPP_
 
-#include <algorithm>
-#include <array>
-#include <atomic>
-#include <bitset>
-#include <cctype>
-#include <cstdint>
-#include <cstdio>
-#include <cstring>
-#include <cwchar>
-#include <functional>
-#include <future>
-#include <iostream>
-#include <iterator>
-#include <map>
-#include <memory>
-#include <numeric>
-#include <set>
-#include <sstream>
-#include <stdexcept>
-#include <string>
-#include <thread>
-#include <type_traits>
-#include <utility>
-#include <vector>
+#include "CxxReflect/StandardLibrary.hpp"
 
 // The logic checks can be used to debug errors both in the CxxReflect implementation itself and in
 // the usage of the CxxReflect API.  The checks cause most invariants to be checked whenever a public
@@ -219,8 +196,8 @@ namespace CxxReflect { namespace Detail {
     // Generators for addition and subtraction operators for types that are pointer-like (i.e. types
     // that use indices or pointers of some kind to point to elements in a sequence).
     #define CXXREFLECT_GENERATE_ADDITION_OPERATORS(the_type, get_value, difference)         \
-        the_type& operator++()    { *this += 1; return *this;                       }       \
-        the_type  operator++(int) { auto const it(*this); *this += 1; return *this; }       \
+        the_type& operator++()    { ++(*this).get_value; return *this;              }       \
+        the_type  operator++(int) { auto const it(*this); ++*this; return *this;    }       \
                                                                                             \
         the_type& operator+=(difference const n)                                            \
         {                                                                                   \
@@ -233,8 +210,8 @@ namespace CxxReflect { namespace Detail {
         friend the_type operator+(difference n, the_type it) { return it += n; }
 
     #define CXXREFLECT_GENERATE_SUBTRACTION_OPERATORS(the_type, get_value, difference)      \
-        the_type& operator--()    { *this -= 1; return *this;                       }       \
-        the_type  operator--(int) { auto const it(*this); *this -= 1; return *this; }       \
+        the_type& operator--()    { --(*this).get_value; return *this;              }       \
+        the_type  operator--(int) { auto const it(*this); --*this; return *this;    }       \
                                                                                             \
         the_type& operator-=(difference const n)                                            \
         {                                                                                   \
@@ -1263,12 +1240,16 @@ namespace CxxReflect { namespace Detail {
     // pointers or indices.  Each TResult is constructed by calling its constructor that takes a
     // TParameter, a TCurrent, and an InternalKey.  The parameter is the value provided when the
     // InstantiatingIterator is constructed; the current is the current value of the iterator.
-    template <typename TCurrent, typename TResult, typename TParameter, typename TTransformer = IdentityTransformer>
+    template <typename TCurrent,
+              typename TResult,
+              typename TParameter,
+              typename TTransformer = IdentityTransformer,
+              typename TCategory = std::random_access_iterator_tag>
     class InstantiatingIterator
     {
     public:
 
-        typedef std::random_access_iterator_tag iterator_category;
+        typedef TCategory                       iterator_category;
         typedef TResult                         value_type;
         typedef TResult                         reference;
         typedef Dereferenceable<TResult>        pointer;
@@ -1783,7 +1764,7 @@ namespace CxxReflect {
         >
         friend class Detail::MemberIterator;
 
-        template <typename TCurrent, typename TResult, typename TParameter, typename TTransformer>
+        template <typename TCurrent, typename TResult, typename TParameter, typename TTransformer, typename TCategory>
         friend class Detail::InstantiatingIterator;
 
         friend Assembly;

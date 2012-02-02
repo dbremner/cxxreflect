@@ -2,6 +2,8 @@
 //                   Distributed under the Boost Software License, Version 1.0.                   //
 //     (See accompanying file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)    //
 
+#include "CxxReflect/PrecompiledHeaders.hpp"
+
 #include "CxxReflect/Assembly.hpp"
 #include "CxxReflect/CustomAttribute.hpp"
 #include "CxxReflect/Method.hpp"
@@ -15,30 +17,30 @@ namespace CxxReflect { namespace { namespace Private {
     {
         switch (tableId)
         {
-        case Metadata::TableId::MethodDef:              return  0;
-        case Metadata::TableId::Field:                  return  1;
-        case Metadata::TableId::TypeRef:                return  2;
-        case Metadata::TableId::TypeDef:                return  3;
-        case Metadata::TableId::Param:                  return  4;
-        case Metadata::TableId::InterfaceImpl:          return  5;
-        case Metadata::TableId::MemberRef:              return  6;
-        case Metadata::TableId::Module:                 return  7;
-        // TODO WTF is the 'Permission' table?
-        // case Metadata::TableId::Permission:          return  8;
-        case Metadata::TableId::Property:               return  9;
-        case Metadata::TableId::Event:                  return 10;
-        case Metadata::TableId::StandaloneSig:          return 11;
-        case Metadata::TableId::ModuleRef:              return 12;
-        case Metadata::TableId::TypeSpec:               return 13;
-        case Metadata::TableId::Assembly:               return 14;
-        case Metadata::TableId::AssemblyRef:            return 15;
-        case Metadata::TableId::File:                   return 16;
-        case Metadata::TableId::ExportedType:           return 17;
-        case Metadata::TableId::ManifestResource:       return 18;
-        case Metadata::TableId::GenericParam:           return 19;
-        case Metadata::TableId::GenericParamConstraint: return 20;
-        case Metadata::TableId::MethodSpec:             return 21;
-        default: Detail::VerifyFail("Invalid table id");
+        case Metadata::TableId::MethodDef:               return  0;
+        case Metadata::TableId::Field:                   return  1;
+        case Metadata::TableId::TypeRef:                 return  2;
+        case Metadata::TableId::TypeDef:                 return  3;
+        case Metadata::TableId::Param:                   return  4;
+        case Metadata::TableId::InterfaceImpl:           return  5;
+        case Metadata::TableId::MemberRef:               return  6;
+        case Metadata::TableId::Module:                  return  7;
+        // TODO WTF is the 'Permission' table? 
+        // case Metadata::TableId::Permission:           return  8;
+        case Metadata::TableId::Property:                return  9;
+        case Metadata::TableId::Event:                   return 10;
+        case Metadata::TableId::StandaloneSig:           return 11;
+        case Metadata::TableId::ModuleRef:               return 12;
+        case Metadata::TableId::TypeSpec:                return 13;
+        case Metadata::TableId::Assembly:                return 14;
+        case Metadata::TableId::AssemblyRef:             return 15;
+        case Metadata::TableId::File:                    return 16;
+        case Metadata::TableId::ExportedType:            return 17;
+        case Metadata::TableId::ManifestResource:        return 18;
+        case Metadata::TableId::GenericParam:            return 19;
+        case Metadata::TableId::GenericParamConstraint:  return 20;
+        case Metadata::TableId::MethodSpec:              return 21;
+        default: Detail::VerifyFail("Invalid table id"); return  0;
         }
     }
 

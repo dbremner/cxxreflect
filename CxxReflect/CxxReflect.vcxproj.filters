@@ -1,115 +1,124 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
-    <ClCompile Include="Assembly.cpp">
-      <Filter>Sources</Filter>
-    </ClCompile>
-    <ClCompile Include="AssemblyName.cpp">
-      <Filter>Sources</Filter>
-    </ClCompile>
-    <ClCompile Include="CustomAttribute.cpp">
-      <Filter>Sources</Filter>
-    </ClCompile>
     <ClCompile Include="Guid.cpp">
-      <Filter>Sources</Filter>
-    </ClCompile>
-    <ClCompile Include="MetadataDatabase.cpp">
-      <Filter>Sources</Filter>
-    </ClCompile>
-    <ClCompile Include="MetadataLoader.cpp">
       <Filter>Sources</Filter>
     </ClCompile>
     <ClCompile Include="PlatformWin32.cpp">
       <Filter>Sources</Filter>
     </ClCompile>
-    <ClCompile Include="Type.cpp">
+    <ClCompile Include="PrecompiledHeaders.cpp">
       <Filter>Sources</Filter>
     </ClCompile>
-    <ClCompile Include="Method.cpp">
-      <Filter>Sources</Filter>
+    <ClCompile Include="MetadataDatabase.cpp">
+      <Filter>Sources\Metadata</Filter>
     </ClCompile>
     <ClCompile Include="MetadataSignature.cpp">
-      <Filter>Sources</Filter>
+      <Filter>Sources\Metadata</Filter>
     </ClCompile>
-    <ClCompile Include="File.cpp">
-      <Filter>Sources</Filter>
+    <ClCompile Include="MetadataLoader.cpp">
+      <Filter>Sources\Interface</Filter>
     </ClCompile>
-    <ClCompile Include="CoreInternals.cpp">
-      <Filter>Sources</Filter>
+    <ClCompile Include="Assembly.cpp">
+      <Filter>Sources\Interface</Filter>
     </ClCompile>
-    <ClCompile Include="Parameter.cpp">
-      <Filter>Sources</Filter>
+    <ClCompile Include="AssemblyName.cpp">
+      <Filter>Sources\Interface</Filter>
     </ClCompile>
-    <ClCompile Include="Property.cpp">
-      <Filter>Sources</Filter>
-    </ClCompile>
-    <ClCompile Include="Field.cpp">
-      <Filter>Sources</Filter>
+    <ClCompile Include="CustomAttribute.cpp">
+      <Filter>Sources\Interface</Filter>
     </ClCompile>
     <ClCompile Include="Event.cpp">
-      <Filter>Sources</Filter>
+      <Filter>Sources\Interface</Filter>
+    </ClCompile>
+    <ClCompile Include="Field.cpp">
+      <Filter>Sources\Interface</Filter>
+    </ClCompile>
+    <ClCompile Include="File.cpp">
+      <Filter>Sources\Interface</Filter>
+    </ClCompile>
+    <ClCompile Include="Method.cpp">
+      <Filter>Sources\Interface</Filter>
+    </ClCompile>
+    <ClCompile Include="Parameter.cpp">
+      <Filter>Sources\Interface</Filter>
+    </ClCompile>
+    <ClCompile Include="Property.cpp">
+      <Filter>Sources\Interface</Filter>
+    </ClCompile>
+    <ClCompile Include="Type.cpp">
+      <Filter>Sources\Interface</Filter>
     </ClCompile>
     <ClCompile Include="WinRTIntegration.cpp">
-      <Filter>Sources</Filter>
+      <Filter>Sources\Interface</Filter>
+    </ClCompile>
+    <ClCompile Include="CoreInternals.cpp">
+      <Filter>Sources\Core</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="Assembly.hpp">
-      <Filter>Headers</Filter>
-    </ClInclude>
-    <ClInclude Include="AssemblyName.hpp">
-      <Filter>Headers</Filter>
-    </ClInclude>
-    <ClInclude Include="CustomAttribute.hpp">
-      <Filter>Headers</Filter>
-    </ClInclude>
     <ClInclude Include="CxxReflect.hpp">
-      <Filter>Headers</Filter>
-    </ClInclude>
-    <ClInclude Include="Event.hpp">
-      <Filter>Headers</Filter>
-    </ClInclude>
-    <ClInclude Include="Field.hpp">
       <Filter>Headers</Filter>
     </ClInclude>
     <ClInclude Include="Guid.hpp">
       <Filter>Headers</Filter>
     </ClInclude>
-    <ClInclude Include="MetadataDatabase.hpp">
+    <ClInclude Include="PrecompiledHeaders.hpp">
       <Filter>Headers</Filter>
     </ClInclude>
-    <ClInclude Include="Method.hpp">
-      <Filter>Headers</Filter>
+    <ClInclude Include="Assembly.hpp">
+      <Filter>Headers\Interface</Filter>
     </ClInclude>
-    <ClInclude Include="Parameter.hpp">
-      <Filter>Headers</Filter>
+    <ClInclude Include="Event.hpp">
+      <Filter>Headers\Interface</Filter>
     </ClInclude>
-    <ClInclude Include="Property.hpp">
-      <Filter>Headers</Filter>
-    </ClInclude>
-    <ClInclude Include="Type.hpp">
-      <Filter>Headers</Filter>
-    </ClInclude>
-    <ClInclude Include="Core.hpp">
-      <Filter>Headers</Filter>
-    </ClInclude>
-    <ClInclude Include="MetadataLoader.hpp">
-      <Filter>Headers</Filter>
+    <ClInclude Include="Field.hpp">
+      <Filter>Headers\Interface</Filter>
     </ClInclude>
     <ClInclude Include="File.hpp">
-      <Filter>Headers</Filter>
+      <Filter>Headers\Interface</Filter>
+    </ClInclude>
+    <ClInclude Include="Method.hpp">
+      <Filter>Headers\Interface</Filter>
     </ClInclude>
     <ClInclude Include="Module.hpp">
-      <Filter>Headers</Filter>
+      <Filter>Headers\Interface</Filter>
+    </ClInclude>
+    <ClInclude Include="Parameter.hpp">
+      <Filter>Headers\Interface</Filter>
+    </ClInclude>
+    <ClInclude Include="Property.hpp">
+      <Filter>Headers\Interface</Filter>
+    </ClInclude>
+    <ClInclude Include="Type.hpp">
+      <Filter>Headers\Interface</Filter>
+    </ClInclude>
+    <ClInclude Include="MetadataDatabase.hpp">
+      <Filter>Headers\Metadata</Filter>
     </ClInclude>
     <ClInclude Include="MetadataSignature.hpp">
-      <Filter>Headers</Filter>
+      <Filter>Headers\Metadata</Filter>
+    </ClInclude>
+    <ClInclude Include="CustomAttribute.hpp">
+      <Filter>Headers\Interface</Filter>
+    </ClInclude>
+    <ClInclude Include="AssemblyName.hpp">
+      <Filter>Headers\Interface</Filter>
+    </ClInclude>
+    <ClInclude Include="Core.hpp">
+      <Filter>Headers\Core</Filter>
     </ClInclude>
     <ClInclude Include="CoreInternals.hpp">
-      <Filter>Headers</Filter>
+      <Filter>Headers\Core</Filter>
     </ClInclude>
     <ClInclude Include="WinRTIntegration.hpp">
-      <Filter>Headers</Filter>
+      <Filter>Headers\Interface</Filter>
+    </ClInclude>
+    <ClInclude Include="MetadataLoader.hpp">
+      <Filter>Headers\Interface</Filter>
+    </ClInclude>
+    <ClInclude Include="StandardLibrary.hpp">
+      <Filter>Headers\Core</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -118,6 +127,24 @@
     </Filter>
     <Filter Include="Sources">
       <UniqueIdentifier>{21a358cf-7e9e-4215-851a-6e982b685c52}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Headers\Interface">
+      <UniqueIdentifier>{e93ab509-e3e9-49c0-918b-d3b24664a85a}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Headers\Metadata">
+      <UniqueIdentifier>{0b2e965e-43ad-4104-80d4-7ed867a59458}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Headers\Core">
+      <UniqueIdentifier>{0b82422c-1fa9-4e7f-8638-f9476c12048a}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Sources\Interface">
+      <UniqueIdentifier>{88ca1587-0def-4831-bae3-2ab59ce19731}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Sources\Metadata">
+      <UniqueIdentifier>{499cafe6-89c6-40be-abcb-70dea6cead3f}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Sources\Core">
+      <UniqueIdentifier>{a732485e-fad7-44dd-889c-a5313e86850e}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>

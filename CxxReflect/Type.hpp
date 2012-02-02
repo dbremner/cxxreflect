@@ -222,6 +222,7 @@ namespace CxxReflect {
         PropertyIterator BeginProperties(BindingFlags flags = BindingAttribute::Default) const;
         PropertyIterator EndProperties() const;
 
+        // TODO Provide ability to return inherited attributes
         CustomAttributeIterator BeginCustomAttributes() const;
         CustomAttributeIterator EndCustomAttributes()   const;
 

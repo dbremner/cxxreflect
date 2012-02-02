@@ -305,6 +305,40 @@ namespace CxxReflect { namespace Detail {
         Metadata::ElementReference               _typeReference;
     };
 
+
+
+
+
+    class ParameterData
+    {
+    public:
+
+        ParameterData();
+        ParameterData(Metadata::RowReference                       const& parameter,
+                      Metadata::MethodSignature::ParameterIterator const& signature,
+                      InternalKey);
+
+        Metadata::RowReference  const& GetParameter() const;
+        Metadata::TypeSignature const& GetSignature() const;
+
+        bool IsInitialized() const;
+
+        ParameterData& operator++();
+        ParameterData  operator++(int);
+
+        friend bool operator==(ParameterData const&, ParameterData const&);
+        friend bool operator< (ParameterData const&, ParameterData const&);
+
+        CXXREFLECT_GENERATE_COMPARISON_OPERATORS(ParameterData)
+
+    private:
+
+        void VerifyInitialized() const;
+
+        Metadata::RowReference                       _parameter;
+        Metadata::MethodSignature::ParameterIterator _signature;
+    };
+
 } }
 
 namespace CxxReflect {
@@ -336,6 +370,28 @@ namespace CxxReflect {
         static Type GetSystemObjectType(Assembly const& referenceAssembly);
 
         static Type GetPrimitiveType(Assembly const& referenceAssembly, Metadata::ElementType elementType);
+    };
+
+
+
+
+
+    struct MetadataTokenEqualsComparer
+    {
+        template <typename TMember>
+        bool operator()(TMember const& lhs, TMember const& rhs) const
+        {
+            return lhs.GetMetadataToken() == rhs.GetMetadataToken();
+        }
+    };
+
+    struct MetadataTokenLessThanComparer
+    {
+        template <typename TMember>
+        bool operator()(TMember const& lhs, TMember const& rhs) const
+        {
+            return lhs.GetMetadataToken() < rhs.GetMetadataToken();
+        }
     };
 
 }

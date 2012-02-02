@@ -111,9 +111,8 @@ namespace CxxReflect {
 
     public: // Internal Members
 
-        Parameter(Method                  const& method,
-                  Metadata::RowReference  const& parameter,
-                  Metadata::TypeSignature const& signature,
+        Parameter(Method                const& method,
+                  Detail::ParameterData const& parameterData,
                   InternalKey);
 
         Metadata::RowReference  const& GetSelfReference(InternalKey) const;

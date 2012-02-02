@@ -2,6 +2,8 @@
 //                   Distributed under the Boost Software License, Version 1.0.                   //
 //     (See accompanying file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)    //
 
+#include "CxxReflect/PrecompiledHeaders.hpp"
+
 #include "CxxReflect/CoreInternals.hpp"
 
 namespace CxxReflect { namespace Metadata { namespace { namespace Private {
@@ -1678,7 +1680,7 @@ namespace CxxReflect { namespace Metadata {
         return Private::ComputeLastRowReference<
             TableId::MethodDef,
             TableId::Param
-        >(GetDatabase(), GetIterator(), &MethodDefRow::GetLastParameter);
+        >(GetDatabase(), GetIterator(), &MethodDefRow::GetFirstParameter);
     }
 
     RowReference MethodImplRow::GetClass() const
