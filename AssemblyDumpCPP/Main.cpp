@@ -161,12 +161,12 @@ namespace
 
 int main()
 {
-    DirectoryBasedMetadataResolver::DirectorySet directories;
+    DirectoryBasedAssemblyLocator::DirectorySet directories;
     directories.insert(L"C:\\Windows\\Microsoft.NET\\Framework\\v4.0.30319");
 
-    std::unique_ptr<IMetadataResolver> resolver(new DirectoryBasedMetadataResolver(directories));
+    std::unique_ptr<IAssemblyLocator> resolver(new DirectoryBasedAssemblyLocator(directories));
 
-    MetadataLoader loader(std::move(resolver));
+    Loader loader(std::move(resolver));
 
     Assembly a(loader.LoadAssembly(L"C:\\Windows\\Microsoft.NET\\Framework\\v4.0.30319\\mscorlib.dll"));
     /*

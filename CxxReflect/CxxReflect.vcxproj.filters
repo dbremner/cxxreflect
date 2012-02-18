@@ -16,9 +16,6 @@
     <ClCompile Include="MetadataSignature.cpp">
       <Filter>Sources\Metadata</Filter>
     </ClCompile>
-    <ClCompile Include="MetadataLoader.cpp">
-      <Filter>Sources\Interface</Filter>
-    </ClCompile>
     <ClCompile Include="Assembly.cpp">
       <Filter>Sources\Interface</Filter>
     </ClCompile>
@@ -54,6 +51,12 @@
     </ClCompile>
     <ClCompile Include="CoreInternals.cpp">
       <Filter>Sources\Core</Filter>
+    </ClCompile>
+    <ClCompile Include="MetadataCore.cpp">
+      <Filter>Sources\Metadata</Filter>
+    </ClCompile>
+    <ClCompile Include="Loader.cpp">
+      <Filter>Sources\Interface</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -105,20 +108,26 @@
     <ClInclude Include="AssemblyName.hpp">
       <Filter>Headers\Interface</Filter>
     </ClInclude>
-    <ClInclude Include="Core.hpp">
-      <Filter>Headers\Core</Filter>
-    </ClInclude>
     <ClInclude Include="CoreInternals.hpp">
       <Filter>Headers\Core</Filter>
     </ClInclude>
     <ClInclude Include="WinRTIntegration.hpp">
       <Filter>Headers\Interface</Filter>
     </ClInclude>
-    <ClInclude Include="MetadataLoader.hpp">
-      <Filter>Headers\Interface</Filter>
-    </ClInclude>
     <ClInclude Include="StandardLibrary.hpp">
       <Filter>Headers\Core</Filter>
+    </ClInclude>
+    <ClInclude Include="Configuration.hpp">
+      <Filter>Headers\Core</Filter>
+    </ClInclude>
+    <ClInclude Include="Fundamentals.hpp">
+      <Filter>Headers\Core</Filter>
+    </ClInclude>
+    <ClInclude Include="MetadataCommon.hpp">
+      <Filter>Headers\Metadata</Filter>
+    </ClInclude>
+    <ClInclude Include="Loader.hpp">
+      <Filter>Headers\Interface</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

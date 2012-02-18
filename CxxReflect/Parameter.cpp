@@ -20,7 +20,7 @@ namespace CxxReflect {
                          InternalKey)
         : _method(method), _parameter(parameterData.GetParameter()), _signature(parameterData.GetSignature())
     {
-        VerifyInitialized();
+        AssertInitialized();
     }
 
     ParameterFlags Parameter::GetAttributes() const
@@ -35,7 +35,7 @@ namespace CxxReflect {
 
     bool Parameter::IsLcid() const
     {
-        Detail::VerifyFail("NYI");
+        Detail::AssertFail(L"NYI");
         return false;
     }
 
@@ -51,19 +51,19 @@ namespace CxxReflect {
 
     bool Parameter::IsRetVal() const
     {
-        Detail::VerifyFail("NYI");
+        Detail::AssertFail(L"NYI");
         return false;
     }
 
     Method Parameter::GetDeclaringMethod() const
     {
-        VerifyInitialized();
+        AssertInitialized();
         return _method.Realize();
     }
 
     SizeType Parameter::GetMetadataToken() const
     {
-        VerifyInitialized();
+        AssertInitialized();
         return _parameter.GetToken();
     }
 
@@ -74,15 +74,15 @@ namespace CxxReflect {
 
     Type Parameter::GetType() const
     {
-        VerifyInitialized();
+        AssertInitialized();
 
         Assembly           const  assembly(_method.Realize().GetDeclaringType().GetAssembly());
         Metadata::Database const& database(assembly.GetContext(InternalKey()).GetDatabase());
 
         // TODO It might be useful to create a helper for this in Database; we do it several places.
-        ByteIterator const blobsStart(database.GetBlobs().Begin());
-        SizeType     const signatureFirst(_signature.BeginBytes() - blobsStart);
-        SizeType     const signatureLast (_signature.EndBytes()   - blobsStart);
+        ConstByteIterator const blobsStart(database.GetBlobs().Begin());
+        SizeType          const signatureFirst(_signature.BeginBytes() - blobsStart);
+        SizeType          const signatureLast (_signature.EndBytes()   - blobsStart);
 
         return Type(
             _method.Realize().GetDeclaringType().GetAssembly(),
@@ -97,19 +97,19 @@ namespace CxxReflect {
 
     Metadata::RowReference  const& Parameter::GetSelfReference(InternalKey) const
     {
-        VerifyInitialized();
+        AssertInitialized();
         return _parameter;
     }
 
     Metadata::TypeSignature const& Parameter::GetSelfSignature(InternalKey) const
     {
-        VerifyInitialized();
+        AssertInitialized();
         return _signature;
     }
 
     Metadata::ParamRow Parameter::GetParamRow() const
     {
-        VerifyInitialized();
+        AssertInitialized();
         return _method.Realize()
             .GetDeclaringType()
             .GetAssembly()
@@ -128,9 +128,9 @@ namespace CxxReflect {
         return !IsInitialized();
     }
 
-    void Parameter::VerifyInitialized() const
+    void Parameter::AssertInitialized() const
     {
-        Detail::Verify([&]{ return IsInitialized(); });
+        Detail::Assert([&]{ return IsInitialized(); });
     }
 
     bool operator==(Parameter const& lhs, Parameter const& rhs)
@@ -147,7 +147,7 @@ namespace CxxReflect {
         if (lhs._parameter < rhs._parameter) { return true;  }
         if (lhs._parameter > rhs._parameter) { return false; }
 
-        return std::less<ByteIterator>()(lhs._signature.BeginBytes(), rhs._signature.BeginBytes());
+        return std::less<ConstByteIterator>()(lhs._signature.BeginBytes(), rhs._signature.BeginBytes());
     }
 
 }

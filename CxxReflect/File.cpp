@@ -6,7 +6,7 @@
 
 #include "CxxReflect/Assembly.hpp"
 #include "CxxReflect/File.hpp"
-#include "CxxReflect/MetadataLoader.hpp"
+#include "CxxReflect/Loader.hpp"
 
 namespace CxxReflect {
 
@@ -17,7 +17,7 @@ namespace CxxReflect {
     File::File(Assembly const assembly, Metadata::RowReference const file, InternalKey)
         : _assembly(assembly), _file(file)
     {
-        VerifyInitialized();
+        AssertInitialized();
     }
 
     FileFlags File::GetAttributes() const
@@ -32,13 +32,13 @@ namespace CxxReflect {
 
     Assembly File::GetAssembly() const
     {
-        VerifyInitialized();
+        AssertInitialized();
         return _assembly.Realize();
     }
 
     Metadata::FileRow File::GetFileRow() const
     {
-        VerifyInitialized();
+        AssertInitialized();
         return _assembly.Realize()
             .GetContext(InternalKey())
             .GetDatabase()
@@ -55,9 +55,9 @@ namespace CxxReflect {
         return !IsInitialized();
     }
 
-    void File::VerifyInitialized() const
+    void File::AssertInitialized() const
     {
-        Detail::Verify([&]{ return IsInitialized(); });
+        Detail::Assert([&]{ return IsInitialized(); });
     }
 
     bool operator==(File const& lhs, File const& rhs)

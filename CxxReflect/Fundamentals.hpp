@@ -3,130 +3,409 @@
 //     (See accompanying file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)    //
 
 // Fundamental types, functions, and constants used throughout the library.
-#ifndef CXXREFLECT_CORE_HPP_
-#define CXXREFLECT_CORE_HPP_
+#ifndef CXXREFLECT_FUNDAMENTALCOMPONENTS_HPP_
+#define CXXREFLECT_FUNDAMENTALCOMPONENTS_HPP_
 
+#include "CxxReflect/Configuration.hpp"
 #include "CxxReflect/StandardLibrary.hpp"
 
-// The logic checks can be used to debug errors both in the CxxReflect implementation itself and in
-// the usage of the CxxReflect API.  The checks cause most invariants to be checked whenever a public
-// member function is called, and in many private member functions as well.  If a logic check fails,
-// a CxxReflect::VerificationFailure exception is thrown.  Do not handle this exception; if it is
-// thrown, it means that something is broken.  No harm will come if you enable this in non-debug
-// builds, but it does substantially impact performance.
-#ifdef _DEBUG
-#define CXXREFLECT_LOGIC_CHECKS
-#endif
 
-#define CXXREFLECT_ENABLE_FEATURE_WINRT
+
+
+
+//
+//
+// BASIC TYPES
+//
+//
 
 namespace CxxReflect {
 
-    // VerificationFailure exceptions are thrown only when CXXREFLECT_LOGIC_CHECKS is set.  It should
-    // only be thrown when the error is an actual logic error, never when the error is something that
-    // could conceivably occur at runtime if the code is correct.
-    struct VerificationFailure : std::logic_error
+    typedef std::uint8_t                                  Byte;
+    typedef Byte*                                         ByteIterator;
+    typedef Byte const*                                   ConstByteIterator;
+    typedef std::reverse_iterator<ByteIterator>           ReverseByteIterator;
+    typedef std::reverse_iterator<ConstByteIterator>      ConstReverseByteIterator;
+
+    typedef wchar_t                                       Character;
+    typedef wchar_t*                                      CharacterIterator;
+    typedef wchar_t const*                                ConstCharacterIterator;
+    typedef std::reverse_iterator<CharacterIterator>      ReverseCharacterIterator;
+    typedef std::reverse_iterator<ConstCharacterIterator> ConstReverseCharacterIterator;
+
+    typedef std::basic_string<wchar_t>                    String;
+    typedef std::basic_istream<wchar_t>                   InputStream;
+    typedef std::basic_ostream<wchar_t>                   OutputStream;
+
+    typedef std::basic_string<char>                       NarrowString;
+    typedef std::basic_istream<char>                      NarrowInputStream;
+    typedef std::basic_ostream<char>                      NarrowOutputStream;
+
+    typedef long                                          HResult;
+
+    typedef std::uint32_t                                 SizeType;
+    typedef std::int32_t                                  DifferenceType;
+
+}
+
+
+
+
+
+//
+//
+// BASIC PLATFORM-DEPENDENT FUNCTIONS
+//
+//
+
+namespace CxxReflect { namespace Detail {
+
+    String       ConvertNarrowStringToWideString(char const* s);
+    String       ConvertUtf8StringToWideString(char const* s);
+    NarrowString ConvertWideStringToNarrowString(wchar_t const* s);
+
+    FILE*        OpenFile(wchar_t const* fileName, wchar_t const* mode);
+
+    typedef std::array<std::uint8_t, 20> Sha1Hash;
+
+    Sha1Hash     ComputeSha1Hash(ConstByteIterator first, ConstByteIterator last);
+
+} }
+
+
+
+
+
+//
+//
+// EXCEPTIONS, ASSERTIONS, AND ERROR HANDLING
+//
+//
+
+namespace CxxReflect {
+
+    // We have our own exception hierarchy because everything in this library uses wide strings, but
+    // the C++ Standard Library exceptions use narrow strings.  We still derive from std::exception
+    // though, and we override what() to return a narrow string.
+
+    class Exception : public std::exception
     {
-        explicit VerificationFailure(char const* const message = "")
-            : std::logic_error(message)
+    public:
+
+        explicit Exception(String message = L"")
+            : std::exception(Detail::ConvertWideStringToNarrowString(message.c_str()).c_str()),
+              _message(std::move(message))
         {
         }
-    };
 
-    struct RuntimeError : std::runtime_error
-    {
-        explicit RuntimeError(char const* const message = "")
-            : std::runtime_error(message)
+        ~Exception() throw()
         {
-        }
-    };
-
-    struct HResultException : RuntimeError
-    {
-        explicit HResultException(long const hresult, char const* const message = "")
-            : RuntimeError(message), _hresult(hresult)
-        {
+            // Required to override base-class virtual destructor
         }
 
-        long GetHResult() const { return _hresult; }
+        String const& GetMessage() const
+        {
+            return _message;
+        }
 
     private:
 
-        long _hresult;
+        String _message;
+    };
+
+    class LogicError : public Exception
+    {
+    public:
+
+        explicit LogicError(String message = L"")
+            : Exception(message)
+        {
+        }
+    };
+
+    class RuntimeError : public Exception
+    {
+    public:
+
+        explicit RuntimeError(String message = L"")
+            : Exception(std::move(message))
+        {
+        }
+    };
+
+    class HResultRuntimeError : public RuntimeError
+    {
+    public:
+
+        explicit HResultRuntimeError(HResult const hresult, String message = L"")
+            : RuntimeError(std::move(message)), _hresult(hresult)
+        {
+        }
+
+        HResult GetHResult() const
+        {
+            return _hresult;
+        }
+
+    private:
+
+        HResult _hresult;
+    };
+
+    class FileIOError : public RuntimeError
+    {
+    public:
+
+        explicit FileIOError(CharacterIterator const message, int const error = errno)
+            : RuntimeError(message), _error(error)
+        {
+        }
+
+        explicit FileIOError(int const error = errno)
+            : RuntimeError(Detail::ConvertNarrowStringToWideString(std::strerror(error))),
+              _error(error)
+        {
+        }
+
+        int GetError() const
+        {
+            return _error;
+        }
+
+    private:
+
+        int _error;
+    };
+
+    class MetadataReadError : public RuntimeError
+    {
+    public:
+
+        MetadataReadError(String message)
+            : RuntimeError(std::move(message))
+        {
+        }
     };
 
 }
 
-namespace CxxReflect { namespace Metadata {
-
-    // This exception is thrown if any error occurs when reading metadata from an assembly.
-    struct ReadError : RuntimeError
-    {
-        ReadError(char const* const message)
-            : RuntimeError(message)
-        {
-        }
-    };
-
-} }
-
 namespace CxxReflect { namespace Detail {
 
-    #ifdef CXXREFLECT_LOGIC_CHECKS
+    #ifdef CXXREFLECT_ENABLE_DEBUG_ASSERTIONS
 
-    inline void VerifyFail(char const* const message = "")
+    inline void AssertFail(CharacterIterator const message = L"")
     {
-        throw VerificationFailure(message);
+        throw LogicError(message);
     }
 
-    inline void VerifyNotNull(void const* const p)
+    inline void AssertNotNull(void const* const p)
     {
         if (p == nullptr)
-            throw VerificationFailure("Unexpected null pointer");
+            throw LogicError(L"Unexpected null pointer");
     }
 
     template <typename TCallable>
-    void Verify(TCallable&& callable, char const* const message = "")
+    void Assert(TCallable&& callable, CharacterIterator const message = L"")
     {
         if (!callable())
-             throw VerificationFailure(message);
-    }
-
-    inline void VerifySuccess(long hresult)
-    {
-        if (hresult < 0)
-            throw HResultException(hresult);
+             throw LogicError(message);
     }
 
     #else
 
-    inline void VerifyFail(char const* = "") { }
+    inline void AssertFail(CharacterIterator = L"") { }
 
-    inline void VerifyNotNull(void const*) { }
+    inline void AssertNotNull(void const*) { }
 
     template <typename TCallable>
-    void Verify(TCallable&&, char const* = "") { }
-
-    inline void VerifySuccess(long) { }
+    void Assert(TCallable&&, CharacterIterator = "") { }
 
     #endif
 
-    inline void ThrowOnFailure(long hresult)
+    template <typename TCallable>
+    void Verify(TCallable&& callable, CharacterIterator const message = L"")
     {
-        if (hresult < 0)
-            throw HResultException(hresult);
+        if (!callable())
+             throw RuntimeError(message);
     }
 
+    inline void VerifySuccess(HResult const hresult, CharacterIterator const message = L"")
+    {
+        if (hresult < 0)
+            throw HResultRuntimeError(hresult, message);
+    }
+
+} }
 
 
 
-    // Utilities and macros for making strongly typed enums slightly more usable (mostly by making
-    // them "less strongly typed").  The macros are used to generate commonly-used operators for a
-    // particular enum; they should only be used woth strongly-typed enums.  Note that they must be
-    // macros:  if they are in a namespace pulled in via a using directive then the operators will
-    // not be found via ADL, and they cannot be in a class because an enum cannot derive from a
-    // class.  Note also that we do not use a base class for noncopyability due to poor diagnostics
-    // from the Visual C++ compiler.
+
+
+//
+//
+// ALGORITHMS AND STANDARD LIBRARY ALGORITHM WRAPPERS
+//
+//
+
+namespace CxxReflect { namespace Detail {
+
+    #ifdef CXXREFLECT_ENABLE_UNCHECKED_DEBUG_ALGORITHMS
+
+    // These Assert that a sequence is ordered according to a particular strict weak ordering. These
+    // are useful with the unchecked debug algorithms defined here because they allow us to Assert a
+    // sequence's ordering once, then assume that it is ordered for all future searches.
+    
+    template <typename TForIt>
+    void AssertStrictWeakOrdering(TForIt const first, TForIt const last)
+    {
+        for (TForIt current(first), next(first); current != last && ++next != last; ++current)
+            if (*next < *current)
+                throw LogicError("Sequence is not ordered");
+    }
+
+    template <typename TForIt, typename TPredicate>
+    void AssertStrictWeakOrdering(TForIt const first, TForIt const last, TPredicate predicate)
+    {
+        for (TForIt current(first), next(first); current != last && ++next != last; ++current)
+            if (predicate(*next, *current))
+                throw LogicError("Sequence is not ordered");
+    }
+
+    // Visual C++ Iterator Debugging verifies that the input range satisfies the strict-weak order
+    // requirement each time that equal_range is called. This is extrodinarily slow for large ranges
+    // (or even for small ranges, if we call equal_range enough times). We have copied here the
+    // implementation of the Visual C++ Standard Library's equal_range but omitted the _DEBUG_ORDER
+    // call from the beginning of reach function.
+    template <typename TForIt, typename TValue>
+    ::std::pair<TForIt, TForIt> EqualRange(TForIt first, TForIt last, const TValue& value)
+    {
+        auto const result(::std::_Equal_range(
+            ::std::_Unchecked(first),
+            ::std::_Unchecked(last),
+            value,
+            ::std::_Dist_type(first)));
+
+        return ::std::pair<TForIt, TForIt>(
+            ::std::_Rechecked(first, result.first),
+            ::std::_Rechecked(last, result.second));
+    }
+
+    template <typename TForIt, typename TValue, typename TPredicate>
+    ::std::pair<TForIt, TForIt> EqualRange(TForIt first, TForIt last, const TValue& value, TPredicate predicate)
+    {
+        auto const result(::std::_Equal_range(
+            ::std::_Unchecked(first),
+            ::std::_Unchecked(last),
+            value,
+            predicate,
+            ::std::_Dist_type(first)));
+
+        return ::std::pair<TForIt, TForIt>(
+            ::std::_Rechecked(first, result.first),
+            ::std::_Rechecked(last, result.second));
+    }
+
+    #else // !defined(CXXREFLECT_ENABLE_UNCHECKED_DEBUG_ALGORITHMS)
+
+    template <typename TForIt>
+    void AssertStrictWeakOrdering(TForIt const&, TForIt const&)
+    {
+        return;
+    }
+
+    template <typename TForIt, typename TPredicate>
+    void AssertStrictWeakOrdering(TForIt const&, TForIt const&, TPredicate const&)
+    {
+        return;
+    }
+
+    template <typename TForIt, typename TValue>
+    ::std::pair<TForIt, TForIt> EqualRange(TForIt first, TForIt last, const TValue& value)
+    {
+        return ::std::equal_range(first, last, value);
+    }
+
+    template <typename TForIt, typename TValue, typename TPredicate>
+    ::std::pair<TForIt, TForIt> EqualRange(TForIt first, TForIt last, const TValue& value, TPredicate predicate)
+    {
+        return ::std::equal_range(first, last, value, predicate);
+    }
+
+    #endif
+
+    template <typename TRanIt, typename TValue, typename TComparer>
+    TRanIt BinarySearch(TRanIt const first, TRanIt const last, TValue const& value, TComparer const comparer)
+    {
+        TRanIt const it(::std::lower_bound(first, last, value, comparer));
+        if (it == last || *it < value || value < *it)
+        {
+            return last;
+        }
+
+        return it;
+    }
+
+    template <typename TInIt, typename TOutIt>
+    void RangeCheckedCopy(TInIt first0, TInIt const last0, TOutIt first1, TOutIt const last1)
+    {
+        while (first0 != last0 && first1 != last1)
+        {
+            *first1 = *first0;
+            ++first0;
+            ++first1;
+        }
+    }
+
+    template <typename TInIt0, typename TInIt1>
+    bool RangeCheckedEqual(TInIt0 first0, TInIt0 const last0, TInIt1 first1, TInIt1 const last1)
+    {
+        while (first0 != last0 && first1 != last1 && *first0 == *first1)
+        {
+            ++first0;
+            ++first1;
+        }
+
+        return first0 == last0 && first1 == last1;
+    }
+
+    template <typename TInIt0, typename TInIt1, typename TPred>
+    bool RangeCheckedEqual(TInIt0 first0, TInIt0 const last0, TInIt1 first1, TInIt1 const last1, TPred const pred)
+    {
+        while (first0 != last0 && first1 != last1 && pred(*first0, *first1))
+        {
+            ++first0;
+            ++first1;
+        }
+
+        return first0 == last0 && first1 == last1;
+    }
+
+    template <typename TString>
+    TString MakeLowercase(TString s)
+    {
+        std::transform(s.begin(), s.end(), s.begin(), (int(*)(std::wint_t))std::tolower);
+        return s;
+    }
+
+    template <typename T>
+    struct Identity
+    {
+        typedef T Type;
+    };
+
+} }
+
+
+
+
+
+//
+//
+// SCOPED ENUMERATION UTILITIES
+//
+//
+
+namespace CxxReflect { namespace Detail {
 
     template <typename TEnumeration>
     typename std::underlying_type<TEnumeration>::type AsInteger(TEnumeration value)
@@ -174,8 +453,25 @@ namespace CxxReflect { namespace Detail {
         CXXREFLECT_GENERATE_SCOPED_ENUM_OPERATORS_BINARY_COMPARE  (E, <=)                   \
         CXXREFLECT_GENERATE_SCOPED_ENUM_OPERATORS_BINARY_COMPARE  (E, >=)
 
+} }
 
 
+
+
+
+//
+//
+// GENERATORS FOR COMMON OPERATOR OVERLOADS
+//
+//
+
+namespace CxxReflect { namespace Detail {
+
+    // NOTE WELL:  We use macros here for performance.  These overloads can also be introduced via a
+    // base class template, however, Visual C++ will not fully perform Empty-Base Optimization (EBO)
+    // in the presence of multiple inheritance. This has a disasterous effect on many other critical
+    // optimizations (for example, member function inlining is hindered due to the additional offset
+    // computations that are required).  Thus, we use macros to generate the overloads.
 
     // Generators for comparison operators, based on == and < operators that must be user-defined.
     #define CXXREFLECT_GENERATE_EQUALITY_OPERATORS(T)                                       \
@@ -193,8 +489,10 @@ namespace CxxReflect { namespace Detail {
 
 
 
+
     // Generators for addition and subtraction operators for types that are pointer-like (i.e. types
-    // that use indices or pointers of some kind to point to elements in a sequence).
+    // that use indices or pointers of some kind to point to elements in a sequence).  These are a
+    // bit flakey and we abuse them for types that don't support all of them, but they work well.
     #define CXXREFLECT_GENERATE_ADDITION_OPERATORS(the_type, get_value, difference)         \
         the_type& operator++()    { ++(*this).get_value; return *this;              }       \
         the_type  operator++(int) { auto const it(*this); ++*this; return *this;    }       \
@@ -227,7 +525,6 @@ namespace CxxReflect { namespace Detail {
             return static_cast<difference>(lhs.get_value - rhs.get_value);                  \
         }
 
-
     #define CXXREFLECT_GENERATE_ADDITION_SUBTRACTION_OPERATORS(type, get_value, difference) \
         CXXREFLECT_GENERATE_ADDITION_OPERATORS(type, get_value, difference)                 \
         CXXREFLECT_GENERATE_SUBTRACTION_OPERATORS(type, get_value, difference)
@@ -235,6 +532,7 @@ namespace CxxReflect { namespace Detail {
 
 
 
+    // Generator for the safe-bool operator
     #define CXXREFLECT_GENERATE_SAFE_BOOL_CONVERSION(type)                                  \
     private:                                                                                \
                                                                                             \
@@ -251,72 +549,23 @@ namespace CxxReflect { namespace Detail {
                 : nullptr;                                                                  \
         }
 
-    //
-    // A handful of useful algorithms that we use throughout the library.
-    //
-
-    template <typename TRanIt, typename TValue, typename TComparer>
-    TRanIt BinarySearch(TRanIt const first, TRanIt const last, TValue const& value, TComparer const comparer)
-    {
-        TRanIt const it(std::lower_bound(first, last, value, comparer));
-        if (it == last || *it < value || value < *it)
-        {
-            return last;
-        }
-
-        return it;
-    }
-
-    template <typename TInIt, typename TOutIt>
-    void RangeCheckedCopy(TInIt first0, TInIt const last0, TOutIt first1, TOutIt const last1)
-    {
-        while (
-            first0 != last0 &&
-            
-            first1 != last1)
-        {
-            *first1 = *first0;
-            ++first0;
-            ++first1;
-        }
-    }
-
-    template <typename TInIt0, typename TInIt1>
-    bool RangeCheckedEqual(TInIt0 first0, TInIt0 const last0, TInIt1 first1, TInIt1 const last1)
-    {
-        while (first0 != last0 && first1 != last1 && *first0 == *first1)
-        {
-            ++first0;
-            ++first1;
-        }
-
-        return first0 == last0 && first1 == last1;
-    }
-
-    template <typename TInIt0, typename TInIt1, typename TPred>
-    bool RangeCheckedEqual(TInIt0 first0, TInIt0 const last0, TInIt1 first1, TInIt1 const last1, TPred const pred)
-    {
-        while (first0 != last0 && first1 != last1 && pred(*first0, *first1))
-        {
-            ++first0;
-            ++first1;
-        }
-
-        return first0 == last0 && first1 == last1;
-    }
+} }
 
 
 
 
-    // Utility types and functions for encapsulating reinterpretation of an object as a char[].
-    // These help reduce the occurrence of reinterpret_cast in the code and make it easier to
-    // copy data into and out of POD-struct types.
 
-    typedef std::uint8_t                             Byte;
-    typedef std::uint8_t*                            ByteIterator;
-    typedef std::uint8_t const*                      ConstByteIterator;
-    typedef std::reverse_iterator<ByteIterator>      ReverseByteIterator;
-    typedef std::reverse_iterator<ConstByteIterator> ConstReverseByteIterator;
+//
+//
+// CHAR[] REINTERPRETATION AND BYTE ITERATION UTILITIES
+//
+//
+
+namespace CxxReflect { namespace Detail {
+
+    // The low-level database components and other library components rely heavily on reinterpreting
+    // objects as arrays of char.  This is legit, and we use these functions to avoid having to use
+    // reinterpret_cast all over the freaking place.
 
     template <typename T>
     ByteIterator BeginBytes(T& x)
@@ -366,13 +615,25 @@ namespace CxxReflect { namespace Detail {
         return ConstReverseByteIterator(BeginBytes(p));
     }
 
+} }
+
+
+
+
+
+//
+//
+// ENHANCED C STRING WRAPPER
+//
+//
+
+namespace CxxReflect { namespace Detail {
 
 
 
     // A string class that provides a simplified std::string-like interface around a C string.  This
     // class does not perform any memory management:  it simply has pointers into an existing null-
-    // terminated string;.  the creator is responsible for managing the memory of the underlying data.
-
+    // terminated string.  the creator is responsible for managing the memory of the underlying data.
     template <typename T>
     class EnhancedCString
     {
@@ -384,7 +645,7 @@ namespace CxxReflect { namespace Detail {
 
         // We only provide read-only access to the encapsulated data, so all of these are const; we
         // provide the full set of typedefs though so this is a drop-in replacement for std::string
-        // (at least for core sceanrios).
+        // (at least for core uses).
         typedef value_type const& reference;
         typedef value_type const& const_reference;
         typedef value_type const* pointer;
@@ -484,6 +745,7 @@ namespace CxxReflect { namespace Detail {
             const_pointer lhs_it(lhs.begin());
             const_pointer rhs_it(rhs.begin());
 
+            // First, treat a null pointer as an empty string:
             if (lhs_it == nullptr && rhs_it == nullptr)
                 return TCompare<value_type>()(0, 0);
 
@@ -493,12 +755,14 @@ namespace CxxReflect { namespace Detail {
             else if (lhs_it != nullptr && rhs_it == nullptr)
                 return TCompare<value_type>()(1, 0);
 
+            // Next, if both strings are valid, compare them using the provided comparator:
             while (*lhs_it != 0 && *rhs_it != 0 && TCompare<value_type>()(*lhs_it, *rhs_it))
             {
                 ++lhs_it;
                 ++rhs_it;
             }
 
+            // Finally, set the '_last' pointers for both strings if they don't have them set:
             if (lhs._last == nullptr && *lhs_it == '\0')
                 lhs._last = lhs_it + 1;
 
@@ -584,24 +848,23 @@ namespace CxxReflect { namespace Detail {
         return os;
     }
 
+} }
 
 
 
 
-    template <typename TString>
-    TString MakeLowercase(TString s)
-    {
-        std::transform(s.begin(), s.end(), s.begin(), (int(*)(std::wint_t))std::tolower);
-        return s;
-    }
 
+//
+//
+// MISCELLANEOUS UTILITY CLASSES (ScopeGuard, FlagSet, Dereferenceable, ValueInitialized)
+//
+//
 
-
+namespace CxxReflect { namespace Detail {
 
     // A scope-guard class that performs an operation on destruction.  The implementation is "good
     // enough" for most uses, though its use of std::function, which may itself perform dynamic
     // allocation, makes it unsuitable for "advanced" use.
-
     class ScopeGuard
     {
     public:
@@ -632,7 +895,6 @@ namespace CxxReflect { namespace Detail {
     // A flag set, similar to std::bitset, but with implicit conversions to and from an enumeration
     // type.  This is essential for working with C++11 enum classes, which do not have implicit
     // conversions to and from their underlying integral type.
-
     template <typename TEnumeration>
     class FlagSet
     {
@@ -699,12 +961,90 @@ namespace CxxReflect { namespace Detail {
         IntegralType _value;
     };
 
+    // A fake dereferenceable type.  This is useful for implementing operator-> for an iterator
+    // where the element referenced by the iterator does not actually exist (e.g., where the
+    // iterator materializes elements, and where the iterator's reference is not a reference type).
+    template <typename T>
+    class Dereferenceable
+    {
+    public:
+
+        typedef T        ValueType;
+        typedef T&       Reference;
+        typedef T const& ConstReference;
+        typedef T*       Pointer;
+        typedef T const* ConstPointer;
+
+        Dereferenceable(ConstReference value)
+            : _value(value)
+        {
+        }
+
+        Reference      Get()              { return _value;  }
+        ConstReference Get()        const { return _value;  }
+
+        Pointer        operator->()       { return &_value; }
+        ConstPointer   operator->() const { return &_value; }
+
+    private:
+
+        ValueType _value;
+    };
+
+    // A value-initialization wrapper for use with member variables of POD type, to ensure that they
+    // are always initialized.
+    template <typename T>
+    class ValueInitialized
+    {
+    public:
+
+        typedef T ValueType;
+
+        ValueInitialized()
+            : _value()
+        {
+        }
+
+        explicit ValueInitialized(ValueType const& value)
+            : _value(value)
+        {
+        }
+
+        ValueType      & Get()       { return _value; }
+        ValueType const& Get() const { return _value; }
+
+        void Reset()
+        {
+            _value.~ValueType();
+            new (&_value) ValueType();
+        }
+
+    private:
+
+        ValueType _value;
+    };
+
+} }
 
 
 
-    // A basic RAII wrapper around the cstdio file interfaces; this allows us to get the performance
-    // of the C runtime APIs wih the convenience of the C++ iostream interfaces.
 
+
+//
+//
+// C STDIO FILE API RAII WRAPPER
+//
+//
+
+namespace CxxReflect { namespace Detail {
+
+    // We avoid using the <iostream> library for performance reasons. (Really, its performance sucks;
+    // this isn't a rant, it really does suck.  The <cstdio> library outperforms <iostream> for one
+    // of the main unit test apps by well over 30x.  This wrapper gives us most of the convenience of
+    // <iostream> with the awesome performance of <cstdio>.
+
+    // Wrap a number with HexFormat before inserting the number into the stream. This will cause the
+    // number to be written in hexadecimal format.
     class HexFormat
     {
     public:
@@ -719,30 +1059,6 @@ namespace CxxReflect { namespace Detail {
     private:
 
         unsigned int _value;
-    };
-
-    struct FileIOException : RuntimeError
-    {
-    public:
-
-        explicit FileIOException(char const* const message, int const error = 0)
-            : RuntimeError(message), _error(error)
-        {
-        }
-        
-        // 'strerror' is "unsafe" because it retains ownership of the buffer.  We immediately 
-        // construct a std::string from its value, so we can ignore the warning.
-        #pragma warning(push)
-        #pragma warning(disable: 4996)
-        explicit FileIOException(int const error = errno)
-            : RuntimeError(strerror(error)), _error(error)
-        {
-        }
-        #pragma warning(pop)
-
-    private:
-
-        int _error;
     };
 
     enum class FileMode : std::uint8_t
@@ -811,12 +1127,8 @@ namespace CxxReflect { namespace Detail {
         };
 
         FileHandle(wchar_t const* const fileName, FileModeFlags const mode)
-            : _mode(mode)
+            : _mode(mode), _handle(OpenFile(fileName, TranslateMode(mode)))
         {
-            // TODO PORTABILITY
-            errno_t const error(::_wfopen_s(&_handle, fileName, TranslateMode(mode)));
-            if (error != 0)
-                throw FileIOException(error);
         }
 
         FileHandle(FileHandle&& other)
@@ -849,98 +1161,98 @@ namespace CxxReflect { namespace Detail {
             _handle = nullptr;
 
             if (localHandle != nullptr && std::fclose(localHandle) == EOF)
-                throw FileIOException();
+                throw FileIOError();
         }
 
         void Flush()
         {
-            VerifyOutputStream();
+            AssertOutputStream();
             if (std::fflush(_handle) == EOF)
-                throw FileIOException();
+                throw FileIOError();
         }
 
         int GetChar()
         {
-            VerifyInputStream();
+            AssertInputStream();
             int const value(std::fgetc(_handle));
             if (value == EOF)
-                throw FileIOException();
+                throw FileIOError();
 
             return value;
         }
 
         fpos_t GetPosition() const
         {
-            VerifyInitialized();
+            AssertInitialized();
 
             fpos_t position((fpos_t()));
             if (std::fgetpos(_handle, &position) != 0)
-                throw FileIOException();
+                throw FileIOError();
 
             return position;
         }
 
         bool IsEof() const
         {
-            VerifyInitialized();
+            AssertInitialized();
             return std::feof(_handle) != 0;
         }
 
         bool IsError() const
         {
-            VerifyInitialized();
+            AssertInitialized();
             return std::ferror(_handle) != 0;
         }
 
         void PutChar(unsigned char const character)
         {
-            VerifyOutputStream();
+            AssertOutputStream();
             if (std::fputc(character, _handle))
-                throw FileIOException();
+                throw FileIOError();
         }
 
         void Read(void* const buffer, SizeType const size, SizeType const count)
         {
-            VerifyInputStream();
+            AssertInputStream();
             if (std::fread(buffer, size, count, _handle) != count)
-                throw FileIOException();
+                throw FileIOError();
         }
 
         void Seek(PositionType const position, OriginType const origin)
         {
-            VerifyInitialized();
+            AssertInitialized();
             // TODO PORTABILITY
             if (::_fseeki64(_handle, position, origin) != 0)
-                throw FileIOException();
+                throw FileIOError();
         }
 
         void SetPosition(fpos_t const position)
         {
-            VerifyInitialized();
+            AssertInitialized();
             if (std::fsetpos(_handle, &position) != 0)
-                throw FileIOException();
+                throw FileIOError();
         }
 
         PositionType Tell() const
         {
-            VerifyInitialized();
+            AssertInitialized();
             // TODO PORTABILITY
             return ::_ftelli64(_handle);
         }
 
         void UngetChar(unsigned char character)
         {
-            VerifyInputStream();
+            AssertInputStream();
             // No errors are specified for ungetc, so if an error occurs, we don't know what it is:
             if (std::ungetc(character, _handle) == EOF)
-                throw FileIOException("An unknown error occurred when ungetting");
+                throw FileIOError(L"An unknown error occurred when ungetting");
         }
 
         void Write(void const* const data, SizeType const size, SizeType const count)
         {
-            VerifyOutputStream();
+            AssertOutputStream();
             if (std::fwrite(data, size, count, _handle) != count)
-                throw FileIOException();
+                throw FileIOError();
         }
 
         #define CXXREFLECT_GENERATE(t, f)       \
@@ -971,7 +1283,7 @@ namespace CxxReflect { namespace Detail {
 
         static wchar_t const* TranslateMode(FileModeFlags const mode)
         {
-            #define CXXREFLECT_GENERATE(x, y, z)                           \
+            #define CXXREFLECT_GENERATE(x, y, z)                                 \
                 static_cast<std::underlying_type<FileMode>::type>(FileMode::x) | \
                 static_cast<std::underlying_type<FileMode>::type>(FileMode::y) | \
                 static_cast<std::underlying_type<FileMode>::type>(FileMode::z)
@@ -992,121 +1304,62 @@ namespace CxxReflect { namespace Detail {
             case CXXREFLECT_GENERATE(Write,  Update,    Binary) : return L"wb+";
             case CXXREFLECT_GENERATE(Append, Update,    Binary) : return L"ab+";
 
-            default: throw FileIOException("Invalid mode specified");
+            default: throw FileIOError(L"Invalid mode specified");
             }
 
             #undef CXXREFLECT_GENERATE
         }
 
-        void VerifyInputStream() const
+        void AssertInputStream() const
         {
-            VerifyInitialized();
-            Verify([&]
+            AssertInitialized();
+            Assert([&]
             {
                 return _mode.IsSet(FileMode::Update)
                     || _mode.WithMask(FileMode::ReadWriteAppendMask) != FileMode::Write;
             });
         }
 
-        void VerifyOutputStream() const
+        void AssertOutputStream() const
         {
-            VerifyInitialized();
-            Verify([&]
+            AssertInitialized();
+            Assert([&]
             {
                 return _mode.IsSet(FileMode::Update)
                     || _mode.WithMask(FileMode::ReadWriteAppendMask) != FileMode::Read;
             });
         }
 
-        void VerifyInitialized() const
+        void AssertInitialized() const
         {
-            Verify([&]{ return _handle != nullptr; });
+            Assert([&]{ return _handle != nullptr; });
         }
 
         FileModeFlags _mode;
         FILE*         _handle;
     };
 
-
-    // A fake dereferenceable type.  This is useful for implementing operator-> for an iterator
-    // where the element referenced by the iterator does not actually exist (e.g., where the
-    // iterator materializes elements, and where the iterator's reference is not a reference type).
-
-    template <typename T>
-    class Dereferenceable
-    {
-    public:
-
-        typedef T        ValueType;
-        typedef T&       Reference;
-        typedef T const& ConstReference;
-        typedef T*       Pointer;
-        typedef T const* ConstPointer;
-
-        Dereferenceable(ConstReference value)
-            : _value(value)
-        {
-        }
-
-        Reference      Get()              { return _value;  }
-        ConstReference Get()        const { return _value;  }
-
-        Pointer        operator->()       { return &_value; }
-        ConstPointer   operator->() const { return &_value; }
-
-    private:
-
-        ValueType _value;
-    };
+} }
 
 
 
 
-    // A value-initialization wrapper for use with member variables of POD type, to ensure that they
-    // are always initialized.
-    template <typename T>
-    class ValueInitialized
-    {
-    public:
 
-        typedef T ValueType;
+//
+//
+// BASIC LINEAR ALLOCATOR FOR ARRAYS
+//
+//
 
-        ValueInitialized()
-            : _value()
-        {
-        }
+namespace CxxReflect { namespace Detail {
 
-        explicit ValueInitialized(ValueType const& value)
-            : _value(value)
-        {
-        }
+    // We do a lot of allocation of arrays, where the lifetime of many of the arrays are bound to the
+    // lifetime of a single object.  This very simple linear allocator allocates blocks of memory and
+    // services allocation requests for arrays.  For the canonical example of using this allocator,
+    // see its use for storing converted strings from the metadata database.
 
-        ValueType      & Get()       { return _value; }
-        ValueType const& Get() const { return _value; }
-
-        void Reset()
-        {
-            _value.~ValueType();
-            new (&_value) ValueType();
-        }
-
-    private:
-
-        ValueType _value;
-    };
-
-
-
-
-    template <typename T>
-    struct Identity
-    {
-        typedef T Type;
-    };
-
-
-
-
+    // Represents a range of elements in an array.  Begin() and End() point to the first element and
+    // the one-past-the-end elements, respectively, just as they do for the STL containers.
     template <typename T>
     class Range
     {
@@ -1121,7 +1374,7 @@ namespace CxxReflect { namespace Detail {
         Range(Pointer const begin, Pointer const end)
             : _begin(begin), _end(end)
         {
-            VerifyInitialized();
+            AssertInitialized();
         }
 
         template <typename U>
@@ -1131,22 +1384,21 @@ namespace CxxReflect { namespace Detail {
         {
         }
 
-        Pointer  Begin()   const { VerifyInitialized(); return _begin.Get();                  }
-        Pointer  End()     const { VerifyInitialized(); return _end.Get();                    }
-        SizeType GetSize() const { VerifyInitialized(); return _end.Get() - _begin.Get();     }
-        bool     IsEmpty() const { VerifyInitialized(); return _begin.Get() == _end.Get();    }
+        Pointer  Begin()   const { AssertInitialized(); return _begin.Get();                  }
+        Pointer  End()     const { AssertInitialized(); return _end.Get();                    }
+        SizeType GetSize() const { AssertInitialized(); return _end.Get() - _begin.Get();     }
+        bool     IsEmpty() const { AssertInitialized(); return _begin.Get() == _end.Get();    }
 
         bool IsInitialized() const { return _begin.Get() != nullptr && _end.Get() != nullptr; }
 
     private:
 
-        void VerifyInitialized() const { Verify([&]{ return IsInitialized(); }); }
+        void AssertInitialized() const { Assert([&]{ return IsInitialized(); }); }
 
         ValueInitialized<Pointer> _begin;
         ValueInitialized<Pointer> _end;
     };
 
-    // A linear allocator for arrays; this is most useful for the allocation of strings.
     template <typename T, std::size_t NBlockSize>
     class LinearArrayAllocator
     {
@@ -1221,9 +1473,21 @@ namespace CxxReflect { namespace Detail {
         BlockIterator _current;
     };
 
+} }
 
 
 
+
+
+//
+//
+// INSTANTIATING ITERATOR
+//
+//
+
+namespace CxxReflect { namespace Detail {
+
+    // A functor that always returns a copy of the object that it is given as an argument.
     struct IdentityTransformer
     {
         template <typename T>
@@ -1232,9 +1496,6 @@ namespace CxxReflect { namespace Detail {
             return x;
         }
     };
-
-
-
 
     // An iterator that instantiates objects of type TResult from a range pointed to by TCurrent
     // pointers or indices.  Each TResult is constructed by calling its constructor that takes a
@@ -1292,6 +1553,20 @@ namespace CxxReflect { namespace Detail {
         TCurrent   _current;
     };
 
+} }
+
+
+
+
+
+//
+//
+// TODO
+//
+//
+
+namespace CxxReflect { namespace Detail {
+
     // Platform functionality wrappers:  these functions use platform-specific, third-party, or non-
     // standard types and functions; we encapsulate these functions here to make it easier to port
     // the library.
@@ -1299,504 +1574,27 @@ namespace CxxReflect { namespace Detail {
     unsigned ComputeUtf16LengthOfUtf8String(char const* source);
     bool ConvertUtf8ToUtf16(char const* source, wchar_t* target, unsigned targetLength);
 
-    typedef std::array<std::uint8_t, 20> Sha1Hash;
-
-    // Computes the 20 byte SHA1 hash for the bytes in the range [first, last).
-    Sha1Hash ComputeSha1Hash(std::uint8_t const* first, std::uint8_t const* last);
-
     bool FileExists(wchar_t const* filePath);
+
 } }
+
+
+
+
+
+//
+//
+// TEMPLATE INSTANTIATIONS FROM 'DETAIL' TEMPLATES INJECTED INTO THE PRIMARY NAMESPACE:
+//
+//
 
 namespace CxxReflect {
 
-    enum class AssemblyAttribute : std::uint32_t
-    {
-        PublicKey                  = 0x0001,
-        Retargetable               = 0x0100,
-        DisableJitCompileOptimizer = 0x4000,
-        EnableJitCompileTracking   = 0x8000,
+    typedef Detail::Range<Byte>                ByteRange;
+    typedef Detail::Range<Byte const>          ConstByteRange;
 
-        // TODO PORTABILITY THESE ARE NOT IN THE SPEC
-        DefaultContentType         = 0x0000,
-        WindowsRuntimeContentType  = 0x0200,
-        ContentTypeMask            = 0x0E00
-    };
-
-    enum class AssemblyHashAlgorithm : std::uint32_t
-    {
-        None     = 0x0000,
-        MD5      = 0x8003,
-        SHA1     = 0x8004
-    };
-
-    // The subset of System.Reflection.BindingFlags that are useful for reflection-only
-    enum class BindingAttribute : std::uint32_t
-    {
-        Default                     = 0x00000000,
-        IgnoreCase                  = 0x00000001,
-        DeclaredOnly                = 0x00000002,
-        Instance                    = 0x00000004,
-        Static                      = 0x00000008,
-        Public                      = 0x00000010,
-        NonPublic                   = 0x00000020,
-        FlattenHierarchy            = 0x00000040,
-
-        InternalUseOnlyMask         = 0x10000000,
-        InternalUseOnlyConstructor  = 0x10000001
-    };
-
-    enum class CallingConvention : std::uint8_t
-    {
-        Standard     = 0x00,
-        VarArgs      = 0x05,
-        HasThis      = 0x20,
-        ExplicitThis = 0x40
-    };
-
-    enum class EventAttribute : std::uint16_t
-    {
-        SpecialName        = 0x0200,
-        RuntimeSpecialName = 0x0400
-    };
-
-    enum class FieldAttribute : std::uint16_t
-    {
-        FieldAccessMask    = 0x0007,
-        MemberAccessMask   = 0x0007,
-
-        CompilerControlled = 0x0000,
-        Private            = 0x0001,
-        FamilyAndAssembly  = 0x0002,
-        Assembly           = 0x0003,
-        Family             = 0x0004,
-        FamilyOrAssembly   = 0x0005,
-        Public             = 0x0006,
-
-        Static             = 0x0010,
-        InitOnly           = 0x0020,
-        Literal            = 0x0040,
-        NotSerialized      = 0x0080,
-        SpecialName        = 0x0200,
-
-        PInvokeImpl        = 0x2000,
-
-        RuntimeSpecialName = 0x0400,
-        HasFieldMarshal    = 0x1000,
-        HasDefault         = 0x8000,
-        HasFieldRva        = 0x0100
-    };
-
-    enum class FileAttribute : std::uint32_t
-    {
-        ContainsMetadata   = 0x0000,
-        ContainsNoMetadata = 0x0001
-    };
-
-    enum class GenericParameterAttribute : std::uint16_t
-    {
-        VarianceMask                   = 0x0003,
-        None                           = 0x0000,
-        Covariant                      = 0x0001,
-        Contravariant                  = 0x0002,
-
-        SpecialConstraintMask          = 0x001c,
-        ReferenceTypeConstraint        = 0x0004,
-        NotNullableValueTypeConstraint = 0x0008,
-        DefaultConstructorConstraint   = 0x0010
-    };
-
-    enum class ManifestResourceAttribute : std::uint32_t
-    {
-        VisibilityMask = 0x0007,
-        Public         = 0x0001,
-        Private        = 0x0002
-    };
-
-    enum class MethodAttribute : std::uint16_t
-    {
-        MemberAccessMask      = 0x0007,
-        CompilerControlled    = 0x0000,
-        Private               = 0x0001,
-        FamilyAndAssembly     = 0x0002,
-        Assembly              = 0x0003,
-        Family                = 0x0004,
-        FamilyOrAssembly      = 0x0005,
-        Public                = 0x0006,
-
-        Static                = 0x0010,
-        Final                 = 0x0020,
-        Virtual               = 0x0040,
-        HideBySig             = 0x0080,
-
-        VTableLayoutMask      = 0x0100,
-        ReuseSlot             = 0x0000,
-        NewSlot               = 0x0100,
-
-        Strict                = 0x0200,
-        Abstract              = 0x0400,
-        SpecialName           = 0x0800,
-
-        PInvokeImpl           = 0x2000,
-        RuntimeSpecialName    = 0x1000,
-        HasSecurity           = 0x4000,
-        RequireSecurityObject = 0x8000
-    };
-
-    enum class MethodImplementationAttribute : std::uint16_t
-    {
-        CodeTypeMask   = 0x0003,
-        IL             = 0x0000,
-        Native         = 0x0001,
-        Runtime        = 0x0003,
-
-        ManagedMask    = 0x0004,
-        Unmanaged      = 0x0004,
-        Managed        = 0x0000,
-
-        ForwardRef     = 0x0010,
-        PreserveSig    = 0x0080,
-        InternalCall   = 0x1000,
-        Synchronized   = 0x0020,
-        NoInlining     = 0x0008,
-        NoOptimization = 0x0040
-    };
-
-    enum class MethodSemanticsAttribute : std::uint16_t
-    {
-        Setter   = 0x0001,
-        Getter   = 0x0002,
-        Other    = 0x0004,
-        AddOn    = 0x0008,
-        RemoveOn = 0x0010,
-        Fire     = 0x0020
-    };
-
-    enum class ParameterAttribute : std::uint16_t
-    {
-        In              = 0x0001,
-        Out             = 0x0002,
-        Optional        = 0x0010,
-        HasDefault      = 0x1000,
-        HasFieldMarshal = 0x2000
-    };
-
-    enum class PInvokeAttribute : std::uint16_t
-    {
-        NoMangle                     = 0x0001,
-
-        CharacterSetMask             = 0x0006,
-        CharacterSetNotSpecified     = 0x0000,
-        CharacterSetAnsi             = 0x0002,
-        CharacterSetUnicode          = 0x0004,
-        CharacterSetAuto             = 0x0006,
-
-        SupportsLastError            = 0x0040,
-
-        CallingConventionMask        = 0x0700,
-        CallingConventionPlatformApi = 0x0100,
-        CallingConventionCDecl       = 0x0200,
-        CallingConventionStdCall     = 0x0300,
-        CallingConventionThisCall    = 0x0400,
-        CallingConventionFastCall    = 0x0500
-    };
-
-    enum class PropertyAttribute : std::uint16_t
-    {
-        SpecialName        = 0x0200,
-        RuntimeSpecialName = 0x0400,
-        HasDefault         = 0x1000
-    };
-
-    enum class TypeAttribute : std::uint32_t
-    {
-        VisibilityMask          = 0x00000007,
-        NotPublic               = 0x00000000,
-        Public                  = 0x00000001,
-        NestedPublic            = 0x00000002,
-        NestedPrivate           = 0x00000003,
-        NestedFamily            = 0x00000004,
-        NestedAssembly          = 0x00000005,
-        NestedFamilyAndAssembly = 0x00000006,
-        NestedFamilyOrAssembly  = 0x00000007,
-
-        LayoutMask              = 0x00000018,
-        AutoLayout              = 0x00000000,
-        SequentialLayout        = 0x00000008,
-        ExplicitLayout          = 0x00000010,
-
-        ClassSemanticsMask      = 0x00000020,
-        Class                   = 0x00000000,
-        Interface               = 0x00000020,
-
-        Abstract                = 0x00000080,
-        Sealed                  = 0x00000100,
-        SpecialName             = 0x00000400,
-
-        Import                  = 0x00001000,
-        Serializable            = 0x00002000,
-
-        StringFormatMask        = 0x00030000,
-        AnsiClass               = 0x00000000,
-        UnicodeClass            = 0x00010000,
-        AutoClass               = 0x00020000,
-        CustomFormatClass       = 0x00030000,
-        CustomStringFormatMask  = 0x00c00000,
-
-        BeforeFieldInit         = 0x00100000,
-
-        RuntimeSpecialName      = 0x00000800,
-        HasSecurity             = 0x00040000,
-        IsTypeForwarder         = 0x00200000
-    };
-
-    CXXREFLECT_GENERATE_SCOPED_ENUM_OPERATORS(AssemblyAttribute)
-    CXXREFLECT_GENERATE_SCOPED_ENUM_OPERATORS(BindingAttribute)
-    CXXREFLECT_GENERATE_SCOPED_ENUM_OPERATORS(EventAttribute)
-    CXXREFLECT_GENERATE_SCOPED_ENUM_OPERATORS(FieldAttribute)
-    CXXREFLECT_GENERATE_SCOPED_ENUM_OPERATORS(FileAttribute)
-    CXXREFLECT_GENERATE_SCOPED_ENUM_OPERATORS(GenericParameterAttribute)
-    CXXREFLECT_GENERATE_SCOPED_ENUM_OPERATORS(ManifestResourceAttribute)
-    CXXREFLECT_GENERATE_SCOPED_ENUM_OPERATORS(MethodAttribute)
-    CXXREFLECT_GENERATE_SCOPED_ENUM_OPERATORS(MethodImplementationAttribute)
-    CXXREFLECT_GENERATE_SCOPED_ENUM_OPERATORS(MethodSemanticsAttribute)
-    CXXREFLECT_GENERATE_SCOPED_ENUM_OPERATORS(ParameterAttribute)
-    CXXREFLECT_GENERATE_SCOPED_ENUM_OPERATORS(PInvokeAttribute)
-    CXXREFLECT_GENERATE_SCOPED_ENUM_OPERATORS(PropertyAttribute)
-    CXXREFLECT_GENERATE_SCOPED_ENUM_OPERATORS(TypeAttribute)
-
-    typedef Detail::FlagSet<AssemblyAttribute>             AssemblyFlags;
-    typedef Detail::FlagSet<BindingAttribute>              BindingFlags;
-    typedef Detail::FlagSet<EventAttribute>                EventFlags;
-    typedef Detail::FlagSet<FieldAttribute>                FieldFlags;
-    typedef Detail::FlagSet<FileAttribute>                 FileFlags;
-    typedef Detail::FlagSet<GenericParameterAttribute>     GenericParameterFlags;
-    typedef Detail::FlagSet<ManifestResourceAttribute>     ManifestResourceFlags;
-    typedef Detail::FlagSet<MethodAttribute>               MethodFlags;
-    typedef Detail::FlagSet<MethodImplementationAttribute> MethodImplementationFlags;
-    typedef Detail::FlagSet<MethodSemanticsAttribute>      MethodSemanticsFlags;
-    typedef Detail::FlagSet<ParameterAttribute>            ParameterFlags;
-    typedef Detail::FlagSet<PInvokeAttribute>              PInvokeFlags;
-    typedef Detail::FlagSet<PropertyAttribute>             PropertyFlags;
-    typedef Detail::FlagSet<TypeAttribute>                 TypeFlags;
-
-}
-
-namespace CxxReflect { namespace Detail {
-
-    template <typename TMember, typename TMemberRow, typename TMemberSignature>
-    class MemberContext;
-
-    template <typename TMember, typename TMemberRow, typename TMemberSignature>
-    class MemberTableCollection;
-
-    class AssemblyContext;
-
-    template
-    <
-        typename TType,
-        typename TMember,
-        typename TMemberContext,
-        bool (*FFilter)(BindingFlags, TType const&, TMemberContext const&)
-    >
-    class MemberIterator;
-
-    class AssemblyHandle;
-    class MethodHandle;
-    class ParameterHandle;
-    class TypeHandle;
-
-} }
-
-// We forward declare all of physical metadata types so that we don't need to include the
-// MetadataDatabase header everywhere; in many cases, declarations are enough.  These types should
-// be treated as internal and should not be used by clients of the CxxReflect library.
-namespace CxxReflect { namespace Metadata {
-
-    class Database;
-    class Stream;
-    class StringCollection;
-    class BlobReference;
-    class RowReference;
-    class TableCollection;
-    class Table;
-
-    class AssemblyRow;
-    class AssemblyOsRow;
-    class AssemblyProcessorRow;
-    class AssemblyRefRow;
-    class AssemblyRefOsRow;
-    class AssemblyRefProcessorRow;
-    class ClassLayoutRow;
-    class ConstantRow;
-    class CustomAttributeRow;
-    class DeclSecurityRow;
-    class EventMapRow;
-    class EventRow;
-    class ExportedTypeRow;
-    class FieldRow;
-    class FieldLayoutRow;
-    class FieldMarshalRow;
-    class FieldRvaRow;
-    class FileRow;
-    class GenericParamRow;
-    class GenericParamConstraintRow;
-    class ImplMapRow;
-    class InterfaceImplRow;
-    class ManifestResourceRow;
-    class MemberRefRow;
-    class MethodDefRow;
-    class MethodImplRow;
-    class MethodSemanticsRow;
-    class MethodSpecRow;
-    class ModuleRow;
-    class ModuleRefRow;
-    class NestedClassRow;
-    class ParamRow;
-    class PropertyRow;
-    class PropertyMapRow;
-    class StandaloneSigRow;
-    class TypeDefRow;
-    class TypeRefRow;
-    class TypeSpecRow;
-
-    class ArrayShape;
-    class CustomModifier;
-    class FieldSignature;
-    class MethodSignature;
-    class PropertySignature;
-    class TypeSignature;
-    class SignatureComparer;
-
-} }
-
-namespace CxxReflect {
-
-    // These types are used throughout the library.  TODO:  Currently we assume that wchar_t is
-    // a UTF-16 string representation, as is the case on Windows.  We should make that more general
-    // and allow multiple encodings in the public interface and support platforms that use other
-    // encodings by default for wchar_t.
-    typedef wchar_t                            Character;
-    typedef std::uint32_t                      SizeType;
-    typedef std::uint8_t                       Byte;
-    typedef Byte const*                        ByteIterator;
-    typedef Detail::Range<Byte const>          ByteRange;
-    typedef Detail::Range<Byte>                MutableByteRange;
-    typedef std::uint32_t                      IndexType;
-
-    typedef std::basic_string<Character>       String;
     typedef Detail::EnhancedCString<Character> StringReference;
 
-    typedef std::basic_ostream<Character>      OutputStream;
-    typedef std::basic_istream<Character>      InputStream;
-
-    class Assembly;
-    class AssemblyName;
-    class CustomAttribute;
-    class Event;
-    class Field;
-    class File;
-    class IMetadataResolver;
-    class MetadataLoader;
-    class Method;
-    class Module;
-    class Parameter;
-    class Property;
-    class Type;
-    class Utility;
-    class Version;
-
-    typedef Detail::InstantiatingIterator<Metadata::RowReference, CustomAttribute, Assembly> CustomAttributeIterator;
-
-    class IMetadataResolver
-    {
-    public:
-
-        virtual ~IMetadataResolver();
-
-        // When an attempt is made to load an assembly by name, the MetadataLoader calls this
-        // overload to resolve the assembly.
-        virtual String ResolveAssembly(AssemblyName const& assemblyName) const = 0;
-
-        // When an attempt is made to load an assembly and a type from that assembly is known, this
-        // overload is called.  This allows us to support WinRT type universes wherein type
-        // resolution is namespace-oriented rather than assembly-oriented.  For non-WinRT resolver
-        // implementations, this function may simply defer to the above overload.
-        virtual String ResolveAssembly(AssemblyName const& assemblyName,
-                                       String       const& namespaceQualifiedTypeName) const = 0;
-    };
-}
-
-namespace CxxReflect { namespace Detail {
-
-    typedef MemberContext<Event,    Metadata::EventRow,     Metadata::TypeSignature    > EventContext;
-    typedef MemberContext<Field,    Metadata::FieldRow,     Metadata::FieldSignature   > FieldContext;
-    typedef MemberContext<Method,   Metadata::MethodDefRow, Metadata::MethodSignature  > MethodContext;
-    typedef MemberContext<Property, Metadata::PropertyRow,  Metadata::PropertySignature> PropertyContext;
-
-} }
-
-namespace CxxReflect {
-
-    // There are many functions that should not be part of the public interface of the library, but
-    // which we need to be able to access from other parts of the CxxReflect library.  To do this,
-    // all "internal" member functions have a parameter of this "InternalKey" class type, which can
-    // only be constructed by a subset of the CxxReflect library types.  This is better than direct
-    // befriending, both because it is centralized and because it protects class invariants from
-    // bugs elsewhere in the library.
-    class InternalKey
-    {
-    public: // TODO MAKE PRIVATE AGAIN!
-
-        InternalKey() { }
-
-        template <typename TMember, typename TMemberRow, typename TMemberSignature>
-        friend class Detail::MemberContext;
-
-        template <typename TMember, typename TMemberRow, typename TMemberSignature>
-        friend class Detail::MemberTableCollection;
-
-        template
-        <
-            typename TType,
-            typename TMember,
-            typename TMemberContext,
-            bool (*FFilter)(BindingFlags, TType const&, TMemberContext const&)
-        >
-        friend class Detail::MemberIterator;
-
-        template <typename TCurrent, typename TResult, typename TParameter, typename TTransformer, typename TCategory>
-        friend class Detail::InstantiatingIterator;
-
-        friend Assembly;
-        friend AssemblyName;
-        friend CustomAttribute;
-        friend Event;
-        friend Field;
-        friend File;
-        friend MetadataLoader;
-        friend Method;
-        friend Module;
-        friend Parameter;
-        friend Property;
-        friend Type;
-        friend Utility;
-        friend Version;
-
-        friend Detail::AssemblyContext;
-
-        friend Detail::AssemblyHandle;
-        friend Detail::MethodHandle;
-        friend Detail::ParameterHandle;
-        friend Detail::TypeHandle;
-
-        friend Metadata::ArrayShape;
-        friend Metadata::CustomModifier;
-        friend Metadata::FieldSignature;
-        friend Metadata::MethodSignature;
-        friend Metadata::PropertySignature;
-        friend Metadata::TypeSignature;
-        friend Metadata::SignatureComparer;
-    };
 }
 
 #endif

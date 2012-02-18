@@ -8,7 +8,7 @@
 
 namespace CxxReflectTest {
 
-    void Index::VerifyGuid()
+    void Index::AssertGuid()
     {
         /*
         using CxxReflect::Guid;

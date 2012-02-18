@@ -5,7 +5,7 @@
 #ifndef CXXREFLECT_GUID_HPP_
 #define CXXREFLECT_GUID_HPP_
 
-#include "CxxReflect/Core.hpp"
+#include "CxxReflect/Fundamentals.hpp"
 
 namespace CxxReflect {
 

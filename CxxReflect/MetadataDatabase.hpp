@@ -9,7 +9,7 @@
 #ifndef CXXREFLECT_METADATADATABASE_HPP_
 #define CXXREFLECT_METADATADATABASE_HPP_
 
-#include "CxxReflect/Core.hpp"
+#include "CxxReflect/MetadataCommon.hpp"
 
 namespace CxxReflect { namespace Metadata {
 
@@ -123,7 +123,7 @@ namespace CxxReflect { namespace Metadata {
         {
         }
 
-        RowReference(TableId const tableId, IndexType const index)
+        RowReference(TableId const tableId, SizeType const index)
             : _value(ComposeValue(tableId, index))
         {
         }
@@ -133,7 +133,7 @@ namespace CxxReflect { namespace Metadata {
             return static_cast<TableId>((_value.Get() & ValueTableIdMask) >> ValueIndexBits);
         }
 
-        IndexType GetIndex() const { return _value.Get() & ValueIndexMask; }
+        SizeType  GetIndex() const { return _value.Get() & ValueIndexMask; }
         ValueType GetValue() const { return _value.Get();                  }
 
         // The metadata token is the same as the value we store, except that it uses a one-based
@@ -161,11 +161,11 @@ namespace CxxReflect { namespace Metadata {
 
     private:
 
-        static ValueType ComposeValue(TableId const tableId, IndexType const index);
+        static ValueType ComposeValue(TableId const tableId, SizeType const index);
 
-        void VerifyInitialized() const
+        void AssertInitialized() const
         {
-            Detail::Verify([&]{ return IsInitialized(); });
+            Detail::Assert([&]{ return IsInitialized(); });
         }
 
         // The value is the composition of the table id in the high eight bits and the zero-based
@@ -186,7 +186,7 @@ namespace CxxReflect { namespace Metadata {
 
         enum : SizeType
         {
-            InvalidIndex = static_cast<std::uint32_t>(-1)
+            InvalidIndex = static_cast<SizeType>(-1)
         };
 
         BlobReference()
@@ -197,11 +197,11 @@ namespace CxxReflect { namespace Metadata {
         explicit BlobReference(SizeType const index, SizeType const size = 0)
             : _index(index), _size(size)
         {
-            VerifyInitialized();
+            AssertInitialized();
         }
 
-        SizeType GetIndex() const { VerifyInitialized(); return _index.Get(); }
-        SizeType GetSize()  const { VerifyInitialized(); return _size.Get();  }
+        SizeType GetIndex() const { AssertInitialized(); return _index.Get(); }
+        SizeType GetSize()  const { AssertInitialized(); return _size.Get();  }
 
         bool IsValid() const
         {
@@ -227,9 +227,9 @@ namespace CxxReflect { namespace Metadata {
 
     private:
 
-        void VerifyInitialized() const
+        void AssertInitialized() const
         {
-            Detail::Verify([&] { return IsInitialized(); });
+            Detail::Assert([&] { return IsInitialized(); });
         }
 
         Detail::ValueInitialized<SizeType> _index;
@@ -245,12 +245,12 @@ namespace CxxReflect { namespace Metadata {
     {
     public:
 
-        enum : std::uint32_t
+        enum : SizeType
         {
-            InvalidIndex = static_cast<IndexType>(-1)
+            InvalidIndex = static_cast<SizeType>(-1)
         };
 
-        typedef std::uint32_t ValueType;
+        typedef SizeType ValueType;
 
         BaseElementReference()
             : _index(InvalidIndex)
@@ -260,13 +260,13 @@ namespace CxxReflect { namespace Metadata {
         BaseElementReference(RowReference const& reference)
             : _index((reference.GetToken() & ~KindMask) | TableKindBit)
         {
-            VerifyInitialized();
+            AssertInitialized();
         }
 
         BaseElementReference(BlobReference const& reference)
             : _index((reference.GetIndex() & ~KindMask) | BlobKindBit), _size(reference.GetSize())
         {
-            VerifyInitialized();
+            AssertInitialized();
         }
 
         bool IsRowReference()  const { return IsValid() && (_index.Get() & KindMask) == TableKindBit; }
@@ -277,13 +277,13 @@ namespace CxxReflect { namespace Metadata {
 
         RowReference AsRowReference() const
         {
-            Detail::Verify([&]{ return IsRowReference(); });
+            Detail::Assert([&]{ return IsRowReference(); });
             return RowReference::FromToken(_index.Get() & ~KindMask);
         }
 
         BlobReference AsBlobReference() const
         {
-            Detail::Verify([&]{ return IsBlobReference(); });
+            Detail::Assert([&]{ return IsBlobReference(); });
             return BlobReference(_index.Get() & ~KindMask, _size.Get());
         }
 
@@ -302,7 +302,7 @@ namespace CxxReflect { namespace Metadata {
 
     protected:
 
-        void VerifyInitialized() const { Detail::Verify([&]{ return IsInitialized(); }); }
+        void AssertInitialized() const { Detail::Assert([&]{ return IsInitialized(); }); }
 
         enum : ValueType
         {
@@ -348,15 +348,15 @@ namespace CxxReflect { namespace Metadata {
         FullReference(Database const* const database, RowReference const& r)
             : BaseElementReference(r), _database(database)
         {
-            Detail::VerifyNotNull(database);
-            VerifyInitialized();
+            Detail::AssertNotNull(database);
+            AssertInitialized();
         }
 
         FullReference(Database const* const database, BlobReference const& r)
             : BaseElementReference(r), _database(database)
         {
-            Detail::VerifyNotNull(database);
-            VerifyInitialized();
+            Detail::AssertNotNull(database);
+            AssertInitialized();
         }
 
         FullReference(Database const* const database, ElementReference const& r)
@@ -365,8 +365,8 @@ namespace CxxReflect { namespace Metadata {
                 : BaseElementReference(r.AsBlobReference())),
               _database(database)
         {
-            Detail::VerifyNotNull(database);
-            VerifyInitialized();
+            Detail::AssertNotNull(database);
+            AssertInitialized();
         }
 
         Database const& GetDatabase() const { return *_database.Get(); }
@@ -430,31 +430,31 @@ namespace CxxReflect { namespace Metadata {
 
         void Swap(Stream& other);
 
-        ByteIterator  Begin()         const { VerifyInitialized(); return _data.get();               }
-        ByteIterator  End()           const { VerifyInitialized(); return _data.get() + _size.Get(); }
-        SizeType      Size()          const { VerifyInitialized(); return _size.Get();               }
+        ByteIterator  Begin()         const { AssertInitialized(); return _data.get();               }
+        ByteIterator  End()           const { AssertInitialized(); return _data.get() + _size.Get(); }
+        SizeType      Size()          const { AssertInitialized(); return _size.Get();               }
         bool          IsInitialized() const {                      return _data.get() != nullptr;    }
 
         ByteIterator At(SizeType const index) const
         {
-            VerifyInitialized();
-            Detail::Verify([&] { return index <= _size.Get(); });
+            AssertInitialized();
+            Detail::Assert([&] { return index <= _size.Get(); });
             return _data.get() + index;
         }
 
         template <typename T>
         T const& ReadAs(SizeType const index) const
         {
-            VerifyInitialized();
-            Detail::Verify([&] { return (index + sizeof (T)) <= _size.Get(); });
+            AssertInitialized();
+            Detail::Assert([&] { return (index + sizeof (T)) <= _size.Get(); });
             return *reinterpret_cast<T const*>(_data.get() + index);
         }
 
         template <typename T>
         T const* ReinterpretAs(SizeType const index) const
         {
-            VerifyInitialized();
-            Detail::Verify([&] { return index <= _size.Get(); });
+            AssertInitialized();
+            Detail::Assert([&] { return index <= _size.Get(); });
             return reinterpret_cast<T const*>(_data.get() + index);
         }
 
@@ -463,9 +463,9 @@ namespace CxxReflect { namespace Metadata {
         Stream(Stream const&);
         Stream& operator=(Stream const&);
 
-        void VerifyInitialized() const
+        void AssertInitialized() const
         {
-            Detail::Verify([&] { return IsInitialized(); }, "Stream is not initialized");
+            Detail::Assert([&] { return IsInitialized(); }, L"Stream is not initialized");
         }
 
         std::unique_ptr<Byte[]>            _data;
@@ -553,20 +553,20 @@ namespace CxxReflect { namespace Metadata {
         }
 
         // Note that this 'last' is not the end of the blob, it is the end of the whole blob stream.
-        Blob(ByteIterator const first, ByteIterator const last, SizeType const size = 0)
+        Blob(ConstByteIterator const first, ConstByteIterator const last, SizeType const size = 0)
         {
-            Detail::VerifyNotNull(first);
-            Detail::VerifyNotNull(last);
+            Detail::AssertNotNull(first);
+            Detail::AssertNotNull(last);
 
             std::tie(_first.Get(), _last.Get()) = ComputeBounds(first, last, size);
         }
 
-        ByteIterator Begin()   const { VerifyInitialized(); return _first.Get(); }
-        ByteIterator End()     const { VerifyInitialized(); return _last.Get();  }
+        ConstByteIterator Begin()   const { AssertInitialized(); return _first.Get(); }
+        ConstByteIterator End()     const { AssertInitialized(); return _last.Get();  }
 
         SizeType GetSize() const
         {
-            VerifyInitialized();
+            AssertInitialized();
             return static_cast<SizeType>(_last.Get() - _first.Get());
         }
 
@@ -578,23 +578,23 @@ namespace CxxReflect { namespace Metadata {
         template <typename TSignature>
         TSignature As() const
         {
-            VerifyInitialized();
+            AssertInitialized();
             return TSignature(_first.Get(), _last.Get());
         }
 
     private:
 
-        typedef std::pair<ByteIterator, ByteIterator> Range;
+        typedef std::pair<ConstByteIterator, ConstByteIterator> Range;
 
-        static Range ComputeBounds(ByteIterator const first, ByteIterator const last, SizeType const size);
+        static Range ComputeBounds(ConstByteIterator const first, ConstByteIterator const last, SizeType const size);
 
-        void VerifyInitialized() const
+        void AssertInitialized() const
         {
-            Detail::Verify([&]{ return IsInitialized(); });
+            Detail::Assert([&]{ return IsInitialized(); });
         }
 
-        Detail::ValueInitialized<ByteIterator> _first;
-        Detail::ValueInitialized<ByteIterator> _last;
+        Detail::ValueInitialized<ConstByteIterator> _first;
+        Detail::ValueInitialized<ConstByteIterator> _last;
     };
 
 
@@ -613,8 +613,8 @@ namespace CxxReflect { namespace Metadata {
         Table(ByteIterator const data, SizeType const rowSize, SizeType const rowCount, bool const isSorted)
             : _data(data), _rowSize(rowSize), _rowCount(rowCount), _isSorted(isSorted)
         {
-            Detail::VerifyNotNull(data);
-            Detail::Verify([&]{ return rowSize != 0 && rowCount != 0; });
+            Detail::AssertNotNull(data);
+            Detail::Assert([&]{ return rowSize != 0 && rowCount != 0; });
         }
 
         ByteIterator Begin()       const { return _data.Get();                                    }
@@ -625,10 +625,10 @@ namespace CxxReflect { namespace Metadata {
 
         ByteIterator At(SizeType const index) const
         {
-            VerifyInitialized();
+            AssertInitialized();
 
             // Row identifiers are one-based, not zero-based, so <= is correct here.
-            Detail::Verify([&] { return index <= _rowCount.Get(); }, "Index out of range");
+            Detail::Assert([&] { return index <= _rowCount.Get(); }, L"Index out of range");
             return _data.Get() + _rowSize.Get() * index;
         }
 
@@ -639,9 +639,9 @@ namespace CxxReflect { namespace Metadata {
 
     private:
 
-        void VerifyInitialized() const
+        void AssertInitialized() const
         {
-            Detail::Verify([&]{ return IsInitialized(); });
+            Detail::Assert([&]{ return IsInitialized(); });
         }
 
         Detail::ValueInitialized<ByteIterator> _data;
@@ -695,9 +695,9 @@ namespace CxxReflect { namespace Metadata {
         TableCollection(TableCollection const&);
         TableCollection& operator=(TableCollection const&);
 
-        void VerifyInitialized() const
+        void AssertInitialized() const
         {
-            Detail::Verify([&]{ return IsInitialized(); });
+            Detail::Assert([&]{ return IsInitialized(); });
         }
 
         void ComputeCompositeIndexSizes();
@@ -757,7 +757,7 @@ namespace CxxReflect { namespace Metadata {
         StringCollection(StringCollection const&);
         StringCollection& operator=(StringCollection const&);
 
-        void VerifyInitialized() const;
+        void AssertInitialized() const;
 
         Stream            _stream;
         mutable Allocator _buffer; // Stores the transformed UTF-16 strings
@@ -809,7 +809,7 @@ namespace CxxReflect { namespace Metadata {
         typename TableIdToRowType<TId>::Type GetRow(RowReference const& reference) const
         {
             typedef typename TableIdToRowType<TId>::Type ReturnType;
-            Detail::Verify([&]{ return reference.GetTable() == TId; });
+            Detail::Assert([&]{ return reference.GetTable() == TId; });
             return CreateRow<ReturnType>(this, _tables.GetTable(TId).At(reference.GetIndex()));
         }
 
@@ -817,7 +817,7 @@ namespace CxxReflect { namespace Metadata {
         typename TableIdToRowType<TId>::Type GetRow(BaseElementReference const& reference) const
         {
             typedef typename TableIdToRowType<TId>::Type ReturnType;
-            Detail::Verify([&]{ return reference.AsRowReference().GetTable() == TId; });
+            Detail::Assert([&]{ return reference.AsRowReference().GetTable() == TId; });
             return CreateRow<ReturnType>(this, _tables.GetTable(TId).At(reference.AsRowReference().GetIndex()));
         }
 
@@ -861,9 +861,9 @@ namespace CxxReflect { namespace Metadata {
         Database(Database const&);
         Database& operator=(Database const&);
 
-        void VerifyInitialized() const
+        void AssertInitialized() const
         {
-            Detail::Verify([&]{ return IsInitialized(); });
+            Detail::Assert([&]{ return IsInitialized(); });
         }
 
         String _fileName;
@@ -887,13 +887,11 @@ namespace CxxReflect { namespace Metadata {
         enum { TableId = TId };
 
         typedef std::random_access_iterator_tag          iterator_category;
-        typedef std::ptrdiff_t                           difference_type;
+        typedef DifferenceType                           difference_type;
         typedef typename TableIdToRowType<TId>::Type     value_type;
         typedef value_type                               reference;
         typedef Detail::Dereferenceable<value_type>      pointer;
 
-        typedef std::size_t                              SizeType;
-        typedef difference_type                          DifferenceType;
         typedef value_type                               ValueType;
         typedef reference                                Reference;
         typedef pointer                                  Pointer;
@@ -902,11 +900,11 @@ namespace CxxReflect { namespace Metadata {
         {
         }
 
-        RowIterator(Database const* const database, IndexType const index)
+        RowIterator(Database const* const database, SizeType const index)
             : _database(database), _index(index)
         {
-            Detail::VerifyNotNull(database);
-            Detail::Verify([&]{ return index != static_cast<IndexType>(-1); });
+            Detail::AssertNotNull(database);
+            Detail::Assert([&]{ return index != BaseElementReference::InvalidIndex; });
         }
 
         RowReference GetReference()  const { return RowReference(TId, _index.Get()); } 
@@ -921,8 +919,16 @@ namespace CxxReflect { namespace Metadata {
         RowIterator& operator--()    { --_index.Get(); return *this;                }
         RowIterator  operator--(int) { RowIterator it(*this); --*this; return it;   }
 
-        RowIterator& operator+=(DifferenceType const n) { _index.Get() += static_cast<IndexType>(n); return *this; }
-        RowIterator& operator-=(DifferenceType const n) { _index.Get() -= static_cast<IndexType>(n); return *this; }
+        RowIterator& operator+=(DifferenceType const n)
+        {
+            _index.Get() += static_cast<SizeType>(n); // TODO THIS WILL OVERFLOW FOR NEGATIVE
+            return *this;
+        }
+        RowIterator& operator-=(DifferenceType const n)
+        {
+            _index.Get() -= static_cast<SizeType>(n); // TODO THIS WILL OVERFLOW FOR NEGATIVE
+            return *this;
+        }
 
         Reference operator[](DifferenceType const n) const
         {
@@ -935,19 +941,19 @@ namespace CxxReflect { namespace Metadata {
 
         friend DifferenceType operator-(RowIterator const& lhs, RowIterator const& rhs)
         {
-            VerifyComparable(lhs, rhs);
+            AssertComparable(lhs, rhs);
             return lhs._index.Get() - rhs._index.Get();
         }
 
         friend bool operator==(RowIterator const& lhs, RowIterator const& rhs)
         {
-            VerifyComparable(lhs, rhs);
+            AssertComparable(lhs, rhs);
             return lhs._index.Get() == rhs._index.Get();
         }
 
         friend bool operator<(RowIterator const& lhs, RowIterator const& rhs)
         {
-            VerifyComparable(lhs, rhs);
+            AssertComparable(lhs, rhs);
             return lhs._index.Get() < rhs._index.Get();
         }
 
@@ -955,13 +961,13 @@ namespace CxxReflect { namespace Metadata {
 
     private:
 
-        static void VerifyComparable(RowIterator const& lhs, RowIterator const& rhs)
+        static void AssertComparable(RowIterator const& lhs, RowIterator const& rhs)
         {
-            Detail::Verify([&]{ return lhs._database.Get() == rhs._database.Get(); });
+            Detail::Assert([&]{ return lhs._database.Get() == rhs._database.Get(); });
         }
 
         Detail::ValueInitialized<Database const*> _database;
-        Detail::ValueInitialized<IndexType>       _index;
+        Detail::ValueInitialized<SizeType>        _index;
     };
 
 
@@ -987,7 +993,7 @@ namespace CxxReflect { namespace Metadata {
 
         RowReference GetSelfReference() const
         {
-            VerifyInitialized();
+            AssertInitialized();
 
             Table    const& table(GetDatabase().GetTables().GetTable(TTableId));
             SizeType const  index(static_cast<SizeType>((GetIterator() - table.Begin()) / table.GetRowSize()));
@@ -1000,17 +1006,17 @@ namespace CxxReflect { namespace Metadata {
         {
         }
 
-        Database const& GetDatabase() const { VerifyInitialized(); return *_database.Get(); }
-        ByteIterator    GetIterator() const { VerifyInitialized(); return _data.Get();      }
+        Database const&   GetDatabase() const { AssertInitialized(); return *_database.Get(); }
+        ConstByteIterator GetIterator() const { AssertInitialized(); return _data.Get();      }
 
-        void VerifyInitialized() const
+        void AssertInitialized() const
         {
-            Detail::Verify([&]{ return IsInitialized(); });
+            Detail::Assert([&]{ return IsInitialized(); });
         }
 
         SizeType GetColumnOffset(SizeType const column) const
         {
-            VerifyInitialized();
+            AssertInitialized();
 
             return GetDatabase().GetTables().GetTableColumnOffset(TTableId, column);
         }
@@ -1020,18 +1026,18 @@ namespace CxxReflect { namespace Metadata {
         template <typename TRow>
         friend TRow CreateRow(Database const*, ByteIterator);
 
-        void Initialize(Database const* database, std::uint8_t const* data)
+        void Initialize(Database const* const database, ConstByteIterator const data)
         {
-            Detail::VerifyNotNull(database);
-            Detail::VerifyNotNull(data);
-            Detail::Verify([&]{ return !IsInitialized(); });
+            Detail::AssertNotNull(database);
+            Detail::AssertNotNull(data);
+            Detail::Assert([&]{ return !IsInitialized(); });
 
             _database.Get() = database;
             _data.Get()     = data;
         }
 
-        Detail::ValueInitialized<Database const*> _database;
-        Detail::ValueInitialized<ByteIterator>    _data;
+        Detail::ValueInitialized<Database const*>   _database;
+        Detail::ValueInitialized<ConstByteIterator> _data;
     };
 
     class AssemblyRow : public BaseRow<TableId::Assembly>

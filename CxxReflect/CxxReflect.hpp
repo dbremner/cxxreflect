@@ -7,11 +7,12 @@
 #define CXXREFLECT_CXXREFLECT_HPP_
 
 #include "CxxReflect/Assembly.hpp"
+#include "CxxReflect/AssemblyName.hpp"
 #include "CxxReflect/CustomAttribute.hpp"
 #include "CxxReflect/Event.hpp"
 #include "CxxReflect/Field.hpp"
 #include "CxxReflect/File.hpp"
-#include "CxxReflect/MetadataLoader.hpp"
+#include "CxxReflect/Loader.hpp"
 #include "CxxReflect/Method.hpp"
 #include "CxxReflect/Module.hpp"
 #include "CxxReflect/Parameter.hpp"

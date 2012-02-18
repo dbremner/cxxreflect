@@ -41,27 +41,27 @@ namespace CxxReflect { namespace Detail {
                        BindingFlags  const  filter)
             : _reflectedType(reflectedType), _current(current), _last(last), _filter(filter)
         {
-            Verify([&]{ return reflectedType.IsInitialized(); });
-            VerifyNotNull(current);
-            VerifyNotNull(last);
+            Assert([&]{ return reflectedType.IsInitialized(); });
+            AssertNotNull(current);
+            AssertNotNull(last);
             FilterAdvance();
         }
 
         Reference operator*() const
         {
-            VerifyDereferenceable();
+            AssertDereferenceable();
             return ValueType(_reflectedType, _current.Get(), InternalKey());
         }
 
         Pointer operator->() const
         {
-            VerifyDereferenceable();
+            AssertDereferenceable();
             return ValueType(_reflectedType, _current.Get(), InternalKey());
         }
 
         MemberIterator& operator++()
         {
-            VerifyDereferenceable();
+            AssertDereferenceable();
             ++_current.Get();
             FilterAdvance();
             return *this;
@@ -94,8 +94,8 @@ namespace CxxReflect { namespace Detail {
 
     private:
 
-        void VerifyInitialized()     const { Verify([&]{ return IsInitialized();     }); }
-        void VerifyDereferenceable() const { Verify([&]{ return IsDereferenceable(); }); }
+        void AssertInitialized()     const { Assert([&]{ return IsInitialized();     }); }
+        void AssertDereferenceable() const { Assert([&]{ return IsDereferenceable(); }); }
 
         void FilterAdvance()
         {
@@ -113,7 +113,7 @@ namespace CxxReflect { namespace Detail {
     {
         Metadata::RowReference operator()(Metadata::FullReference r) const volatile
         {
-            Detail::Verify([&]{ return r.AsRowReference().GetTable() == Metadata::TableId::InterfaceImpl; });
+            Detail::Assert([&]{ return r.AsRowReference().GetTable() == Metadata::TableId::InterfaceImpl; });
             return r
                 .GetDatabase()
                 .GetRow<Metadata::TableId::InterfaceImpl>(r.AsRowReference().GetIndex())
@@ -265,13 +265,13 @@ namespace CxxReflect {
 
     private:
 
-        void VerifyInitialized() const
+        void AssertInitialized() const
         {
-            Detail::Verify([&] { return IsInitialized(); }, "Type is not initialized");
+            Detail::Assert([&] { return IsInitialized(); }, L"Type is not initialized");
         }
 
-        bool IsTypeDef()  const { VerifyInitialized(); return _type.IsRowReference();  }
-        bool IsTypeSpec() const { VerifyInitialized(); return _type.IsBlobReference(); }
+        bool IsTypeDef()  const { AssertInitialized(); return _type.IsRowReference();  }
+        bool IsTypeSpec() const { AssertInitialized(); return _type.IsBlobReference(); }
 
         Metadata::TypeDefRow    GetTypeDefRow()        const;
         Metadata::TypeSignature GetTypeSpecSignature() const;
@@ -292,7 +292,7 @@ namespace CxxReflect {
             CXXREFLECT_GENERATE defaultResult = Detail::Identity<CXXREFLECT_GENERATE>::Type()
         ) const -> CXXREFLECT_GENERATE
         {
-            VerifyInitialized();
+            AssertInitialized();
 
             // If this type is itself a TypeDef, we can directly call the callback and return:
             if (IsTypeDef())

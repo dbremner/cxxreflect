@@ -6,11 +6,11 @@
 
 #include "CxxReflect/WinRTIntegration.hpp"
 
-#ifdef CXXREFLECT_ENABLE_FEATURE_WINRT
+#ifdef CXXREFLECT_ENABLE_WINDOWS_RUNTIME_INTEGRATION
 
 #include "CxxReflect/Assembly.hpp"
 #include "CxxReflect/AssemblyName.hpp"
-#include "CxxReflect/MetadataLoader.hpp"
+#include "CxxReflect/Loader.hpp"
 #include "CxxReflect/Type.hpp"
 
 #include <hstring.h>
@@ -23,11 +23,11 @@ namespace CxxReflect { namespace { namespace Private {
 
     // TODO These statics require initialization on the main thread, otherwise there may be an 
     // initialization race.  We should synchronize access to them during initialization.
-    bool                                         _globalWinRTUniverseInitializationStarted;
-    std::future<std::unique_ptr<MetadataLoader>> _globalWinRTUniverseFuture;
-    std::unique_ptr<MetadataLoader>              _globalWinRTUniverse;
+    bool                                 _globalWinRTUniverseInitializationStarted;
+    std::future<std::unique_ptr<Loader>> _globalWinRTUniverseFuture;
+    std::unique_ptr<Loader>              _globalWinRTUniverse;
 
-    MetadataLoader& GetGlobalWinRTUniverse()
+    Loader& GetGlobalWinRTUniverse()
     {
         if (_globalWinRTUniverse == nullptr)
             _globalWinRTUniverse = _globalWinRTUniverseFuture.get();
@@ -86,7 +86,7 @@ namespace CxxReflect { namespace { namespace Private {
 
         ~SmartHString()
         {
-            Detail::VerifySuccess(::WindowsDeleteString(_value.Get()));
+            Detail::AssertSuccess(::WindowsDeleteString(_value.Get()));
         }
 
         void swap(SmartHString& other)
@@ -138,7 +138,7 @@ namespace CxxReflect { namespace { namespace Private {
             ReferenceProxy(SmartHString* const value)
                 : _value(value), _proxy(value->_value.Get())
             {
-                Detail::VerifyNotNull(value);
+                Detail::AssertNotNull(value);
             }
 
             ~ReferenceProxy()
@@ -231,11 +231,11 @@ namespace CxxReflect { namespace { namespace Private {
 
         ~RaiiHStringArray()
         {
-            Detail::Verify([&]{ return _count.Get() == 0 || _array.Get() != nullptr; });
+            Detail::Assert([&]{ return _count.Get() == 0 || _array.Get() != nullptr; });
 
             // Exception-safety note:  if the deletion fails, something has gone horribly wrong
             for (DWORD i(0); i < _count.Get(); ++i)
-                Detail::VerifySuccess(::WindowsDeleteString(_array.Get()[i]));
+                Detail::AssertSuccess(::WindowsDeleteString(_array.Get()[i]));
 
             ::CoTaskMemFree(_array.Get());
         }
@@ -272,10 +272,10 @@ namespace CxxReflect { namespace { namespace Private {
                                                      IUnknown* const  originalThis)
         {
             ThisPointer const correctThis(interfaceId, originalThis);
-            Detail::VerifyNotNull(correctThis.Get());
+            Detail::AssertNotNull(correctThis.Get());
         
             auto const fnPtr(ComputeFunctionPointer<ReferenceOnly0Args>(index, correctThis.Get()));
-            Detail::VerifyNotNull(fnPtr);
+            Detail::AssertNotNull(fnPtr);
 
             return (*fnPtr)(correctThis.Get());
         }
@@ -286,10 +286,10 @@ namespace CxxReflect { namespace { namespace Private {
                                                      void*     const  arg0)
         {
             ThisPointer const correctThis(interfaceId, originalThis);
-            Detail::VerifyNotNull(correctThis.Get());
+            Detail::AssertNotNull(correctThis.Get());
         
             auto const fnPtr(ComputeFunctionPointer<ReferenceOnly1Args>(index, correctThis.Get()));
-            Detail::VerifyNotNull(fnPtr);
+            Detail::AssertNotNull(fnPtr);
 
             return (*fnPtr)(correctThis.Get(), arg0);
         }
@@ -301,10 +301,10 @@ namespace CxxReflect { namespace { namespace Private {
                                                      void*     const  arg1)
         {
             ThisPointer const correctThis(interfaceId, originalThis);
-            Detail::VerifyNotNull(correctThis.Get());
+            Detail::AssertNotNull(correctThis.Get());
         
             auto const fnPtr(ComputeFunctionPointer<ReferenceOnly2Args>(index, correctThis.Get()));
-            Detail::VerifyNotNull(fnPtr);
+            Detail::AssertNotNull(fnPtr);
 
             return (*fnPtr)(correctThis.Get(), arg0, arg1);
         }
@@ -318,17 +318,17 @@ namespace CxxReflect { namespace { namespace Private {
 
             ThisPointer(IID const& interfaceId, IUnknown* const unknownThis)
             {
-                Detail::VerifyNotNull(unknownThis);
+                Detail::AssertNotNull(unknownThis);
 
                 // Note that we cannot direct-initialize here due to a bug in the Visual C++ compiler.
                 void** const voidUnknown = reinterpret_cast<void**>(&_unknown.Get());
                 Detail::ThrowOnFailure(unknownThis->QueryInterface(interfaceId, voidUnknown));
-                Detail::VerifyNotNull(_unknown.Get());
+                Detail::AssertNotNull(_unknown.Get());
             }
 
             ~ThisPointer()
             {
-                Detail::VerifyNotNull(_unknown.Get());
+                Detail::AssertNotNull(_unknown.Get());
                 _unknown.Get()->Release();
             }
 
@@ -355,7 +355,7 @@ namespace CxxReflect { namespace { namespace Private {
         template <typename TFunctionPointer>
         static TFunctionPointer ComputeFunctionPointer(unsigned const index, void* const thisptr)
         {
-            Detail::VerifyNotNull(thisptr);
+            Detail::AssertNotNull(thisptr);
 
             // There are three levels of indirection:  'this' points to an object, the first element
             // of which points to a vtable, which contains slots that point to functions:
@@ -404,7 +404,7 @@ namespace CxxReflect { namespace { namespace Private {
 
     StringReference RemoveRightmostTypeNameComponent(StringReference const typeName)
     {
-        Detail::Verify([&]{ return !typeName.empty(); });
+        Detail::Assert([&]{ return !typeName.empty(); });
 
         return StringReference(
             typeName.begin(),
@@ -413,7 +413,7 @@ namespace CxxReflect { namespace { namespace Private {
 
     void RemoveRightmostTypeNameComponent(String& typeName)
     {
-        Detail::Verify([&]{ return !typeName.empty(); });
+        Detail::Assert([&]{ return !typeName.empty(); });
 
         // TODO This does not handle generics.  Does it need to handle generics?
         typeName.erase(std::find(typeName.rbegin(), typeName.rend(), L'.').base(), typeName.end());
@@ -453,7 +453,7 @@ namespace CxxReflect {
             return _packageRoot + Detail::PlatformMetadataFileName;
         }
 
-        Detail::VerifyFail("Not Yet Implemented");
+        Detail::AssertFail("Not Yet Implemented");
         return String();
     }
 
@@ -469,7 +469,7 @@ namespace CxxReflect {
         }
 
         // The assembly name must be a prefix of the namespace-qualified type name, per WinRT rules:
-        Detail::Verify([&]() -> bool
+        Detail::Assert([&]() -> bool
         {
             String const lowercaseNamespaceQualifiedTypeName(Detail::MakeLowercase(namespaceQualifiedTypeName));
             return simpleName.size() <= namespaceQualifiedTypeName.size()
@@ -539,12 +539,12 @@ namespace CxxReflect {
         if (Private::_globalWinRTUniverseInitializationStarted)
             return;
 
-        Private::_globalWinRTUniverseFuture = std::async(std::launch::async, [=]() -> std::unique_ptr<MetadataLoader>
+        Private::_globalWinRTUniverseFuture = std::async(std::launch::async, [=]() -> std::unique_ptr<Loader>
         {
             std::unique_ptr<WinRTMetadataResolver> resolver(new WinRTMetadataResolver(platformMetadataPath));
             WinRTMetadataResolver const& rawResolver(*resolver.get());
 
-            std::unique_ptr<MetadataLoader> loader(new MetadataLoader(std::move(resolver)));
+            std::unique_ptr<Loader> loader(new MetadataLoader(std::move(resolver)));
 
             typedef WinRTMetadataResolver::PathMap::value_type Element;
             std::for_each(rawResolver.BeginMetadataFiles(), rawResolver.EndMetadataFiles(), [&](Element const& e)
@@ -569,14 +569,14 @@ namespace CxxReflect {
     Type WinRTPackageMetadata::GetTypeOf(IInspectable* const inspectable)
     {
         // TODO CHANGE TO USE StringReference EVENTUALLY
-        Detail::VerifyNotNull(inspectable);
+        Detail::AssertNotNull(inspectable);
 
         Private::SmartHString typeNameHString;
-        Detail::VerifySuccess(inspectable->GetRuntimeClassName(typeNameHString.proxy()));
+        Detail::AssertSuccess(inspectable->GetRuntimeClassName(typeNameHString.proxy()));
         String const typeName(typeNameHString.begin(), typeNameHString.end());
 
         auto const endOfNamespaceIt(std::find(typeName.rbegin(), typeName.rend(), '.').base());
-        Detail::Verify([&]{ return endOfNamespaceIt != typeName.rend().base(); });
+        Detail::Assert([&]{ return endOfNamespaceIt != typeName.rend().base(); });
 
         String const namespaceName(typeName.begin(), std::prev(endOfNamespaceIt));
         

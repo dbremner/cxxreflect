@@ -2,10 +2,11 @@
 //                   Distributed under the Boost Software License, Version 1.0.                   //
 //     (See accompanying file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)    //
 
+// Functionality for reading and parsing element signatures from metadata blobs.
 #ifndef CXXREFLECT_METADATASIGNATURE_HPP_
 #define CXXREFLECT_METADATASIGNATURE_HPP_
 
-#include "CxxReflect/Core.hpp"
+#include "CxxReflect/MetadataSignature.hpp"
 
 namespace CxxReflect { namespace Metadata {
 
@@ -116,12 +117,13 @@ namespace CxxReflect { namespace Metadata {
 
 
 
+
     // A generic iterator that reads elements from a sequence via FMaterialize until FSentinelCheck
     // returns false.  This is used for sequences of elements where the sequence is terminated by
     // failing to read another element (e.g. CustomMod sequences).
     template <typename TValue,
-              TValue(*FMaterialize)(ByteIterator&, ByteIterator),
-              bool(*FSentinelCheck)(ByteIterator,  ByteIterator)>
+              TValue(*FMaterialize)(ConstByteIterator&, ConstByteIterator),
+              bool(*FSentinelCheck)(ConstByteIterator,  ConstByteIterator)>
     class SentinelIterator
     {
     public:
@@ -136,7 +138,7 @@ namespace CxxReflect { namespace Metadata {
         {
         }
 
-        SentinelIterator(ByteIterator const current, ByteIterator const last)
+        SentinelIterator(ConstByteIterator const current, ConstByteIterator const last)
             : _current(current), _last(last)
         {
             if (current != last)
@@ -180,11 +182,15 @@ namespace CxxReflect { namespace Metadata {
             }
         }
 
-        Detail::ValueInitialized<ByteIterator> _current;
-        Detail::ValueInitialized<ByteIterator> _last;
+        Detail::ValueInitialized<ConstByteIterator> _current;
+        Detail::ValueInitialized<ConstByteIterator> _last;
 
         Detail::ValueInitialized<value_type>   _value;
     };
+
+
+
+
 
     // A default sentinel check that always returns false.  This is useful for iteration over a
     // sequence where the count is known and exact (e.g., there is no sentinel for which to look.
@@ -197,11 +203,12 @@ namespace CxxReflect { namespace Metadata {
 
 
 
+
     // An iterator that yields elements up to a certain number (the count) or until a sentinel is
     // read from the sequence (verified via the FSentinelCheck).
     template <typename TValue,
-              TValue(*FMaterialize)(ByteIterator&, ByteIterator),
-              bool(*FSentinelCheck)(ByteIterator,  ByteIterator) = &AlwaysFalseSentinelCheck<ByteIterator>>
+              TValue(*FMaterialize)(ConstByteIterator&, ConstByteIterator),
+              bool(*FSentinelCheck)(ConstByteIterator,  ConstByteIterator) = &AlwaysFalseSentinelCheck<ConstByteIterator>>
     class CountingIterator
     {
     public:
@@ -216,10 +223,10 @@ namespace CxxReflect { namespace Metadata {
         {
         }
 
-        CountingIterator(ByteIterator const current,
-                         ByteIterator const last,
-                         SizeType     const index,
-                         SizeType     const count)
+        CountingIterator(ConstByteIterator const current,
+                         ConstByteIterator const last,
+                         SizeType          const index,
+                         SizeType          const count)
             : _current(current), _last(last), _index(index), _count(count)
         {
             if (current != last && index != count)
@@ -288,24 +295,15 @@ namespace CxxReflect { namespace Metadata {
             }
         }
 
-        Detail::ValueInitialized<ByteIterator> _current;
-        Detail::ValueInitialized<ByteIterator> _last;
+        Detail::ValueInitialized<ConstByteIterator> _current;
+        Detail::ValueInitialized<ConstByteIterator> _last;
 
-        Detail::ValueInitialized<SizeType>     _index;
-        Detail::ValueInitialized<SizeType>     _count;
+        Detail::ValueInitialized<SizeType>          _index;
+        Detail::ValueInitialized<SizeType>          _count;
 
-        Detail::ValueInitialized<value_type>   _value;
+        Detail::ValueInitialized<value_type>        _value;
     };
 
-
-
-
-    class ArrayShape;
-    class CustomModifier;
-    class FieldSignature;
-    class MethodSignature;
-    class PropertySignature;
-    class TypeSignature;
 
 
 
@@ -318,27 +316,27 @@ namespace CxxReflect { namespace Metadata {
     {
     public:
 
-        ByteIterator BeginBytes() const;
-        ByteIterator EndBytes()   const;
+        ConstByteIterator BeginBytes() const;
+        ConstByteIterator EndBytes()   const;
 
         bool IsInitialized() const;
 
     protected:
 
         BaseSignature();
-        BaseSignature(ByteIterator first, ByteIterator last);
+        BaseSignature(ConstByteIterator first, ConstByteIterator last);
         
         BaseSignature(BaseSignature const& other);
         BaseSignature& operator=(BaseSignature const& other);
 
         ~BaseSignature();
 
-        void VerifyInitialized() const;
+        void AssertInitialized() const;
 
     private:
 
-        Detail::ValueInitialized<ByteIterator> _first;
-        Detail::ValueInitialized<ByteIterator> _last;
+        Detail::ValueInitialized<ConstByteIterator> _first;
+        Detail::ValueInitialized<ConstByteIterator> _last;
     };
 
 
@@ -350,8 +348,8 @@ namespace CxxReflect { namespace Metadata {
     {
     private:
 
-        static SizeType ReadSize(ByteIterator& current, ByteIterator last);
-        static SizeType ReadLowBound(ByteIterator& current, ByteIterator last);
+        static SizeType ReadSize(ConstByteIterator& current, ConstByteIterator last);
+        static SizeType ReadLowBound(ConstByteIterator& current, ConstByteIterator last);
 
     public:
 
@@ -370,20 +368,20 @@ namespace CxxReflect { namespace Metadata {
         typedef CountingIterator<SizeType, &ArrayShape::ReadLowBound> LowBoundIterator;
 
         ArrayShape();
-        ArrayShape(ByteIterator first, ByteIterator last);
+        ArrayShape(ConstByteIterator first, ConstByteIterator last);
 
-        SizeType         GetRank()           const;
+        SizeType          GetRank()           const;
 
-        SizeType         GetSizesCount()     const;
-        SizeIterator     BeginSizes()        const;
-        SizeIterator     EndSizes()          const;
+        SizeType          GetSizesCount()     const;
+        SizeIterator      BeginSizes()        const;
+        SizeIterator      EndSizes()          const;
 
-        SizeType         GetLowBoundsCount() const;
-        LowBoundIterator BeginLowBounds()    const;
-        LowBoundIterator EndLowBounds()      const;
+        SizeType          GetLowBoundsCount() const;
+        LowBoundIterator  BeginLowBounds()    const;
+        LowBoundIterator  EndLowBounds()      const;
 
-        SizeType         ComputeSize()       const;
-        ByteIterator     SeekTo(Part part)   const;
+        SizeType          ComputeSize()       const;
+        ConstByteIterator SeekTo(Part part)   const;
     };
 
     CXXREFLECT_GENERATE_SCOPED_ENUM_OPERATORS(ArrayShape::Part)
@@ -406,17 +404,18 @@ namespace CxxReflect { namespace Metadata {
         };
 
         CustomModifier();
-        CustomModifier(ByteIterator first, ByteIterator last);
+        CustomModifier(ConstByteIterator first, ConstByteIterator last);
 
-        bool         IsOptional()       const;
-        bool         IsRequired()       const;
-        RowReference GetTypeReference() const;
+        bool              IsOptional()       const;
+        bool              IsRequired()       const;
+        RowReference      GetTypeReference() const;
 
-        SizeType     ComputeSize()      const;
-        ByteIterator SeekTo(Part part)  const;
+        SizeType          ComputeSize()      const;
+        ConstByteIterator SeekTo(Part part)  const;
     };
 
     CXXREFLECT_GENERATE_SCOPED_ENUM_OPERATORS(CustomModifier::Part)
+
 
 
 
@@ -437,14 +436,15 @@ namespace CxxReflect { namespace Metadata {
         };
 
         FieldSignature();
-        FieldSignature(ByteIterator first, ByteIterator last);
+        FieldSignature(ConstByteIterator first, ConstByteIterator last);
 
-        TypeSignature GetTypeSignature() const;
-        SizeType      ComputeSize()      const;
-        ByteIterator  SeekTo(Part part)  const;
+        TypeSignature     GetTypeSignature() const;
+        SizeType          ComputeSize()      const;
+        ConstByteIterator SeekTo(Part part)  const;
     };
 
     CXXREFLECT_GENERATE_SCOPED_ENUM_OPERATORS(FieldSignature::Part);
+
 
 
 
@@ -456,7 +456,7 @@ namespace CxxReflect { namespace Metadata {
     {
     private:
 
-        static TypeSignature ReadParameter(ByteIterator& current, ByteIterator last);
+        static TypeSignature ReadParameter(ConstByteIterator& current, ConstByteIterator last);
 
     public:
 
@@ -473,7 +473,7 @@ namespace CxxReflect { namespace Metadata {
         };
 
         PropertySignature();
-        PropertySignature(ByteIterator first, ByteIterator last);
+        PropertySignature(ConstByteIterator first, ConstByteIterator last);
 
         bool              HasThis()           const;
         SizeType          GetParameterCount() const;
@@ -482,10 +482,11 @@ namespace CxxReflect { namespace Metadata {
         TypeSignature     GetTypeSignature()  const;
 
         SizeType          ComputeSize()       const;
-        ByteIterator      SeekTo(Part part)   const;
+        ConstByteIterator SeekTo(Part part)   const;
     };
 
     CXXREFLECT_GENERATE_SCOPED_ENUM_OPERATORS(PropertySignature::Part);
+
 
 
 
@@ -496,8 +497,8 @@ namespace CxxReflect { namespace Metadata {
     {
     private:
 
-        static bool ParameterEndCheck(ByteIterator current, ByteIterator last);
-        static TypeSignature ReadParameter(ByteIterator& current, ByteIterator last);
+        static bool ParameterEndCheck(ConstByteIterator current, ConstByteIterator last);
+        static TypeSignature ReadParameter(ConstByteIterator& current, ConstByteIterator last);
 
     public:
 
@@ -521,7 +522,7 @@ namespace CxxReflect { namespace Metadata {
         };
 
         MethodSignature();
-        MethodSignature(ByteIterator first, ByteIterator last);
+        MethodSignature(ConstByteIterator first, ConstByteIterator last);
 
         bool HasThis()         const;
         bool HasExplicitThis() const;
@@ -546,10 +547,11 @@ namespace CxxReflect { namespace Metadata {
         ParameterIterator EndVarargParameters()   const;
 
         SizeType          ComputeSize()           const;
-        ByteIterator      SeekTo(Part part)       const;
+        ConstByteIterator SeekTo(Part part)       const;
     };
 
     CXXREFLECT_GENERATE_SCOPED_ENUM_OPERATORS(MethodSignature::Part)
+
 
 
 
@@ -563,9 +565,9 @@ namespace CxxReflect { namespace Metadata {
     {
     private:
 
-        static bool CustomModifierEndCheck(ByteIterator current, ByteIterator last);
-        static CustomModifier ReadCustomModifier(ByteIterator& current, ByteIterator last);
-        static TypeSignature ReadType(ByteIterator& current, ByteIterator last);
+        static bool CustomModifierEndCheck(ConstByteIterator current, ConstByteIterator last);
+        static CustomModifier ReadCustomModifier(ConstByteIterator& current, ConstByteIterator last);
+        static TypeSignature ReadType(ConstByteIterator& current, ConstByteIterator last);
 
     public:
 
@@ -624,12 +626,12 @@ namespace CxxReflect { namespace Metadata {
         typedef CountingIterator<TypeSignature, &TypeSignature::ReadType> GenericArgumentIterator;
 
         TypeSignature();
-        TypeSignature(ByteIterator first, ByteIterator last);
+        TypeSignature(ConstByteIterator first, ConstByteIterator last);
 
-        SizeType     ComputeSize()     const;
-        ByteIterator SeekTo(Part part) const;
-        Kind         GetKind()         const;
-        bool         IsKind(Kind kind) const;
+        SizeType          ComputeSize()     const;
+        ConstByteIterator SeekTo(Part part) const;
+        Kind              GetKind()         const;
+        bool              IsKind(Kind kind) const;
 
         // FieldSig, PropertySig, Param, RetType signatures, and PTR and SZARRAY Type signatures:
         CustomModifierIterator BeginCustomModifiers() const;
@@ -680,11 +682,12 @@ namespace CxxReflect { namespace Metadata {
 
         ElementType GetElementType() const;
 
-        void VerifyKind(Kind kind) const;
+        void AssertKind(Kind kind) const;
     };
 
     CXXREFLECT_GENERATE_SCOPED_ENUM_OPERATORS(TypeSignature::Kind)
     CXXREFLECT_GENERATE_SCOPED_ENUM_OPERATORS(TypeSignature::Part)
+
 
 
 
@@ -695,7 +698,7 @@ namespace CxxReflect { namespace Metadata {
     {
     public:
 
-        SignatureComparer(MetadataLoader const* loader, Database const* lhsDatabase, Database const* rhsDatabase);
+        SignatureComparer(ITypeResolver const* loader, Database const* lhsDatabase, Database const* rhsDatabase);
 
         bool operator()(ArrayShape        const& lhs, ArrayShape        const& rhs) const;
         bool operator()(CustomModifier    const& lhs, CustomModifier    const& rhs) const;
@@ -708,9 +711,9 @@ namespace CxxReflect { namespace Metadata {
 
         bool operator()(RowReference      const& lhs, RowReference      const& rhs) const;
 
-        Detail::ValueInitialized<MetadataLoader const*> _loader;
-        Detail::ValueInitialized<Database const*>       _lhsDatabase;
-        Detail::ValueInitialized<Database const*>       _rhsDatabase;
+        Detail::ValueInitialized<ITypeResolver const*> _loader;
+        Detail::ValueInitialized<Database const*>      _lhsDatabase;
+        Detail::ValueInitialized<Database const*>      _rhsDatabase;
     };
 
 

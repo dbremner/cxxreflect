@@ -204,7 +204,7 @@ namespace CxxReflect { namespace Metadata { namespace { namespace Private {
         PeFileHeader fileHeader = { 0 };
         file.Read(&fileHeader, sizeof fileHeader, 1);
         if (fileHeader._sectionCount == 0 || fileHeader._sectionCount > 100)
-            throw ReadError("PE section count is out of range");
+            throw MetadataReadError(L"PE section count is out of range");
 
         PeSectionHeaderSequence sections(fileHeader._sectionCount);
         file.Read(sections.data(), sizeof *sections.begin(), sections.size());
@@ -214,7 +214,7 @@ namespace CxxReflect { namespace Metadata { namespace { namespace Private {
             PeSectionContainsRva(fileHeader._cliHeaderTable._rva)));
 
         if (cliHeaderSectionIt == sections.end())
-            throw ReadError("Failed to locate PE file section containing CLI header");
+            throw MetadataReadError(L"Failed to locate PE file section containing CLI header");
 
         std::size_t cliHeaderTableOffset(ComputeOffsetFromRva(
             *cliHeaderSectionIt,
@@ -240,7 +240,7 @@ namespace CxxReflect { namespace Metadata { namespace { namespace Private {
             PeSectionContainsRva(peHeader._cliHeader._metadata._rva)));
 
         if (metadataSectionIt == peHeader._sections.end())
-            throw ReadError("Failed to locate PE file section containing CLI metadata");
+            throw MetadataReadError(L"Failed to locate PE file section containing CLI metadata");
 
         SizeType metadataOffset(ComputeOffsetFromRva(
             *metadataSectionIt,
@@ -251,7 +251,7 @@ namespace CxxReflect { namespace Metadata { namespace { namespace Private {
         std::uint32_t magicSignature(0);
         file.Read(&magicSignature, sizeof magicSignature, 1);
         if (magicSignature != 0x424a5342)
-            throw ReadError("Magic signature does not match required value 0x424a5342");
+            throw MetadataReadError(L"Magic signature does not match required value 0x424a5342");
 
         file.Seek(8, Detail::FileHandle::Current);
 
@@ -289,7 +289,7 @@ namespace CxxReflect { namespace Metadata { namespace { namespace Private {
             CXXREFLECT_GENERATE("#GUID",    GuidStream,       -4);
             CXXREFLECT_GENERATE("#~",       TableStream,      -8);
             if (!used)
-                throw ReadError("Unknown stream name encountered");
+                throw MetadataReadError(L"Unknown stream name encountered");
 
             #undef CXXREFLECT_GENERATE
         }
@@ -415,15 +415,15 @@ namespace CxxReflect { namespace Metadata { namespace { namespace Private {
     #undef CXXREFLECT_GENERATE
 
     template <typename T>
-    T const& ReadAs(ByteIterator const data, SizeType const index)
+    T const& ReadAs(ConstByteIterator const data, SizeType const index)
     {
         return *reinterpret_cast<T const*>(data + index);
     }
 
-    std::uint32_t ReadTableIndex(Database     const& database,
-                                 ByteIterator const  data,
-                                 TableId      const  table,
-                                 SizeType     const  offset)
+    std::uint32_t ReadTableIndex(Database          const& database,
+                                 ConstByteIterator const  data,
+                                 TableId           const  table,
+                                 SizeType          const  offset)
     {
         // Table indexes are one-based, to allow zero to be used as a null reference value.  In
         // order to simplify row offset calculations, we subtract one from all table indices to
@@ -432,65 +432,65 @@ namespace CxxReflect { namespace Metadata { namespace { namespace Private {
         {
         case 2:  return ReadAs<std::uint16_t>(data, offset) - 1;
         case 4:  return ReadAs<std::uint32_t>(data, offset) - 1;
-        default: Detail::VerifyFail("Invalid table index size");
+        default: Detail::AssertFail(L"Invalid table index size");
         }
 
         return 0;
     }
 
-    std::uint32_t ReadCompositeIndex(Database       const& database,
-                                     ByteIterator   const  data,
-                                     CompositeIndex const  index,
-                                     SizeType       const  offset)
+    std::uint32_t ReadCompositeIndex(Database            const& database,
+                                     ConstByteIterator   const  data,
+                                     CompositeIndex      const  index,
+                                     SizeType            const  offset)
     {
         switch (database.GetTables().GetCompositeIndexSize(index))
         {
             case 2:  return ReadAs<std::uint16_t>(data, offset);
             case 4:  return ReadAs<std::uint32_t>(data, offset);
-            default: Detail::VerifyFail("Invalid composite index size");
+            default: Detail::AssertFail(L"Invalid composite index size");
         }
         
         return 0;
     }
 
-    std::uint32_t ReadBlobHeapIndex(Database const& database, ByteIterator const data, SizeType const offset)
+    std::uint32_t ReadBlobHeapIndex(Database const& database, ConstByteIterator const data, SizeType const offset)
     {
         switch (database.GetTables().GetBlobHeapIndexSize())
         {
         case 2:  return ReadAs<std::uint16_t>(data, offset);
         case 4:  return ReadAs<std::uint32_t>(data, offset);
-        default: Detail::VerifyFail("Invalid blob heap index size");
+        default: Detail::AssertFail(L"Invalid blob heap index size");
         }
 
         return 0;
     }
 
-    BlobReference ReadBlobReference(Database const& database, ByteIterator const data, SizeType const offset)
+    BlobReference ReadBlobReference(Database const& database, ConstByteIterator const data, SizeType const offset)
     {
         return BlobReference(ReadBlobHeapIndex(database, data, offset));
     }
 
-    std::uint32_t ReadStringHeapIndex(Database const& database, ByteIterator const data, SizeType const offset)
+    std::uint32_t ReadStringHeapIndex(Database const& database, ConstByteIterator const data, SizeType const offset)
     {
         switch (database.GetTables().GetStringHeapIndexSize())
         {
         case 2:  return ReadAs<std::uint16_t>(data, offset);
         case 4:  return ReadAs<std::uint32_t>(data, offset);
-        default: Detail::VerifyFail("Invalid string heap index size");
+        default: Detail::AssertFail(L"Invalid string heap index size");
         }
 
         return 0;
     }
 
-    StringReference ReadStringReference(Database const& database, ByteIterator const data, SizeType const offset)
+    StringReference ReadStringReference(Database const& database, ConstByteIterator const data, SizeType const offset)
     {
         return database.GetString(ReadStringHeapIndex(database, data, offset));
     }
 
-    RowReference ReadRowReference(Database     const& database,
-                                  ByteIterator const  data,
-                                  TableId      const  table,
-                                  SizeType     const  offset)
+    RowReference ReadRowReference(Database          const& database,
+                                  ConstByteIterator const  data,
+                                  TableId           const  table,
+                                  SizeType          const  offset)
     {
         return RowReference(table, ReadTableIndex(database, data, table, offset));
     }
@@ -513,7 +513,7 @@ namespace CxxReflect { namespace Metadata { namespace { namespace Private {
         {
         case 2:  return RowReference(TableId::MethodDef, split.second);
         case 3:  return RowReference(TableId::MemberRef, split.second);
-        default: throw ReadError("Invalid CustomAttributeType composite index value encountered");
+        default: throw MetadataReadError(L"Invalid CustomAttributeType composite index value encountered");
         }
     }
 
@@ -525,7 +525,7 @@ namespace CxxReflect { namespace Metadata { namespace { namespace Private {
         case 0:  return RowReference(TableId::Field,    split.second);
         case 1:  return RowReference(TableId::Param,    split.second);
         case 2:  return RowReference(TableId::Property, split.second);
-        default: throw ReadError("Invalid HasConstant composite index value encountered");
+        default: throw MetadataReadError(L"Invalid HasConstant composite index value encountered");
         }
     }
 
@@ -557,7 +557,7 @@ namespace CxxReflect { namespace Metadata { namespace { namespace Private {
         case 19: return RowReference(TableId::GenericParam,           split.second);
         case 20: return RowReference(TableId::GenericParamConstraint, split.second);
         case 21: return RowReference(TableId::MethodSpec,             split.second);
-        default: throw ReadError("Invalid HasCustomAttribute composite index value encountered");
+        default: throw MetadataReadError(L"Invalid HasCustomAttribute composite index value encountered");
         }
     }
 
@@ -569,7 +569,7 @@ namespace CxxReflect { namespace Metadata { namespace { namespace Private {
         case 0:  return RowReference(TableId::TypeDef,   split.second);
         case 1:  return RowReference(TableId::MethodDef, split.second);
         case 2:  return RowReference(TableId::Assembly,  split.second);
-        default: throw ReadError("Invalid HasFieldMarshal composite index value encountered");
+        default: throw MetadataReadError(L"Invalid HasFieldMarshal composite index value encountered");
         }
     }
 
@@ -580,7 +580,7 @@ namespace CxxReflect { namespace Metadata { namespace { namespace Private {
         {
         case 0:  return RowReference(TableId::Field, split.second);
         case 1:  return RowReference(TableId::Param, split.second);
-        default: Detail::VerifyFail("Too many bits!"); return RowReference();
+        default: Detail::AssertFail(L"Too many bits!"); return RowReference();
         }
     }
 
@@ -591,7 +591,7 @@ namespace CxxReflect { namespace Metadata { namespace { namespace Private {
         {
         case 0:  return RowReference(TableId::Event,    split.second);
         case 1:  return RowReference(TableId::Property, split.second);
-        default: Detail::VerifyFail("Too many bits!"); return RowReference();
+        default: Detail::AssertFail(L"Too many bits!"); return RowReference();
         }
     }
 
@@ -603,7 +603,7 @@ namespace CxxReflect { namespace Metadata { namespace { namespace Private {
         case 0:  return RowReference(TableId::File,         split.second);
         case 1:  return RowReference(TableId::AssemblyRef,  split.second);
         case 2:  return RowReference(TableId::ExportedType, split.second);
-        default: throw ReadError("Invalid Implementation composite index value encountered");
+        default: throw MetadataReadError(L"Invalid Implementation composite index value encountered");
         }
     }
 
@@ -614,7 +614,7 @@ namespace CxxReflect { namespace Metadata { namespace { namespace Private {
         {
         case 0:  return RowReference(TableId::Field,     split.second);
         case 1:  return RowReference(TableId::MethodDef, split.second);
-        default: Detail::VerifyFail("Too many bits!"); return RowReference();
+        default: Detail::AssertFail(L"Too many bits!"); return RowReference();
         }
     }
 
@@ -628,7 +628,7 @@ namespace CxxReflect { namespace Metadata { namespace { namespace Private {
         case 2:  return RowReference(TableId::ModuleRef, split.second);
         case 3:  return RowReference(TableId::MethodDef, split.second);
         case 4:  return RowReference(TableId::TypeSpec,  split.second);
-        default: throw ReadError("Invalid MemberRefParent composite index value encountered");
+        default: throw MetadataReadError(L"Invalid MemberRefParent composite index value encountered");
         }
     }
 
@@ -639,7 +639,7 @@ namespace CxxReflect { namespace Metadata { namespace { namespace Private {
         {
         case 0:  return RowReference(TableId::MethodDef, split.second);
         case 1:  return RowReference(TableId::MemberRef, split.second);
-        default: Detail::VerifyFail("Too many bits!"); return RowReference();
+        default: Detail::AssertFail(L"Too many bits!"); return RowReference();
         }
     }
 
@@ -652,7 +652,7 @@ namespace CxxReflect { namespace Metadata { namespace { namespace Private {
         case 1:  return RowReference(TableId::ModuleRef,   split.second);
         case 2:  return RowReference(TableId::AssemblyRef, split.second);
         case 3:  return RowReference(TableId::TypeRef,     split.second);
-        default: Detail::VerifyFail("Too many bits!"); return RowReference();
+        default: Detail::AssertFail(L"Too many bits!"); return RowReference();
         }
     }
 
@@ -664,7 +664,7 @@ namespace CxxReflect { namespace Metadata { namespace { namespace Private {
         case 0:  return RowReference(TableId::TypeDef,  split.second);
         case 1:  return RowReference(TableId::TypeRef,  split.second);
         case 2:  return RowReference(TableId::TypeSpec, split.second);
-        default: throw ReadError("Invalid TypeDefOrRef composite index value encountered");
+        default: throw MetadataReadError(L"Invalid TypeDefOrRef composite index value encountered");
         }
     }
 
@@ -675,14 +675,14 @@ namespace CxxReflect { namespace Metadata { namespace { namespace Private {
         {
         case 0:  return RowReference(TableId::TypeDef,   split.second);
         case 1:  return RowReference(TableId::MethodDef, split.second);
-        default: Detail::VerifyFail("Too many bits!"); return RowReference();
+        default: Detail::AssertFail(L"Too many bits!"); return RowReference();
         }
     }
 
-    RowReference ReadRowReference(Database       const& database,
-                                  ByteIterator   const  data,
-                                  CompositeIndex const  index,
-                                  SizeType       const  offset)
+    RowReference ReadRowReference(Database          const& database,
+                                  ConstByteIterator const  data,
+                                  CompositeIndex    const  index,
+                                  SizeType          const  offset)
     {
         std::uint32_t const value(ReadCompositeIndex(database, data, index, offset));
         if (value == 0)
@@ -702,12 +702,14 @@ namespace CxxReflect { namespace Metadata { namespace { namespace Private {
         case CompositeIndex::ResolutionScope:     return DecodeResolutionScopeIndex(value);
         case CompositeIndex::TypeDefOrRef:        return DecodeTypeDefOrRefIndex(value);
         case CompositeIndex::TypeOrMethodDef:     return DecodeTypeOrMethodDefIndex(value);
-        default:  Detail::VerifyFail("Invalid index");     return RowReference();
+        default:  Detail::AssertFail(L"Invalid index"); return RowReference();
         }
     }
 
     template <TableId TSourceId, TableId TTargetId, typename TFirstFunction>
-    RowReference ComputeLastRowReference(Database const& database, ByteIterator const data, TFirstFunction const first)
+    RowReference ComputeLastRowReference(Database          const& database,
+                                         ConstByteIterator const  data,
+                                         TFirstFunction    const  first)
     {
         SizeType const byteOffset(static_cast<SizeType>(data - database.GetTables().GetTable(TSourceId).Begin()));
         SizeType const rowSize(database.GetTables().GetTable(TSourceId).GetRowSize());
@@ -729,11 +731,11 @@ namespace CxxReflect { namespace Metadata { namespace { namespace Private {
 
 namespace CxxReflect { namespace Metadata {
 
-    RowReference::ValueType RowReference::ComposeValue(TableId const tableId, IndexType const index)
+    RowReference::ValueType RowReference::ComposeValue(TableId const tableId, SizeType const index)
     {
-        Detail::Verify([&]{ return IsValidTableId(Detail::AsInteger(tableId)); });
-        Detail::Verify([&]{ return Detail::AsInteger(tableId) < (1 << ValueTableIdBits); });
-        Detail::Verify([&]{ return index < ValueIndexMask; });
+        Detail::Assert([&]{ return IsValidTableId(Detail::AsInteger(tableId)); });
+        Detail::Assert([&]{ return Detail::AsInteger(tableId) < (1 << ValueTableIdBits); });
+        Detail::Assert([&]{ return index < ValueIndexMask; });
 
         ValueType const tableIdValue(Detail::AsInteger(tableId) & (ValueTableIdMask >> ValueIndexBits));
 
@@ -745,7 +747,7 @@ namespace CxxReflect { namespace Metadata {
 
     RowReference RowReference::FromToken(TokenType const token)
     {
-        Detail::Verify([&]{ return (token & ValueIndexMask) != 0; });
+        Detail::Assert([&]{ return (token & ValueIndexMask) != 0; });
         RowReference result;
         result._value.Get() = token - 1;
         return result;
@@ -754,10 +756,10 @@ namespace CxxReflect { namespace Metadata {
 
 
 
-    Blob::Range Blob::ComputeBounds(ByteIterator const first, ByteIterator const last, SizeType const size)
+    Blob::Range Blob::ComputeBounds(ConstByteIterator const first, ConstByteIterator const last, SizeType const size)
     {
         if (first == last)
-            throw ReadError("Invalid blob");
+            throw MetadataReadError(L"Invalid blob");
 
         if (size > 0)
             return std::make_pair(first, first + size);
@@ -787,18 +789,18 @@ namespace CxxReflect { namespace Metadata {
 
         case 7:
         default:
-            throw ReadError("Invalid blob");
+            throw MetadataReadError(L"Invalid blob");
         }
 
         if (static_cast<SizeType>(last - first) < blobSizeBytes)
-            throw ReadError("Invalid blob");
+            throw MetadataReadError(L"Invalid blob");
 
         SizeType blobSize(initialByte);
         for (unsigned i(1); i < blobSizeBytes; ++ i)
             blobSize = (blobSize << 8) + *(first + i);
 
         if (static_cast<SizeType>(last - first) < blobSizeBytes + blobSize)
-            throw ReadError("Invalid blob");
+            throw MetadataReadError(L"Invalid blob");
 
         return std::make_pair(first + blobSizeBytes, first + blobSizeBytes + blobSize);
     }
@@ -856,9 +858,9 @@ namespace CxxReflect { namespace Metadata {
         return _stream.IsInitialized();
     }
 
-    void StringCollection::VerifyInitialized() const
+    void StringCollection::AssertInitialized() const
     {
-        Detail::Verify([&]{ return IsInitialized(); });
+        Detail::Assert([&]{ return IsInitialized(); });
     }
 
 
@@ -923,7 +925,7 @@ namespace CxxReflect { namespace Metadata {
                 continue;
 
             if (!IsValidTableId(x))
-                throw ReadError("Metadata table presence vector has invalid bits set");
+                throw MetadataReadError(L"Metadata table presence vector has invalid bits set");
 
             _state.Get()._rowCounts[x] = _stream.ReadAs<std::uint32_t>(index);
             index += 4;
@@ -1167,7 +1169,7 @@ namespace CxxReflect { namespace Metadata {
 
     SizeType TableCollection::GetTableColumnOffset(TableId const tableId, SizeType const column) const
     {
-        Detail::Verify([&] { return column < MaximumColumnCount; }, "Invalid column identifier");
+        Detail::Assert([&] { return column < MaximumColumnCount; }, L"Invalid column identifier");
         // TODO Check table-specific offset
         return _state.Get()._columnOffsets[Detail::AsInteger(tableId)][column];
     }

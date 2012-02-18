@@ -6,7 +6,7 @@
 
 #include "CxxReflect/Assembly.hpp"
 #include "CxxReflect/File.hpp"
-#include "CxxReflect/MetadataLoader.hpp"
+#include "CxxReflect/Loader.hpp"
 #include "CxxReflect/Module.hpp"
 #include "CxxReflect/Type.hpp"
 
@@ -31,18 +31,18 @@ namespace CxxReflect {
     Assembly::Assembly(Detail::AssemblyContext const* const context, InternalKey)
         : _context(context)
     {
-        VerifyInitialized();
+        AssertInitialized();
     }
 
     AssemblyName const& Assembly::GetName() const
     {
-        VerifyInitialized();
+        AssertInitialized();
         return _context.Get()->GetAssemblyName();
     }
 
     String const& Assembly::GetPath() const
     {
-        VerifyInitialized();
+        AssertInitialized();
         return _context.Get()->GetPath();
     }
 
@@ -65,13 +65,13 @@ namespace CxxReflect {
 
     Assembly::FileIterator Assembly::BeginFiles() const
     {
-        VerifyInitialized();
+        AssertInitialized();
         return FileIterator(*this, Metadata::RowReference(Metadata::TableId::File, 0));
     }
 
     Assembly::FileIterator Assembly::EndFiles() const
     {
-        VerifyInitialized();
+        AssertInitialized();
         return FileIterator(*this, Metadata::RowReference(
             Metadata::TableId::File,
             _context.Get()->GetDatabase().GetTables().GetTable(Metadata::TableId::File).GetRowCount()));
@@ -89,25 +89,25 @@ namespace CxxReflect {
 
     Assembly::ModuleIterator Assembly::BeginModules() const
     {
-        Detail::VerifyFail("NYI");
+        Detail::AssertFail(L"NYI");
         return ModuleIterator();
     }
 
     Assembly::ModuleIterator Assembly::EndModules() const
     {
-        Detail::VerifyFail("NYI");
+        Detail::AssertFail(L"NYI");
         return ModuleIterator();
     }
 
     Module Assembly::GetModule(StringReference const /*name*/) const
     {
-        Detail::VerifyFail("NYI");
+        Detail::AssertFail(L"NYI");
         return Module();
     }
 
     Assembly::TypeIterator Assembly::BeginTypes() const
     {
-        VerifyInitialized();
+        AssertInitialized();
         // We intentionally skip the type at index 0; this isn't a real type, it's the internal
         // <module> "type" containing module-scope thingies.
         return TypeIterator(*this, Metadata::RowReference(Metadata::TableId::TypeDef, 1));
@@ -115,7 +115,7 @@ namespace CxxReflect {
 
     Assembly::TypeIterator Assembly::EndTypes() const
     {
-        VerifyInitialized();
+        AssertInitialized();
         return TypeIterator(*this, Metadata::RowReference(
             Metadata::TableId::TypeDef,
             _context.Get()->GetDatabase().GetTables().GetTable(Metadata::TableId::TypeDef).GetRowCount()));
@@ -156,14 +156,14 @@ namespace CxxReflect {
         return !IsInitialized();
     }
 
-    void Assembly::VerifyInitialized() const
+    void Assembly::AssertInitialized() const
     {
-        Detail::Verify([&]{ return IsInitialized(); });
+        Detail::Assert([&]{ return IsInitialized(); });
     }
 
     Metadata::AssemblyRow Assembly::GetAssemblyRow() const
     {
-        VerifyInitialized();
+        AssertInitialized();
 
         Metadata::Database const& database(_context.Get()->GetDatabase());
 
@@ -175,7 +175,7 @@ namespace CxxReflect {
 
     Detail::AssemblyContext const& Assembly::GetContext(InternalKey) const
     {
-        VerifyInitialized();
+        AssertInitialized();
         return *_context.Get();
     }
 

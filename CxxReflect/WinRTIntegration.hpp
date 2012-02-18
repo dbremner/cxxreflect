@@ -7,7 +7,7 @@
 
 #include "CxxReflect/CoreInternals.hpp"
 
-#ifdef CXXREFLECT_ENABLE_FEATURE_WINRT
+#ifdef CXXREFLECT_ENABLE_WINDOWS_RUNTIME_INTEGRATION
 
 #include "CxxReflect/Type.hpp"
 
@@ -24,10 +24,10 @@ namespace CxxReflect { namespace Detail {
     // offloaded onto a worker thread and we need the answer immediately, the async API is just
     // an unnecessary beating.
     template <typename TCallable>
-    auto SyncCall(TCallable callable) -> decltype(callable()->GetResults())
+    auto SyncCall(TCallable&& callable) -> decltype(callable()->GetResults())
     {
         typedef decltype(callable()->GetResults()) Result;
-        Concurrency::task<Result> asyncTask(callable());
+        ::Concurrency::task<Result> asyncTask(callable());
         asyncTask.wait();
         return asyncTask.get();
     }

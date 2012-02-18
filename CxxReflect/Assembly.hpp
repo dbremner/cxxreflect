@@ -87,8 +87,8 @@ namespace CxxReflect {
         // LoadFile               Not applicable outside of runtime
         // LoadModule             Not applicable outside of runtime
         // LoadWithPartialName    Not applicable outside of runtime
-        // ReflectionOnlyLoad     Use MetadataLoader::LoadAssembly()
-        // ReflectionOnlyLoadFrom Use MetadataLoader::LoadAssembly()
+        // ReflectionOnlyLoad     Use Loader::LoadAssembly()
+        // ReflectionOnlyLoadFrom Use Loader::LoadAssembly()
         // UnsafeLoadFrom         Not applicable outside of runtime
 
         bool IsInitialized() const;
@@ -108,7 +108,7 @@ namespace CxxReflect {
 
     private:
 
-        void VerifyInitialized() const;
+        void AssertInitialized() const;
 
         Metadata::AssemblyRow GetAssemblyRow() const;
 

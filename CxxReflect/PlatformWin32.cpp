@@ -4,24 +4,38 @@
 
 #include "CxxReflect/PrecompiledHeaders.hpp"
 
-#include "CxxReflect/Core.hpp"
+#include "CxxReflect/Fundamentals.hpp"
 
 #include <windows.h>
 #include <wincrypt.h>
 
 namespace CxxReflect { namespace Detail {
 
+    FILE* OpenFile(wchar_t const* const fileName, wchar_t const* const mode)
+    {
+        FILE* handle(nullptr);
+
+        errno_t const error(_wfopen_s(&handle, fileName, mode));
+        if (error != 0)
+            throw FileIOError(error);
+
+        if (handle == nullptr)
+            throw LogicError(L"Expected non-null file handle or error.");
+
+        return handle;
+    }
+
     unsigned ComputeUtf16LengthOfUtf8String(char const* source)
     {
-        Detail::VerifyNotNull(source);
+        Detail::AssertNotNull(source);
 
         return MultiByteToWideChar(CP_UTF8, 0, source, -1, nullptr, 0);
     }
 
     bool ConvertUtf8ToUtf16(char const* source, wchar_t* target, unsigned targetLength)
     {
-        Detail::VerifyNotNull(source);
-        Detail::VerifyNotNull(target);
+        Detail::AssertNotNull(source);
+        Detail::AssertNotNull(target);
 
         int const actualLength(MultiByteToWideChar(CP_UTF8, 0, source, -1, target, targetLength));
         return actualLength >= 0 &&  static_cast<unsigned>(actualLength) == targetLength;
@@ -29,8 +43,8 @@ namespace CxxReflect { namespace Detail {
 
     Sha1Hash ComputeSha1Hash(std::uint8_t const* const first, std::uint8_t const* const last)
     {
-        Detail::VerifyNotNull(first);
-        Detail::VerifyNotNull(last);
+        Detail::AssertNotNull(first);
+        Detail::AssertNotNull(last);
 
         HCRYPTPROV provider(0);
         Detail::ScopeGuard cleanupProvider([&](){ if (provider) { CryptReleaseContext(provider, 0); } });

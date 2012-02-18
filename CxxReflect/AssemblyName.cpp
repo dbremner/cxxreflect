@@ -6,7 +6,7 @@
 
 #include "CxxReflect/Assembly.hpp"
 #include "CxxReflect/AssemblyName.hpp"
-#include "CxxReflect/MetadataLoader.hpp"
+#include "CxxReflect/Loader.hpp"
 
 namespace CxxReflect { namespace { namespace Private {
 
@@ -110,7 +110,7 @@ namespace CxxReflect {
             break;
 
         default:
-            Detail::VerifyFail("RowReference references unsupported table");
+            Detail::AssertFail(L"RowReference references unsupported table");
         }
     }
 

@@ -13,7 +13,9 @@ namespace CxxReflect {
     {
     public:
 
-        typedef Detail::InstantiatingIterator<Detail::ParameterData, Parameter, Method, Detail::IdentityTransformer, std::forward_iterator_tag> ParameterIterator;
+        typedef Detail::InstantiatingIterator<
+            Detail::ParameterData, Parameter, Method, Detail::IdentityTransformer, std::forward_iterator_tag
+        > ParameterIterator;
 
         Method();
         Method(Type const& reflectedType, Detail::MethodContext const* context, InternalKey);
@@ -86,7 +88,7 @@ namespace CxxReflect {
 
     private:
 
-        void VerifyInitialized() const;
+        void AssertInitialized() const;
 
         Metadata::MethodDefRow GetMethodDefRow() const;
 

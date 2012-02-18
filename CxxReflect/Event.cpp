@@ -5,7 +5,7 @@
 #include "CxxReflect/PrecompiledHeaders.hpp"
 
 #include "CxxReflect/Assembly.hpp"
-#include "CxxReflect/MetadataLoader.hpp"
+#include "CxxReflect/Loader.hpp"
 #include "CxxReflect/Event.hpp"
 #include "CxxReflect/Type.hpp"
 
@@ -19,9 +19,9 @@ namespace CxxReflect {
         : _reflectedType(reflectedType),
           _context(context)
     {
-        Detail::VerifyNotNull(context);
-        Detail::Verify([&]{ return reflectedType.IsInitialized(); });
-        Detail::Verify([&]{ return context->IsInitialized();      });
+        Detail::AssertNotNull(context);
+        Detail::Assert([&]{ return reflectedType.IsInitialized(); });
+        Detail::Assert([&]{ return context->IsInitialized();      });
     }
 
     bool Event::IsInitialized() const
@@ -34,21 +34,21 @@ namespace CxxReflect {
         return !IsInitialized();
     }
 
-    void Event::VerifyInitialized() const
+    void Event::AssertInitialized() const
     {
-        Detail::Verify([&]{ return IsInitialized(); });
+        Detail::Assert([&]{ return IsInitialized(); });
     }
 
     Detail::EventContext const& Event::GetContext(InternalKey) const
     {
-        VerifyInitialized();
+        AssertInitialized();
         return *_context.Get();
     }
 
     Type Event::GetDeclaringType() const
     {
-        VerifyInitialized();
-        MetadataLoader          const& loader  (_reflectedType.Realize().GetAssembly().GetContext(InternalKey()).GetLoader());
+        AssertInitialized();
+        Loader                  const& loader  (_reflectedType.Realize().GetAssembly().GetContext(InternalKey()).GetLoader());
         Metadata::Database      const& database(_context.Get()->GetDeclaringType().GetDatabase());
         Detail::AssemblyContext const& context (loader.GetContextForDatabase(database, InternalKey()));
         Assembly                const  assembly(&context, InternalKey());
@@ -58,7 +58,7 @@ namespace CxxReflect {
 
     Type Event::GetReflectedType() const
     {
-        VerifyInitialized();
+        AssertInitialized();
         return _reflectedType.Realize();
     }
 

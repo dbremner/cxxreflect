@@ -6,5 +6,5 @@
 
 int main()
 {
-    CxxReflectTest::Index::VerifyGuid();
+    CxxReflectTest::Index::AssertGuid();
 }

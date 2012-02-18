@@ -5,8 +5,9 @@
 #include "CxxReflect/PrecompiledHeaders.hpp"
 
 #include "CxxReflect/Assembly.hpp"
+#include "CxxReflect/AssemblyName.hpp"
 #include "CxxReflect/CustomAttribute.hpp"
-#include "CxxReflect/MetadataLoader.hpp"
+#include "CxxReflect/Loader.hpp"
 #include "CxxReflect/Method.hpp"
 #include "CxxReflect/Type.hpp"
 
@@ -73,24 +74,24 @@ namespace CxxReflect { namespace { namespace Private {
 
         bool operator()(InterfaceImplRow const& lhs, InterfaceImplRow const& rhs) const volatile
         {
-            Detail::Verify([&]{ return lhs.GetClass().GetTable() == Metadata::TableId::TypeDef; });
-            Detail::Verify([&]{ return rhs.GetClass().GetTable() == Metadata::TableId::TypeDef; });
+            Detail::Assert([&]{ return lhs.GetClass().GetTable() == Metadata::TableId::TypeDef; });
+            Detail::Assert([&]{ return rhs.GetClass().GetTable() == Metadata::TableId::TypeDef; });
 
             return lhs.GetClass().GetIndex() < rhs.GetClass().GetIndex();
         }
 
         bool operator()(InterfaceImplRow const& lhs, RowReference const& rhs) const volatile
         {
-            Detail::Verify([&]{ return lhs.GetClass().GetTable() == Metadata::TableId::TypeDef; });
-            Detail::Verify([&]{ return rhs.GetTable()            == Metadata::TableId::TypeDef; });
+            Detail::Assert([&]{ return lhs.GetClass().GetTable() == Metadata::TableId::TypeDef; });
+            Detail::Assert([&]{ return rhs.GetTable()            == Metadata::TableId::TypeDef; });
 
             return lhs.GetClass().GetIndex() < rhs.GetIndex();
         }
 
         bool operator()(RowReference const& lhs, InterfaceImplRow const& rhs) const volatile
         {
-            Detail::Verify([&]{ return lhs.GetTable()            == Metadata::TableId::TypeDef; });
-            Detail::Verify([&]{ return rhs.GetClass().GetTable() == Metadata::TableId::TypeDef; });
+            Detail::Assert([&]{ return lhs.GetTable()            == Metadata::TableId::TypeDef; });
+            Detail::Assert([&]{ return rhs.GetClass().GetTable() == Metadata::TableId::TypeDef; });
 
             return lhs.GetIndex() < rhs.GetClass().GetIndex();
         }
@@ -109,7 +110,7 @@ namespace CxxReflect {
     Type::Type(Assembly const& assembly, Metadata::RowReference const& type, InternalKey)
         : _assembly(assembly), _type(Metadata::ElementReference(type))
     {
-        Detail::Verify([&] { return assembly.IsInitialized(); });
+        Detail::Assert([&] { return assembly.IsInitialized(); });
 
         // If we were initialized with an empty type, do not attempt to do any type resolution.
         if (!type.IsInitialized())
@@ -126,20 +127,20 @@ namespace CxxReflect {
         case Metadata::TableId::TypeRef:
         {
             // Resolve the TypeRef into a TypeDef, throwing on failure:
-            MetadataLoader const& loader(assembly.GetContext(InternalKey()).GetLoader());
+            Loader             const& loader(assembly.GetContext(InternalKey()).GetLoader());
             Metadata::Database const& database(assembly.GetContext(InternalKey()).GetDatabase());
 
             Metadata::FullReference const resolvedType(
-                loader.ResolveType(Metadata::FullReference(&database, type), InternalKey()));
+                loader.ResolveType(Metadata::FullReference(&database, type)));
 
-            Detail::Verify([&]{ return resolvedType.IsInitialized(); });
+            Detail::Assert([&]{ return resolvedType.IsInitialized(); });
 
             _assembly = Assembly(
                 &loader.GetContextForDatabase(resolvedType.GetDatabase(), InternalKey()),
                 InternalKey());
 
             _type = Metadata::ElementReference(resolvedType.AsRowReference());
-            Detail::Verify([&]{ return _type.AsRowReference().GetTable() == Metadata::TableId::TypeDef; });
+            Detail::Assert([&]{ return _type.AsRowReference().GetTable() == Metadata::TableId::TypeDef; });
 
             break;
         }
@@ -156,7 +157,7 @@ namespace CxxReflect {
 
         default:
         {
-            Detail::VerifyFail("Unexpected argument");
+            Detail::AssertFail(L"Unexpected argument");
             break;
         }
         }
@@ -165,8 +166,8 @@ namespace CxxReflect {
     Type::Type(Assembly const& assembly, Metadata::BlobReference const& type, InternalKey)
         : _assembly(assembly), _type(Metadata::ElementReference(type))
     {
-        Detail::Verify([&]{ return assembly.IsInitialized(); });
-        Detail::Verify([&]{ return type.IsInitialized();     });
+        Detail::Assert([&]{ return assembly.IsInitialized(); });
+        Detail::Assert([&]{ return type.IsInitialized();     });
 
         Metadata::TypeSignature const signature(assembly
             .GetContext(InternalKey())
@@ -177,7 +178,7 @@ namespace CxxReflect {
         if (signature.GetKind() == Metadata::TypeSignature::Kind::Primitive)
         {
             Type const primitiveType(Utility::GetPrimitiveType(_assembly.Realize(), signature.GetPrimitiveElementType()));
-            Detail::Verify([&]{ return primitiveType.IsInitialized(); });
+            Detail::Assert([&]{ return primitiveType.IsInitialized(); });
 
             _assembly = primitiveType.GetAssembly();
             _type = Metadata::RowReference::FromToken(primitiveType.GetMetadataToken());
@@ -277,7 +278,7 @@ namespace CxxReflect {
             }
             default:
             {
-                Detail::VerifyFail("Not yet implemented");
+                Detail::AssertFail(L"NYI");
                 break;
             }
             }
@@ -297,7 +298,7 @@ namespace CxxReflect {
 
     Metadata::TypeDefRow Type::GetTypeDefRow() const
     {
-        Detail::Verify([&]{ return IsTypeDef(); });
+        Detail::Assert([&]{ return IsTypeDef(); });
 
         return _assembly
             .Realize()
@@ -308,7 +309,7 @@ namespace CxxReflect {
 
     Metadata::TypeSignature Type::GetTypeSpecSignature() const
     {
-        Detail::Verify([&]{ return IsTypeSpec(); });
+        Detail::Assert([&]{ return IsTypeSpec(); });
 
         return _assembly
             .Realize()
@@ -320,8 +321,8 @@ namespace CxxReflect {
 
     Type::MethodIterator Type::BeginConstructors(BindingFlags flags) const
     {
-        VerifyInitialized();
-        Detail::Verify([&]{ return !flags.IsSet(BindingAttribute::InternalUseOnlyMask); });
+        AssertInitialized();
+        Detail::Assert([&]{ return !flags.IsSet(BindingAttribute::InternalUseOnlyMask); });
 
         flags.Set(BindingAttribute::InternalUseOnlyConstructor);
         flags.Set(BindingAttribute::DeclaredOnly);
@@ -338,8 +339,8 @@ namespace CxxReflect {
 
     Type::EventIterator Type::BeginEvents(BindingFlags const flags) const
     {
-        VerifyInitialized();
-        Detail::Verify([&]{ return !flags.IsSet(BindingAttribute::InternalUseOnlyMask); });
+        AssertInitialized();
+        Detail::Assert([&]{ return !flags.IsSet(BindingAttribute::InternalUseOnlyMask); });
 
         Detail::EventTable const& table(_assembly.Realize().GetContext(InternalKey()).GetOrCreateEventTable(_type));
         return EventIterator(*this, table.Begin(), table.End(), flags);
@@ -352,8 +353,8 @@ namespace CxxReflect {
 
     Type::FieldIterator Type::BeginFields(BindingFlags const flags) const
     {
-        VerifyInitialized();
-        Detail::Verify([&]{ return !flags.IsSet(BindingAttribute::InternalUseOnlyMask); });
+        AssertInitialized();
+        Detail::Assert([&]{ return !flags.IsSet(BindingAttribute::InternalUseOnlyMask); });
 
         Detail::FieldTable const& table(_assembly.Realize().GetContext(InternalKey()).GetOrCreateFieldTable(_type));
         return FieldIterator(*this, table.Begin(), table.End(), flags);
@@ -366,8 +367,8 @@ namespace CxxReflect {
 
     Type::MethodIterator Type::BeginMethods(BindingFlags const flags) const
     {
-        VerifyInitialized();
-        Detail::Verify([&]{ return !flags.IsSet(BindingAttribute::InternalUseOnlyMask); });
+        AssertInitialized();
+        Detail::Assert([&]{ return !flags.IsSet(BindingAttribute::InternalUseOnlyMask); });
 
         Detail::MethodTable const& table(_assembly.Realize().GetContext(InternalKey()).GetOrCreateMethodTable(_type));
         return MethodIterator(*this, table.Begin(), table.End(), flags);
@@ -388,15 +389,15 @@ namespace CxxReflect {
         MethodIterator it(std::find_if(BeginMethods(flags), EndMethods(), isNamedMethod));
 
         if (it == EndMethods() || std::find_if(std::next(it), EndMethods(), isNamedMethod) != EndMethods())
-            throw RuntimeError("Non-unique method");
+            throw RuntimeError(L"Non-unique method requested");
 
         return *it;
     }
 
     Type::PropertyIterator Type::BeginProperties(BindingFlags const flags) const
     {
-        VerifyInitialized();
-        Detail::Verify([&]{ return !flags.IsSet(0x10000000); });
+        AssertInitialized();
+        Detail::Assert([&]{ return !flags.IsSet(0x10000000); });
 
         Detail::PropertyTable const& table(_assembly.Realize().GetContext(InternalKey()).GetOrCreatePropertyTable(_type));
         return PropertyIterator(*this, table.Begin(), table.End(), flags);
@@ -427,7 +428,7 @@ namespace CxxReflect {
 
     Type::InterfacesRange Type::GetInterfacesRange() const
     {
-        VerifyInitialized();
+        AssertInitialized();
 
         Assembly const assembly(_assembly.Realize());
         Metadata::Database const& database(assembly.GetContext(InternalKey()).GetDatabase());
@@ -441,7 +442,7 @@ namespace CxxReflect {
 
     Type::InterfaceIterator Type::BeginInterfaces() const
     {
-        VerifyInitialized();
+        AssertInitialized();
 
         Assembly const assembly(_assembly.Realize());
         Metadata::Database const& database(assembly.GetContext(InternalKey()).GetDatabase());
@@ -452,7 +453,7 @@ namespace CxxReflect {
 
     Type::InterfaceIterator Type::EndInterfaces() const
     {
-        VerifyInitialized();
+        AssertInitialized();
 
         Assembly const assembly(_assembly.Realize());
         Metadata::Database const& database(assembly.GetContext(InternalKey()).GetDatabase());
@@ -527,7 +528,7 @@ namespace CxxReflect {
 
     StringReference Type::GetName() const
     {
-        VerifyInitialized();
+        AssertInitialized();
 
         if (IsTypeDef())
             return GetTypeDefRow().GetName();
@@ -567,7 +568,7 @@ namespace CxxReflect {
 
     bool Type::IsArray() const
     {
-        VerifyInitialized();
+        AssertInitialized();
         if (IsTypeDef()) { return false; }
 
         return TodoNotYetImplementedFlag;
@@ -592,7 +593,7 @@ namespace CxxReflect {
 
     bool Type::IsByRef() const
     {
-        VerifyInitialized();
+        AssertInitialized();
 
         if (IsTypeDef()) { return false; }
 
@@ -601,7 +602,7 @@ namespace CxxReflect {
 
     bool Type::IsClass() const
     {
-        VerifyInitialized();
+        AssertInitialized();
 
         return !IsInterface() && !IsValueType();
     }

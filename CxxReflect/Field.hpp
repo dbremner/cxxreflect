@@ -70,7 +70,7 @@ namespace CxxReflect {
 
     private:
 
-        void VerifyInitialized() const;
+        void AssertInitialized() const;
 
         Metadata::FieldRow GetFieldRow() const;
 

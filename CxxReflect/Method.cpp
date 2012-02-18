@@ -6,7 +6,7 @@
 
 #include "CxxReflect/Assembly.hpp"
 #include "CxxReflect/CustomAttribute.hpp"
-#include "CxxReflect/MetadataLoader.hpp"
+#include "CxxReflect/Loader.hpp"
 #include "CxxReflect/Method.hpp"
 #include "CxxReflect/Type.hpp"
 
@@ -20,9 +20,9 @@ namespace CxxReflect {
         : _reflectedType(reflectedType),
           _context(context)
     {
-        Detail::VerifyNotNull(context);
-        Detail::Verify([&]{ return reflectedType.IsInitialized(); });
-        Detail::Verify([&]{ return context->IsInitialized();      });
+        Detail::AssertNotNull(context);
+        Detail::Assert([&]{ return reflectedType.IsInitialized(); });
+        Detail::Assert([&]{ return context->IsInitialized();      });
     }
 
     bool Method::IsInitialized() const
@@ -35,21 +35,21 @@ namespace CxxReflect {
         return !IsInitialized();
     }
 
-    void Method::VerifyInitialized() const
+    void Method::AssertInitialized() const
     {
-        Detail::Verify([&]{ return IsInitialized(); });
+        Detail::Assert([&]{ return IsInitialized(); });
     }
 
     Detail::MethodContext const& Method::GetContext(InternalKey) const
     {
-        VerifyInitialized();
+        AssertInitialized();
         return *_context.Get();
     }
 
     Type Method::GetDeclaringType() const
     {
-        VerifyInitialized();
-        MetadataLoader          const& loader  (_reflectedType.Realize().GetAssembly().GetContext(InternalKey()).GetLoader());
+        AssertInitialized();
+        Loader                  const& loader  (_reflectedType.Realize().GetAssembly().GetContext(InternalKey()).GetLoader());
         Metadata::Database      const& database(_context.Get()->GetDeclaringType().GetDatabase());
         Detail::AssemblyContext const& context (loader.GetContextForDatabase(database, InternalKey()));
         Assembly                const  assembly(&context, InternalKey());
@@ -59,7 +59,7 @@ namespace CxxReflect {
 
     Type Method::GetReflectedType() const
     {
-        VerifyInitialized();
+        AssertInitialized();
         return _reflectedType.Realize();
     }
 
@@ -96,7 +96,7 @@ namespace CxxReflect {
 
     Metadata::MethodDefRow Method::GetMethodDefRow() const
     {
-        VerifyInitialized();
+        AssertInitialized();
         return _context.Get()->GetMemberRow();
     }
 
@@ -186,7 +186,7 @@ namespace CxxReflect {
 
     CustomAttributeIterator Method::BeginCustomAttributes() const
     {
-        VerifyInitialized();
+        AssertInitialized();
 
         // TODO Is this usage of AsRowReference() safe?
         return CustomAttribute::BeginFor(
@@ -197,7 +197,7 @@ namespace CxxReflect {
 
     CustomAttributeIterator Method::EndCustomAttributes() const
     {
-        VerifyInitialized();
+        AssertInitialized();
 
         // TODO Is this usage of AsRowReference() safe?
         return CustomAttribute::EndFor(
@@ -208,7 +208,7 @@ namespace CxxReflect {
 
     Method::ParameterIterator Method::BeginParameters() const
     {
-        VerifyInitialized();
+        AssertInitialized();
 
         return ParameterIterator(*this, Detail::ParameterData(
             _context.Get()->GetMemberRow().GetFirstParameter(),
@@ -218,7 +218,7 @@ namespace CxxReflect {
 
     Method::ParameterIterator Method::EndParameters() const
     {
-        VerifyInitialized();
+        AssertInitialized();
 
         return ParameterIterator(*this, Detail::ParameterData(
             _context.Get()->GetMemberRow().GetLastParameter(),

@@ -10,7 +10,7 @@ namespace CxxReflect {
 
     Guid::Guid(String const&)
     {
-        Detail::VerifyFail("Not Yet Implemented due to linker bug with WinMD generation.");
+        Detail::AssertFail(L"Not Yet Implemented due to linker bug with WinMD generation.");
 
         // std::wistringstream iss(guid.c_str());
         // if (!(iss >> *this >> std::ws) || !iss.eof())

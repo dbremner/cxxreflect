@@ -5,10 +5,11 @@
 #include "CxxReflect/PrecompiledHeaders.hpp"
 
 #include "CxxReflect/Assembly.hpp"
+#include "CxxReflect/AssemblyName.hpp"
 #include "CxxReflect/CoreInternals.hpp"
 #include "CxxReflect/Event.hpp"
 #include "CxxReflect/Field.hpp"
-#include "CxxReflect/MetadataLoader.hpp"
+#include "CxxReflect/Loader.hpp"
 #include "CxxReflect/Method.hpp"
 #include "CxxReflect/Parameter.hpp"
 #include "CxxReflect/Property.hpp"
@@ -18,7 +19,7 @@ namespace CxxReflect { namespace Detail { namespace { namespace Private {
 
     // TODO We could refactor much of the code in these four 'PlaceMemberIntoBuffer' functions.
 
-    void PlaceMemberIntoBuffer(MetadataLoader            const&,
+    void PlaceMemberIntoBuffer(Loader                    const&,
                                std::vector<EventContext>      & buffer,
                                EventContext              const& newEvent,
                                SizeType                  const )
@@ -27,7 +28,7 @@ namespace CxxReflect { namespace Detail { namespace { namespace Private {
         buffer.push_back(newEvent);
     }
 
-    void PlaceMemberIntoBuffer(MetadataLoader            const&,
+    void PlaceMemberIntoBuffer(Loader                    const&,
                                std::vector<FieldContext>      & buffer,
                                FieldContext              const& newField,
                                SizeType                  const )
@@ -37,7 +38,7 @@ namespace CxxReflect { namespace Detail { namespace { namespace Private {
         buffer.push_back(newField);
     }
 
-    void PlaceMemberIntoBuffer(MetadataLoader             const& loader,
+    void PlaceMemberIntoBuffer(Loader                     const& loader,
                                std::vector<MethodContext>      & buffer,
                                MethodContext              const& newMethod,
                                SizeType                   const  inheritedMethodCount)
@@ -89,7 +90,7 @@ namespace CxxReflect { namespace Detail { namespace { namespace Private {
             : (void)(*bufferIt = newMethod);
     }
 
-    void PlaceMemberIntoBuffer(MetadataLoader               const&,
+    void PlaceMemberIntoBuffer(Loader                       const&,
                                std::vector<PropertyContext>      & buffer,
                                PropertyContext              const& newProperty,
                                SizeType                     const  )
@@ -110,63 +111,63 @@ namespace CxxReflect { namespace Detail { namespace { namespace Private {
     }
 
     template <typename TMemberRow>
-    IndexType GetFirstMemberIndex(Metadata::Database const& database, Metadata::TypeDefRow const& type);
+    SizeType GetFirstMemberIndex(Metadata::Database const& database, Metadata::TypeDefRow const& type);
 
     template <typename TMemberRow>
-    IndexType GetLastMemberIndex(Metadata::Database const& database, Metadata::TypeDefRow const& type);
+    SizeType GetLastMemberIndex(Metadata::Database const& database, Metadata::TypeDefRow const& type);
 
     template <>
-    IndexType GetFirstMemberIndex<Metadata::EventRow>(Metadata::Database   const&,
-                                                      Metadata::TypeDefRow const&)
-    {
-        return 0; // TODO
-    }
-
-    template <>
-    IndexType GetLastMemberIndex<Metadata::EventRow>(Metadata::Database   const&,
+    SizeType GetFirstMemberIndex<Metadata::EventRow>(Metadata::Database   const&,
                                                      Metadata::TypeDefRow const&)
     {
         return 0; // TODO
     }
 
     template <>
-    IndexType GetFirstMemberIndex<Metadata::FieldRow>(Metadata::Database   const&,
-                                                      Metadata::TypeDefRow const& type)
-    {
-        return type.GetFirstField().GetIndex();
-    }
-
-    template <>
-    IndexType GetLastMemberIndex<Metadata::FieldRow>(Metadata::Database   const&,
-                                                     Metadata::TypeDefRow const& type)
-    {
-        return type.GetLastField().GetIndex();
-    }
-
-    template <>
-    IndexType GetFirstMemberIndex<Metadata::MethodDefRow>(Metadata::Database   const&,
-                                                          Metadata::TypeDefRow const& type)
-    {
-        return type.GetFirstMethod().GetIndex();
-    }
-
-    template <>
-    IndexType GetLastMemberIndex<Metadata::MethodDefRow>(Metadata::Database   const&,
-                                                         Metadata::TypeDefRow const& type)
-    {
-        return type.GetLastMethod().GetIndex();
-    }
-
-    template <>
-    IndexType GetFirstMemberIndex<Metadata::PropertyRow>(Metadata::Database   const&,
-                                                         Metadata::TypeDefRow const&)
+    SizeType GetLastMemberIndex<Metadata::EventRow>(Metadata::Database   const&,
+                                                    Metadata::TypeDefRow const&)
     {
         return 0; // TODO
     }
 
     template <>
-    IndexType GetLastMemberIndex<Metadata::PropertyRow>(Metadata::Database   const&,
+    SizeType GetFirstMemberIndex<Metadata::FieldRow>(Metadata::Database   const&,
+                                                     Metadata::TypeDefRow const& type)
+    {
+        return type.GetFirstField().GetIndex();
+    }
+
+    template <>
+    SizeType GetLastMemberIndex<Metadata::FieldRow>(Metadata::Database   const&,
+                                                    Metadata::TypeDefRow const& type)
+    {
+        return type.GetLastField().GetIndex();
+    }
+
+    template <>
+    SizeType GetFirstMemberIndex<Metadata::MethodDefRow>(Metadata::Database   const&,
+                                                         Metadata::TypeDefRow const& type)
+    {
+        return type.GetFirstMethod().GetIndex();
+    }
+
+    template <>
+    SizeType GetLastMemberIndex<Metadata::MethodDefRow>(Metadata::Database   const&,
+                                                        Metadata::TypeDefRow const& type)
+    {
+        return type.GetLastMethod().GetIndex();
+    }
+
+    template <>
+    SizeType GetFirstMemberIndex<Metadata::PropertyRow>(Metadata::Database   const&,
                                                         Metadata::TypeDefRow const&)
+    {
+        return 0; // TODO
+    }
+
+    template <>
+    SizeType GetLastMemberIndex<Metadata::PropertyRow>(Metadata::Database   const&,
+                                                       Metadata::TypeDefRow const&)
     {
         return 0; // TODO
     }
@@ -187,8 +188,8 @@ namespace CxxReflect { namespace Detail {
         : _declaringType(declaringType),
           _member       (member       )
     {
-        VerifyInitialized();
-        Verify([&]{ return declaringType.IsRowReference(); });
+        AssertInitialized();
+        Assert([&]{ return declaringType.IsRowReference(); });
     }
 
     template <typename TMember, typename TMemberRow, typename TMemberSignature>
@@ -196,34 +197,34 @@ namespace CxxReflect { namespace Detail {
         Metadata::FullReference const& declaringType,
         Metadata::RowReference  const& member,
         Metadata::FullReference const& instantiatingType,
-        ByteRange               const& instantiatedSignature)
+        ConstByteRange          const& instantiatedSignature)
         : _declaringType        (declaringType        ),
           _member               (member               ),
           _instantiatingType    (instantiatingType    ),
           _instantiatedSignature(instantiatedSignature)
     {
-        VerifyInitialized();
-        Verify([&]{ return declaringType.IsRowReference(); });
+        AssertInitialized();
+        Assert([&]{ return declaringType.IsRowReference(); });
     }
 
     template <typename TMember, typename TMemberRow, typename TMemberSignature>
     TMember MemberContext<TMember, TMemberRow, TMemberSignature>::Resolve(Type const& reflectedType) const
     {
-        VerifyInitialized();
+        AssertInitialized();
         return TMember(reflectedType, this, InternalKey());
     }
 
     template <typename TMember, typename TMemberRow, typename TMemberSignature>
     Metadata::FullReference MemberContext<TMember, TMemberRow, TMemberSignature>::GetDeclaringType() const
     {
-        VerifyInitialized();
+        AssertInitialized();
         return _declaringType;
     }
 
     template <typename TMember, typename TMemberRow, typename TMemberSignature>
     Metadata::FullReference MemberContext<TMember, TMemberRow, TMemberSignature>::GetMember() const
     {
-        VerifyInitialized();
+        AssertInitialized();
         return Metadata::FullReference(&_declaringType.GetDatabase(), _member);
     }
 
@@ -231,7 +232,7 @@ namespace CxxReflect { namespace Detail {
     TMemberRow MemberContext<TMember, TMemberRow, TMemberSignature>::GetMemberRow() const
     {
         Metadata::TableId const TId(static_cast<Metadata::TableId>(Metadata::RowTypeToTableId<TMemberRow>::Value));
-        VerifyInitialized();
+        AssertInitialized();
         return _declaringType
             .GetDatabase()
             .GetRow<TId>(_member);
@@ -240,7 +241,7 @@ namespace CxxReflect { namespace Detail {
     template <typename TMember, typename TMemberRow, typename TMemberSignature>
     TMemberSignature MemberContext<TMember, TMemberRow, TMemberSignature>::GetMemberSignature() const
     {
-        VerifyInitialized();
+        AssertInitialized();
         if (HasInstantiatedSignature())
         {
             return TMemberSignature(_instantiatedSignature.Begin(), _instantiatedSignature.End());
@@ -257,28 +258,28 @@ namespace CxxReflect { namespace Detail {
     template <typename TMember, typename TMemberRow, typename TMemberSignature>
     bool MemberContext<TMember, TMemberRow, TMemberSignature>::HasInstantiatingType() const
     {
-        VerifyInitialized();
+        AssertInitialized();
         return _instantiatingType.IsInitialized();
     }
 
     template <typename TMember, typename TMemberRow, typename TMemberSignature>
     Metadata::FullReference MemberContext<TMember, TMemberRow, TMemberSignature>::GetInstantiatingType() const
     {
-        Verify([&]{ return HasInstantiatingType(); });
+        Assert([&]{ return HasInstantiatingType(); });
         return _instantiatingType;
     }
 
     template <typename TMember, typename TMemberRow, typename TMemberSignature>
     bool MemberContext<TMember, TMemberRow, TMemberSignature>::HasInstantiatedSignature() const
     {
-        VerifyInitialized();
+        AssertInitialized();
         return _instantiatedSignature.IsInitialized();
     }
 
     template <typename TMember, typename TMemberRow, typename TMemberSignature>
-    ByteRange MemberContext<TMember, TMemberRow, TMemberSignature>::GetInstantiatedSignature() const
+    ConstByteRange MemberContext<TMember, TMemberRow, TMemberSignature>::GetInstantiatedSignature() const
     {
-        Verify([&]{ return HasInstantiatedSignature(); });
+        Assert([&]{ return HasInstantiatedSignature(); });
         return _instantiatedSignature;
     }
 
@@ -289,9 +290,9 @@ namespace CxxReflect { namespace Detail {
     }
 
     template <typename TMember, typename TMemberRow, typename TMemberSignature>
-    void MemberContext<TMember, TMemberRow, TMemberSignature>::VerifyInitialized() const
+    void MemberContext<TMember, TMemberRow, TMemberSignature>::AssertInitialized() const
     {
-        Verify([&]{ return IsInitialized(); });
+        Assert([&]{ return IsInitialized(); });
     }
 
     template class MemberContext<Event,    Metadata::EventRow,     Metadata::TypeSignature    >;
@@ -304,11 +305,10 @@ namespace CxxReflect { namespace Detail {
 
 
     template <typename TMember, typename TMemberRow, typename TMemberSignature>
-    MemberTableCollection<TMember, TMemberRow, TMemberSignature>::MemberTableCollection(
-        MetadataLoader const* const loader)
+    MemberTableCollection<TMember, TMemberRow, TMemberSignature>::MemberTableCollection(Loader const* const loader)
         : _loader(loader)
     {
-        VerifyNotNull(loader);
+        AssertNotNull(loader);
     }
 
     template <typename TMember, typename TMemberRow, typename TMemberSignature>
@@ -397,9 +397,13 @@ namespace CxxReflect { namespace Detail {
                 .GetBlob(Private::GetSignatureFromRow(memberDef))
                 .As<MemberSignatureType>());
 
-            ByteRange const instantiatedSig(instantiator.HasArguments() && Instantiator::RequiresInstantiation(memberSig)
+            bool const requiresInstantiation(
+                instantiator.HasArguments() &&
+                Instantiator::RequiresInstantiation(memberSig));
+
+            ConstByteRange const instantiatedSig(requiresInstantiation
                 ? Instantiate(instantiator, memberSig)
-                : ByteRange(memberSig.BeginBytes(), memberSig.EndBytes()));
+                : ConstByteRange(memberSig.BeginBytes(), memberSig.EndBytes()));
 
             Metadata::RowReference const memberDefReference(memberDef.GetSelfReference());
 
@@ -421,14 +425,14 @@ namespace CxxReflect { namespace Detail {
     typename MemberTableCollection<TMember, TMemberRow, TMemberSignature>::TypeDefAndSpec
     MemberTableCollection<TMember, TMemberRow, TMemberSignature>::ResolveTypeDefAndSpec(FullReference const& type) const
     {
-        FullReference const resolvedType(_loader.Get()->ResolveType(type, InternalKey()));
+        FullReference const resolvedType(_loader.Get()->ResolveType(type));
 
         // If we have a TypeDef, there is no TypeSpec, so we can just return the TypeDef directly:
         if (resolvedType.AsRowReference().GetTable() == Metadata::TableId::TypeDef)
             return std::make_pair(resolvedType, FullReference());
 
         // Otherwise, we have a TypeSpec, and we need to resolve the TypeDef to which it refers:
-        Verify([&]{ return resolvedType.AsRowReference().GetTable() == Metadata::TableId::TypeSpec; });
+        Assert([&]{ return resolvedType.AsRowReference().GetTable() == Metadata::TableId::TypeSpec; });
 
         Metadata::TypeSpecRow const typeSpec(resolvedType
             .GetDatabase()
@@ -440,15 +444,14 @@ namespace CxxReflect { namespace Detail {
             .As<Metadata::TypeSignature>());
 
         // We aren't expecting any other kinds of type signatures to be used as base classes:
-        Verify([&]{ return typeSignature.GetKind() == Metadata::TypeSignature::Kind::GenericInst; });
+        Assert([&]{ return typeSignature.GetKind() == Metadata::TypeSignature::Kind::GenericInst; });
 
         FullReference const reResolvedType(_loader.Get()->ResolveType(
-            FullReference(&resolvedType.GetDatabase(), typeSignature.GetGenericTypeReference()),
-            InternalKey()));
+            FullReference(&resolvedType.GetDatabase(), typeSignature.GetGenericTypeReference())));
 
         // A GenericInst should refer to a TypeDef or a TypeRef, never another TypeSpec.  We resolve
         // the TypeRef above, so at this point we should always have a TypeDef:
-        Verify([&]{ return reResolvedType.AsRowReference().GetTable() == Metadata::TableId::TypeDef; });
+        Assert([&]{ return reResolvedType.AsRowReference().GetTable() == Metadata::TableId::TypeDef; });
 
         return std::make_pair(reResolvedType, resolvedType);
     }
@@ -465,7 +468,7 @@ namespace CxxReflect { namespace Detail {
             .GetBlob(type.GetDatabase().GetRow<Metadata::TableId::TypeSpec>(type).GetSignature())
             .As<Metadata::TypeSignature>());
 
-        Verify([&]{ return signature.GetKind() == Metadata::TypeSignature::Kind::GenericInst; });
+        Assert([&]{ return signature.GetKind() == Metadata::TypeSignature::Kind::GenericInst; });
 
         return Metadata::ClassVariableSignatureInstantiator(
             signature.BeginGenericArguments(),
@@ -473,18 +476,18 @@ namespace CxxReflect { namespace Detail {
     }
 
     template <typename TMember, typename TMemberRow, typename TMemberSignature>
-    ByteRange MemberTableCollection<TMember, TMemberRow, TMemberSignature>::Instantiate(
+    ConstByteRange MemberTableCollection<TMember, TMemberRow, TMemberSignature>::Instantiate(
         Instantiator        const& instantiator,
         MemberSignatureType const& signature) const
     {
-        Verify([&]{ return signature.IsInitialized(); });
-        Verify([&]{ return Instantiator::RequiresInstantiation(signature); });
+        Assert([&]{ return signature.IsInitialized(); });
+        Assert([&]{ return Instantiator::RequiresInstantiation(signature); });
 
         MemberSignatureType const& instantiation(instantiator.Instantiate(signature));
         SizeType const instantiationSize(
             static_cast<SizeType>(std::distance(instantiation.BeginBytes(), instantiation.EndBytes())));
 
-        MutableByteRange const ownedInstantiation(_signatureAllocator.Allocate(instantiationSize));
+        ByteRange const ownedInstantiation(_signatureAllocator.Allocate(instantiationSize));
 
         RangeCheckedCopy(
             instantiation.BeginBytes(), instantiation.EndBytes(),
@@ -510,7 +513,7 @@ namespace CxxReflect { namespace Detail {
 
 
 
-    AssemblyContext::AssemblyContext(MetadataLoader const* const loader, String path, Metadata::Database&& database)
+    AssemblyContext::AssemblyContext(Loader const* const loader, String path, Metadata::Database&& database)
         : _loader(loader),
           _path(std::move(path)),
           _database(std::move(database)),
@@ -519,8 +522,8 @@ namespace CxxReflect { namespace Detail {
           _methods(loader),
           _properties(loader)
     {
-        VerifyNotNull(_loader.Get());
-        Verify([&]{ return !_path.empty(); });
+        AssertNotNull(_loader.Get());
+        Assert([&]{ return !_path.empty(); });
     }
 
     AssemblyContext::AssemblyContext(AssemblyContext&& other)
@@ -558,28 +561,28 @@ namespace CxxReflect { namespace Detail {
         swap(other._properties, _properties);
     }
 
-    MetadataLoader const& AssemblyContext::GetLoader() const
+    Loader const& AssemblyContext::GetLoader() const
     {
-        VerifyInitialized();
+        AssertInitialized();
         return *_loader.Get();
     }
 
     Metadata::Database const& AssemblyContext::GetDatabase() const
     {
-        VerifyInitialized();
+        AssertInitialized();
         return _database;
     }
 
     String const& AssemblyContext::GetPath() const
     {
-        VerifyInitialized();
+        AssertInitialized();
         return _path;
     }
 
     AssemblyName const& AssemblyContext::GetAssemblyName() const
     {
         RealizeName();
-        return _name;
+        return *_name;
     }
 
     EventTable const AssemblyContext::GetOrCreateEventTable(Metadata::ElementReference const& type) const
@@ -606,10 +609,10 @@ namespace CxxReflect { namespace Detail {
     {
         if (_state.IsSet(RealizedName)) { return; }
 
-        _name = AssemblyName(
+        _name.reset(new AssemblyName(
             Assembly(this, InternalKey()),
             Metadata::RowReference(Metadata::TableId::Assembly, 0),
-            InternalKey());
+            InternalKey()));
 
         _state.Set(RealizedName);
     }
@@ -619,9 +622,9 @@ namespace CxxReflect { namespace Detail {
         return _loader.Get() != nullptr;
     }
 
-    void AssemblyContext::VerifyInitialized() const
+    void AssemblyContext::AssertInitialized() const
     {
-        Verify([&]{ return IsInitialized(); });
+        Assert([&]{ return IsInitialized(); });
     }
 
 
@@ -635,18 +638,18 @@ namespace CxxReflect { namespace Detail {
     AssemblyHandle::AssemblyHandle(AssemblyContext const* context)
         : _context(context)
     {
-        VerifyInitialized();
+        AssertInitialized();
     }
 
     AssemblyHandle::AssemblyHandle(Assembly const& assembly)
         : _context(&assembly.GetContext(InternalKey()))
     {
-        VerifyInitialized();
+        AssertInitialized();
     }
 
     Assembly AssemblyHandle::Realize() const
     {
-        VerifyInitialized();
+        AssertInitialized();
         return Assembly(_context.Get(), InternalKey());
     }
 
@@ -655,9 +658,9 @@ namespace CxxReflect { namespace Detail {
         return _context.Get() != nullptr;
     }
 
-    void AssemblyHandle::VerifyInitialized() const
+    void AssemblyHandle::AssertInitialized() const
     {
-        Verify([&]{ return IsInitialized(); });
+        Assert([&]{ return IsInitialized(); });
     }
 
     bool operator==(AssemblyHandle const& lhs, AssemblyHandle const& rhs)
@@ -685,7 +688,7 @@ namespace CxxReflect { namespace Detail {
           _reflectedTypeReference(reflectedTypeReference),
           _methodContext(methodContext)
     {
-        VerifyInitialized();
+        AssertInitialized();
     }
 
     MethodHandle::MethodHandle(Method const& method)
@@ -693,12 +696,12 @@ namespace CxxReflect { namespace Detail {
           _reflectedTypeReference(method.GetReflectedType().GetSelfReference(InternalKey())),
           _methodContext(&method.GetContext(InternalKey()))
     {
-        VerifyInitialized();
+        AssertInitialized();
     }
 
     Method MethodHandle::Realize() const
     {
-        VerifyInitialized();
+        AssertInitialized();
         Assembly const assembly(_reflectedTypeAssemblyContext.Get(), InternalKey());
 
         Type const reflectedType(_reflectedTypeReference.IsRowReference()
@@ -715,9 +718,9 @@ namespace CxxReflect { namespace Detail {
             && _methodContext.Get() != nullptr;
     }
 
-    void MethodHandle::VerifyInitialized() const
+    void MethodHandle::AssertInitialized() const
     {
-        Verify([&]{ return IsInitialized(); });
+        Assert([&]{ return IsInitialized(); });
     }
 
     bool operator==(MethodHandle const& lhs, MethodHandle const& rhs)
@@ -749,7 +752,7 @@ namespace CxxReflect { namespace Detail {
           _parameterReference(parameterReference),
           _parameterSignature(parameterSignature)
     {
-        VerifyInitialized();
+        AssertInitialized();
     }
 
     ParameterHandle::ParameterHandle(Parameter const& parameter)
@@ -759,12 +762,12 @@ namespace CxxReflect { namespace Detail {
           _parameterReference(parameter.GetSelfReference(InternalKey())),
           _parameterSignature(parameter.GetSelfSignature(InternalKey()))
     {
-        VerifyInitialized();
+        AssertInitialized();
     }
 
     Parameter ParameterHandle::Realize() const
     {
-        VerifyInitialized();
+        AssertInitialized();
         Assembly const assembly(_reflectedTypeAssemblyContext.Get(), InternalKey());
 
         Type const reflectedType(_reflectedTypeReference.IsRowReference()
@@ -790,9 +793,9 @@ namespace CxxReflect { namespace Detail {
             && _parameterSignature.IsInitialized();
     }
 
-    void ParameterHandle::VerifyInitialized() const
+    void ParameterHandle::AssertInitialized() const
     {
-        Verify([&]{ return IsInitialized(); });
+        Assert([&]{ return IsInitialized(); });
     }
 
     bool operator==(ParameterHandle const& lhs, ParameterHandle const& rhs)
@@ -818,19 +821,19 @@ namespace CxxReflect { namespace Detail {
         : _assemblyContext(assemblyContext),
           _typeReference(typeReference)
     {
-        VerifyInitialized();
+        AssertInitialized();
     }
 
     TypeHandle::TypeHandle(Type const& type)
         : _assemblyContext(&type.GetAssembly().GetContext(InternalKey())),
           _typeReference(type.GetSelfReference(InternalKey()))
     {
-        VerifyInitialized();
+        AssertInitialized();
     }
 
     Type TypeHandle::Realize() const
     {
-        VerifyInitialized();
+        AssertInitialized();
         Assembly const assembly(_assemblyContext.Get(), InternalKey());
         return _typeReference.IsRowReference()
             ? Type(assembly, _typeReference.AsRowReference(),  InternalKey())
@@ -842,9 +845,9 @@ namespace CxxReflect { namespace Detail {
         return _assemblyContext.Get() != nullptr && _typeReference.IsInitialized();
     }
 
-    void TypeHandle::VerifyInitialized() const
+    void TypeHandle::AssertInitialized() const
     {
-        Verify([&]{ return IsInitialized(); });
+        Assert([&]{ return IsInitialized(); });
     }
 
     bool operator==(TypeHandle const& lhs, TypeHandle const& rhs)
@@ -870,7 +873,7 @@ namespace CxxReflect { namespace Detail {
                                  InternalKey)
         : _parameter(parameter), _signature(signature)
     {
-        VerifyInitialized();
+        AssertInitialized();
     }
 
     bool ParameterData::IsInitialized() const
@@ -878,14 +881,14 @@ namespace CxxReflect { namespace Detail {
         return _parameter.IsInitialized();
     }
 
-    void ParameterData::VerifyInitialized() const
+    void ParameterData::AssertInitialized() const
     {
-        Verify([&]{ return IsInitialized(); });
+        Assert([&]{ return IsInitialized(); });
     }
 
     ParameterData& ParameterData::operator++()
     {
-        VerifyInitialized();
+        AssertInitialized();
 
         ++_parameter;
         ++_signature;
@@ -901,30 +904,30 @@ namespace CxxReflect { namespace Detail {
 
     bool operator==(ParameterData const& lhs, ParameterData const& rhs)
     {
-        lhs.VerifyInitialized();
-        rhs.VerifyInitialized();
+        lhs.AssertInitialized();
+        rhs.AssertInitialized();
 
         return lhs._parameter == rhs._parameter;
     }
 
     bool operator< (ParameterData const& lhs, ParameterData const& rhs)
     {
-        lhs.VerifyInitialized();
-        rhs.VerifyInitialized();
+        lhs.AssertInitialized();
+        rhs.AssertInitialized();
 
         return lhs._parameter < rhs._parameter;
     }
 
     Metadata::RowReference const& ParameterData::GetParameter() const
     {
-        VerifyInitialized();
+        AssertInitialized();
 
         return _parameter;
     }
 
     Metadata::TypeSignature const& ParameterData::GetSignature() const
     {
-        VerifyInitialized();
+        AssertInitialized();
 
         return *_signature;
     }
@@ -933,9 +936,14 @@ namespace CxxReflect { namespace Detail {
 
 namespace CxxReflect {
 
+    IAssemblyLocator::~IAssemblyLocator()
+    {
+        // Virtual destructor required for interface class
+    }
+
     bool Utility::IsSystemAssembly(Assembly const& assembly)
     {
-        Detail::Verify([&]{ return assembly.IsInitialized(); });
+        Detail::Assert([&]{ return assembly.IsInitialized(); });
 
         return assembly.GetReferencedAssemblyCount() == 0;
     }
@@ -944,7 +952,7 @@ namespace CxxReflect {
                                StringReference const& systemTypeNamespace,
                                StringReference const& systemTypeSimpleName)
     {
-        Detail::Verify([&]{ return type.IsInitialized(); });
+        Detail::Assert([&]{ return type.IsInitialized(); });
 
         return IsSystemAssembly(type.GetAssembly())
             && type.GetNamespace() == systemTypeNamespace
@@ -956,7 +964,7 @@ namespace CxxReflect {
                                           StringReference const& systemTypeSimpleName,
                                           bool                   includeSelf)
     {
-        Detail::Verify([&]{ return type.IsInitialized(); });
+        Detail::Assert([&]{ return type.IsInitialized(); });
 
         Type currentType(type);
         if (!includeSelf && currentType)
@@ -975,28 +983,28 @@ namespace CxxReflect {
 
     Assembly Utility::GetSystemAssembly(Type const& referenceType)
     {
-        Detail::Verify([&]{ return referenceType.IsInitialized(); });
+        Detail::Assert([&]{ return referenceType.IsInitialized(); });
 
         return GetSystemObjectType(referenceType).GetAssembly();
     }
 
     Assembly Utility::GetSystemAssembly(Assembly const& referenceAssembly)
     {
-        Detail::Verify([&]{ return referenceAssembly.IsInitialized(); });
+        Detail::Assert([&]{ return referenceAssembly.IsInitialized(); });
 
         return GetSystemObjectType(referenceAssembly).GetAssembly();
     }
 
     Type Utility::GetSystemObjectType(Type const& referenceType)
     {
-        Detail::Verify([&]{ return referenceType.IsInitialized(); });
+        Detail::Assert([&]{ return referenceType.IsInitialized(); });
 
         Type currentType(referenceType);
         while (currentType.GetBaseType())
             currentType = currentType.GetBaseType();
 
-        Detail::Verify([&]{ return currentType.GetFullName() == L"System.Object"; });
-        Detail::Verify([&]{ return IsSystemAssembly(currentType.GetAssembly());   });
+        Detail::Assert([&]{ return currentType.GetFullName() == L"System.Object"; });
+        Detail::Assert([&]{ return IsSystemAssembly(currentType.GetAssembly());   });
         // TODO This should be a hard-verified error condition:  an ill-formed assembly might have a
         // type not derived from the One True Object type.
 
@@ -1005,25 +1013,25 @@ namespace CxxReflect {
 
     Type Utility::GetSystemObjectType(Assembly const& referenceAssembly)
     {
-        Detail::Verify([&]{ return referenceAssembly.IsInitialized(); });
+        Detail::Assert([&]{ return referenceAssembly.IsInitialized(); });
 
         if (referenceAssembly.BeginTypes() != referenceAssembly.EndTypes())
             return GetSystemObjectType(*referenceAssembly.BeginTypes());
 
-        MetadataLoader const& loader(referenceAssembly.GetContext(InternalKey()).GetLoader());
+        Loader const& loader(referenceAssembly.GetContext(InternalKey()).GetLoader());
 
         auto const it(std::find_if(referenceAssembly.BeginReferencedAssemblyNames(),
                                    referenceAssembly.EndReferencedAssemblyNames(),
                                    [&](AssemblyName const& assemblyName) -> bool
         {
             Assembly const assembly(loader.LoadAssembly(assemblyName));
-            Detail::Verify([&]{ return assembly.IsInitialized(); });
+            Detail::Assert([&]{ return assembly.IsInitialized(); });
             // TODO Should this be a hard-verified error?
 
             return assembly.BeginTypes() != assembly.EndTypes();
         }));
 
-        Detail::Verify([&]{ return it != referenceAssembly.EndReferencedAssemblyNames(); });
+        Detail::Assert([&]{ return it != referenceAssembly.EndReferencedAssemblyNames(); });
         // TODO That should probably be hard-verified, to handle ill-formed assemblies.
 
         Assembly const foundReferenceAssembly(loader.LoadAssembly(*it));
@@ -1055,15 +1063,15 @@ namespace CxxReflect {
 
         case Metadata::ElementType::TypedByRef:
         default:
-            Detail::VerifyFail("Not Yet Implemented"); // TODO
+            Detail::AssertFail(L"NYI");
             break;
         }
 
         Assembly const systemAssembly(GetSystemAssembly(referenceAssembly));
-        Detail::Verify([&]{ return systemAssembly.IsInitialized(); });
+        Detail::Assert([&]{ return systemAssembly.IsInitialized(); });
 
         Type const primitiveType(systemAssembly.GetType(L"System", primitiveTypeName));
-        Detail::Verify([&]{ return primitiveType.IsInitialized(); });
+        Detail::Assert([&]{ return primitiveType.IsInitialized(); });
 
         return primitiveType;
     }

@@ -5,22 +5,19 @@
 #include "CxxReflect/PrecompiledHeaders.hpp"
 
 #include "CxxReflect/Assembly.hpp"
-#include "CxxReflect/MetadataLoader.hpp"
+#include "CxxReflect/AssemblyName.hpp"
+#include "CxxReflect/Loader.hpp"
 #include "CxxReflect/Method.hpp"
 #include "CxxReflect/Type.hpp"
 
 namespace CxxReflect {
 
-    IMetadataResolver::~IMetadataResolver()
-    {
-    }
-
-    DirectoryBasedMetadataResolver::DirectoryBasedMetadataResolver(DirectorySet const& directories)
+    DirectoryBasedAssemblyLocator::DirectoryBasedAssemblyLocator(DirectorySet const& directories)
         : _directories(std::move(directories))
     {
     }
 
-    String DirectoryBasedMetadataResolver::ResolveAssembly(AssemblyName const& name) const
+    String DirectoryBasedAssemblyLocator::LocateAssembly(AssemblyName const& name) const
     {
         using std::begin;
         using std::end;
@@ -41,25 +38,25 @@ namespace CxxReflect {
         return L"";
     }
 
-    String DirectoryBasedMetadataResolver::ResolveAssembly(AssemblyName const& name, String const&) const
+    String DirectoryBasedAssemblyLocator::LocateAssembly(AssemblyName const& name, String const&) const
     {
         // The directory-based resolver does not utilize namespace-based resolution, so we can
         // defer directly to the assembly-based resolution function.
-        return ResolveAssembly(name);
+        return LocateAssembly(name);
     }
 
-    MetadataLoader::MetadataLoader(std::unique_ptr<IMetadataResolver> resolver)
-        : _resolver(std::move(resolver))
+    Loader::Loader(std::unique_ptr<IAssemblyLocator> assemblyLocator)
+        : _assemblyLocator(std::move(assemblyLocator))
     {
-        Detail::VerifyNotNull(_resolver.get());
+        Detail::AssertNotNull(_assemblyLocator.get());
     }
 
-    IMetadataResolver const& MetadataLoader::GetResolver() const
+    IAssemblyLocator const& Loader::GetAssemblyLocator(InternalKey) const
     {
-        return *_resolver.get();
+        return *_assemblyLocator.get();
     }
 
-    Detail::AssemblyContext const& MetadataLoader::GetContextForDatabase(Metadata::Database const& database, InternalKey) const
+    Detail::AssemblyContext const& Loader::GetContextForDatabase(Metadata::Database const& database, InternalKey) const
     {
         typedef std::pair<String const, Detail::AssemblyContext> ValueType;
         auto const it(std::find_if(begin(_contexts), end(_contexts), [&](ValueType const& a)
@@ -67,13 +64,12 @@ namespace CxxReflect {
             return a.second.GetDatabase() == database;
         }));
 
-        // TODO Convert this back to the ADL 'end' once we get a compiler fix
-        Detail::Verify([&]{ return it != _contexts.end(); }, "The database is not owned by this loader");
+        Detail::Assert([&]{ return it != _contexts.end(); }, L"The database is not owned by this loader");
 
         return it->second;
     }
 
-    Metadata::FullReference MetadataLoader::ResolveType(Metadata::FullReference const& type, InternalKey) const
+    Metadata::FullReference Loader::ResolveType(Metadata::FullReference const& type) const
     {
         using namespace CxxReflect::Metadata;
 
@@ -82,7 +78,7 @@ namespace CxxReflect {
             type.AsRowReference().GetTable() == TableId::TypeSpec)
             return type;
 
-        Detail::Verify([&]{ return type.AsRowReference().GetTable() == TableId::TypeRef; });
+        Detail::Assert([&]{ return type.AsRowReference().GetTable() == TableId::TypeRef; });
 
         // Ok, we have a TypeRef;
         Database const& referenceDatabase(type.GetDatabase());
@@ -94,7 +90,7 @@ namespace CxxReflect {
         // If the resolution scope is null, we look in the ExportedType table for this type.
         if (!resolutionScope.IsValid())
         {
-            Detail::VerifyFail("Not Yet Implemented"); // TODO
+            Detail::AssertFail(L"NYI");
             return Metadata::FullReference();
         }
 
@@ -109,7 +105,7 @@ namespace CxxReflect {
 
             Type resolvedType(definingAssembly.GetType(typeRef.GetNamespace(), typeRef.GetName()));
             if (!resolvedType.IsInitialized())
-                throw RuntimeError("Failed to resolve type in module");
+                throw RuntimeError(L"Failed to resolve type in module");
 
             return Metadata::FullReference(
                 &definingAssembly.GetContext(InternalKey()).GetDatabase(),
@@ -117,7 +113,7 @@ namespace CxxReflect {
         }
         case TableId::ModuleRef:
         {
-            throw std::logic_error("Not Yet Implemented");
+            throw std::logic_error("NYI");
         }
         case TableId::AssemblyRef:
         {
@@ -128,11 +124,11 @@ namespace CxxReflect {
 
             Assembly const definingAssembly(LoadAssembly(definingAssemblyName));
             if (!definingAssembly.IsInitialized())
-                throw RuntimeError("Failed to resolve assembly reference");
+                throw RuntimeError(L"Failed to resolve assembly reference");
 
             Type const resolvedType(definingAssembly.GetType(typeRef.GetNamespace(), typeRef.GetName()));
             if (!resolvedType.IsInitialized())
-                throw RuntimeError("Failed to resolve type in assembly");
+                throw RuntimeError(L"Failed to resolve type in assembly");
 
             return Metadata::FullReference(
                 &definingAssembly.GetContext(InternalKey()).GetDatabase(),
@@ -140,19 +136,19 @@ namespace CxxReflect {
         }
         case TableId::TypeRef:
         {
-            throw std::logic_error("Not Yet Implemented");
+            throw LogicError(L"NYI");
         }
         default:
         {
             // The resolution scope must be from one of the tables in the switch; if we get here,
             // something is broken in the MetadataDatabase code.
-            Detail::VerifyFail("This is unreachable");
+            Detail::AssertFail(L"This is unreachable");
             return Metadata::FullReference();
         }
         }
     }
 
-    Assembly MetadataLoader::LoadAssembly(String path) const
+    Assembly Loader::LoadAssembly(String path) const
     {
         // TODO PATH NORMALIZATION?
         auto it(_contexts.find(path));
@@ -166,9 +162,9 @@ namespace CxxReflect {
         return Assembly(&it->second, InternalKey());
     }
 
-    Assembly MetadataLoader::LoadAssembly(AssemblyName const& name) const
+    Assembly Loader::LoadAssembly(AssemblyName const& name) const
     {
-        return LoadAssembly(_resolver->ResolveAssembly(name));
+        return LoadAssembly(_assemblyLocator->LocateAssembly(name));
     }
 
 }

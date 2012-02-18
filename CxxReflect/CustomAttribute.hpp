@@ -48,7 +48,7 @@ namespace CxxReflect {
 
     private:
 
-        void VerifyInitialized() const;
+        void AssertInitialized() const;
 
         // The value, if non-null, is resolved in the same scope as the parent.
         Metadata::FullReference _parent;

@@ -17,30 +17,30 @@ namespace CxxReflect { namespace { namespace Private {
     {
         switch (tableId)
         {
-        case Metadata::TableId::MethodDef:               return  0;
-        case Metadata::TableId::Field:                   return  1;
-        case Metadata::TableId::TypeRef:                 return  2;
-        case Metadata::TableId::TypeDef:                 return  3;
-        case Metadata::TableId::Param:                   return  4;
-        case Metadata::TableId::InterfaceImpl:           return  5;
-        case Metadata::TableId::MemberRef:               return  6;
-        case Metadata::TableId::Module:                  return  7;
-        // TODO WTF is the 'Permission' table? 
-        // case Metadata::TableId::Permission:           return  8;
-        case Metadata::TableId::Property:                return  9;
-        case Metadata::TableId::Event:                   return 10;
-        case Metadata::TableId::StandaloneSig:           return 11;
-        case Metadata::TableId::ModuleRef:               return 12;
-        case Metadata::TableId::TypeSpec:                return 13;
-        case Metadata::TableId::Assembly:                return 14;
-        case Metadata::TableId::AssemblyRef:             return 15;
-        case Metadata::TableId::File:                    return 16;
-        case Metadata::TableId::ExportedType:            return 17;
-        case Metadata::TableId::ManifestResource:        return 18;
-        case Metadata::TableId::GenericParam:            return 19;
-        case Metadata::TableId::GenericParamConstraint:  return 20;
-        case Metadata::TableId::MethodSpec:              return 21;
-        default: Detail::VerifyFail("Invalid table id"); return  0;
+        case Metadata::TableId::MethodDef:                return  0;
+        case Metadata::TableId::Field:                    return  1;
+        case Metadata::TableId::TypeRef:                  return  2;
+        case Metadata::TableId::TypeDef:                  return  3;
+        case Metadata::TableId::Param:                    return  4;
+        case Metadata::TableId::InterfaceImpl:            return  5;
+        case Metadata::TableId::MemberRef:                return  6;
+        case Metadata::TableId::Module:                   return  7;
+        // TODO WTF is the 'Permission' table?  
+        // case Metadata::TableId::Permission:            return  8;
+        case Metadata::TableId::Property:                 return  9;
+        case Metadata::TableId::Event:                    return 10;
+        case Metadata::TableId::StandaloneSig:            return 11;
+        case Metadata::TableId::ModuleRef:                return 12;
+        case Metadata::TableId::TypeSpec:                 return 13;
+        case Metadata::TableId::Assembly:                 return 14;
+        case Metadata::TableId::AssemblyRef:              return 15;
+        case Metadata::TableId::File:                     return 16;
+        case Metadata::TableId::ExportedType:             return 17;
+        case Metadata::TableId::ManifestResource:         return 18;
+        case Metadata::TableId::GenericParam:             return 19;
+        case Metadata::TableId::GenericParamConstraint:   return 20;
+        case Metadata::TableId::MethodSpec:               return 21;
+        default: Detail::AssertFail(L"Invalid table id"); return  0;
         }
     }
 
@@ -81,10 +81,10 @@ namespace CxxReflect { namespace { namespace Private {
 
     RowReferencePair GetCustomAttributesRange(Metadata::Database const& database, Metadata::RowReference const& parent)
     {
-        auto const range(std::equal_range(database.Begin<Metadata::TableId::CustomAttribute>(),
-                                          database.End<Metadata::TableId::CustomAttribute>(),
-                                          parent,
-                                          CustomAttributeStrictWeakOrdering()));;
+        auto const range(Detail::EqualRange(database.Begin<Metadata::TableId::CustomAttribute>(),
+                                            database.End<Metadata::TableId::CustomAttribute>(),
+                                            parent,
+                                            CustomAttributeStrictWeakOrdering()));;
 
         return std::make_pair(range.first.GetReference(), range.second.GetReference());
     }
@@ -101,8 +101,8 @@ namespace CxxReflect {
                                      Metadata::RowReference const& customAttribute,
                                      InternalKey)
     {
-        Detail::Verify([&]{ return assembly.IsInitialized();        });
-        Detail::Verify([&]{ return customAttribute.IsInitialized(); });
+        Detail::Assert([&]{ return assembly.IsInitialized();        });
+        Detail::Assert([&]{ return customAttribute.IsInitialized(); });
 
         Metadata::Database const& parentDatabase(assembly.GetContext(InternalKey()).GetDatabase());
         Metadata::CustomAttributeRow const customAttributeRow(parentDatabase
@@ -127,7 +127,7 @@ namespace CxxReflect {
                     && typeDef.GetLastMethod().GetIndex()  >  methodDefReference.GetIndex();
             }));
 
-            Detail::Verify([&]{ return typeDefIt != parentDatabase.End<Metadata::TableId::TypeDef>(); });
+            Detail::Assert([&]{ return typeDefIt != parentDatabase.End<Metadata::TableId::TypeDef>(); });
 
             Type const type(assembly, typeDefIt->GetSelfReference(), InternalKey());
 
@@ -143,19 +143,19 @@ namespace CxxReflect {
                 return constructor.GetMetadataToken() == methodDefReference.GetToken();
             }));
 
-            Detail::Verify([&]{ return constructorIt != type.EndConstructors(); });
+            Detail::Assert([&]{ return constructorIt != type.EndConstructors(); });
 
             _constructor = Detail::MethodHandle(*constructorIt);
         }
         else if (customAttributeRow.GetType().GetTable() == Metadata::TableId::MemberRef)
         {
             // TODO
-            Detail::VerifyFail("NYI");
+            Detail::AssertFail(L"NYI");
         }
         else
         {
             // We should never get here; the Database layer should throw if the type is invalid.
-            Detail::VerifyFail("Invalid custom attribute type");
+            Detail::AssertFail(L"Invalid custom attribute type");
         }
     }
 
@@ -187,14 +187,14 @@ namespace CxxReflect {
         return _parent.IsInitialized() && _constructor.IsInitialized();
     }
 
-    void CustomAttribute::VerifyInitialized() const
+    void CustomAttribute::AssertInitialized() const
     {
-        Detail::Verify([&]{ return IsInitialized(); });
+        Detail::Assert([&]{ return IsInitialized(); });
     }
 
     Method CustomAttribute::GetConstructor() const
     {
-        VerifyInitialized();
+        AssertInitialized();
 
         return _constructor.Realize();
     }

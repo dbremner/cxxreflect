@@ -8,9 +8,30 @@
 #ifndef CXXREFLECT_COREINTERNALS_HPP_
 #define CXXREFLECT_COREINTERNALS_HPP_
 
-#include "CxxReflect/AssemblyName.hpp"
 #include "CxxReflect/MetadataDatabase.hpp"
 #include "CxxReflect/MetadataSignature.hpp"
+
+namespace CxxReflect {
+
+    class InternalKey;
+
+    class Assembly;
+    class AssemblyName;
+    class CustomAttribute;
+    class Event;
+    class Field;
+    class File;
+    class IAssemblyLocator;
+    class Loader;
+    class Method;
+    class Module;
+    class Parameter;
+    class Property;
+    class Type;
+    class Utility;
+    class Version;
+
+}
 
 namespace CxxReflect { namespace Detail {
 
@@ -31,7 +52,7 @@ namespace CxxReflect { namespace Detail {
         MemberContext(Metadata::FullReference const& declaringType,
                       Metadata::RowReference  const& member,
                       Metadata::FullReference const& instantiatingType,
-                      ByteRange               const& instantiatedSignature);
+                      ConstByteRange          const& instantiatedSignature);
 
         MemberType Resolve(Type const& reflectedType) const;
 
@@ -45,18 +66,18 @@ namespace CxxReflect { namespace Detail {
         Metadata::FullReference GetInstantiatingType()     const;
 
         bool                    HasInstantiatedSignature() const;
-        ByteRange               GetInstantiatedSignature() const;
+        ConstByteRange          GetInstantiatedSignature() const;
 
         bool                    IsInitialized()            const;
 
     private:
 
-        void                    VerifyInitialized()        const;
+        void                    AssertInitialized()        const;
 
         Metadata::FullReference _declaringType;
         Metadata::RowReference  _member;
         Metadata::FullReference _instantiatingType;
-        ByteRange               _instantiatedSignature;
+        ConstByteRange          _instantiatedSignature;
     };
 
     typedef MemberContext<Event,    Metadata::EventRow,     Metadata::TypeSignature    > EventContext;
@@ -87,7 +108,7 @@ namespace CxxReflect { namespace Detail {
         typedef Metadata::ClassVariableSignatureInstantiator         Instantiator;
         typedef Metadata::FullReference                              FullReference;
 
-        MemberTableCollection(MetadataLoader const* loader);
+        MemberTableCollection(Loader const* loader);
         MemberTableCollection(MemberTableCollection&& other);
         MemberTableCollection& operator=(MemberTableCollection&& other);
 
@@ -114,14 +135,14 @@ namespace CxxReflect { namespace Detail {
 
         // Instantiates 'signature' using 'instantiator', allocates space for it in the signature
         // allocator, and returns the result.
-        ByteRange Instantiate(Instantiator const& instantiator, MemberSignatureType const& signature) const;
+        ConstByteRange Instantiate(Instantiator const& instantiator, MemberSignatureType const& signature) const;
 
         // Computes the correct override or hiding slot for 'newMember' in the member table being
         // built (in _buffer).  The 'inheritedMemberCount' is the index of the first new member
         // (i.e., the first member that was defined in the derived class).
         void InsertMemberIntoBuffer(MemberContextType const& newMember, SizeType inheritedMemberCount) const;
 
-        ValueInitialized<MetadataLoader const*>          _loader;
+        ValueInitialized<Loader const*>                  _loader;
         SignatureAllocator                       mutable _signatureAllocator;
         TableAllocator                           mutable _tableAllocator;
         std::map<FullReference, MemberTableType> mutable _index;
@@ -145,14 +166,14 @@ namespace CxxReflect { namespace Detail {
     {
     public:
 
-        AssemblyContext(MetadataLoader const* loader, String path, Metadata::Database&& database);
+        AssemblyContext(Loader const* loader, String path, Metadata::Database&& database);
         AssemblyContext(AssemblyContext&& other);
 
         AssemblyContext& operator=(AssemblyContext&& other);
 
         void Swap(AssemblyContext& other);
 
-        MetadataLoader     const& GetLoader()       const;
+        Loader             const& GetLoader()       const;
         Metadata::Database const& GetDatabase()     const;
         String             const& GetPath()         const;
         AssemblyName       const& GetAssemblyName() const;
@@ -169,7 +190,7 @@ namespace CxxReflect { namespace Detail {
         AssemblyContext(AssemblyContext const&);
         AssemblyContext operator=(AssemblyContext const&);
 
-        void VerifyInitialized() const;
+        void AssertInitialized() const;
 
         enum RealizationState
         {
@@ -178,16 +199,16 @@ namespace CxxReflect { namespace Detail {
 
         void RealizeName() const;
 
-        ValueInitialized<MetadataLoader const*> _loader;
+        ValueInitialized<Loader const*>         _loader;
         String                                  _path;
         Metadata::Database                      _database;
 
-        FlagSet<RealizationState> mutable _state;
-        AssemblyName              mutable _name;
-        EventTableCollection      mutable _events;
-        FieldTableCollection      mutable _fields;
-        MethodTableCollection     mutable _methods;
-        PropertyTableCollection   mutable _properties;
+        FlagSet<RealizationState>     mutable _state;
+        std::unique_ptr<AssemblyName> mutable _name;
+        EventTableCollection          mutable _events;
+        FieldTableCollection          mutable _fields;
+        MethodTableCollection         mutable _methods;
+        PropertyTableCollection       mutable _properties;
     };
 
 
@@ -213,7 +234,7 @@ namespace CxxReflect { namespace Detail {
 
     private:
 
-        void VerifyInitialized() const;
+        void AssertInitialized() const;
 
         ValueInitialized<AssemblyContext const*> _context;
     };
@@ -239,7 +260,7 @@ namespace CxxReflect { namespace Detail {
 
     private:
 
-        void VerifyInitialized() const;
+        void AssertInitialized() const;
 
         ValueInitialized<AssemblyContext const*> _reflectedTypeAssemblyContext;
         Metadata::ElementReference               _reflectedTypeReference;
@@ -269,7 +290,7 @@ namespace CxxReflect { namespace Detail {
 
     private:
 
-        void VerifyInitialized() const;
+        void AssertInitialized() const;
 
         ValueInitialized<AssemblyContext const*> _reflectedTypeAssemblyContext;
         Metadata::ElementReference               _reflectedTypeReference;
@@ -299,7 +320,7 @@ namespace CxxReflect { namespace Detail {
 
     private:
 
-        void VerifyInitialized() const;
+        void AssertInitialized() const;
 
         ValueInitialized<AssemblyContext const*> _assemblyContext;
         Metadata::ElementReference               _typeReference;
@@ -333,11 +354,20 @@ namespace CxxReflect { namespace Detail {
 
     private:
 
-        void VerifyInitialized() const;
+        void AssertInitialized() const;
 
         Metadata::RowReference                       _parameter;
         Metadata::MethodSignature::ParameterIterator _signature;
     };
+
+    template
+    <
+        typename TType,
+        typename TMember,
+        typename TMemberContext,
+        bool (*FFilter)(BindingFlags, TType const&, TMemberContext const&)
+    >
+    class MemberIterator;
 
 } }
 
@@ -394,6 +424,94 @@ namespace CxxReflect {
         }
     };
 
+
+    typedef Detail::InstantiatingIterator<Metadata::RowReference, CustomAttribute, Assembly> CustomAttributeIterator;
+
+
+
+    // This interface allows different assembly location logic to be plugged into the Loader.
+    class IAssemblyLocator
+    {
+    public:
+
+        // When the Loader attempts to read metadata from an assembly it has not yet loaded, it calls
+        // this member function to locate the assembly file on disk.  An implementer should return an
+        // empty string if it cannot find the named assembly.
+        virtual String LocateAssembly(AssemblyName const& assemblyName) const = 0;
+        
+        // If the Loader knows the name of a type from the assembly it is trying to load, it will
+        // call this member function instead and pass the full type name (i.e., the namespace-
+        // qualified type name).  This allows type resolution by name, which is used e.g. by Windows
+        // Runtime, which uses metadata files but does not have a concept of "assemblies."
+        virtual String LocateAssembly(AssemblyName const& assemblyName, String const& fullTypeName) const = 0;
+
+        virtual ~IAssemblyLocator();
+    };
+
+
+
+
+
+    // There are many functions that should not be part of the public interface of the library, but
+    // which we need to be able to access from other parts of the CxxReflect library.  To do this,
+    // all "internal" member functions have a parameter of this "InternalKey" class type, which can
+    // only be constructed by a subset of the CxxReflect library types.  This is better than direct
+    // befriending, both because it is centralized and because it protects class invariants from
+    // bugs elsewhere in the library.
+    class InternalKey
+    {
+    public: // TODO MAKE PRIVATE AGAIN!
+
+        InternalKey() { }
+
+        template <typename TMember, typename TMemberRow, typename TMemberSignature>
+        friend class Detail::MemberContext;
+
+        template <typename TMember, typename TMemberRow, typename TMemberSignature>
+        friend class Detail::MemberTableCollection;
+
+        template
+        <
+            typename TType,
+            typename TMember,
+            typename TMemberContext,
+            bool (*FFilter)(BindingFlags, TType const&, TMemberContext const&)
+        >
+        friend class Detail::MemberIterator;
+
+        template <typename TCurrent, typename TResult, typename TParameter, typename TTransformer, typename TCategory>
+        friend class Detail::InstantiatingIterator;
+
+        friend Assembly;
+        friend AssemblyName;
+        friend CustomAttribute;
+        friend Event;
+        friend Field;
+        friend File;
+        friend Loader;
+        friend Method;
+        friend Module;
+        friend Parameter;
+        friend Property;
+        friend Type;
+        friend Utility;
+        friend Version;
+
+        friend Detail::AssemblyContext;
+
+        friend Detail::AssemblyHandle;
+        friend Detail::MethodHandle;
+        friend Detail::ParameterHandle;
+        friend Detail::TypeHandle;
+
+        friend Metadata::ArrayShape;
+        friend Metadata::CustomModifier;
+        friend Metadata::FieldSignature;
+        friend Metadata::MethodSignature;
+        friend Metadata::PropertySignature;
+        friend Metadata::TypeSignature;
+        friend Metadata::SignatureComparer;
+    };
 }
 
 #endif

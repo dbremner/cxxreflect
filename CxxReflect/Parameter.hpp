@@ -120,7 +120,7 @@ namespace CxxReflect {
 
     private:
 
-        void VerifyInitialized() const;
+        void AssertInitialized() const;
 
         Metadata::ParamRow GetParamRow() const;
 
