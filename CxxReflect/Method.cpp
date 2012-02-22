@@ -210,8 +210,27 @@ namespace CxxReflect {
     {
         AssertInitialized();
 
+        Detail::MethodContext const& context(*_context.Get());
+        Metadata::MethodDefRow const& methodRow(context.GetMemberRow());
+
+        Metadata::RowReference firstParameterReference(methodRow.GetFirstParameter());
+        Metadata::RowReference const lastParameterReference(methodRow.GetLastParameter());
+
+        // If this method owns at least one param row, test the first param row's sequence number.
+        // A param row with a sequence number of '0' is not a real param row, it is used to attach
+        // metadata to the return type.
+        if (firstParameterReference != lastParameterReference)
+        {
+            Metadata::ParamRow const& firstParameter(context.GetMember()
+                .GetDatabase()
+                .GetRow<Metadata::TableId::Param>(firstParameterReference));
+
+            if (firstParameter.GetSequence() == 0)
+                ++firstParameterReference;
+        }
+
         return ParameterIterator(*this, Detail::ParameterData(
-            _context.Get()->GetMemberRow().GetFirstParameter(),
+            firstParameterReference,
             _context.Get()->GetMemberSignature().BeginParameters(),
             InternalKey()));
     }

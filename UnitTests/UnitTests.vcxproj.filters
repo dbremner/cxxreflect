@@ -24,6 +24,9 @@
     <ClCompile Include="Guid.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="SignatureBuilder.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Index.hpp">

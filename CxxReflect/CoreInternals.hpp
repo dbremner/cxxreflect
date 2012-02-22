@@ -166,7 +166,7 @@ namespace CxxReflect { namespace Detail {
     {
     public:
 
-        AssemblyContext(Loader const* loader, String path, Metadata::Database&& database);
+        AssemblyContext(Loader const* loader, String uri, Metadata::Database&& database);
         AssemblyContext(AssemblyContext&& other);
 
         AssemblyContext& operator=(AssemblyContext&& other);
@@ -175,7 +175,7 @@ namespace CxxReflect { namespace Detail {
 
         Loader             const& GetLoader()       const;
         Metadata::Database const& GetDatabase()     const;
-        String             const& GetPath()         const;
+        String             const& GetLocation()     const;
         AssemblyName       const& GetAssemblyName() const;
 
         EventTable    const GetOrCreateEventTable   (Metadata::ElementReference const& type) const;
@@ -200,7 +200,7 @@ namespace CxxReflect { namespace Detail {
         void RealizeName() const;
 
         ValueInitialized<Loader const*>         _loader;
-        String                                  _path;
+        String                                  _uri;
         Metadata::Database                      _database;
 
         FlagSet<RealizationState>     mutable _state;

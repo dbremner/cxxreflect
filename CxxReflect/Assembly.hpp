@@ -15,8 +15,8 @@ namespace CxxReflect {
 
         Assembly();
 
-        AssemblyName const& GetName() const;
-        String       const& GetPath() const;
+        AssemblyName const& GetName()     const;
+        String       const& GetLocation() const;
 
         typedef Detail::InstantiatingIterator<Metadata::RowReference, File,         Assembly> FileIterator;
         typedef Detail::InstantiatingIterator<Metadata::RowReference, Module,       Assembly> ModuleIterator;

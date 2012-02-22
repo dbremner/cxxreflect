@@ -18,7 +18,7 @@ namespace CxxReflect { namespace { namespace Private {
 
         if (isFullPublicKey)
         {
-            Detail::Sha1Hash const hash(Detail::ComputeSha1Hash(blob.Begin(), blob.End()));
+            Sha1Hash const hash(Externals::ComputeSha1Hash(blob.Begin(), blob.End()));
             std::copy(hash.rbegin(), hash.rbegin() + 8, result.begin());
         }
         else if (blob.GetSize() > 0) // TODO WHY WOULD THIS BE ZERO?

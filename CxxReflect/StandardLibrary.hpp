@@ -32,4 +32,33 @@
 #include <utility>
 #include <vector>
 
+namespace CxxReflect {
+
+    typedef std::uint8_t                                  Byte;
+    typedef Byte*                                         ByteIterator;
+    typedef Byte const*                                   ConstByteIterator;
+    typedef std::reverse_iterator<ByteIterator>           ReverseByteIterator;
+    typedef std::reverse_iterator<ConstByteIterator>      ConstReverseByteIterator;
+
+    typedef wchar_t                                       Character;
+    typedef wchar_t*                                      CharacterIterator;
+    typedef wchar_t const*                                ConstCharacterIterator;
+    typedef std::reverse_iterator<CharacterIterator>      ReverseCharacterIterator;
+    typedef std::reverse_iterator<ConstCharacterIterator> ConstReverseCharacterIterator;
+
+    typedef std::basic_string<wchar_t>                    String;
+    typedef std::basic_istream<wchar_t>                   InputStream;
+    typedef std::basic_ostream<wchar_t>                   OutputStream;
+
+    typedef std::basic_string<char>                       NarrowString;
+    typedef std::basic_istream<char>                      NarrowInputStream;
+    typedef std::basic_ostream<char>                      NarrowOutputStream;
+
+    typedef long                                          HResult;
+
+    typedef std::uint32_t                                 SizeType;
+    typedef std::int32_t                                  DifferenceType;
+
+}
+
 #endif

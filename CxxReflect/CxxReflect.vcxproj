@@ -16,6 +16,9 @@
     <ClInclude Include="Assembly.hpp" />
     <ClInclude Include="AssemblyName.hpp" />
     <ClInclude Include="Configuration.hpp" />
+    <ClInclude Include="ExternalFunctions.hpp" />
+    <ClInclude Include="ExternalFunctionsWin32.hpp" />
+    <ClInclude Include="ExternalFunctionsWinRT.hpp" />
     <ClInclude Include="Fundamentals.hpp" />
     <ClInclude Include="CustomAttribute.hpp" />
     <ClInclude Include="Event.hpp" />
@@ -42,6 +45,9 @@
     <ClCompile Include="AssemblyName.cpp" />
     <ClCompile Include="CustomAttribute.cpp" />
     <ClCompile Include="Event.cpp" />
+    <ClCompile Include="ExternalFunctions.cpp" />
+    <ClCompile Include="ExternalFunctionsWin32.cpp" />
+    <ClCompile Include="ExternalFunctionsWinRT.cpp" />
     <ClCompile Include="Field.cpp" />
     <ClCompile Include="File.cpp" />
     <ClCompile Include="Guid.cpp" />
@@ -52,7 +58,6 @@
     <ClCompile Include="Loader.cpp" />
     <ClCompile Include="Method.cpp" />
     <ClCompile Include="Parameter.cpp" />
-    <ClCompile Include="PlatformWin32.cpp" />
     <ClCompile Include="PrecompiledHeaders.cpp">
       <PrecompiledHeader>Create</PrecompiledHeader>
     </ClCompile>

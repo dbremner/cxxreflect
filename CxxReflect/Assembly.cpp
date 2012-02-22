@@ -40,10 +40,10 @@ namespace CxxReflect {
         return _context.Get()->GetAssemblyName();
     }
 
-    String const& Assembly::GetPath() const
+    String const& Assembly::GetLocation() const
     {
         AssertInitialized();
-        return _context.Get()->GetPath();
+        return _context.Get()->GetLocation();
     }
 
     SizeType Assembly::GetReferencedAssemblyCount() const

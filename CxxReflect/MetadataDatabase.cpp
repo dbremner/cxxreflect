@@ -844,10 +844,10 @@ namespace CxxReflect { namespace Metadata {
             return existingIt->second;
 
         char const* pointer(_stream.ReinterpretAs<char>(index));
-        int const required(Detail::ComputeUtf16LengthOfUtf8String(pointer));
+        int const required(Externals::ComputeUtf16LengthOfUtf8String(pointer));
 
         auto const range(_buffer.Allocate(required));
-        if (!Detail::ConvertUtf8ToUtf16(pointer, range.Begin(), required))
+        if (!Externals::ConvertUtf8ToUtf16(pointer, range.Begin(), required))
             throw std::logic_error("wtf");
 
         return _index.insert(std::make_pair(index, StringReference(range.Begin(), range.End()))).first->second;

@@ -3,74 +3,14 @@
 //     (See accompanying file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)    //
 
 // Fundamental types, functions, and constants used throughout the library.
-#ifndef CXXREFLECT_FUNDAMENTALCOMPONENTS_HPP_
-#define CXXREFLECT_FUNDAMENTALCOMPONENTS_HPP_
+#ifndef CXXREFLECT_FUNDAMENTALS_HPP_
+#define CXXREFLECT_FUNDAMENTALS_HPP_
 
 #include "CxxReflect/Configuration.hpp"
+#include "CxxReflect/ExternalFunctions.hpp"
+#include "CxxReflect/ExternalFunctionsWin32.hpp"
+#include "CxxReflect/ExternalFunctionsWinRT.hpp"
 #include "CxxReflect/StandardLibrary.hpp"
-
-
-
-
-
-//
-//
-// BASIC TYPES
-//
-//
-
-namespace CxxReflect {
-
-    typedef std::uint8_t                                  Byte;
-    typedef Byte*                                         ByteIterator;
-    typedef Byte const*                                   ConstByteIterator;
-    typedef std::reverse_iterator<ByteIterator>           ReverseByteIterator;
-    typedef std::reverse_iterator<ConstByteIterator>      ConstReverseByteIterator;
-
-    typedef wchar_t                                       Character;
-    typedef wchar_t*                                      CharacterIterator;
-    typedef wchar_t const*                                ConstCharacterIterator;
-    typedef std::reverse_iterator<CharacterIterator>      ReverseCharacterIterator;
-    typedef std::reverse_iterator<ConstCharacterIterator> ConstReverseCharacterIterator;
-
-    typedef std::basic_string<wchar_t>                    String;
-    typedef std::basic_istream<wchar_t>                   InputStream;
-    typedef std::basic_ostream<wchar_t>                   OutputStream;
-
-    typedef std::basic_string<char>                       NarrowString;
-    typedef std::basic_istream<char>                      NarrowInputStream;
-    typedef std::basic_ostream<char>                      NarrowOutputStream;
-
-    typedef long                                          HResult;
-
-    typedef std::uint32_t                                 SizeType;
-    typedef std::int32_t                                  DifferenceType;
-
-}
-
-
-
-
-
-//
-//
-// BASIC PLATFORM-DEPENDENT FUNCTIONS
-//
-//
-
-namespace CxxReflect { namespace Detail {
-
-    String       ConvertNarrowStringToWideString(char const* s);
-    String       ConvertUtf8StringToWideString(char const* s);
-    NarrowString ConvertWideStringToNarrowString(wchar_t const* s);
-
-    FILE*        OpenFile(wchar_t const* fileName, wchar_t const* mode);
-
-    typedef std::array<std::uint8_t, 20> Sha1Hash;
-
-    Sha1Hash     ComputeSha1Hash(ConstByteIterator first, ConstByteIterator last);
-
-} }
 
 
 
@@ -93,7 +33,7 @@ namespace CxxReflect {
     public:
 
         explicit Exception(String message = L"")
-            : std::exception(Detail::ConvertWideStringToNarrowString(message.c_str()).c_str()),
+            : std::exception(Externals::ConvertWideStringToNarrowString(message.c_str()).c_str()),
               _message(std::move(message))
         {
         }
@@ -162,7 +102,7 @@ namespace CxxReflect {
         }
 
         explicit FileIOError(int const error = errno)
-            : RuntimeError(Detail::ConvertNarrowStringToWideString(std::strerror(error))),
+            : RuntimeError(Externals::ConvertNarrowStringToWideString(std::strerror(error))),
               _error(error)
         {
         }
@@ -1127,7 +1067,7 @@ namespace CxxReflect { namespace Detail {
         };
 
         FileHandle(wchar_t const* const fileName, FileModeFlags const mode)
-            : _mode(mode), _handle(OpenFile(fileName, TranslateMode(mode)))
+            : _mode(mode), _handle(Externals::OpenFile(fileName, TranslateMode(mode)))
         {
         }
 
@@ -1481,6 +1421,96 @@ namespace CxxReflect { namespace Detail {
 
 //
 //
+// MULTITHREADING AND SYNCHRONIZATION
+//
+//
+
+namespace CxxReflect { namespace Detail {
+
+    template <typename T>
+    class Lease;
+
+    template <typename T>
+    class Synchronized
+    {
+    public:
+
+        Lease<T> ObtainLease() const
+        {
+            return Lease<T>(this);
+        }
+
+    private:
+
+        friend Lease<T>;
+
+        T&   Get()    const { return _object;  }
+        void Lock()   const { _mutex.lock();   }
+        void Unlock() const { _mutex.unlock(); }
+
+        T          mutable _object;
+        std::mutex mutable _mutex;
+    };
+
+    template <typename T>
+    class Lease
+    {
+    public:
+
+        explicit Lease(Synchronized<T> const* object)
+            : _object(object)
+        {
+            AssertNotNull(object);
+
+            _object->Lock();
+        }
+
+        Lease(Lease&& other)
+            : _object(other._object)
+        {
+            AssertNotNull(_object);
+
+            other._object = nullptr;
+        }
+
+        Lease& operator=(Lease&& other)
+        {
+            AssertNotNull(other._object);
+
+            if (_object != nullptr && _object != other._object)
+                _object->Unlock();
+
+            _object = other._object;
+            other._object = nullptr;
+        }
+
+        ~Lease()
+        {
+            if (_object != nullptr)
+                _object->Unlock();
+        }
+
+        T& Get() const
+        {
+            return _object->Get();
+        }
+
+    private:
+
+        Lease(Lease const&);
+        Lease& operator=(Lease const&);
+
+        Synchronized<T> const* _object;
+    };
+
+} }
+
+
+
+
+
+//
+//
 // INSTANTIATING ITERATOR
 //
 //
@@ -1552,29 +1582,6 @@ namespace CxxReflect { namespace Detail {
         TParameter _parameter;
         TCurrent   _current;
     };
-
-} }
-
-
-
-
-
-//
-//
-// TODO
-//
-//
-
-namespace CxxReflect { namespace Detail {
-
-    // Platform functionality wrappers:  these functions use platform-specific, third-party, or non-
-    // standard types and functions; we encapsulate these functions here to make it easier to port
-    // the library.
-
-    unsigned ComputeUtf16LengthOfUtf8String(char const* source);
-    bool ConvertUtf8ToUtf16(char const* source, wchar_t* target, unsigned targetLength);
-
-    bool FileExists(wchar_t const* filePath);
 
 } }
 

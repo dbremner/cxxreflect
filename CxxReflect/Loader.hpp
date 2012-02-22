@@ -34,7 +34,10 @@ namespace CxxReflect {
     {
     public:
 
-        Loader(std::unique_ptr<IAssemblyLocator> assemblyLocator);
+        Loader(std::unique_ptr<IAssemblyLocator>   assemblyLocator);
+
+        Loader(Loader&& other);
+        Loader& operator=(Loader&& other);
 
         Assembly LoadAssembly(String path) const;
         Assembly LoadAssembly(AssemblyName const& name) const;

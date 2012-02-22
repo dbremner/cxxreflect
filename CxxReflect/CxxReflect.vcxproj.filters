@@ -4,9 +4,6 @@
     <ClCompile Include="Guid.cpp">
       <Filter>Sources</Filter>
     </ClCompile>
-    <ClCompile Include="PlatformWin32.cpp">
-      <Filter>Sources</Filter>
-    </ClCompile>
     <ClCompile Include="PrecompiledHeaders.cpp">
       <Filter>Sources</Filter>
     </ClCompile>
@@ -57,6 +54,15 @@
     </ClCompile>
     <ClCompile Include="Loader.cpp">
       <Filter>Sources\Interface</Filter>
+    </ClCompile>
+    <ClCompile Include="ExternalFunctions.cpp">
+      <Filter>Sources\Core</Filter>
+    </ClCompile>
+    <ClCompile Include="ExternalFunctionsWin32.cpp">
+      <Filter>Sources\Core</Filter>
+    </ClCompile>
+    <ClCompile Include="ExternalFunctionsWinRT.cpp">
+      <Filter>Sources\Core</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -128,6 +134,15 @@
     </ClInclude>
     <ClInclude Include="Loader.hpp">
       <Filter>Headers\Interface</Filter>
+    </ClInclude>
+    <ClInclude Include="ExternalFunctions.hpp">
+      <Filter>Headers\Core</Filter>
+    </ClInclude>
+    <ClInclude Include="ExternalFunctionsWin32.hpp">
+      <Filter>Headers\Core</Filter>
+    </ClInclude>
+    <ClInclude Include="ExternalFunctionsWinRT.hpp">
+      <Filter>Headers\Core</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

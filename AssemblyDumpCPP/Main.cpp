@@ -161,6 +161,8 @@ namespace
 
 int main()
 {
+    CxxReflect::Externals::Initialize<CxxReflect::Platform::Win32>();
+
     DirectoryBasedAssemblyLocator::DirectorySet directories;
     directories.insert(L"C:\\Windows\\Microsoft.NET\\Framework\\v4.0.30319");
 

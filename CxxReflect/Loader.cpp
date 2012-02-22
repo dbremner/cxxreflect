@@ -28,7 +28,7 @@ namespace CxxReflect {
             for (auto ext_it(begin(extensions)); ext_it != end(extensions); ++ext_it)
             {
                 std::wstring path(*dir_it + L"/" + name.GetName() + *ext_it);
-                if (Detail::FileExists(path.c_str()))
+                if (Externals::FileExists(path.c_str()))
                 {
                     return path;
                 }
@@ -150,12 +150,11 @@ namespace CxxReflect {
 
     Assembly Loader::LoadAssembly(String path) const
     {
-        // TODO PATH NORMALIZATION?
         auto it(_contexts.find(path));
         if (it == end(_contexts))
         {
             it = _contexts.insert(std::make_pair(
-                path,
+                Externals::ComputeCanonicalUri(path.c_str()),
                 std::move(Detail::AssemblyContext(this, path, std::move(Metadata::Database(path.c_str())))))).first;
         }
 

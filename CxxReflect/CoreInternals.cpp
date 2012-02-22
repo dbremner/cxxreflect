@@ -513,9 +513,9 @@ namespace CxxReflect { namespace Detail {
 
 
 
-    AssemblyContext::AssemblyContext(Loader const* const loader, String path, Metadata::Database&& database)
+    AssemblyContext::AssemblyContext(Loader const* const loader, String uri, Metadata::Database&& database)
         : _loader(loader),
-          _path(std::move(path)),
+          _uri(std::move(uri)),
           _database(std::move(database)),
           _events(loader),
           _fields(loader),
@@ -523,12 +523,12 @@ namespace CxxReflect { namespace Detail {
           _properties(loader)
     {
         AssertNotNull(_loader.Get());
-        Assert([&]{ return !_path.empty(); });
+        Assert([&]{ return !_uri.empty(); });
     }
 
     AssemblyContext::AssemblyContext(AssemblyContext&& other)
         : _loader    (std::move(other._loader    )),
-          _path      (std::move(other._path      )),
+          _uri       (std::move(other._uri       )),
           _database  (std::move(other._database  )),
           _name      (std::move(other._name      )),
           _state     (std::move(other._state     )),
@@ -551,7 +551,7 @@ namespace CxxReflect { namespace Detail {
     {
         using std::swap;
         swap(other._loader,     _loader    );
-        swap(other._path,       _path      );
+        swap(other._uri,        _uri       );
         swap(other._database,   _database  );
         swap(other._name,       _name      );
         swap(other._state,      _state     );
@@ -573,10 +573,10 @@ namespace CxxReflect { namespace Detail {
         return _database;
     }
 
-    String const& AssemblyContext::GetPath() const
+    String const& AssemblyContext::GetLocation() const
     {
         AssertInitialized();
-        return _path;
+        return _uri;
     }
 
     AssemblyName const& AssemblyContext::GetAssemblyName() const
@@ -1043,27 +1043,26 @@ namespace CxxReflect {
         StringReference primitiveTypeName;
         switch (elementType)
         {
-        case Metadata::ElementType::Boolean: primitiveTypeName = L"Boolean"; break;
-        case Metadata::ElementType::Char:    primitiveTypeName = L"Char";    break;
-        case Metadata::ElementType::I1:      primitiveTypeName = L"SByte";   break;
-        case Metadata::ElementType::U1:      primitiveTypeName = L"Byte";    break;
-        case Metadata::ElementType::I2:      primitiveTypeName = L"Int16";   break;
-        case Metadata::ElementType::U2:      primitiveTypeName = L"UInt16";  break;
-        case Metadata::ElementType::I4:      primitiveTypeName = L"Int32";   break;
-        case Metadata::ElementType::U4:      primitiveTypeName = L"UInt32";  break;
-        case Metadata::ElementType::I8:      primitiveTypeName = L"Int64";   break;
-        case Metadata::ElementType::U8:      primitiveTypeName = L"UInt64";  break;
-        case Metadata::ElementType::R4:      primitiveTypeName = L"Single";  break;
-        case Metadata::ElementType::R8:      primitiveTypeName = L"Double";  break;
-        case Metadata::ElementType::I:       primitiveTypeName = L"IntPtr";  break;
-        case Metadata::ElementType::U:       primitiveTypeName = L"UIntPtr"; break;
-        case Metadata::ElementType::Object:  primitiveTypeName = L"Object";  break;
-        case Metadata::ElementType::String:  primitiveTypeName = L"String";  break;
-        case Metadata::ElementType::Void:    primitiveTypeName = L"Void";    break;
-
-        case Metadata::ElementType::TypedByRef:
+        case Metadata::ElementType::Boolean:    primitiveTypeName = L"Boolean";        break;
+        case Metadata::ElementType::Char:       primitiveTypeName = L"Char";           break;
+        case Metadata::ElementType::I1:         primitiveTypeName = L"SByte";          break;
+        case Metadata::ElementType::U1:         primitiveTypeName = L"Byte";           break;
+        case Metadata::ElementType::I2:         primitiveTypeName = L"Int16";          break;
+        case Metadata::ElementType::U2:         primitiveTypeName = L"UInt16";         break;
+        case Metadata::ElementType::I4:         primitiveTypeName = L"Int32";          break;
+        case Metadata::ElementType::U4:         primitiveTypeName = L"UInt32";         break;
+        case Metadata::ElementType::I8:         primitiveTypeName = L"Int64";          break;
+        case Metadata::ElementType::U8:         primitiveTypeName = L"UInt64";         break;
+        case Metadata::ElementType::R4:         primitiveTypeName = L"Single";         break;
+        case Metadata::ElementType::R8:         primitiveTypeName = L"Double";         break;
+        case Metadata::ElementType::I:          primitiveTypeName = L"IntPtr";         break;
+        case Metadata::ElementType::U:          primitiveTypeName = L"UIntPtr";        break;
+        case Metadata::ElementType::Object:     primitiveTypeName = L"Object";         break;
+        case Metadata::ElementType::String:     primitiveTypeName = L"String";         break;
+        case Metadata::ElementType::Void:       primitiveTypeName = L"Void";           break;
+        case Metadata::ElementType::TypedByRef: primitiveTypeName = L"TypedReference"; break;
         default:
-            Detail::AssertFail(L"NYI");
+            Detail::AssertFail(L"Unknown primitive type");
             break;
         }
 

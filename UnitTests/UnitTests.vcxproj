@@ -4,10 +4,11 @@
     <ConfigurationType>Application</ConfigurationType>
     <ProjectGuid>{7C1FC03B-173F-40F5-8774-A69FECD19927}</ProjectGuid>
   </PropertyGroup>
-  <Import Project="$(SolutionDir)CxxReflect\CxxReflect.props"/>
+  <Import Project="$(SolutionDir)CxxReflect\CxxReflect.props" />
   <ItemGroup>
     <ClCompile Include="Guid.cpp" />
     <ClCompile Include="Main.cpp" />
+    <ClCompile Include="SignatureBuilder.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Index.hpp" />

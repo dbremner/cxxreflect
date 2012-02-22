@@ -278,7 +278,8 @@ namespace CxxReflect {
             }
             default:
             {
-                Detail::AssertFail(L"NYI");
+                // Detail::AssertFail(L"NYI");
+                os << L"FAIL NYI";
                 break;
             }
             }
