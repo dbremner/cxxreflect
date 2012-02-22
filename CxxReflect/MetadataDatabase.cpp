@@ -467,7 +467,7 @@ namespace CxxReflect { namespace Metadata { namespace { namespace Private {
 
     BlobReference ReadBlobReference(Database const& database, ConstByteIterator const data, SizeType const offset)
     {
-        return BlobReference(ReadBlobHeapIndex(database, data, offset));
+        return BlobReference(ReadBlobHeapIndex(database, data, offset) + database.GetBlobs().Begin());
     }
 
     std::uint32_t ReadStringHeapIndex(Database const& database, ConstByteIterator const data, SizeType const offset)

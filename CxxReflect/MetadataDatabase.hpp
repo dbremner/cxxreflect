@@ -184,43 +184,37 @@ namespace CxxReflect { namespace Metadata {
     {
     public:
 
-        enum : SizeType
-        {
-            InvalidIndex = static_cast<SizeType>(-1)
-        };
-
         BlobReference()
-            : _index(InvalidIndex)
         {
         }
 
-        explicit BlobReference(SizeType const index, SizeType const size = 0)
-            : _index(index), _size(size)
+        explicit BlobReference(ConstByteIterator const first, SizeType const size = 0)
+            : _first(first), _size(size)
         {
             AssertInitialized();
         }
 
-        SizeType GetIndex() const { AssertInitialized(); return _index.Get(); }
-        SizeType GetSize()  const { AssertInitialized(); return _size.Get();  }
+        ConstByteIterator Begin()    const { AssertInitialized(); return _first.Get(); }
+        SizeType          GetSize()  const { AssertInitialized(); return _size.Get();  }
 
         bool IsValid() const
         {
-            return _index.Get() != InvalidIndex;
+            return _first.Get() != nullptr;
         }
 
         bool IsInitialized() const
         {
-            return _index.Get() != InvalidIndex;
+            return _first.Get() != nullptr;
         }
 
         friend bool operator==(BlobReference const& lhs, BlobReference const& rhs)
         {
-            return lhs._index.Get() == rhs._index.Get();
+            return lhs._first.Get() == rhs._first.Get();
         }
 
         friend bool operator<(BlobReference const& lhs, BlobReference const& rhs)
         {
-            return lhs._index.Get() < rhs._index.Get();
+            return lhs._first.Get() < rhs._first.Get();
         }
 
         CXXREFLECT_GENERATE_COMPARISON_OPERATORS(BlobReference)
@@ -232,8 +226,8 @@ namespace CxxReflect { namespace Metadata {
             Detail::Assert([&] { return IsInitialized(); });
         }
 
-        Detail::ValueInitialized<SizeType> _index;
-        Detail::ValueInitialized<SizeType> _size;
+        Detail::ValueInitialized<ConstByteIterator> _first;
+        Detail::ValueInitialized<SizeType>          _size;
     };
 
 
@@ -250,8 +244,6 @@ namespace CxxReflect { namespace Metadata {
             InvalidIndex = static_cast<SizeType>(-1)
         };
 
-        typedef SizeType ValueType;
-
         BaseElementReference()
             : _index(InvalidIndex)
         {
@@ -264,7 +256,7 @@ namespace CxxReflect { namespace Metadata {
         }
 
         BaseElementReference(BlobReference const& reference)
-            : _index((reference.GetIndex() & ~KindMask) | BlobKindBit), _size(reference.GetSize())
+            : _index(BlobKindBit), _first(reference.Begin()), _size(reference.GetSize())
         {
             AssertInitialized();
         }
@@ -284,17 +276,23 @@ namespace CxxReflect { namespace Metadata {
         BlobReference AsBlobReference() const
         {
             Detail::Assert([&]{ return IsBlobReference(); });
-            return BlobReference(_index.Get() & ~KindMask, _size.Get());
+            return BlobReference(_first.Get(), _size.Get());
         }
 
         friend bool operator==(BaseElementReference const& lhs, BaseElementReference const& rhs)
         {
-            return lhs._index.Get() == rhs._index.Get();
+            return lhs._index.Get() == rhs._index.Get() && lhs._first.Get() == rhs._first.Get();
         }
 
         friend bool operator<(BaseElementReference const& lhs, BaseElementReference const& rhs)
         {
-            return lhs._index.Get() < rhs._index.Get();
+            if (lhs._index.Get() < rhs._index.Get())
+                return true;
+
+            if (lhs._index.Get() > rhs._index.Get())
+                return false;
+
+            return lhs._first.Get() < rhs._first.Get();
         }
 
         CXXREFLECT_GENERATE_COMPARISON_OPERATORS(BaseElementReference)
@@ -304,15 +302,24 @@ namespace CxxReflect { namespace Metadata {
 
         void AssertInitialized() const { Detail::Assert([&]{ return IsInitialized(); }); }
 
-        enum : ValueType
+        enum : SizeType
         {
             KindMask     = 0x80000000,
             TableKindBit = 0x00000000,
             BlobKindBit  = 0x80000000
         };
 
-        Detail::ValueInitialized<ValueType> _index;
-        Detail::ValueInitialized<ValueType> _size;
+        // TODO This has turned into a disaster:  everything was nice and clean and made sense as
+        // long as both RowReference and BlobReference used indices, but now that BlobReference
+        // needs to use a pointer, it's a complete mess. :'(
+
+        // These are used for a RowReference, also to identify the kind of reference and whether it
+        // is valid (i.e., it uses the KindMask and the InvalidIndex constants.
+        Detail::ValueInitialized<SizeType>          _index;
+
+        // These are used for a BlobReference
+        Detail::ValueInitialized<ConstByteIterator> _first;
+        Detail::ValueInitialized<SizeType>          _size;
     };
 
     class ElementReference
@@ -610,20 +617,20 @@ namespace CxxReflect { namespace Metadata {
         {
         }
 
-        Table(ByteIterator const data, SizeType const rowSize, SizeType const rowCount, bool const isSorted)
+        Table(ConstByteIterator const data, SizeType const rowSize, SizeType const rowCount, bool const isSorted)
             : _data(data), _rowSize(rowSize), _rowCount(rowCount), _isSorted(isSorted)
         {
             Detail::AssertNotNull(data);
             Detail::Assert([&]{ return rowSize != 0 && rowCount != 0; });
         }
 
-        ByteIterator Begin()       const { return _data.Get();                                    }
-        ByteIterator End()         const { return _data.Get() + _rowCount.Get() * _rowSize.Get(); }
-        bool         IsSorted()    const { return _isSorted.Get();                                }
-        SizeType     GetRowCount() const { return _rowCount.Get();                                }
-        SizeType     GetRowSize()  const { return _rowSize.Get();                                 }
+        ConstByteIterator Begin()       const { return _data.Get();                                    }
+        ConstByteIterator End()         const { return _data.Get() + _rowCount.Get() * _rowSize.Get(); }
+        bool              IsSorted()    const { return _isSorted.Get();                                }
+        SizeType          GetRowCount() const { return _rowCount.Get();                                }
+        SizeType          GetRowSize()  const { return _rowSize.Get();                                 }
 
-        ByteIterator At(SizeType const index) const
+        ConstByteIterator At(SizeType const index) const
         {
             AssertInitialized();
 
@@ -644,10 +651,10 @@ namespace CxxReflect { namespace Metadata {
             Detail::Assert([&]{ return IsInitialized(); });
         }
 
-        Detail::ValueInitialized<ByteIterator> _data;
-        Detail::ValueInitialized<SizeType>     _rowSize;
-        Detail::ValueInitialized<SizeType>     _rowCount;
-        Detail::ValueInitialized<bool>         _isSorted;
+        Detail::ValueInitialized<ConstByteIterator> _data;
+        Detail::ValueInitialized<SizeType>          _rowSize;
+        Detail::ValueInitialized<SizeType>          _rowCount;
+        Detail::ValueInitialized<bool>              _isSorted;
     };
 
 
@@ -823,7 +830,10 @@ namespace CxxReflect { namespace Metadata {
 
         Blob GetBlob(BlobReference const blobReference) const
         {
-            return Blob(_blobStream.At(blobReference.GetIndex()), _blobStream.End(), blobReference.GetSize());
+            return Blob(
+                blobReference.Begin(),
+                blobReference.GetSize() != 0 ? (blobReference.Begin() + blobReference.GetSize()) : _blobStream.End(),
+                blobReference.GetSize());
         }
 
         StringReference GetString(SizeType const index) const
@@ -974,7 +984,7 @@ namespace CxxReflect { namespace Metadata {
 
 
     template <typename TRow>
-    TRow CreateRow(Database const* const database, ByteIterator const data)
+    TRow CreateRow(Database const* const database, ConstByteIterator const data)
     {
         TRow row;
         row.Initialize(database, data);
@@ -1024,7 +1034,7 @@ namespace CxxReflect { namespace Metadata {
     private:
 
         template <typename TRow>
-        friend TRow CreateRow(Database const*, ByteIterator);
+        friend TRow CreateRow(Database const*, ConstByteIterator);
 
         void Initialize(Database const* const database, ConstByteIterator const data)
         {

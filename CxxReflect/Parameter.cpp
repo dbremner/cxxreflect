@@ -86,7 +86,7 @@ namespace CxxReflect {
 
         return Type(
             _method.Realize().GetDeclaringType().GetAssembly(),
-            Metadata::BlobReference(signatureFirst, signatureLast - signatureFirst),
+            Metadata::BlobReference(_signature.BeginBytes(), _signature.EndBytes() - _signature.BeginBytes()),
             InternalKey());
     }
 
