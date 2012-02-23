@@ -67,6 +67,9 @@ namespace CxxReflect { namespace Metadata {
         U                          = 0x19,
         FnPtr                      = 0x1b,
         Object                     = 0x1c,
+
+        ConcreteElementTypeMax     = 0x1d,
+
         SzArray                    = 0x1d,
         MVar                       = 0x1e,
 
@@ -247,7 +250,7 @@ namespace CxxReflect { namespace Metadata {
 
         CountingIterator operator++(int)
         {
-            SentinelIterator const it(*this);
+            CountingIterator const it(*this);
             ++*this;
             return it;
         }

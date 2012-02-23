@@ -76,17 +76,9 @@ namespace CxxReflect {
     {
         AssertInitialized();
 
-        Assembly           const  assembly(_method.Realize().GetDeclaringType().GetAssembly());
-        Metadata::Database const& database(assembly.GetContext(InternalKey()).GetDatabase());
-
-        // TODO It might be useful to create a helper for this in Database; we do it several places.
-        ConstByteIterator const blobsStart(database.GetBlobs().Begin());
-        SizeType          const signatureFirst(_signature.BeginBytes() - blobsStart);
-        SizeType          const signatureLast (_signature.EndBytes()   - blobsStart);
-
         return Type(
             _method.Realize().GetDeclaringType().GetAssembly(),
-            Metadata::BlobReference(_signature.BeginBytes(), _signature.EndBytes() - _signature.BeginBytes()),
+            Metadata::BlobReference(_signature),
             InternalKey());
     }
 

@@ -1037,42 +1037,4 @@ namespace CxxReflect {
         Assembly const foundReferenceAssembly(loader.LoadAssembly(*it));
         return GetSystemObjectType(*foundReferenceAssembly.BeginTypes());
     }
-
-    Type Utility::GetPrimitiveType(Assembly const& referenceAssembly, Metadata::ElementType const elementType)
-    {
-        StringReference primitiveTypeName;
-        switch (elementType)
-        {
-        case Metadata::ElementType::Boolean:    primitiveTypeName = L"Boolean";        break;
-        case Metadata::ElementType::Char:       primitiveTypeName = L"Char";           break;
-        case Metadata::ElementType::I1:         primitiveTypeName = L"SByte";          break;
-        case Metadata::ElementType::U1:         primitiveTypeName = L"Byte";           break;
-        case Metadata::ElementType::I2:         primitiveTypeName = L"Int16";          break;
-        case Metadata::ElementType::U2:         primitiveTypeName = L"UInt16";         break;
-        case Metadata::ElementType::I4:         primitiveTypeName = L"Int32";          break;
-        case Metadata::ElementType::U4:         primitiveTypeName = L"UInt32";         break;
-        case Metadata::ElementType::I8:         primitiveTypeName = L"Int64";          break;
-        case Metadata::ElementType::U8:         primitiveTypeName = L"UInt64";         break;
-        case Metadata::ElementType::R4:         primitiveTypeName = L"Single";         break;
-        case Metadata::ElementType::R8:         primitiveTypeName = L"Double";         break;
-        case Metadata::ElementType::I:          primitiveTypeName = L"IntPtr";         break;
-        case Metadata::ElementType::U:          primitiveTypeName = L"UIntPtr";        break;
-        case Metadata::ElementType::Object:     primitiveTypeName = L"Object";         break;
-        case Metadata::ElementType::String:     primitiveTypeName = L"String";         break;
-        case Metadata::ElementType::Void:       primitiveTypeName = L"Void";           break;
-        case Metadata::ElementType::TypedByRef: primitiveTypeName = L"TypedReference"; break;
-        default:
-            Detail::AssertFail(L"Unknown primitive type");
-            break;
-        }
-
-        Assembly const systemAssembly(GetSystemAssembly(referenceAssembly));
-        Detail::Assert([&]{ return systemAssembly.IsInitialized(); });
-
-        Type const primitiveType(systemAssembly.GetType(L"System", primitiveTypeName));
-        Detail::Assert([&]{ return primitiveType.IsInitialized(); });
-
-        return primitiveType;
-    }
-
 }

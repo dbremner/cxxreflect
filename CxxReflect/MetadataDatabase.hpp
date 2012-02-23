@@ -177,9 +177,15 @@ namespace CxxReflect { namespace Metadata {
 
 
 
-    // Represents a reference into the blob stream.  There are two different representations here:
-    // an unresolved reference simply has an index.  It must be resolved into the blob stream so
-    // that its length can be computed.  A resolved reference has both an index and a size.
+    // Represents a reference to a blob.  There are two representations used within:
+    //
+    // * If 'last' is null, the length of the referenced blob is specified in the first several
+    //   bytes of the blob, as a compressed integer.  All blob references with this representation
+    //   refer to blobs actually in the blob heap (and not cached elsewhere).
+    //
+    // * Otherwise, if 'last' is non-null, 'first' points to the initial byte of the blob and the
+    //   length of the blob is 'last' - 'first'.  In this case, the blob may be in the blob heap or
+    //   may be cached outside of the blob heap.
     class BlobReference
     {
     public:
@@ -188,33 +194,33 @@ namespace CxxReflect { namespace Metadata {
         {
         }
 
-        explicit BlobReference(ConstByteIterator const first, SizeType const size = 0)
-            : _first(first), _size(size)
+        explicit BlobReference(ConstByteIterator const first, ConstByteIterator const last = nullptr)
+            : _first(first), _last(last)
         {
             AssertInitialized();
         }
 
-        ConstByteIterator Begin()    const { AssertInitialized(); return _first.Get(); }
-        SizeType          GetSize()  const { AssertInitialized(); return _size.Get();  }
-
-        bool IsValid() const
+        template <typename TSignature>
+        explicit BlobReference(TSignature const& signature,
+                               typename std::enable_if<std::is_class<TSignature>::value>::type* = nullptr)
+            : _first(signature.BeginBytes()), _last(signature.EndBytes())
         {
-            return _first.Get() != nullptr;
         }
 
-        bool IsInitialized() const
-        {
-            return _first.Get() != nullptr;
-        }
+        ConstByteIterator Begin()            const { AssertInitialized(); return _first.Get();           }
+        ConstByteIterator End()              const { AssertInitialized(); return _last.Get();            }
+        bool              HasEncodedLength() const { AssertInitialized(); return _last.Get() == nullptr; }
+        bool              IsValid()          const { return _first.Get() != nullptr;                     }
+        bool              IsInitialized()    const { return _first.Get() != nullptr;                     }
 
         friend bool operator==(BlobReference const& lhs, BlobReference const& rhs)
         {
-            return lhs._first.Get() == rhs._first.Get();
+            return std::equal_to<ConstByteIterator>()(lhs._first.Get(), rhs._first.Get());
         }
 
         friend bool operator<(BlobReference const& lhs, BlobReference const& rhs)
         {
-            return lhs._first.Get() < rhs._first.Get();
+            return std::less<ConstByteIterator>()(lhs._first.Get(), rhs._first.Get());
         }
 
         CXXREFLECT_GENERATE_COMPARISON_OPERATORS(BlobReference)
@@ -227,76 +233,83 @@ namespace CxxReflect { namespace Metadata {
         }
 
         Detail::ValueInitialized<ConstByteIterator> _first;
-        Detail::ValueInitialized<SizeType>          _size;
+        Detail::ValueInitialized<ConstByteIterator> _last;
     };
 
 
 
 
-    // Represents a reference to either a blob or a row, along with the database in which the blob
-    // or row is resolvable.
+    // Represents a reference to either a blob or a row.
     class BaseElementReference
     {
     public:
 
         enum : SizeType
         {
-            InvalidIndex = static_cast<SizeType>(-1)
+            InvalidElementSentinel = static_cast<SizeType>(-1)
         };
 
         BaseElementReference()
-            : _index(InvalidIndex)
+            : _first(nullptr),
+              _size(InvalidElementSentinel)
         {
         }
 
         BaseElementReference(RowReference const& reference)
-            : _index((reference.GetToken() & ~KindMask) | TableKindBit)
+            : _index(reference.GetToken()),
+              _size(TableKindBit)
         {
             AssertInitialized();
         }
 
         BaseElementReference(BlobReference const& reference)
-            : _index(BlobKindBit), _first(reference.Begin()), _size(reference.GetSize())
+            : _first(reference.Begin()),
+              _size((reference.End() ? 0 : (reference.End() - reference.Begin()) & ~KindMask) | BlobKindBit)
         {
             AssertInitialized();
         }
 
-        bool IsRowReference()  const { return IsValid() && (_index.Get() & KindMask) == TableKindBit; }
-        bool IsBlobReference() const { return IsValid() && (_index.Get() & KindMask) == BlobKindBit;  }
+        bool IsRowReference()  const { return IsValid() && (_size.Get() & KindMask) == TableKindBit; }
+        bool IsBlobReference() const { return IsValid() && (_size.Get() & KindMask) == BlobKindBit;  }
 
-        bool IsValid()         const { return _index.Get() != InvalidIndex; }
-        bool IsInitialized()   const { return _index.Get() != InvalidIndex; }
+        bool IsValid()         const { return _size.Get() != InvalidElementSentinel; }
+        bool IsInitialized()   const { return _size.Get() != InvalidElementSentinel; }
 
         RowReference AsRowReference() const
         {
             Detail::Assert([&]{ return IsRowReference(); });
-            return RowReference::FromToken(_index.Get() & ~KindMask);
+            return RowReference::FromToken(_index);
         }
 
         BlobReference AsBlobReference() const
         {
             Detail::Assert([&]{ return IsBlobReference(); });
-            return BlobReference(_first.Get(), _size.Get());
+            return BlobReference(_first, _size.Get() ? (_first + _size.Get()) : nullptr);
         }
 
         friend bool operator==(BaseElementReference const& lhs, BaseElementReference const& rhs)
         {
-            return lhs._index.Get() == rhs._index.Get() && lhs._first.Get() == rhs._first.Get();
+            if (lhs.IsBlobReference() != rhs.IsBlobReference())
+                return false;
+
+            return lhs.IsBlobReference()
+                ? (lhs._first == rhs._first)
+                : (lhs._index == rhs._index);
         }
 
         friend bool operator<(BaseElementReference const& lhs, BaseElementReference const& rhs)
         {
-            if (lhs._index.Get() < rhs._index.Get())
-                return true;
+            // Arbitrarily order all blob references before row references for sorting purposes:
+            if (lhs.IsBlobReference() != rhs.IsBlobReference())
+                return lhs.IsBlobReference();
 
-            if (lhs._index.Get() > rhs._index.Get())
-                return false;
-
-            return lhs._first.Get() < rhs._first.Get();
+            return lhs.IsBlobReference()
+                ? (lhs._first < rhs._first)
+                : (lhs._index < rhs._index);
         }
 
         CXXREFLECT_GENERATE_COMPARISON_OPERATORS(BaseElementReference)
-        CXXREFLECT_GENERATE_ADDITION_SUBTRACTION_OPERATORS(BaseElementReference, _index.Get(), std::int32_t)
+        CXXREFLECT_GENERATE_ADDITION_SUBTRACTION_OPERATORS(BaseElementReference, _index, std::int32_t)
 
     protected:
 
@@ -309,17 +322,13 @@ namespace CxxReflect { namespace Metadata {
             BlobKindBit  = 0x80000000
         };
 
-        // TODO This has turned into a disaster:  everything was nice and clean and made sense as
-        // long as both RowReference and BlobReference used indices, but now that BlobReference
-        // needs to use a pointer, it's a complete mess. :'(
+        union
+        {
+            SizeType          _index;
+            ConstByteIterator _first;
+        };
 
-        // These are used for a RowReference, also to identify the kind of reference and whether it
-        // is valid (i.e., it uses the KindMask and the InvalidIndex constants.
-        Detail::ValueInitialized<SizeType>          _index;
-
-        // These are used for a BlobReference
-        Detail::ValueInitialized<ConstByteIterator> _first;
-        Detail::ValueInitialized<SizeType>          _size;
+        Detail::ValueInitialized<SizeType> _size;
     };
 
     class ElementReference
@@ -342,7 +351,7 @@ namespace CxxReflect { namespace Metadata {
         // TODO This is rather messy:  these operators really only apply to row references, not to
         // blob references, so they should only be available when we have a row reference.
         CXXREFLECT_GENERATE_COMPARISON_OPERATORS(ElementReference)
-        CXXREFLECT_GENERATE_ADDITION_SUBTRACTION_OPERATORS(ElementReference, _index.Get(), std::int32_t)
+        CXXREFLECT_GENERATE_ADDITION_SUBTRACTION_OPERATORS(ElementReference, _index, std::int32_t)
     };
 
     class FullReference
@@ -381,7 +390,7 @@ namespace CxxReflect { namespace Metadata {
         // TODO This is rather messy:  these operators really only apply to row references, not to
         // blob references, so they should only be available when we have a row reference.
         CXXREFLECT_GENERATE_COMPARISON_OPERATORS(FullReference)
-        CXXREFLECT_GENERATE_ADDITION_SUBTRACTION_OPERATORS(FullReference, _index.Get(), std::int32_t)
+        CXXREFLECT_GENERATE_ADDITION_SUBTRACTION_OPERATORS(FullReference, _index, std::int32_t)
 
     private:
 
@@ -832,8 +841,8 @@ namespace CxxReflect { namespace Metadata {
         {
             return Blob(
                 blobReference.Begin(),
-                blobReference.GetSize() != 0 ? (blobReference.Begin() + blobReference.GetSize()) : _blobStream.End(),
-                blobReference.GetSize());
+                blobReference.End() != nullptr ? blobReference.End() : _blobStream.End(),
+                blobReference.End() != nullptr ? (blobReference.End() - blobReference.Begin()) : 0);
         }
 
         StringReference GetString(SizeType const index) const
@@ -914,7 +923,7 @@ namespace CxxReflect { namespace Metadata {
             : _database(database), _index(index)
         {
             Detail::AssertNotNull(database);
-            Detail::Assert([&]{ return index != BaseElementReference::InvalidIndex; });
+            Detail::Assert([&]{ return index != BaseElementReference::InvalidElementSentinel; });
         }
 
         RowReference GetReference()  const { return RowReference(TId, _index.Get()); } 

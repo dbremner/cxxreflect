@@ -177,7 +177,10 @@ namespace CxxReflect {
 
         if (signature.GetKind() == Metadata::TypeSignature::Kind::Primitive)
         {
-            Type const primitiveType(Utility::GetPrimitiveType(_assembly.Realize(), signature.GetPrimitiveElementType()));
+            Type const primitiveType(assembly
+                .GetContext(InternalKey())
+                .GetLoader()
+                .GetFundamentalType(signature.GetPrimitiveElementType(), InternalKey()));
             Detail::Assert([&]{ return primitiveType.IsInitialized(); });
 
             _assembly = primitiveType.GetAssembly();
@@ -242,9 +245,7 @@ namespace CxxReflect {
                     os << L'[';
                     Type const argumentType(
                         _assembly.Realize(),
-                        Metadata::BlobReference(
-                            argumentSignature.BeginBytes(),
-                            argumentSignature.EndBytes() - argumentSignature.BeginBytes()),
+                        Metadata::BlobReference(argumentSignature),
                         InternalKey());
                     argumentType.AccumulateAssemblyQualifiedNameInto(os);
                     os << L']';
@@ -262,9 +263,7 @@ namespace CxxReflect {
             {
                 Type const classType(
                     _assembly.Realize(),
-                    Metadata::BlobReference(
-                        signature.GetArrayType().BeginBytes(),
-                        signature.GetArrayType().EndBytes() - signature.GetArrayType().BeginBytes()),
+                    Metadata::BlobReference(signature.GetArrayType()),
                     InternalKey());
 
                 classType.AccumulateFullNameInto(os);

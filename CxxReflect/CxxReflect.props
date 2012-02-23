@@ -26,9 +26,26 @@
       <Configuration>Release</Configuration>
       <Platform>x64</Platform>
     </ProjectConfiguration>
+    <ProjectConfiguration Include="Profiling|ARM">
+      <Configuration>Profiling</Configuration>
+      <Platform>ARM</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Profiling|Win32">
+      <Configuration>Profiling</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Profiling|x64">
+      <Configuration>Profiling</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
   </ItemGroup>
 
   <PropertyGroup Label="Globals">
+    <!-- If the Profiling configuration is set, flag profiling to be enabled and reset the configuration to Release-->
+    <CxxReflectIsProfilingEnabled>false</CxxReflectIsProfilingEnabled>
+    <CxxReflectIsProfilingEnabled Condition="'$(Configuration)' == 'Profiling'">true</CxxReflectIsProfilingEnabled>
+    <Configuration Condition="'$(Configuration)' == 'Profiling'">Release</Configuration>
+      
     <MinimumVisualStudioVersion>11.0</MinimumVisualStudioVersion>
     <RootNamespace>$(MSBuildProjectName)</RootNamespace>
     <VCTargetsPath Condition="'$(VCTargetsPath11)' != '' and '$(VSVersion)' == '' and '$(VisualStudioVersion)' == ''">$(VCTargetsPath11)</VCTargetsPath>
@@ -100,9 +117,15 @@
       <Profile>true</Profile>
     </Link>
   </ItemDefinitionGroup>
+    
+  <ItemDefinitionGroup Condition="$(CxxReflectIsProfilingEnabled) == 'true'">
+    <Link>
+      <Profile>true</Profile>
+    </Link>
+  </ItemDefinitionGroup>
 
   <!-- All projects reference the core CxxReflect.lib project -->
-  <ItemGroup Condition="'$(ProjectName)'!='CxxReflect'">
+  <ItemGroup Condition="'$(ProjectName)' != 'CxxReflect'">
     <ProjectReference Include="$(SolutionDir)CxxReflect\CxxReflect.vcxproj">
       <Project>{64dc7dff-d2e4-4086-be24-02f0b9d71128}</Project>
     </ProjectReference>

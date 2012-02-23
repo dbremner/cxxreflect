@@ -199,9 +199,9 @@ namespace CxxReflect { namespace Detail {
 
         void RealizeName() const;
 
-        ValueInitialized<Loader const*>         _loader;
-        String                                  _uri;
-        Metadata::Database                      _database;
+        ValueInitialized<Loader const*>       _loader;
+        String                                _uri;
+        Metadata::Database                    _database;
 
         FlagSet<RealizationState>     mutable _state;
         std::unique_ptr<AssemblyName> mutable _name;
@@ -398,8 +398,6 @@ namespace CxxReflect {
 
         static Type GetSystemObjectType(Type const& referenceType);
         static Type GetSystemObjectType(Assembly const& referenceAssembly);
-
-        static Type GetPrimitiveType(Assembly const& referenceAssembly, Metadata::ElementType elementType);
     };
 
 

@@ -55,6 +55,8 @@ namespace CxxReflect {
 
         Metadata::FullReference ResolveType(Metadata::FullReference const& typeReference) const;
 
+        Type GetFundamentalType(Metadata::ElementType const elementType, InternalKey) const;
+
     private:
 
         Loader(Loader const&);
@@ -62,6 +64,14 @@ namespace CxxReflect {
 
         std::unique_ptr<IAssemblyLocator>                 _assemblyLocator;
         mutable std::map<String, Detail::AssemblyContext> _contexts;
+
+        enum { FundamentalTypeCount = static_cast<std::size_t>(Metadata::ElementType::ConcreteElementTypeMax) };
+
+        // There must be exactly one system assembly and it must define types for each fundamental
+        // element type.  It can be a bit expensive to hunt down the type definitions, especially if
+        // we frequently need to look them up (which is common in reflection use cases), so we cache
+        // the set of fundamental type definitions for the type universe once, here, in the loader:
+        mutable std::array<Detail::TypeHandle, FundamentalTypeCount> _fundamentalTypes;
     };
 
 }
