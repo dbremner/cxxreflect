@@ -183,6 +183,8 @@ namespace CxxReflect { namespace Detail {
         MethodTable   const GetOrCreateMethodTable  (Metadata::ElementReference const& type) const;
         PropertyTable const GetOrCreatePropertyTable(Metadata::ElementReference const& type) const;
 
+        Metadata::TypeDefRow const GetOwnerOfMethodDef(Metadata::MethodDefRow const& methodDef) const;
+
         bool IsInitialized() const;
 
     private:
@@ -209,6 +211,8 @@ namespace CxxReflect { namespace Detail {
         FieldTableCollection          mutable _fields;
         MethodTableCollection         mutable _methods;
         PropertyTableCollection       mutable _properties;
+
+        std::vector<Metadata::RowReference> mutable _typesOrderedByMethodList;
     };
 
 

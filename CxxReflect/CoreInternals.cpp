@@ -172,6 +172,68 @@ namespace CxxReflect { namespace Detail { namespace { namespace Private {
         return 0; // TODO
     }
 
+    template
+    <
+        typename TRow,
+        Metadata::RowReference (TRow::*FFirst)() const,
+        Metadata::RowReference (TRow::*FLast)() const
+    >
+    class ElementListStrictWeakOrdering
+    {
+    public:
+
+        ElementListStrictWeakOrdering(Metadata::Database const* database)
+            : _database(database)
+        {
+            AssertNotNull(database);
+        }
+
+        bool operator()(Metadata::RowReference const& lhsRow, Metadata::RowReference const& rhsRow) const
+        {
+            using namespace Metadata;
+
+            TableId const SourceTableId(static_cast<TableId>(RowTypeToTableId<TRow>::Value));
+
+            if (lhsRow.GetTable() == SourceTableId)
+            {
+                TRow const owningRow(_database.Get()->GetRow<SourceTableId>(lhsRow));
+                RowReference const rangeLast((owningRow.*FLast)());
+
+                Assert([&]{ return rangeLast.GetTable() == rhsRow.GetTable(); });
+                return rangeLast <= rhsRow;
+            }
+            else if (rhsRow.GetTable() == SourceTableId)
+            {
+                TRow const owningRow(_database.Get()->GetRow<SourceTableId>(rhsRow));
+                RowReference const rangeFirst((owningRow.*FFirst)());
+
+                Assert([&]{ return lhsRow.GetTable() == rangeFirst.GetTable(); });
+                return lhsRow < rangeFirst;
+            }
+            else
+            {
+                AssertFail(L"Invalid function arguments");
+                return false;
+            }
+        }
+
+    private:
+
+        ValueInitialized<Metadata::Database const*> _database;
+    };
+
+    typedef ElementListStrictWeakOrdering<
+        Metadata::TypeDefRow,
+        &Metadata::TypeDefRow::GetFirstField,
+        &Metadata::TypeDefRow::GetLastField
+    > FieldListStrictWeakOrdering;
+
+    typedef ElementListStrictWeakOrdering<
+        Metadata::TypeDefRow,
+        &Metadata::TypeDefRow::GetFirstMethod,
+        &Metadata::TypeDefRow::GetLastMethod
+    > MethodListStrictWeakOrdering;
+
 } } } }
 
 namespace CxxReflect { namespace Detail {
@@ -603,6 +665,48 @@ namespace CxxReflect { namespace Detail {
     PropertyTable const AssemblyContext::GetOrCreatePropertyTable(Metadata::ElementReference const& type) const
     {
         return _properties.GetOrCreateMemberTable(Metadata::FullReference(&_database, type));
+    }
+
+    Metadata::TypeDefRow const AssemblyContext::GetOwnerOfMethodDef(Metadata::MethodDefRow const& methodDef) const
+    {
+        if (_typesOrderedByMethodList.size() == 0 && 
+            _database.GetTables().GetTable(Metadata::TableId::TypeDef).GetRowCount() > 0)
+        {
+            _typesOrderedByMethodList.resize(_database.GetTables().GetTable(Metadata::TableId::TypeDef).GetRowCount());
+            for (Metadata::RowReference r(Metadata::TableId::TypeDef, 0);
+                 r != Metadata::RowReference(Metadata::TableId::TypeDef, _typesOrderedByMethodList.size());
+                 ++r)
+            {
+                _typesOrderedByMethodList[r.GetIndex()] = r;
+            }
+
+            _typesOrderedByMethodList.erase(std::remove_if(
+                _typesOrderedByMethodList.begin(),
+                _typesOrderedByMethodList.end(),
+                [&](Metadata::RowReference const& reference) -> bool
+            {
+                Metadata::TypeDefRow row(_database.GetRow<Metadata::TableId::TypeDef>(reference));
+                return row.GetFirstMethod() == row.GetLastMethod();
+            }));
+
+            std::sort(_typesOrderedByMethodList.begin(),
+                      _typesOrderedByMethodList.end(),
+                      [&](Metadata::RowReference const& lhs, Metadata::RowReference const& rhs) -> bool
+            {
+                Metadata::TypeDefRow lhsRow(_database.GetRow<Metadata::TableId::TypeDef>(lhs));
+                Metadata::TypeDefRow rhsRow(_database.GetRow<Metadata::TableId::TypeDef>(rhs));
+
+                return lhsRow.GetFirstMethod() < rhsRow.GetFirstMethod();
+            });                                    
+        }
+
+        auto const it(BinarySearch(_typesOrderedByMethodList.begin(),
+                                   _typesOrderedByMethodList.end(),
+                                   methodDef.GetSelfReference(),
+                                   Private::MethodListStrictWeakOrdering(&_database)));
+
+        Assert([&]{ return it != _typesOrderedByMethodList.end(); });
+        return _database.GetRow<Metadata::TableId::TypeDef>(*it);
     }
 
     void AssemblyContext::RealizeName() const

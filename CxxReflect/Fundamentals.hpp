@@ -158,7 +158,7 @@ namespace CxxReflect { namespace Detail {
     inline void AssertNotNull(void const*) { }
 
     template <typename TCallable>
-    void Assert(TCallable&&, CharacterIterator = "") { }
+    void Assert(TCallable&&, CharacterIterator = L"") { }
 
     #endif
 
@@ -277,7 +277,7 @@ namespace CxxReflect { namespace Detail {
     TRanIt BinarySearch(TRanIt const first, TRanIt const last, TValue const& value, TComparer const comparer)
     {
         TRanIt const it(::std::lower_bound(first, last, value, comparer));
-        if (it == last || *it < value || value < *it)
+        if (it == last || comparer(*it, value) || comparer(value, *it))
         {
             return last;
         }

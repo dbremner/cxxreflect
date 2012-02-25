@@ -117,8 +117,11 @@ namespace CxxReflect {
             // embarrasing and horrible and it would be great if we could optimize this somehow.
 
             Metadata::RowReference const methodDefReference(customAttributeRow.GetType());
+            Metadata::MethodDefRow const methodDefRow(
+                parentDatabase.GetRow<Metadata::TableId::MethodDef>(methodDefReference));
 
             // Find the owning TypeDef:
+            /*
             auto const typeDefIt(std::find_if(parentDatabase.Begin<Metadata::TableId::TypeDef>(),
                                               parentDatabase.End<Metadata::TableId::TypeDef>(),
                                               [&](Metadata::TypeDefRow const& typeDef) -> bool
@@ -126,10 +129,14 @@ namespace CxxReflect {
                 return typeDef.GetFirstMethod().GetIndex() <= methodDefReference.GetIndex()
                     && typeDef.GetLastMethod().GetIndex()  >  methodDefReference.GetIndex();
             }));
+            */
+            Metadata::TypeDefRow const& typeDef(assembly
+                .GetContext(InternalKey())
+                .GetOwnerOfMethodDef(methodDefRow));
 
-            Detail::Assert([&]{ return typeDefIt != parentDatabase.End<Metadata::TableId::TypeDef>(); });
+            //Detail::Assert([&]{ return typeDefIt != parentDatabase.End<Metadata::TableId::TypeDef>(); });
 
-            Type const type(assembly, typeDefIt->GetSelfReference(), InternalKey());
+            Type const type(assembly, typeDef.GetSelfReference(), InternalKey());
 
             BindingFlags const flags(
                 BindingAttribute::Public    |
