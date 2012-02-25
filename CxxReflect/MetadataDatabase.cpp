@@ -542,8 +542,7 @@ namespace CxxReflect { namespace Metadata { namespace { namespace Private {
         case  5: return RowReference(TableId::InterfaceImpl,          split.second);
         case  6: return RowReference(TableId::MemberRef,              split.second);
         case  7: return RowReference(TableId::Module,                 split.second);
-        // TODO WTF is the 'Permission' table?
-        // case  8: return RowReference(TableId::Permission,          split.second);
+        case  8: return RowReference(TableId::DeclSecurity,           split.second);
         case  9: return RowReference(TableId::Property,               split.second);
         case 10: return RowReference(TableId::Event,                  split.second);
         case 11: return RowReference(TableId::StandaloneSig,          split.second);
@@ -808,6 +807,7 @@ namespace CxxReflect { namespace Metadata {
 
 
 
+
     StringCollection::StringCollection()
     {
     }
@@ -866,6 +866,7 @@ namespace CxxReflect { namespace Metadata {
 
 
 
+
     Stream::Stream()
     {
     }
@@ -899,6 +900,7 @@ namespace CxxReflect { namespace Metadata {
         std::swap(other._data, _data);
         std::swap(other._size, _size);
     }
+
 
 
 
@@ -1187,6 +1189,7 @@ namespace CxxReflect { namespace Metadata {
 
 
 
+
     Database::Database(String fileName)
         : _fileName(std::move(fileName))
     {
@@ -1256,6 +1259,7 @@ namespace CxxReflect { namespace Metadata {
         std::swap(_strings,    other._strings   );
         std::swap(_tables,     other._tables    );
     }
+
 
 
 

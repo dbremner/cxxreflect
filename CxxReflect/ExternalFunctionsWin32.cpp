@@ -40,14 +40,14 @@ namespace CxxReflect { namespace Detail {
         return result;
     }
 
-    String Win32ExternalFunctions::ConvertNarrowStringToWideString(char const* const narrowString) const
+    String Win32ExternalFunctions::ConvertNarrowStringToWideString(char const* const /* narrowString */) const
     {
-        return String();
+        return String(); // TODO
     }
 
-    NarrowString Win32ExternalFunctions::ConvertWideStringToNarrowString(wchar_t const* const wideString) const
+    NarrowString Win32ExternalFunctions::ConvertWideStringToNarrowString(wchar_t const* const /* wideString */) const
     {
-        return NarrowString();
+        return NarrowString(); // TODO
     }
 
     unsigned Win32ExternalFunctions::ComputeUtf16LengthOfUtf8String(char const* const source) const

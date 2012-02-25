@@ -345,6 +345,7 @@ namespace CxxReflect { namespace Metadata {
 
 
 
+
     // Represents an ArrayShape signature item
     class ArrayShape
         : public BaseSignature
@@ -388,6 +389,7 @@ namespace CxxReflect { namespace Metadata {
     };
 
     CXXREFLECT_GENERATE_SCOPED_ENUM_OPERATORS(ArrayShape::Part)
+
 
 
 
@@ -718,6 +720,7 @@ namespace CxxReflect { namespace Metadata {
         Detail::ValueInitialized<Database const*>      _lhsDatabase;
         Detail::ValueInitialized<Database const*>      _rhsDatabase;
     };
+
 
 
 

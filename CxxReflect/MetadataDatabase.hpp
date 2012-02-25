@@ -96,6 +96,7 @@ namespace CxxReflect { namespace Metadata {
 
 
 
+
     // Represents a reference to a row in a table.  This is effectively a metadata token, except we
     // adjust the index so that it is zero-based instead of one-based.  The invalid token value uses
     // all bits one instead of all bits zero.
@@ -177,6 +178,7 @@ namespace CxxReflect { namespace Metadata {
 
 
 
+
     // Represents a reference to a blob.  There are two representations used within:
     //
     // * If 'last' is null, the length of the referenced blob is specified in the first several
@@ -235,6 +237,7 @@ namespace CxxReflect { namespace Metadata {
         Detail::ValueInitialized<ConstByteIterator> _first;
         Detail::ValueInitialized<ConstByteIterator> _last;
     };
+
 
 
 
@@ -400,6 +403,7 @@ namespace CxxReflect { namespace Metadata {
 
 
 
+
     // Represents a four-component assembly version number (major.minor.build.revision).
     class FourComponentVersion
     {
@@ -428,6 +432,8 @@ namespace CxxReflect { namespace Metadata {
         Detail::ValueInitialized<Component> _build;
         Detail::ValueInitialized<Component> _revision;
     };
+
+
 
 
 
@@ -487,6 +493,7 @@ namespace CxxReflect { namespace Metadata {
         std::unique_ptr<Byte[]>            _data;
         Detail::ValueInitialized<SizeType> _size;
     };
+
 
 
 
@@ -559,6 +566,7 @@ namespace CxxReflect { namespace Metadata {
 
 
 
+
     // Represents a Blob in the metadata database
     class Blob
     {
@@ -616,6 +624,7 @@ namespace CxxReflect { namespace Metadata {
 
 
 
+
     // This provides general-purpose access to a metadata table; it does not own the table data, it
     // is just a wrapper to provide convenient access for row offset computation and bounds checking.
     class Table
@@ -665,6 +674,7 @@ namespace CxxReflect { namespace Metadata {
         Detail::ValueInitialized<SizeType>          _rowCount;
         Detail::ValueInitialized<bool>              _isSorted;
     };
+
 
 
 
@@ -746,6 +756,7 @@ namespace CxxReflect { namespace Metadata {
 
 
 
+
     // Encapsulates the strings stream, providing conversion from the raw UTF-8 strings to the
     // more convenient UTF-16 used by Windows.  It caches the transformed strings so that we can
     // just use references to the strings everywhere and not have to copy tons of data.
@@ -783,8 +794,10 @@ namespace CxxReflect { namespace Metadata {
 
 
 
+
     template <TableId TId>
     class RowIterator;
+
 
 
 
@@ -897,6 +910,7 @@ namespace CxxReflect { namespace Metadata {
 
 
 
+
     // This iterator type provides a random access container interface for the metadata database.
     template <TableId TId>
     class RowIterator
@@ -926,31 +940,34 @@ namespace CxxReflect { namespace Metadata {
             Detail::Assert([&]{ return index != BaseElementReference::InvalidElementSentinel; });
         }
 
-        RowReference GetReference()  const { return RowReference(TId, _index.Get()); } 
+        RowReference GetReference()  const { AssertInitialized(); return RowReference(TId, _index.Get()); } 
 
-        Reference    Get()           const { return _database.Get()->GetRow<TId>(_index.Get()); }
-        Reference    operator*()     const { return _database.Get()->GetRow<TId>(_index.Get()); }
-        Pointer      operator->()    const { return _database.Get()->GetRow<TId>(_index.Get()); }
+        Reference    Get()           const { return GetValue(); }
+        Reference    operator*()     const { return GetValue(); }
+        Pointer      operator->()    const { return GetValue(); }
 
-        RowIterator& operator++()    { ++_index.Get(); return *this;                }
-        RowIterator  operator++(int) { RowIterator it(*this); ++*this; return it;   }
+        RowIterator& operator++()    { AssertInitialized(); ++_index.Get(); return *this; }
+        RowIterator  operator++(int) { RowIterator const it(*this); ++*this; return it;   }
 
-        RowIterator& operator--()    { --_index.Get(); return *this;                }
-        RowIterator  operator--(int) { RowIterator it(*this); --*this; return it;   }
+        RowIterator& operator--()    { AssertInitialized(); --_index.Get(); return *this; }
+        RowIterator  operator--(int) { RowIterator const it(*this); --*this; return it;   }
 
         RowIterator& operator+=(DifferenceType const n)
         {
-            _index.Get() += static_cast<SizeType>(n); // TODO THIS WILL OVERFLOW FOR NEGATIVE
+            AssertInitialized();
+            _index.Get() = static_cast<SizeType>(static_cast<DifferenceType>(_index.Get()) + n);
             return *this;
         }
         RowIterator& operator-=(DifferenceType const n)
         {
-            _index.Get() -= static_cast<SizeType>(n); // TODO THIS WILL OVERFLOW FOR NEGATIVE
+            AssertInitialized();
+            _index.Get() = static_cast<SizeType>(static_cast<DifferenceType>(_index.Get()) - n);
             return *this;
         }
 
         Reference operator[](DifferenceType const n) const
         {
+            AssertInitialized();
             return _database->GetRow<ValueType>(_index.Get() + n);
         }
 
@@ -972,6 +989,8 @@ namespace CxxReflect { namespace Metadata {
 
         friend bool operator<(RowIterator const& lhs, RowIterator const& rhs)
         {
+            lhs.AssertInitialized();
+            rhs.AssertInitialized();
             AssertComparable(lhs, rhs);
             return lhs._index.Get() < rhs._index.Get();
         }
@@ -985,6 +1004,17 @@ namespace CxxReflect { namespace Metadata {
             Detail::Assert([&]{ return lhs._database.Get() == rhs._database.Get(); });
         }
 
+        void AssertInitialized() const
+        {
+            Detail::Assert([&]{ return _database.Get() != nullptr; });
+        }
+
+        Reference GetValue() const
+        {
+            AssertInitialized();
+            return _database.Get()->GetRow<TId>(_index.Get());
+        }
+
         Detail::ValueInitialized<Database const*> _database;
         Detail::ValueInitialized<SizeType>        _index;
     };
@@ -992,6 +1022,11 @@ namespace CxxReflect { namespace Metadata {
 
 
 
+
+    // This function serves as a pseudo-constructor for the Row classes, as a workaround for the
+    // lack of inheriting constructors.  The BaseRow defines an Initialize() member function that
+    // constructs the object, and this function is the only function that is befriended and which
+    // can call it.
     template <typename TRow>
     TRow CreateRow(Database const* const database, ConstByteIterator const data)
     {
@@ -1307,8 +1342,8 @@ namespace CxxReflect { namespace Metadata {
     public:
 
         MethodSemanticsFlags GetSemantics()   const;
-        RowReference       GetMethod()      const;
-        RowReference       GetAssociation() const;
+        RowReference         GetMethod()      const;
+        RowReference         GetAssociation() const;
     };
 
     class MethodSpecRow : public BaseRow<TableId::MethodSpec>

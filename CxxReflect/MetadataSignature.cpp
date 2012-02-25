@@ -440,6 +440,7 @@ namespace CxxReflect { namespace Metadata {
 
 
 
+
     ClassVariableSignatureInstantiator::ClassVariableSignatureInstantiator()
     {
     }
@@ -672,6 +673,7 @@ namespace CxxReflect { namespace Metadata {
 
 
 
+
     BaseSignature::BaseSignature()
     {
     }
@@ -720,6 +722,7 @@ namespace CxxReflect { namespace Metadata {
     {
         Detail::Assert([&]{ return IsInitialized(); });
     }
+
 
 
 
@@ -826,10 +829,7 @@ namespace CxxReflect { namespace Metadata {
                 Private::ReadCompressedUInt32(current, EndBytes());
         }
 
-        if (part > Part::End)
-        {
-            Detail::AssertFail(L"Invalid signature part requested");
-        }
+        Detail::Assert([&]{ return part <= Part::End; }, L"Invalid signature part requested");
 
         return current;
     }
@@ -843,6 +843,7 @@ namespace CxxReflect { namespace Metadata {
     {
         return Private::ReadCompressedUInt32(current, last);
     }
+
 
 
 
@@ -913,6 +914,7 @@ namespace CxxReflect { namespace Metadata {
 
 
 
+
     FieldSignature::FieldSignature()
     {
     }
@@ -963,6 +965,7 @@ namespace CxxReflect { namespace Metadata {
 
         return current;
     }
+
 
 
 
@@ -1068,6 +1071,7 @@ namespace CxxReflect { namespace Metadata {
         current += type.ComputeSize();
         return type;
     }
+
 
 
 
@@ -1308,6 +1312,7 @@ namespace CxxReflect { namespace Metadata {
 
         return current;
     }
+
 
 
 

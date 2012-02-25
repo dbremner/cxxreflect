@@ -172,11 +172,61 @@ namespace CxxReflect { namespace Detail { namespace { namespace Private {
         return 0; // TODO
     }
 
+
+
+
+
+    // There are no backreferences in CLI metadata, so it is only possible to get from TypeDef to
+    // MethodDef; the only way to get from MethodDef back to its owning TypeDef is to perform a
+    // linear search over the TypeDef table.  This function generates a list of TypeDefs ordered by
+    // their first element in a particular list (there are two lists--for MethodDef and FieldDef).
     template
     <
-        typename TRow,
-        Metadata::RowReference (TRow::*FFirst)() const,
-        Metadata::RowReference (TRow::*FLast)() const
+        Metadata::RowReference (Metadata::TypeDefRow::*FFirst)() const,
+        Metadata::RowReference (Metadata::TypeDefRow::*FLast)() const
+    >
+    std::vector<Metadata::RowReference> BuildTypeListCache(Metadata::Database const& database)
+    {
+        unsigned const typeDefRowCount(database.GetTables().GetTable(Metadata::TableId::TypeDef).GetRowCount());
+
+        // First, initialize the cache with all of the TypeDef rows, in index order:
+        Metadata::RowReference const first(Metadata::TableId::TypeDef, 0);
+        Metadata::RowReference const last(Metadata::TableId::TypeDef, typeDefRowCount);
+
+        std::vector<Metadata::RowReference> cache(typeDefRowCount);
+        for (Metadata::RowReference ref(first); ref != last; ++ref)
+        {
+            cache[ref.GetIndex()] = ref;
+        }
+
+        // Second, remove from the list any TypeDef rows that have no elements in the list:
+        cache.erase(std::remove_if(begin(cache), end(cache), [&](Metadata::RowReference const& ref) -> bool
+        {
+            Metadata::TypeDefRow const row(database.GetRow<Metadata::TableId::TypeDef>(ref));
+            return (row.*FFirst)() == (row.*FLast)();
+        }));
+
+        // Finally, re-sort the TypeDef row by the first element in their respective lists:
+        std::sort(begin(cache), end(cache), [&](Metadata::RowReference lhs, Metadata::RowReference rhs) -> bool
+        {
+            Metadata::TypeDefRow const lhsRow(database.GetRow<Metadata::TableId::TypeDef>(lhs));
+            Metadata::TypeDefRow const rhsRow(database.GetRow<Metadata::TableId::TypeDef>(rhs));
+            return (lhsRow.*FFirst)() == (rhsRow.*FFirst)();
+        });
+
+        return cache;
+    }
+
+
+
+
+
+    // This comparer provides a strict-weak ordering over a range of TypeDefs ordered by list using
+    // the BuildTypeListCache function above.
+    template
+    <
+        Metadata::RowReference (Metadata::TypeDefRow::*FFirst)() const,
+        Metadata::RowReference (Metadata::TypeDefRow::*FLast)() const
     >
     class ElementListStrictWeakOrdering
     {
@@ -190,22 +240,21 @@ namespace CxxReflect { namespace Detail { namespace { namespace Private {
 
         bool operator()(Metadata::RowReference const& lhsRow, Metadata::RowReference const& rhsRow) const
         {
-            using namespace Metadata;
+            Assert([&]{ return lhsRow.IsInitialized(); });
+            Assert([&]{ return rhsRow.IsInitialized(); });
 
-            TableId const SourceTableId(static_cast<TableId>(RowTypeToTableId<TRow>::Value));
-
-            if (lhsRow.GetTable() == SourceTableId)
+            if (lhsRow.GetTable() == Metadata::TableId::TypeDef)
             {
-                TRow const owningRow(_database.Get()->GetRow<SourceTableId>(lhsRow));
-                RowReference const rangeLast((owningRow.*FLast)());
+                auto const owningRow(_database.Get()->GetRow<Metadata::TableId::TypeDef>(lhsRow));
+                Metadata::RowReference const rangeLast((owningRow.*FLast)());
 
                 Assert([&]{ return rangeLast.GetTable() == rhsRow.GetTable(); });
                 return rangeLast <= rhsRow;
             }
-            else if (rhsRow.GetTable() == SourceTableId)
+            else if (rhsRow.GetTable() == Metadata::TableId::TypeDef)
             {
-                TRow const owningRow(_database.Get()->GetRow<SourceTableId>(rhsRow));
-                RowReference const rangeFirst((owningRow.*FFirst)());
+                auto const owningRow(_database.Get()->GetRow<Metadata::TableId::TypeDef>(rhsRow));
+                Metadata::RowReference const rangeFirst((owningRow.*FFirst)());
 
                 Assert([&]{ return lhsRow.GetTable() == rangeFirst.GetTable(); });
                 return lhsRow < rangeFirst;
@@ -223,13 +272,11 @@ namespace CxxReflect { namespace Detail { namespace { namespace Private {
     };
 
     typedef ElementListStrictWeakOrdering<
-        Metadata::TypeDefRow,
         &Metadata::TypeDefRow::GetFirstField,
         &Metadata::TypeDefRow::GetLastField
     > FieldListStrictWeakOrdering;
 
     typedef ElementListStrictWeakOrdering<
-        Metadata::TypeDefRow,
         &Metadata::TypeDefRow::GetFirstMethod,
         &Metadata::TypeDefRow::GetLastMethod
     > MethodListStrictWeakOrdering;
@@ -669,43 +716,24 @@ namespace CxxReflect { namespace Detail {
 
     Metadata::TypeDefRow const AssemblyContext::GetOwnerOfMethodDef(Metadata::MethodDefRow const& methodDef) const
     {
-        if (_typesOrderedByMethodList.size() == 0 && 
+        if (_typesOrderedByMethodList.empty() &&
             _database.GetTables().GetTable(Metadata::TableId::TypeDef).GetRowCount() > 0)
         {
-            _typesOrderedByMethodList.resize(_database.GetTables().GetTable(Metadata::TableId::TypeDef).GetRowCount());
-            for (Metadata::RowReference r(Metadata::TableId::TypeDef, 0);
-                 r != Metadata::RowReference(Metadata::TableId::TypeDef, _typesOrderedByMethodList.size());
-                 ++r)
-            {
-                _typesOrderedByMethodList[r.GetIndex()] = r;
-            }
-
-            _typesOrderedByMethodList.erase(std::remove_if(
-                _typesOrderedByMethodList.begin(),
-                _typesOrderedByMethodList.end(),
-                [&](Metadata::RowReference const& reference) -> bool
-            {
-                Metadata::TypeDefRow row(_database.GetRow<Metadata::TableId::TypeDef>(reference));
-                return row.GetFirstMethod() == row.GetLastMethod();
-            }));
-
-            std::sort(_typesOrderedByMethodList.begin(),
-                      _typesOrderedByMethodList.end(),
-                      [&](Metadata::RowReference const& lhs, Metadata::RowReference const& rhs) -> bool
-            {
-                Metadata::TypeDefRow lhsRow(_database.GetRow<Metadata::TableId::TypeDef>(lhs));
-                Metadata::TypeDefRow rhsRow(_database.GetRow<Metadata::TableId::TypeDef>(rhs));
-
-                return lhsRow.GetFirstMethod() < rhsRow.GetFirstMethod();
-            });                                    
+            _typesOrderedByMethodList = Private::BuildTypeListCache<
+                &Metadata::TypeDefRow::GetFirstMethod,
+                &Metadata::TypeDefRow::GetLastMethod
+            >(_database);
         }
 
-        auto const it(BinarySearch(_typesOrderedByMethodList.begin(),
-                                   _typesOrderedByMethodList.end(),
-                                   methodDef.GetSelfReference(),
-                                   Private::MethodListStrictWeakOrdering(&_database)));
+        auto const first(begin(_typesOrderedByMethodList));
+        auto const last(end(_typesOrderedByMethodList));
+        Private::MethodListStrictWeakOrdering const comparer(&_database);
 
-        Assert([&]{ return it != _typesOrderedByMethodList.end(); });
+        auto const it(BinarySearch(first, last, methodDef.GetSelfReference(), comparer));
+
+        if (it == last)
+            throw RuntimeError(L"Invalid metadata:  method owner not found");
+
         return _database.GetRow<Metadata::TableId::TypeDef>(*it);
     }
 
@@ -1107,10 +1135,10 @@ namespace CxxReflect {
         while (currentType.GetBaseType())
             currentType = currentType.GetBaseType();
 
-        Detail::Assert([&]{ return currentType.GetFullName() == L"System.Object"; });
-        Detail::Assert([&]{ return IsSystemAssembly(currentType.GetAssembly());   });
-        // TODO This should be a hard-verified error condition:  an ill-formed assembly might have a
-        // type not derived from the One True Object type.
+        // This error is a hard verification because an ill-formed assembly might have a type not
+        // derived from the One True Object.
+        Detail::Verify([&]{ return currentType.GetFullName() == L"System.Object"; });
+        Detail::Verify([&]{ return IsSystemAssembly(currentType.GetAssembly());   });
 
         return currentType;
     }
@@ -1129,14 +1157,14 @@ namespace CxxReflect {
                                    [&](AssemblyName const& assemblyName) -> bool
         {
             Assembly const assembly(loader.LoadAssembly(assemblyName));
-            Detail::Assert([&]{ return assembly.IsInitialized(); });
-            // TODO Should this be a hard-verified error?
+            Detail::Verify([&]{ return assembly.IsInitialized(); });
 
             return assembly.BeginTypes() != assembly.EndTypes();
         }));
 
-        Detail::Assert([&]{ return it != referenceAssembly.EndReferencedAssemblyNames(); });
-        // TODO That should probably be hard-verified, to handle ill-formed assemblies.
+        // This error is a hard verification because an ill-formed assembly might not reference a
+        // system assembly (one that defines a One True Object).
+        Detail::Verify([&]{ return it != referenceAssembly.EndReferencedAssemblyNames(); });
 
         Assembly const foundReferenceAssembly(loader.LoadAssembly(*it));
         return GetSystemObjectType(*foundReferenceAssembly.BeginTypes());
