@@ -4,7 +4,7 @@
 
 #include "CxxReflect/PrecompiledHeaders.hpp"
 
-#include "CxxReflect/CoreInternals.hpp"
+#include "CxxReflect/CoreComponents.hpp"
 #include "CxxReflect/Loader.hpp"
 
 // TODO:  There are parts of the signature reading that are embarrasingly inefficient, requiring
@@ -254,9 +254,7 @@ namespace CxxReflect { namespace Metadata {
 
         // TODO Check assignable-to?  Shouldn't this always be the case for derived classes?
 
-        // if (lhs.GetParameterCount() != rhs.GetParameterCount())
-        //     return false;
-
+        // There is no need to check the parameter count explicitly; RangeCheckedEqual will do that.
         if (!Detail::RangeCheckedEqual(
                 lhs.BeginParameters(), lhs.EndParameters(),
                 rhs.BeginParameters(), rhs.EndParameters(),

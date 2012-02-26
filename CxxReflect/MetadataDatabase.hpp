@@ -5,7 +5,7 @@
 // The MetadataDatabase and its supporting classes provide a physical layer implementation for
 // reading metadata from an assembly.  This file contains the core MetadataDatabase functionality
 // for accessing tables and streams and for reading strings, GUIDs, and table rows.  The blob
-// parsing functionality is in MetadataBlob.
+// parsing functionality is in MetadataSignature.
 #ifndef CXXREFLECT_METADATADATABASE_HPP_
 #define CXXREFLECT_METADATADATABASE_HPP_
 
@@ -351,8 +351,7 @@ namespace CxxReflect { namespace Metadata {
         {
         }
 
-        // TODO This is rather messy:  these operators really only apply to row references, not to
-        // blob references, so they should only be available when we have a row reference.
+        // Note that the addition/subtraction operators are only usable for RowReferences.
         CXXREFLECT_GENERATE_COMPARISON_OPERATORS(ElementReference)
         CXXREFLECT_GENERATE_ADDITION_SUBTRACTION_OPERATORS(ElementReference, _index, std::int32_t)
     };
@@ -390,8 +389,7 @@ namespace CxxReflect { namespace Metadata {
 
         Database const& GetDatabase() const { return *_database.Get(); }
 
-        // TODO This is rather messy:  these operators really only apply to row references, not to
-        // blob references, so they should only be available when we have a row reference.
+        // Note that the addition/subtraction operators are only usable for RowReferences.
         CXXREFLECT_GENERATE_COMPARISON_OPERATORS(FullReference)
         CXXREFLECT_GENERATE_ADDITION_SUBTRACTION_OPERATORS(FullReference, _index, std::int32_t)
 
@@ -906,6 +904,13 @@ namespace CxxReflect { namespace Metadata {
         StringCollection _strings;
         TableCollection  _tables;
     };
+
+
+
+
+
+    TypeDefRow GetOwnerOfMethodDef(Database const& database, MethodDefRow const& methodDef);
+    TypeDefRow GetOwnerOfField(Database const& database, FieldRow const& field);
 
 
 

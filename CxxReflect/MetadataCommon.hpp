@@ -2,7 +2,7 @@
 //                   Distributed under the Boost Software License, Version 1.0.                   //
 //     (See accompanying file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)    //
 
-// Core, common metadata definitions.
+// Common Metadata library definitions, used in both MetadataDatabase and MetadataSignature.
 #ifndef CXXREFLECT_METADATACOMMON_HPP_
 #define CXXREFLECT_METADATACOMMON_HPP_
 
@@ -17,7 +17,7 @@ namespace CxxReflect {
         DisableJitCompileOptimizer = 0x4000,
         EnableJitCompileTracking   = 0x8000,
 
-        // TODO PORTABILITY THESE ARE NOT IN THE SPEC
+        // Note: These are not in ECMA-335; they can be found in the Windows SDK 8.0 header <cor.h>.
         DefaultContentType         = 0x0000,
         WindowsRuntimeContentType  = 0x0200,
         ContentTypeMask            = 0x0E00

@@ -6,7 +6,7 @@
 
 #include "CxxReflect/Assembly.hpp"
 #include "CxxReflect/AssemblyName.hpp"
-#include "CxxReflect/CoreInternals.hpp"
+#include "CxxReflect/CoreComponents.hpp"
 #include "CxxReflect/Event.hpp"
 #include "CxxReflect/Field.hpp"
 #include "CxxReflect/Loader.hpp"
@@ -216,70 +216,6 @@ namespace CxxReflect { namespace Detail { namespace { namespace Private {
 
         return cache;
     }
-
-
-
-
-
-    // This comparer provides a strict-weak ordering over a range of TypeDefs ordered by list using
-    // the BuildTypeListCache function above.
-    template
-    <
-        Metadata::RowReference (Metadata::TypeDefRow::*FFirst)() const,
-        Metadata::RowReference (Metadata::TypeDefRow::*FLast)() const
-    >
-    class ElementListStrictWeakOrdering
-    {
-    public:
-
-        ElementListStrictWeakOrdering(Metadata::Database const* database)
-            : _database(database)
-        {
-            AssertNotNull(database);
-        }
-
-        bool operator()(Metadata::RowReference const& lhsRow, Metadata::RowReference const& rhsRow) const
-        {
-            Assert([&]{ return lhsRow.IsInitialized(); });
-            Assert([&]{ return rhsRow.IsInitialized(); });
-
-            if (lhsRow.GetTable() == Metadata::TableId::TypeDef)
-            {
-                auto const owningRow(_database.Get()->GetRow<Metadata::TableId::TypeDef>(lhsRow));
-                Metadata::RowReference const rangeLast((owningRow.*FLast)());
-
-                Assert([&]{ return rangeLast.GetTable() == rhsRow.GetTable(); });
-                return rangeLast <= rhsRow;
-            }
-            else if (rhsRow.GetTable() == Metadata::TableId::TypeDef)
-            {
-                auto const owningRow(_database.Get()->GetRow<Metadata::TableId::TypeDef>(rhsRow));
-                Metadata::RowReference const rangeFirst((owningRow.*FFirst)());
-
-                Assert([&]{ return lhsRow.GetTable() == rangeFirst.GetTable(); });
-                return lhsRow < rangeFirst;
-            }
-            else
-            {
-                AssertFail(L"Invalid function arguments");
-                return false;
-            }
-        }
-
-    private:
-
-        ValueInitialized<Metadata::Database const*> _database;
-    };
-
-    typedef ElementListStrictWeakOrdering<
-        &Metadata::TypeDefRow::GetFirstField,
-        &Metadata::TypeDefRow::GetLastField
-    > FieldListStrictWeakOrdering;
-
-    typedef ElementListStrictWeakOrdering<
-        &Metadata::TypeDefRow::GetFirstMethod,
-        &Metadata::TypeDefRow::GetLastMethod
-    > MethodListStrictWeakOrdering;
 
 } } } }
 
@@ -712,29 +648,6 @@ namespace CxxReflect { namespace Detail {
     PropertyTable const AssemblyContext::GetOrCreatePropertyTable(Metadata::ElementReference const& type) const
     {
         return _properties.GetOrCreateMemberTable(Metadata::FullReference(&_database, type));
-    }
-
-    Metadata::TypeDefRow const AssemblyContext::GetOwnerOfMethodDef(Metadata::MethodDefRow const& methodDef) const
-    {
-        if (_typesOrderedByMethodList.empty() &&
-            _database.GetTables().GetTable(Metadata::TableId::TypeDef).GetRowCount() > 0)
-        {
-            _typesOrderedByMethodList = Private::BuildTypeListCache<
-                &Metadata::TypeDefRow::GetFirstMethod,
-                &Metadata::TypeDefRow::GetLastMethod
-            >(_database);
-        }
-
-        auto const first(begin(_typesOrderedByMethodList));
-        auto const last(end(_typesOrderedByMethodList));
-        Private::MethodListStrictWeakOrdering const comparer(&_database);
-
-        auto const it(BinarySearch(first, last, methodDef.GetSelfReference(), comparer));
-
-        if (it == last)
-            throw RuntimeError(L"Invalid metadata:  method owner not found");
-
-        return _database.GetRow<Metadata::TableId::TypeDef>(*it);
     }
 
     void AssemblyContext::RealizeName() const

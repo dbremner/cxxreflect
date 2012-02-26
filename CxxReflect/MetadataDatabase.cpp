@@ -4,7 +4,7 @@
 
 #include "CxxReflect/PrecompiledHeaders.hpp"
 
-#include "CxxReflect/CoreInternals.hpp"
+#include "CxxReflect/CoreComponents.hpp"
 
 namespace CxxReflect { namespace Metadata { namespace { namespace Private {
 
@@ -726,6 +726,95 @@ namespace CxxReflect { namespace Metadata { namespace { namespace Private {
         }
     }
 
+
+
+
+
+    // This comparison function object provides a strict-weak ordering over a range of rows to find
+    // the row in an owning table that owns the row in an owned-record table.  For example, given a
+    // MethodDef row, it can be used to search over a range of TypeDef rows for the TypeDef that
+    // owns the MethodDef.
+    //
+    // Note that the lists in an owned-row table (like MethodDef or Field) are guaranteed to be
+    // sorted by the owning row, so the methods for TypeDef 1 will be followed immediately by those
+    // for TypeDef 2, and so on. This is not explicitly specified in ECMA-335, but it is necessarily
+    // the case due to the way that the lists are specified.
+    template
+    <
+        typename TOwningRow,
+        RowReference (TOwningRow::*FFirst)() const,
+        RowReference (TOwningRow::*FLast)() const
+    >
+    class ElementListStrictWeakOrdering
+    {
+    public:
+
+        ElementListStrictWeakOrdering(Database const* database)
+            : _database(database)
+        {
+            Detail::AssertNotNull(database);
+        }
+
+        template <typename TOwnedRow>
+        bool operator()(TOwningRow const& owningRow, TOwnedRow const& ownedRow) const
+        {
+            Detail::Assert([&]{ return owningRow.IsInitialized(); });
+            Detail::Assert([&]{ return ownedRow.IsInitialized();  });
+
+            RowReference const rangeLast((owningRow.*FLast)());
+            
+            Detail::Assert([&]{ return rangeLast.GetTable() == ownedRow.GetSelfReference().GetTable(); });
+            return rangeLast <= ownedRow.GetSelfReference();
+        }
+
+        template <typename TOwnedRow>
+        bool operator()(TOwnedRow const& ownedRow, TOwningRow const& owningRow) const
+        {
+            Detail::Assert([&]{ return ownedRow.IsInitialized();  });
+            Detail::Assert([&]{ return owningRow.IsInitialized(); });
+            
+            RowReference const rangeFirst((owningRow.*FFirst)());
+            
+            Detail::Assert([&]{ return rangeFirst.GetTable() == ownedRow.GetSelfReference().GetTable(); });
+            return ownedRow.GetSelfReference() < rangeFirst;
+        }
+
+    private:
+
+        Detail::ValueInitialized<Database const*> _database;
+    };
+
+    
+
+
+
+    template
+    <
+        typename TOwningRow,
+        typename TOwnedRow,
+        RowReference (TOwningRow::*FFirst)() const,
+        RowReference (TOwningRow::*FLast)() const
+    >
+    TOwningRow GetOwningRow(Database const& database, TOwnedRow const& ownedRow)
+    {
+        Detail::Assert([&]{ return database.IsInitialized(); });
+        Detail::Assert([&]{ return ownedRow.IsInitialized(); });
+
+        typedef Private::ElementListStrictWeakOrdering<TOwningRow, FFirst, FLast> ComparerType;
+        TableId const OwningTableId(static_cast<TableId>(RowTypeToTableId<TOwningRow>::Value));
+
+        auto const it(Detail::BinarySearch(
+            database.Begin<OwningTableId>(),
+            database.End<OwningTableId>(),
+            ownedRow,
+            ComparerType(&database)));
+
+        if (it == database.End<OwningTableId>())
+            throw MetadataReadError(L"Failed to locate owning row");
+
+        return database.GetRow<OwningTableId>(it.GetReference());
+    }
+
 } } } }
 
 namespace CxxReflect { namespace Metadata {
@@ -1171,8 +1260,13 @@ namespace CxxReflect { namespace Metadata {
 
     SizeType TableCollection::GetTableColumnOffset(TableId const tableId, SizeType const column) const
     {
-        Detail::Assert([&] { return column < MaximumColumnCount; }, L"Invalid column identifier");
-        // TODO Check table-specific offset
+        Detail::Assert([&]
+        {
+            return column < MaximumColumnCount
+                && (column == 0 || _state.Get()._columnOffsets[Detail::AsInteger(tableId)][column] != 0);
+        },
+        L"Invalid column identifier");
+
         return _state.Get()._columnOffsets[Detail::AsInteger(tableId)][column];
     }
 
@@ -1237,11 +1331,11 @@ namespace CxxReflect { namespace Metadata {
     }
 
     Database::Database(Database&& other)
-        : _fileName(std::move(other._fileName)),
+        : _fileName  (std::move(other._fileName  )),
           _blobStream(std::move(other._blobStream)),
           _guidStream(std::move(other._guidStream)),
-          _strings(std::move(other._strings)),
-          _tables(std::move(other._tables))
+          _strings   (std::move(other._strings   )),
+          _tables    (std::move(other._tables    ))
     {
     }
 
@@ -1866,6 +1960,17 @@ namespace CxxReflect { namespace Metadata {
     BlobReference TypeSpecRow::GetSignature() const
     {
         return Private::ReadBlobReference(GetDatabase(), GetIterator(), GetColumnOffset(0));
+    }
+
+
+
+
+    
+    TypeDefRow GetOwnerOfMethodDef(Database const& database, MethodDefRow const& methodDef)
+    {
+        return Private::GetOwningRow<
+            TypeDefRow, MethodDefRow, &TypeDefRow::GetFirstMethod, &TypeDefRow::GetLastMethod
+        >(database, methodDef);
     }
 
 } }

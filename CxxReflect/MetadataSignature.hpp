@@ -6,7 +6,7 @@
 #ifndef CXXREFLECT_METADATASIGNATURE_HPP_
 #define CXXREFLECT_METADATASIGNATURE_HPP_
 
-#include "CxxReflect/MetadataSignature.hpp"
+#include "CxxReflect/MetadataCommon.hpp"
 
 namespace CxxReflect { namespace Metadata {
 

@@ -25,8 +25,7 @@ namespace CxxReflect { namespace { namespace Private {
         case Metadata::TableId::InterfaceImpl:            return  5;
         case Metadata::TableId::MemberRef:                return  6;
         case Metadata::TableId::Module:                   return  7;
-        // TODO WTF is the 'Permission' table?  
-        // case Metadata::TableId::Permission:            return  8;
+        case Metadata::TableId::DeclSecurity:             return  8;
         case Metadata::TableId::Property:                 return  9;
         case Metadata::TableId::Event:                    return 10;
         case Metadata::TableId::StandaloneSig:            return 11;
@@ -113,30 +112,13 @@ namespace CxxReflect {
 
         if (customAttributeRow.GetType().GetTable() == Metadata::TableId::MethodDef)
         {
-            // TODO Do we really need to do a linear search to map from method => type? This is
-            // embarrasing and horrible and it would be great if we could optimize this somehow.
-
             Metadata::RowReference const methodDefReference(customAttributeRow.GetType());
             Metadata::MethodDefRow const methodDefRow(
                 parentDatabase.GetRow<Metadata::TableId::MethodDef>(methodDefReference));
 
-            // Find the owning TypeDef:
-            /*
-            auto const typeDefIt(std::find_if(parentDatabase.Begin<Metadata::TableId::TypeDef>(),
-                                              parentDatabase.End<Metadata::TableId::TypeDef>(),
-                                              [&](Metadata::TypeDefRow const& typeDef) -> bool
-            {
-                return typeDef.GetFirstMethod().GetIndex() <= methodDefReference.GetIndex()
-                    && typeDef.GetLastMethod().GetIndex()  >  methodDefReference.GetIndex();
-            }));
-            */
-            Metadata::TypeDefRow const& typeDef(assembly
-                .GetContext(InternalKey())
-                .GetOwnerOfMethodDef(methodDefRow));
+            Metadata::TypeDefRow const& typeDefRow(Metadata::GetOwnerOfMethodDef(parentDatabase, methodDefRow));
 
-            //Detail::Assert([&]{ return typeDefIt != parentDatabase.End<Metadata::TableId::TypeDef>(); });
-
-            Type const type(assembly, typeDef.GetSelfReference(), InternalKey());
+            Type const type(assembly, typeDefRow.GetSelfReference(), InternalKey());
 
             BindingFlags const flags(
                 BindingAttribute::Public    |

@@ -103,7 +103,7 @@ namespace CxxReflect {
                 &GetContextForDatabase(type.GetDatabase(), InternalKey()),
                 InternalKey());
 
-            Type resolvedType(definingAssembly.GetType(typeRef.GetNamespace(), typeRef.GetName()));
+            Type const resolvedType(definingAssembly.GetType(typeRef.GetNamespace(), typeRef.GetName()));
             if (!resolvedType.IsInitialized())
                 throw RuntimeError(L"Failed to resolve type in module");
 
@@ -155,7 +155,7 @@ namespace CxxReflect {
         {
             it = _contexts.insert(std::make_pair(
                 Externals::ComputeCanonicalUri(path.c_str()),
-                std::move(Detail::AssemblyContext(this, path, std::move(Metadata::Database(path.c_str())))))).first;
+                Detail::AssemblyContext(this, path, Metadata::Database(path.c_str())))).first;
         }
 
         return Assembly(&it->second, InternalKey());

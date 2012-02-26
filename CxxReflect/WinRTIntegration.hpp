@@ -5,7 +5,7 @@
 #ifndef CXXREFLECT_WINRTINTEGRATION_HPP_
 #define CXXREFLECT_WINRTINTEGRATION_HPP_
 
-#include "CxxReflect/CoreInternals.hpp"
+#include "CxxReflect/CoreComponents.hpp"
 
 #ifdef CXXREFLECT_ENABLE_WINDOWS_RUNTIME_INTEGRATION
 

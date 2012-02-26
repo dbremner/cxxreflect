@@ -5,7 +5,7 @@
 #ifndef CXXREFLECT_PARAMETER_HPP_
 #define CXXREFLECT_PARAMETER_HPP_
 
-#include "CxxReflect/CoreInternals.hpp"
+#include "CxxReflect/CoreComponents.hpp"
 
 namespace CxxReflect { namespace Detail {
 

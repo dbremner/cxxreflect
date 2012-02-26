@@ -5,7 +5,7 @@
 #ifndef CXXREFLECT_METHOD_HPP_
 #define CXXREFLECT_METHOD_HPP_
 
-#include "CxxReflect/CoreInternals.hpp"
+#include "CxxReflect/CoreComponents.hpp"
 
 namespace CxxReflect {
 

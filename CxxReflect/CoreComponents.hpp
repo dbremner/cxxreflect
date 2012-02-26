@@ -5,8 +5,8 @@
 // Whereas Core.hpp contains declarations tht are independent of the rest of the library (i.e. it
 // has no dependencies on any other CxxReflect headers), this header contains core components that
 // require declarations from the Metadata{Database,Signature}.hpp headers.
-#ifndef CXXREFLECT_COREINTERNALS_HPP_
-#define CXXREFLECT_COREINTERNALS_HPP_
+#ifndef CXXREFLECT_CORECOMPONENTS_HPP_
+#define CXXREFLECT_CORECOMPONENTS_HPP_
 
 #include "CxxReflect/MetadataDatabase.hpp"
 #include "CxxReflect/MetadataSignature.hpp"
@@ -183,8 +183,6 @@ namespace CxxReflect { namespace Detail {
         MethodTable   const GetOrCreateMethodTable  (Metadata::ElementReference const& type) const;
         PropertyTable const GetOrCreatePropertyTable(Metadata::ElementReference const& type) const;
 
-        Metadata::TypeDefRow const GetOwnerOfMethodDef(Metadata::MethodDefRow const& methodDef) const;
-
         bool IsInitialized() const;
 
     private:
@@ -211,8 +209,6 @@ namespace CxxReflect { namespace Detail {
         FieldTableCollection          mutable _fields;
         MethodTableCollection         mutable _methods;
         PropertyTableCollection       mutable _properties;
-
-        std::vector<Metadata::RowReference> mutable _typesOrderedByMethodList;
     };
 
 
@@ -427,7 +423,12 @@ namespace CxxReflect {
     };
 
 
-    typedef Detail::InstantiatingIterator<Metadata::RowReference, CustomAttribute, Assembly> CustomAttributeIterator;
+    typedef Detail::InstantiatingIterator
+    <
+        Metadata::RowReference,
+        CustomAttribute,
+        Assembly
+    > CustomAttributeIterator;
 
 
 
@@ -481,7 +482,14 @@ namespace CxxReflect {
         >
         friend class Detail::MemberIterator;
 
-        template <typename TCurrent, typename TResult, typename TParameter, typename TTransformer, typename TCategory>
+        template
+        <
+            typename TCurrent,
+            typename TResult,
+            typename TParameter,
+            typename TTransformer,
+            typename TCategory
+        >
         friend class Detail::InstantiatingIterator;
 
         friend Assembly;

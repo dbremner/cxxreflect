@@ -46,12 +46,6 @@
     <ClCompile Include="WinRTIntegration.cpp">
       <Filter>Sources\Interface</Filter>
     </ClCompile>
-    <ClCompile Include="CoreInternals.cpp">
-      <Filter>Sources\Core</Filter>
-    </ClCompile>
-    <ClCompile Include="MetadataCore.cpp">
-      <Filter>Sources\Metadata</Filter>
-    </ClCompile>
     <ClCompile Include="Loader.cpp">
       <Filter>Sources\Interface</Filter>
     </ClCompile>
@@ -64,6 +58,12 @@
     <ClCompile Include="ExternalFunctionsWinRT.cpp">
       <Filter>Sources\Core</Filter>
     </ClCompile>
+    <ClCompile Include="MetadataCommon.cpp">
+      <Filter>Sources\Metadata</Filter>
+    </ClCompile>
+    <ClCompile Include="CoreComponents.cpp">
+      <Filter>Sources\Core</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="CxxReflect.hpp">
@@ -74,9 +74,6 @@
     </ClInclude>
     <ClInclude Include="PrecompiledHeaders.hpp">
       <Filter>Headers</Filter>
-    </ClInclude>
-    <ClInclude Include="Assembly.hpp">
-      <Filter>Headers\Interface</Filter>
     </ClInclude>
     <ClInclude Include="Event.hpp">
       <Filter>Headers\Interface</Filter>
@@ -114,9 +111,6 @@
     <ClInclude Include="AssemblyName.hpp">
       <Filter>Headers\Interface</Filter>
     </ClInclude>
-    <ClInclude Include="CoreInternals.hpp">
-      <Filter>Headers\Core</Filter>
-    </ClInclude>
     <ClInclude Include="WinRTIntegration.hpp">
       <Filter>Headers\Interface</Filter>
     </ClInclude>
@@ -143,6 +137,12 @@
     </ClInclude>
     <ClInclude Include="ExternalFunctionsWinRT.hpp">
       <Filter>Headers\Core</Filter>
+    </ClInclude>
+    <ClInclude Include="CoreComponents.hpp">
+      <Filter>Headers\Core</Filter>
+    </ClInclude>
+    <ClInclude Include="Assembly.hpp">
+      <Filter>Headers\Interface</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

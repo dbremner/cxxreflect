@@ -26,7 +26,7 @@
     <ClInclude Include="CxxReflect.hpp" />
     <ClInclude Include="File.hpp" />
     <ClInclude Include="Guid.hpp" />
-    <ClInclude Include="CoreInternals.hpp" />
+    <ClInclude Include="CoreComponents.hpp" />
     <ClInclude Include="MetadataCommon.hpp" />
     <ClInclude Include="MetadataSignature.hpp" />
     <ClInclude Include="MetadataDatabase.hpp" />
@@ -51,8 +51,8 @@
     <ClCompile Include="Field.cpp" />
     <ClCompile Include="File.cpp" />
     <ClCompile Include="Guid.cpp" />
-    <ClCompile Include="CoreInternals.cpp" />
-    <ClCompile Include="MetadataCore.cpp" />
+    <ClCompile Include="CoreComponents.cpp" />
+    <ClCompile Include="MetadataCommon.cpp" />
     <ClCompile Include="MetadataSignature.cpp" />
     <ClCompile Include="MetadataDatabase.cpp" />
     <ClCompile Include="Loader.cpp" />
