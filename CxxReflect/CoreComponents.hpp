@@ -1,4 +1,4 @@
-//                 Copyright (c) 2011 James P. McNellis <james@jamesmcnellis.com>                 //
+//                 Copyright (c) 2012 James P. McNellis <james@jamesmcnellis.com>                 //
 //                   Distributed under the Boost Software License, Version 1.0.                   //
 //     (See accompanying file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)    //
 
@@ -413,14 +413,55 @@ namespace CxxReflect {
         }
     };
 
-    struct MetadataTokenLessThanComparer
+
+
+
+
+    template <typename TTokenGetter>
+    class MetadataTokenStrictWeakOrderingImpl
     {
+    public:
+
+        MetadataTokenStrictWeakOrderingImpl(TTokenGetter const& getToken)
+            : _getToken(getToken)
+        {
+        }
+
         template <typename TMember>
         bool operator()(TMember const& lhs, TMember const& rhs) const
         {
-            return lhs.GetMetadataToken() < rhs.GetMetadataToken();
+            return _getToken(lhs) < _getToken(rhs);
+        }
+
+    private:
+
+        TTokenGetter _getToken;
+    };
+
+    class MetadataTokenDefaultGetter
+    {
+    public:
+
+        template <typename TMember>
+        SizeType operator()(TMember const& member) const
+        {
+            return member.GetMetadataToken();
         }
     };
+
+    MetadataTokenStrictWeakOrderingImpl<MetadataTokenDefaultGetter>
+    inline MetadataTokenStrictWeakOrdering()
+    {
+        return MetadataTokenStrictWeakOrderingImpl<MetadataTokenDefaultGetter>(MetadataTokenDefaultGetter());
+    }
+
+    template <typename TTokenGetter>
+    MetadataTokenStrictWeakOrderingImpl<TTokenGetter>
+    MetadataTokenStrictWeakOrdering(TTokenGetter const& getToken)
+    {
+        return MetadataTokenStrictWeakOrderingImpl<TTokenGetter>(getToken);
+    }
+
 
 
     typedef Detail::InstantiatingIterator

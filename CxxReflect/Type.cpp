@@ -1,4 +1,4 @@
-//                 Copyright (c) 2011 James P. McNellis <james@jamesmcnellis.com>                 //
+//                 Copyright (c) 2012 James P. McNellis <james@jamesmcnellis.com>                 //
 //                   Distributed under the Boost Software License, Version 1.0.                   //
 //     (See accompanying file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)    //
 
@@ -237,11 +237,19 @@ namespace CxxReflect {
                 genericType.AccumulateFullNameInto(os);
 
                 os << L'[';
+                bool isFirst(true);
                 std::for_each(
                     signature.BeginGenericArguments(),
                     signature.EndGenericArguments(),
                     [&](Metadata::TypeSignature const& argumentSignature)
                 {
+                    if (!isFirst)
+                    {
+                       os << L",";
+                    }
+
+                    isFirst = false;
+
                     os << L'[';
                     Type const argumentType(
                         _assembly.Realize(),
@@ -250,13 +258,22 @@ namespace CxxReflect {
                     argumentType.AccumulateAssemblyQualifiedNameInto(os);
                     os << L']';
                 });
+
                 os << L']';
+
+                if (signature.IsByRef())
+                    os << L"&";
+
                 break;
             }
             case Metadata::TypeSignature::Kind::ClassType:
             {
                 Type const classType(_assembly.Realize(), signature.GetTypeReference(), InternalKey());
                 classType.AccumulateFullNameInto(os);
+
+                if (signature.IsByRef())
+                    os << L"&";
+
                 break;
             }
             case Metadata::TypeSignature::Kind::SzArray:
@@ -268,12 +285,31 @@ namespace CxxReflect {
 
                 classType.AccumulateFullNameInto(os);
                 os << L"[]";
+
+                if (signature.IsByRef())
+                    os << L"&";
+
+                break;
+            }
+            case Metadata::TypeSignature::Kind::Ptr:
+            {
+                Type const pointerType(
+                    _assembly.Realize(),
+                    Metadata::BlobReference(signature.GetPointerTypeSignature()),
+                    InternalKey());
+
+                pointerType.AccumulateFullNameInto(os);
+                os << L"*";
+
+                if (signature.IsByRef())
+                    os << L"&";
+
                 break;
             }
             case Metadata::TypeSignature::Kind::Var:
             {
                 // TODO MVAR?
-                os << L"Var!" << signature.GetVariableNumber();
+                //os << L"Var!" << signature.GetVariableNumber();
                 break;
             }
             default:
@@ -488,18 +524,36 @@ namespace CxxReflect {
     {
         if (IsNested())
         {
+            if (GetMetadataToken() == 0x02000366)
+            {
+                int vpp = 0;
+            }
+
             Metadata::Database const& database(_assembly.Realize().GetContext(InternalKey()).GetDatabase());
             auto const it(std::lower_bound(
                 database.Begin<Metadata::TableId::NestedClass>(),
                 database.End<Metadata::TableId::NestedClass>(),
-                _type,
+                Metadata::RowReference::FromToken(GetMetadataToken()),
                 [](Metadata::NestedClassRow const& r, Metadata::ElementReference const& index)
             {
                 return r.GetNestedClass() < index;
             }));
 
-            if (it == database.End<Metadata::TableId::NestedClass>() || it->GetNestedClass() != _type)
+            if (it.GetReference().GetIndex() == 0)
+            {
+                int vpp = 0;
+            }
+
+            if (it == database.End<Metadata::TableId::NestedClass>())
                 throw std::logic_error("wtf");
+
+            Detail::Assert([&]() -> bool
+            {
+                Metadata::RowReference const nestedClass(it->GetNestedClass());
+                Metadata::RowReference const typeToken(Metadata::RowReference::FromToken(GetMetadataToken()));
+
+                return nestedClass == typeToken;
+            },  L"Binary search returned an unexpected result.");
 
             // TODO IS THE TYPE DEF CHECK DONE AT THE PHYSICAL LAYER?
             Metadata::RowReference const enclosingType(it->GetEnclosingClass());
@@ -525,6 +579,14 @@ namespace CxxReflect {
         std::wostringstream oss;
         AccumulateFullNameInto(oss);
         return oss.str();
+    }
+
+    SizeType Type::GetMetadataToken() const
+    {
+        return ResolveTypeDefTypeAndCall([](Type const& t)
+        {
+           return t._type.IsRowReference() ? t._type.AsRowReference().GetToken() : 0; 
+        });
     }
 
     StringReference Type::GetName() const
@@ -596,9 +658,10 @@ namespace CxxReflect {
     {
         AssertInitialized();
 
-        if (IsTypeDef()) { return false; }
+        if (IsTypeDef())
+            return false;
 
-        return TodoNotYetImplementedFlag;
+        return GetTypeSpecSignature().IsByRef();
     }
 
     bool Type::IsClass() const

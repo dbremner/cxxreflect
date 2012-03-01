@@ -1,4 +1,4 @@
-//                 Copyright (c) 2011 James P. McNellis <james@jamesmcnellis.com>                 //
+//                 Copyright (c) 2012 James P. McNellis <james@jamesmcnellis.com>                 //
 //                   Distributed under the Boost Software License, Version 1.0.                   //
 //     (See accompanying file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)    //
 
@@ -153,10 +153,7 @@ namespace CxxReflect {
 
         Metadata::ElementReference GetSelfReference(InternalKey) const { return _type; }
 
-        SizeType GetMetadataToken() const
-        {
-            return _type.IsRowReference() ? _type.AsRowReference().GetToken() : 0;
-        }
+        SizeType GetMetadataToken() const;
 
         Type GetBaseType() const;
         Type GetDeclaringType() const;
@@ -300,7 +297,13 @@ namespace CxxReflect {
 
             // Otherwise, we need to visit the TypeSpec to find the primary TypeDef or TypeRef
             // to which it refers; if it refers to a TypeRef, we must resolve it.
-
+            Metadata::TypeSignature const signature(GetTypeSpecSignature());
+            if (signature.IsGenericInstance())
+            {
+                Type const type(_assembly.Realize(), signature.GetGenericTypeReference(), InternalKey());
+                return callback(type);
+            }
+            
             return defaultResult; // TODO TYPESPEC FIRST
         }
 

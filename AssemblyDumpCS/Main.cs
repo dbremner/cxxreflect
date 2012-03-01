@@ -81,6 +81,13 @@ class Program
         }
         sb.AppendLine(String.Format("    !!EndInterfaces"));
 
+        sb.AppendLine(String.Format("    !!BeginCustomAttributes"));
+        foreach (CustomAttributeData c in t.GetCustomAttributesData().OrderBy(x => x.Constructor.DeclaringType.MetadataToken))
+        {
+            sb.AppendLine(String.Format("     -- CustomAttribute [{0}]", c.Constructor.DeclaringType.FullName));
+        }
+        sb.AppendLine(String.Format("    !!EndCustomAttributes"));
+
         sb.AppendLine("    !!BeginConstructors");
         foreach (ConstructorInfo c in t.GetConstructors(AllBindingFlags).OrderBy(c => c.MetadataToken))
         {
@@ -95,22 +102,30 @@ class Program
         }
         sb.AppendLine("    !!EndMethods");
 
+        /* TODO
         sb.AppendLine("    !!BeginFields");
         foreach (FieldInfo f in t.GetFields(AllBindingFlags).OrderBy(f => f.MetadataToken))
         {
             Dump(sb, f);
         }
         sb.AppendLine("    !!EndFields");
+         */
     }
 
-    static void Dump(StringBuilder sb, ConstructorInfo c)
-    {
-        sb.AppendLine(String.Format("     -- Method [{0}] [${1:x8}]", c.Name, c.MetadataToken));
-    }
-
-    static void Dump(StringBuilder sb, MethodInfo m)
+    static void Dump(StringBuilder sb, MethodBase m)
     {
         sb.AppendLine(String.Format("     -- Method [{0}] [${1:x8}]", m.Name, m.MetadataToken));
+        sb.AppendLine("        !!BeginParameters");
+        foreach (ParameterInfo p in m.GetParameters())
+        {
+            Dump(sb, p);
+        }
+        sb.AppendLine("        !!EndParameters");
+    }
+
+    static void Dump(StringBuilder sb, ParameterInfo p)
+    {
+        sb.AppendLine(String.Format("         -- [{0}] [${1:x8}] [{2}]", p.Name, p.MetadataToken, p.ParameterType.FullName));
     }
 
     static void Dump(StringBuilder sb, FieldInfo f)

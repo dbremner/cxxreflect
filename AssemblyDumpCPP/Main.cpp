@@ -73,7 +73,7 @@ namespace
         os << L"     -- Namespace [" << t.GetNamespace().c_str() << L"]\n";
         os << L"    !!BeginInterfaces\n";
         std::vector<Type> allInterfaces(t.BeginInterfaces(), t.EndInterfaces());
-        std::sort(allInterfaces.begin(), allInterfaces.end(), MetadataTokenLessThanComparer());
+        std::sort(allInterfaces.begin(), allInterfaces.end(), MetadataTokenStrictWeakOrdering());
         std::for_each(allInterfaces.begin(), allInterfaces.end(), [&](Type const& it)
         {
             os << L"     -- Interface [" << it.GetFullName().c_str() << L"] [$" << Detail::HexFormat(it.GetMetadataToken()) << L"]\n";
@@ -82,7 +82,12 @@ namespace
 
         os << L"    !!BeginCustomAttributes\n";
         std::vector<CustomAttribute> allCustomAttributes(t.BeginCustomAttributes(), t.EndCustomAttributes());
-        std::sort(allCustomAttributes.begin(), allCustomAttributes.end(), MetadataTokenLessThanComparer());
+        std::sort(allCustomAttributes.begin(),
+                  allCustomAttributes.end(),
+                  MetadataTokenStrictWeakOrdering([](CustomAttribute const& c)
+        {
+            return c.GetConstructor().GetDeclaringType().GetMetadataToken();
+        }));
         std::for_each(allCustomAttributes.begin(), allCustomAttributes.end(), [&](CustomAttribute const& c)
         {
             Dump(os, c);
@@ -91,7 +96,7 @@ namespace
 
         os << L"    !!BeginConstructors\n";
         std::vector<Method> allConstructors(t.BeginConstructors(AllBindingFlags), t.EndConstructors());
-        std::sort(allConstructors.begin(), allConstructors.end(), MetadataTokenLessThanComparer());
+        std::sort(allConstructors.begin(), allConstructors.end(), MetadataTokenStrictWeakOrdering());
         std::for_each(allConstructors.begin(), allConstructors.end(), [&](Method const& m)
         {
             Dump(os, m);
@@ -100,13 +105,13 @@ namespace
 
         os << L"    !!BeginMethods\n";
         std::vector<Method> allMethods(t.BeginMethods(AllBindingFlags), t.EndMethods());
-        std::sort(allMethods.begin(), allMethods.end(), MetadataTokenLessThanComparer());
+        std::sort(allMethods.begin(), allMethods.end(), MetadataTokenStrictWeakOrdering());
         std::for_each(allMethods.begin(), allMethods.end(), [&](Method const& m)
         {
             Dump(os, m);
         });
         os << L"    !!EndMethods\n";
-
+        /* TODO
         os << L"    !!BeginFields\n";
         std::vector<Field> allFields(t.BeginFields(AllBindingFlags), t.EndFields());
         std::sort(allFields.begin(), allFields.end(), MetadataTokenLessThanComparer());
@@ -115,6 +120,7 @@ namespace
             Dump(os, m);
         });
         os << L"    !!EndFields\n";
+        */
     }
 
     void Dump(Detail::FileHandle& os, Method const& m)
@@ -132,7 +138,9 @@ namespace
 
     void Dump(Detail::FileHandle& os, Parameter const& p)
     {
-        os << L"         -- [" << p.GetName().c_str() << L"] [" << p.GetType().GetFullName().c_str() << L"]\n";
+        os << L"         -- [" << p.GetName().c_str()
+           << L"] [$" << Detail::HexFormat(p.GetMetadataToken())
+           << L"] [" << p.GetType().GetFullName().c_str() << ((p.IsOut() && !p.GetType().IsByRef()) ? L"&" : L"") << L"]\n";
 
         // TODO
     }
