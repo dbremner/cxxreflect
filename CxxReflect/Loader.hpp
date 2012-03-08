@@ -1,3 +1,6 @@
+#ifndef CXXREFLECT_LOADER_HPP_
+#define CXXREFLECT_LOADER_HPP_
+
 //                 Copyright (c) 2012 James P. McNellis <james@jamesmcnellis.com>                 //
 //                   Distributed under the Boost Software License, Version 1.0.                   //
 //     (See accompanying file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)    //
@@ -5,8 +8,6 @@
 // The Loader provides bindings between the physical layer implementation of the metadata reader
 // (in CxxReflect::Metadata) and the logical layer interface (in CxxReflect).  The Loader itself
 // manages the loading of assemblies and owns all persistent data structures.
-#ifndef CXXREFLECT_LOADER_HPP_
-#define CXXREFLECT_LOADER_HPP_
 
 #include "CxxReflect/CoreComponents.hpp"
 

@@ -1,10 +1,11 @@
+#ifndef CXXREFLECT_METADATACOMMON_HPP_
+#define CXXREFLECT_METADATACOMMON_HPP_
+
 //                 Copyright (c) 2012 James P. McNellis <james@jamesmcnellis.com>                 //
 //                   Distributed under the Boost Software License, Version 1.0.                   //
 //     (See accompanying file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)    //
 
 // Common Metadata library definitions, used in both MetadataDatabase and MetadataSignature.
-#ifndef CXXREFLECT_METADATACOMMON_HPP_
-#define CXXREFLECT_METADATACOMMON_HPP_
 
 #include "CxxReflect/Fundamentals.hpp"
 

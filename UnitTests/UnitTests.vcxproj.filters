@@ -16,6 +16,9 @@
     <Filter Include="Source Files\InclusionTests">
       <UniqueIdentifier>{c49a4953-a35a-455c-91d6-ff705a3f4502}</UniqueIdentifier>
     </Filter>
+    <Filter Include="SignatureBuilder">
+      <UniqueIdentifier>{d4d05d62-1ef5-41ab-9a51-b121d54a1142}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Main.cpp">
@@ -31,6 +34,9 @@
   <ItemGroup>
     <ClInclude Include="Index.hpp">
       <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="SignatureNodes.hpp">
+      <Filter>SignatureBuilder</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

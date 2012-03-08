@@ -1,9 +1,9 @@
+#ifndef CXXREFLECT_EXTERNALFUNCTIONSWINRT_HPP_
+#define CXXREFLECT_EXTERNALFUNCTIONSWINRT_HPP_
+
 //                 Copyright (c) 2012 James P. McNellis <james@jamesmcnellis.com>                 //
 //                   Distributed under the Boost Software License, Version 1.0.                   //
 //     (See accompanying file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)    //
-
-#ifndef CXXREFLECT_EXTERNALFUNCTIONSWINRT_HPP_
-#define CXXREFLECT_EXTERNALFUNCTIONSWINRT_HPP_
 
 #ifdef CXXREFLECT_ENABLE_WINDOWS_RUNTIME_INTEGRATION
 

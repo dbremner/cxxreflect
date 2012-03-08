@@ -198,16 +198,16 @@ namespace CxxReflect { namespace Metadata { namespace { namespace Private {
         file.Seek(0x3c, Detail::FileHandle::Begin);
         
         std::uint32_t fileHeaderOffset(0);
-        file.Read(&fileHeaderOffset, sizeof fileHeaderOffset, 1);
+        file.Read(&fileHeaderOffset, 1);
         file.Seek(fileHeaderOffset, Detail::FileHandle::Begin);
 
         PeFileHeader fileHeader = { 0 };
-        file.Read(&fileHeader, sizeof fileHeader, 1);
+        file.Read(&fileHeader, 1);
         if (fileHeader._sectionCount == 0 || fileHeader._sectionCount > 100)
             throw MetadataReadError(L"PE section count is out of range");
 
         PeSectionHeaderSequence sections(fileHeader._sectionCount);
-        file.Read(sections.data(), sizeof *sections.begin(), sections.size());
+        file.Read(sections.data(), sections.size());
 
         auto cliHeaderSectionIt(std::find_if(
             sections.begin(), sections.end(),
@@ -223,7 +223,7 @@ namespace CxxReflect { namespace Metadata { namespace { namespace Private {
         file.Seek(cliHeaderTableOffset, Detail::FileHandle::Begin);
 
         PeCliHeader cliHeader = { 0 };
-        file.Read(&cliHeader, sizeof cliHeader, 1);
+        file.Read(&cliHeader, 1);
 
         PeSectionsAndCliHeader result;
         result._sections = std::move(sections);
@@ -249,29 +249,29 @@ namespace CxxReflect { namespace Metadata { namespace { namespace Private {
         file.Seek(metadataOffset, Detail::FileHandle::Begin);
 
         std::uint32_t magicSignature(0);
-        file.Read(&magicSignature, sizeof magicSignature, 1);
+        file.Read(&magicSignature, 1);
         if (magicSignature != 0x424a5342)
             throw MetadataReadError(L"Magic signature does not match required value 0x424a5342");
 
         file.Seek(8, Detail::FileHandle::Current);
 
         std::uint32_t versionLength(0);
-        file.Read(&versionLength, sizeof versionLength, 1);
+        file.Read(&versionLength, 1);
         file.Seek(versionLength + 2, Detail::FileHandle::Current); // Add 2 to account for unused flags
 
         std::uint16_t streamCount(0);
-        file.Read(&streamCount, sizeof streamCount, 1);
+        file.Read(&streamCount, 1);
 
         PeCliStreamHeaderSequence streamHeaders = { 0 };
         for (std::uint16_t i(0); i < streamCount; ++i)
         {
             PeCliStreamHeader header;
             header._metadataOffset = metadataOffset;
-            file.Read(&header._streamOffset, sizeof header._streamOffset, 1);
-            file.Read(&header._streamSize,   sizeof header._streamSize,   1);
+            file.Read(&header._streamOffset, 1);
+            file.Read(&header._streamSize,   1);
 
             std::array<char, 12> currentName = { 0 };
-            file.Read(currentName.data(), sizeof *currentName.begin(), currentName.size());
+            file.Read(currentName.data(), currentName.size());
 
             #define CXXREFLECT_GENERATE(name, id, reset)                                        \
                 if (std::strcmp(currentName.data(), name) == 0 &&                               \

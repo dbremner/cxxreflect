@@ -1,3 +1,6 @@
+#ifndef CXXREFLECT_CORECOMPONENTS_HPP_
+#define CXXREFLECT_CORECOMPONENTS_HPP_
+
 //                 Copyright (c) 2012 James P. McNellis <james@jamesmcnellis.com>                 //
 //                   Distributed under the Boost Software License, Version 1.0.                   //
 //     (See accompanying file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)    //
@@ -5,8 +8,6 @@
 // Whereas Core.hpp contains declarations tht are independent of the rest of the library (i.e. it
 // has no dependencies on any other CxxReflect headers), this header contains core components that
 // require declarations from the Metadata{Database,Signature}.hpp headers.
-#ifndef CXXREFLECT_CORECOMPONENTS_HPP_
-#define CXXREFLECT_CORECOMPONENTS_HPP_
 
 #include "CxxReflect/MetadataDatabase.hpp"
 #include "CxxReflect/MetadataSignature.hpp"

@@ -722,7 +722,7 @@ namespace CxxReflect { namespace Detail {
 
 
 
-        MethodHandle::MethodHandle()
+    MethodHandle::MethodHandle()
     {
     }
 

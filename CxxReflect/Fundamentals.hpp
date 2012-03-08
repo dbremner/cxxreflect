@@ -1,10 +1,11 @@
+#ifndef CXXREFLECT_FUNDAMENTALS_HPP_
+#define CXXREFLECT_FUNDAMENTALS_HPP_
+
 //                 Copyright (c) 2012 James P. McNellis <james@jamesmcnellis.com>                 //
 //                   Distributed under the Boost Software License, Version 1.0.                   //
 //     (See accompanying file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)    //
 
 // Fundamental types, functions, and constants used throughout the library.
-#ifndef CXXREFLECT_FUNDAMENTALS_HPP_
-#define CXXREFLECT_FUNDAMENTALS_HPP_
 
 #include "CxxReflect/Configuration.hpp"
 #include "CxxReflect/ExternalFunctions.hpp"
@@ -1158,6 +1159,15 @@ namespace CxxReflect { namespace Detail {
                 throw FileIOError();
         }
 
+        template <typename T>
+        void Read(T* const buffer, SizeType const count)
+        {
+            Detail::AssertNotNull(buffer);
+            Detail::Assert([&](){ return count > 0; });
+
+            return this->Read(buffer, sizeof *buffer, count);
+        }
+
         void Seek(PositionType const position, OriginType const origin)
         {
             AssertInitialized();
@@ -1460,7 +1470,7 @@ namespace CxxReflect { namespace Detail {
         explicit Lease(Synchronized<T> const* object)
             : _object(object)
         {
-            AssertNotNull(object);
+            Detail::AssertNotNull(object);
 
             _object->Lock();
         }
@@ -1475,7 +1485,7 @@ namespace CxxReflect { namespace Detail {
 
         Lease& operator=(Lease&& other)
         {
-            AssertNotNull(other._object);
+            Detail::AssertNotNull(other._object);
 
             if (_object != nullptr && _object != other._object)
                 _object->Unlock();

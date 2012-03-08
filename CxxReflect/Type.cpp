@@ -120,7 +120,7 @@ namespace CxxReflect {
         {
         case Metadata::TableId::TypeDef:
         {
-            // Wonderful news!  We have a TypeDef and we don't need to do any further work.
+            // Good news, everyone!  We have a TypeDef and we don't need to do any further work.
             break;
         }
 
@@ -365,6 +365,10 @@ namespace CxxReflect {
         flags.Set(BindingAttribute::DeclaredOnly);
         flags.Unset(BindingAttribute::FlattenHierarchy);
 
+        // TODO:  For performance, it would be beneficial to maintain two tables per type--one for
+        // the full member table like we compute now, and one for declared members only.  This would
+        // allow for much faster constructor resolution (and this is one of our core use cases).  We
+        // still need to build a table, though, because we need to instantiate generic members.
         Detail::MethodTable const& table(_assembly.Realize().GetContext(InternalKey()).GetOrCreateMethodTable(_type));
         return MethodIterator(*this, table.Begin(), table.End(), flags);
     }
@@ -524,11 +528,6 @@ namespace CxxReflect {
     {
         if (IsNested())
         {
-            if (GetMetadataToken() == 0x02000366)
-            {
-                int vpp = 0;
-            }
-
             Metadata::Database const& database(_assembly.Realize().GetContext(InternalKey()).GetDatabase());
             auto const it(std::lower_bound(
                 database.Begin<Metadata::TableId::NestedClass>(),
@@ -539,14 +538,10 @@ namespace CxxReflect {
                 return r.GetNestedClass() < index;
             }));
 
-            if (it.GetReference().GetIndex() == 0)
-            {
-                int vpp = 0;
-            }
-
             if (it == database.End<Metadata::TableId::NestedClass>())
-                throw std::logic_error("wtf");
+                throw MetadataReadError(L"Type was identified as nested but had no row in the NestedClass table.");
 
+            // An assertion is sufficient here; if the assertion fails, BinarySearch is broken.
             Detail::Assert([&]() -> bool
             {
                 Metadata::RowReference const nestedClass(it->GetNestedClass());
@@ -555,20 +550,20 @@ namespace CxxReflect {
                 return nestedClass == typeToken;
             },  L"Binary search returned an unexpected result.");
 
-            // TODO IS THE TYPE DEF CHECK DONE AT THE PHYSICAL LAYER?
             Metadata::RowReference const enclosingType(it->GetEnclosingClass());
             if (enclosingType.GetTable() != Metadata::TableId::TypeDef)
-                throw std::logic_error("wtf");
+                throw MetadataReadError(L"Enclosing type was expected to be a TypeDef; it was not.");
 
             return Type(_assembly.Realize(), enclosingType, InternalKey());
         }
 
-        // TODO OTHER KINDS OF DECLARING TYPES
+        // TODO Handle other kinds of declaring types
         return Type();
     }
 
     String Type::GetAssemblyQualifiedName() const
     {
+        // TODO Remove use of <iostream>
         std::wostringstream oss;
         AccumulateAssemblyQualifiedNameInto(oss);
         return oss.str();
@@ -576,6 +571,7 @@ namespace CxxReflect {
 
     String Type::GetFullName() const
     {
+        // TODO Remove use of <iostream>
         std::wostringstream oss;
         AccumulateFullNameInto(oss);
         return oss.str();
@@ -596,11 +592,13 @@ namespace CxxReflect {
         if (IsTypeDef())
             return GetTypeDefRow().GetName();
 
-        return L""; // TODO
+        return L""; // TODO Implement GetName() for TypeSpecs
     }
 
     StringReference Type::GetNamespace() const
     {
+        // A nested type has an empty namespace string in the database; we instead return the 
+        // namespace of its declaring type, for consistency.
         if (IsNested())
         {
             return GetDeclaringType().GetNamespace();
@@ -632,9 +630,11 @@ namespace CxxReflect {
     bool Type::IsArray() const
     {
         AssertInitialized();
-        if (IsTypeDef()) { return false; }
+        if (IsTypeDef())
+            return false;
 
-        return TodoNotYetImplementedFlag;
+        Metadata::TypeSignature const signature(GetTypeSpecSignature());
+        return signature.IsSimpleArray() || signature.IsGeneralArray();
     }
 
     bool Type::IsAutoClass() const
@@ -689,7 +689,8 @@ namespace CxxReflect {
 
     bool Type::IsEnum() const
     {
-        if (!IsTypeDef()) { return false; }
+        if (!IsTypeDef())
+            return false;
 
         return Utility::IsDerivedFromSystemType(*this, L"System", L"Enum", false);
     }
@@ -705,12 +706,16 @@ namespace CxxReflect {
 
     bool Type::IsGenericParameter() const
     {
-        return TodoNotYetImplementedFlag;
+        if (IsTypeDef())
+            return false;
+
+        Metadata::TypeSignature const signature(GetTypeSpecSignature());
+        return signature.IsClassVariableType() || signature.IsMethodVariableType();
     }
 
     bool Type::IsGenericType() const
     {
-        // TODO THIS IS WRONG
+        // TODO This is incorrect, but is a close approximation that works much of the time.
         if (IsNested() && GetDeclaringType().IsGenericType())
         {
             return true;
@@ -722,7 +727,7 @@ namespace CxxReflect {
 
     bool Type::IsGenericTypeDefinition() const
     {
-        // TODO THIS IS WRONG
+        // TODO This is incorrect, but is a close approximation that works much of the time.
         return IsGenericType();
     }
 
@@ -834,20 +839,27 @@ namespace CxxReflect {
 
     bool Type::IsPointer() const
     {
-        if (IsTypeDef()) { return false; }
+        if (IsTypeDef())
+            return false;
 
-        return TodoNotYetImplementedFlag;
+        return GetTypeSpecSignature().IsPointer();
     }
 
     bool Type::IsPrimitive() const
     {
-        if (!IsTypeDef()) { return false; }
+        if (!IsTypeDef())
+            return false;
 
-        if (!Utility::IsSystemAssembly(_assembly.Realize())) { return false; }
+        if (!Utility::IsSystemAssembly(_assembly.Realize()))
+            return false;
 
-        if (GetTypeDefRow().GetNamespace() != L"System") { return false; }
+        if (GetTypeDefRow().GetNamespace() != L"System")
+            return false;
 
         StringReference const& name(GetTypeDefRow().GetName());
+        if (name.size() < 4)
+            return false;
+
         switch (name[0])
         {
         case L'B': return name == L"Boolean" || name == L"Byte";
@@ -906,18 +918,21 @@ namespace CxxReflect {
 
     bool Type::IsValueType() const
     {
-        return Utility::IsDerivedFromSystemType(*this, L"System", L"ValueType", false)
-            && !Utility::IsSystemType(*this, L"System", L"Enum");
+        return ResolveTypeDefTypeAndCall([](Type const& t)
+        {
+            return Utility::IsDerivedFromSystemType(t, L"System", L"ValueType", false)
+                && !Utility::IsSystemType(t, L"System", L"Enum");
+        });
     }
 
     bool Type::IsVisible() const
     {
-        if (IsTypeDef())
+        return ResolveTypeDefTypeAndCall([](Type const& t)
         {
-            if (IsNested() && !GetDeclaringType().IsVisible())
+            if (t.IsNested() && !t.GetDeclaringType().IsVisible())
                 return false;
 
-            switch (GetTypeDefRow().GetFlags().WithMask(TypeAttribute::VisibilityMask).GetEnum())
+            switch (t.GetTypeDefRow().GetFlags().WithMask(TypeAttribute::VisibilityMask).GetEnum())
             {
             case TypeAttribute::Public:
             case TypeAttribute::NestedPublic:
@@ -926,10 +941,7 @@ namespace CxxReflect {
             default:
                 return false;
             }
-        }
-        // TODO CHECK BEHAVIOR FOR TYPESPECS
-
-        return TodoNotYetImplementedFlag;
+        });
     }
 
     bool operator==(Type const& lhs, Type const& rhs)
@@ -996,6 +1008,4 @@ namespace CxxReflect {
 
         return false;
     }
-
-
 }

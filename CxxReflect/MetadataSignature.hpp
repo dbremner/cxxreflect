@@ -1,10 +1,11 @@
+#ifndef CXXREFLECT_METADATASIGNATURE_HPP_
+#define CXXREFLECT_METADATASIGNATURE_HPP_
+
 //                 Copyright (c) 2012 James P. McNellis <james@jamesmcnellis.com>                 //
 //                   Distributed under the Boost Software License, Version 1.0.                   //
 //     (See accompanying file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)    //
 
 // Functionality for reading and parsing element signatures from metadata blobs.
-#ifndef CXXREFLECT_METADATASIGNATURE_HPP_
-#define CXXREFLECT_METADATASIGNATURE_HPP_
 
 #include "CxxReflect/MetadataCommon.hpp"
 
