@@ -82,6 +82,7 @@
     <ClCompile>
       <AdditionalIncludeDirectories>..\;$(IncludePath);$(VCInstallDir)Include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <ErrorReporting>None</ErrorReporting>
+      <IgnoreWarnings>4702</IgnoreWarnings>
       <MinimalRebuild>false</MinimalRebuild>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <PreprocessorDefinitions>NOMINMAX;_CRT_SECURE_NO_WARNINGS;_UNICODE;UNICODE;%(PreprocessorDefinitions)</PreprocessorDefinitions>

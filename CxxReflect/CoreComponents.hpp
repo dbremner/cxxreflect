@@ -5,12 +5,9 @@
 //                   Distributed under the Boost Software License, Version 1.0.                   //
 //     (See accompanying file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)    //
 
-// Whereas Core.hpp contains declarations tht are independent of the rest of the library (i.e. it
-// has no dependencies on any other CxxReflect headers), this header contains core components that
-// require declarations from the Metadata{Database,Signature}.hpp headers.
-
 #include "CxxReflect/MetadataDatabase.hpp"
 #include "CxxReflect/MetadataSignature.hpp"
+#include "CxxReflect/OwnedElements.hpp"
 
 namespace CxxReflect {
 
@@ -36,129 +33,6 @@ namespace CxxReflect {
 
 namespace CxxReflect { namespace Detail {
 
-    template <typename TMember, typename TMemberRow, typename TMemberSignature>
-    class MemberContext
-    {
-    public:
-
-        typedef TMember          MemberType;
-        typedef TMemberRow       MemberRowType;
-        typedef TMemberSignature MemberSignatureType;
-
-        MemberContext();
-
-        MemberContext(Metadata::FullReference const& declaringType,
-                      Metadata::RowReference  const& member);
-
-        MemberContext(Metadata::FullReference const& declaringType,
-                      Metadata::RowReference  const& member,
-                      Metadata::FullReference const& instantiatingType,
-                      ConstByteRange          const& instantiatedSignature);
-
-        MemberType Resolve(Type const& reflectedType) const;
-
-        Metadata::FullReference GetDeclaringType()         const;
-
-        Metadata::FullReference GetMember()                const;
-        MemberRowType           GetMemberRow()             const;
-        MemberSignatureType     GetMemberSignature()       const;
-
-        bool                    HasInstantiatingType()     const;
-        Metadata::FullReference GetInstantiatingType()     const;
-
-        bool                    HasInstantiatedSignature() const;
-        ConstByteRange          GetInstantiatedSignature() const;
-
-        bool                    IsInitialized()            const;
-
-    private:
-
-        void                    AssertInitialized()        const;
-
-        Metadata::FullReference _declaringType;
-        Metadata::RowReference  _member;
-        Metadata::FullReference _instantiatingType;
-        ConstByteRange          _instantiatedSignature;
-    };
-
-    typedef MemberContext<Event,    Metadata::EventRow,     Metadata::TypeSignature    > EventContext;
-    typedef MemberContext<Field,    Metadata::FieldRow,     Metadata::FieldSignature   > FieldContext;
-    typedef MemberContext<Method,   Metadata::MethodDefRow, Metadata::MethodSignature  > MethodContext;
-    typedef MemberContext<Property, Metadata::PropertyRow,  Metadata::PropertySignature> PropertyContext;
-
-    typedef Range<EventContext>    EventTable;
-    typedef Range<FieldContext>    FieldTable;
-    typedef Range<MethodContext>   MethodTable;
-    typedef Range<PropertyContext> PropertyTable;
-
-    template <typename TMember, typename TMemberRow, typename TMemberSignature>
-    class MemberTableCollection
-    {
-    public:
-
-        typedef TMember                                              MemberType;
-        typedef TMemberRow                                           MemberRowType;
-        typedef TMemberSignature                                     MemberSignatureType;
-
-        typedef MemberContext<TMember, TMemberRow, TMemberSignature> MemberContextType;
-        typedef Range<MemberContextType>                             MemberTableType;
-
-        typedef LinearArrayAllocator<Byte,              (1 << 16)>   SignatureAllocator;
-        typedef LinearArrayAllocator<MemberContextType, (1 << 11)>   TableAllocator;
-
-        typedef Metadata::ClassVariableSignatureInstantiator         Instantiator;
-        typedef Metadata::FullReference                              FullReference;
-
-        MemberTableCollection(Loader const* loader);
-        MemberTableCollection(MemberTableCollection&& other);
-        MemberTableCollection& operator=(MemberTableCollection&& other);
-
-        void Swap(MemberTableCollection& other);
-        
-        MemberTableType GetOrCreateMemberTable(FullReference const& type) const;
-
-    private:
-
-        typedef std::pair<FullReference, FullReference> TypeDefAndSpec;
-
-        MemberTableCollection(MemberTableCollection const&);
-        MemberTableCollection& operator=(MemberTableCollection const&);
-
-        // The provided 'type' may be a TypeDef, TypeRef, or TypeSpec.  This function returns a
-        // single TypeDef if 'type' is resolved to be a TypeDef, or resolves a pair containing the
-        // TypeSpec (in .second) and the primary TypeDef from the TypeSpec (in .first).  If it is
-        // a TypeSpec, it must be a GenericInst.
-        TypeDefAndSpec ResolveTypeDefAndSpec(FullReference const& type) const;
-
-        // The provided 'type' must be a GenericInst TypeSpec.  This function creates and returns a
-        // generic class variable instantiator from the arguments of the GenericInst.
-        Instantiator CreateInstantiator(FullReference const& type) const;
-
-        // Instantiates 'signature' using 'instantiator', allocates space for it in the signature
-        // allocator, and returns the result.
-        ConstByteRange Instantiate(Instantiator const& instantiator, MemberSignatureType const& signature) const;
-
-        // Computes the correct override or hiding slot for 'newMember' in the member table being
-        // built (in _buffer).  The 'inheritedMemberCount' is the index of the first new member
-        // (i.e., the first member that was defined in the derived class).
-        void InsertMemberIntoBuffer(MemberContextType const& newMember, SizeType inheritedMemberCount) const;
-
-        ValueInitialized<Loader const*>                  _loader;
-        SignatureAllocator                       mutable _signatureAllocator;
-        TableAllocator                           mutable _tableAllocator;
-        std::map<FullReference, MemberTableType> mutable _index;
-        std::vector<MemberContextType>           mutable _buffer;
-    };
-
-    typedef MemberTableCollection<Event,    Metadata::EventRow,     Metadata::TypeSignature    > EventTableCollection;
-    typedef MemberTableCollection<Field,    Metadata::FieldRow,     Metadata::FieldSignature   > FieldTableCollection;
-    typedef MemberTableCollection<Method,   Metadata::MethodDefRow, Metadata::MethodSignature  > MethodTableCollection;
-    typedef MemberTableCollection<Property, Metadata::PropertyRow,  Metadata::PropertySignature> PropertyTableCollection;
-
-
-
-
-
     // Represents all of the permanent information about an Assembly.  This is the implementation of
     // an 'Assembly' facade and includes parts of the implementation of other facades (e.g., it
     // stores the method tables for each type in the assembly).  This way, the actual facade types
@@ -179,10 +53,10 @@ namespace CxxReflect { namespace Detail {
         String             const& GetLocation()     const;
         AssemblyName       const& GetAssemblyName() const;
 
-        EventTable    const GetOrCreateEventTable   (Metadata::ElementReference const& type) const;
-        FieldTable    const GetOrCreateFieldTable   (Metadata::ElementReference const& type) const;
-        MethodTable   const GetOrCreateMethodTable  (Metadata::ElementReference const& type) const;
-        PropertyTable const GetOrCreatePropertyTable(Metadata::ElementReference const& type) const;
+        OwnedEventTable    const GetOrCreateEventTable   (Metadata::ElementReference const& type) const;
+        OwnedFieldTable    const GetOrCreateFieldTable   (Metadata::ElementReference const& type) const;
+        OwnedMethodTable   const GetOrCreateMethodTable  (Metadata::ElementReference const& type) const;
+        OwnedPropertyTable const GetOrCreatePropertyTable(Metadata::ElementReference const& type) const;
 
         bool IsInitialized() const;
 
@@ -200,16 +74,16 @@ namespace CxxReflect { namespace Detail {
 
         void RealizeName() const;
 
-        ValueInitialized<Loader const*>       _loader;
-        String                                _uri;
-        Metadata::Database                    _database;
+        ValueInitialized<Loader const*>            _loader;
+        String                                     _uri;
+        Metadata::Database                         _database;
 
-        FlagSet<RealizationState>     mutable _state;
-        std::unique_ptr<AssemblyName> mutable _name;
-        EventTableCollection          mutable _events;
-        FieldTableCollection          mutable _fields;
-        MethodTableCollection         mutable _methods;
-        PropertyTableCollection       mutable _properties;
+        FlagSet<RealizationState>          mutable _state;
+        std::unique_ptr<AssemblyName>      mutable _name;
+        OwnedEventTableCollection          mutable _events;
+        OwnedFieldTableCollection          mutable _fields;
+        OwnedMethodTableCollection         mutable _methods;
+        OwnedPropertyTableCollection       mutable _properties;
     };
 
 
@@ -247,7 +121,7 @@ namespace CxxReflect { namespace Detail {
         MethodHandle();
         MethodHandle(AssemblyContext            const* reflectedTypeAssemblyContext,
                      Metadata::ElementReference const& reflectedTypeReference,
-                     MethodContext              const* methodContext);
+                     OwnedMethod                const* ownedMethod);
         MethodHandle(Method const& method);
 
         Method Realize() const;
@@ -265,7 +139,7 @@ namespace CxxReflect { namespace Detail {
 
         ValueInitialized<AssemblyContext const*> _reflectedTypeAssemblyContext;
         Metadata::ElementReference               _reflectedTypeReference;
-        ValueInitialized<MethodContext const*>   _methodContext;
+        ValueInitialized<OwnedMethod const*>     _ownedMethod;
     };
 
     class ParameterHandle
@@ -275,7 +149,7 @@ namespace CxxReflect { namespace Detail {
         ParameterHandle();
         ParameterHandle(AssemblyContext            const* reflectedTypeAssemblyContext,
                         Metadata::ElementReference const& reflectedTypeReference,
-                        MethodContext              const* methodContext,
+                        OwnedMethod                const* ownedMethod,
                         Metadata::RowReference     const& parameterReference,
                         Metadata::TypeSignature    const& parameterSignature);
         ParameterHandle(Parameter const& parameter);
@@ -295,7 +169,7 @@ namespace CxxReflect { namespace Detail {
 
         ValueInitialized<AssemblyContext const*> _reflectedTypeAssemblyContext;
         Metadata::ElementReference               _reflectedTypeReference;
-        ValueInitialized<MethodContext const*>   _methodContext;
+        ValueInitialized<OwnedMethod const*>     _ownedMethod;
 
         Metadata::RowReference                   _parameterReference;
         Metadata::TypeSignature                  _parameterSignature;
@@ -508,12 +382,6 @@ namespace CxxReflect {
     public: // TODO MAKE PRIVATE AGAIN!
 
         InternalKey() { }
-
-        template <typename TMember, typename TMemberRow, typename TMemberSignature>
-        friend class Detail::MemberContext;
-
-        template <typename TMember, typename TMemberRow, typename TMemberSignature>
-        friend class Detail::MemberTableCollection;
 
         template
         <

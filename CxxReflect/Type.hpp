@@ -129,17 +129,17 @@ namespace CxxReflect {
     {
     private:
 
-        static bool FilterEvent   (BindingFlags, Type const&, Detail::EventContext    const&);
-        static bool FilterField   (BindingFlags, Type const&, Detail::FieldContext    const&);
-        static bool FilterMethod  (BindingFlags, Type const&, Detail::MethodContext   const&);
-        static bool FilterProperty(BindingFlags, Type const&, Detail::PropertyContext const&);
+        static bool FilterEvent   (BindingFlags, Type const&, Detail::OwnedEvent    const&);
+        static bool FilterField   (BindingFlags, Type const&, Detail::OwnedField    const&);
+        static bool FilterMethod  (BindingFlags, Type const&, Detail::OwnedMethod   const&);
+        static bool FilterProperty(BindingFlags, Type const&, Detail::OwnedProperty const&);
 
     public:
 
-        typedef Detail::MemberIterator<Type, Event,    Detail::EventContext,    &Type::FilterEvent   > EventIterator;
-        typedef Detail::MemberIterator<Type, Field,    Detail::FieldContext,    &Type::FilterField   > FieldIterator;
-        typedef Detail::MemberIterator<Type, Method,   Detail::MethodContext,   &Type::FilterMethod  > MethodIterator;
-        typedef Detail::MemberIterator<Type, Property, Detail::PropertyContext, &Type::FilterProperty> PropertyIterator;
+        typedef Detail::MemberIterator<Type, Event,    Detail::OwnedEvent,    &Type::FilterEvent   > EventIterator;
+        typedef Detail::MemberIterator<Type, Field,    Detail::OwnedField,    &Type::FilterField   > FieldIterator;
+        typedef Detail::MemberIterator<Type, Method,   Detail::OwnedMethod,   &Type::FilterMethod  > MethodIterator;
+        typedef Detail::MemberIterator<Type, Property, Detail::OwnedProperty, &Type::FilterProperty> PropertyIterator;
 
         typedef Detail::InstantiatingIterator<
             Metadata::FullReference, Type, Assembly, Detail::InterfaceImplTransformer
@@ -148,6 +148,7 @@ namespace CxxReflect {
         Type();
         Type(Assembly const& assembly, Metadata::RowReference  const& type, InternalKey);
         Type(Assembly const& assembly, Metadata::BlobReference const& type, InternalKey);
+        Type(Type const& unused, Detail::OwnedInterface const* interfaceContext, InternalKey) { /* TODO */}
 
         Assembly GetAssembly() const;
 

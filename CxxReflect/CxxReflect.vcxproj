@@ -4,6 +4,9 @@
     <ConfigurationType>StaticLibrary</ConfigurationType>
     <ProjectGuid>{64DC7DFF-D2E4-4086-BE24-02F0B9D71128}</ProjectGuid>
   </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <CodeAnalysisRuleSet>AllRules.ruleset</CodeAnalysisRuleSet>
+  </PropertyGroup>
   <Import Project="$(SolutionDir)CxxReflect\CxxReflect.props" />
   <ItemDefinitionGroup>
     <ClCompile>
@@ -33,6 +36,7 @@
     <ClInclude Include="Loader.hpp" />
     <ClInclude Include="Method.hpp" />
     <ClInclude Include="Module.hpp" />
+    <ClInclude Include="OwnedElements.hpp" />
     <ClInclude Include="Parameter.hpp" />
     <ClInclude Include="PrecompiledHeaders.hpp" />
     <ClInclude Include="Property.hpp" />
@@ -57,6 +61,7 @@
     <ClCompile Include="MetadataDatabase.cpp" />
     <ClCompile Include="Loader.cpp" />
     <ClCompile Include="Method.cpp" />
+    <ClCompile Include="OwnedElements.cpp" />
     <ClCompile Include="Parameter.cpp" />
     <ClCompile Include="PrecompiledHeaders.cpp">
       <PrecompiledHeader>Create</PrecompiledHeader>

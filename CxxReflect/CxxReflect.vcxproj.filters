@@ -64,6 +64,9 @@
     <ClCompile Include="CoreComponents.cpp">
       <Filter>Sources\Core</Filter>
     </ClCompile>
+    <ClCompile Include="OwnedElements.cpp">
+      <Filter>Sources\Core</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="CxxReflect.hpp">
@@ -143,6 +146,9 @@
     </ClInclude>
     <ClInclude Include="Assembly.hpp">
       <Filter>Headers\Interface</Filter>
+    </ClInclude>
+    <ClInclude Include="OwnedElements.hpp">
+      <Filter>Headers\Core</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

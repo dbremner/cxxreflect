@@ -16,8 +16,8 @@ namespace CxxReflect { namespace { namespace Private {
     template <typename T>
     bool CoreFilterMember(BindingFlags const filter, bool const isDeclaringType, T const& current)
     {
-        typedef typename Detail::Identity<decltype(current.GetMemberRow().GetFlags())>::Type::EnumerationType AttributeType;
-        auto currentFlags(current.GetMemberRow().GetFlags());
+        typedef typename Detail::Identity<decltype(current.GetElementRow().GetFlags())>::Type::EnumerationType AttributeType;
+        auto currentFlags(current.GetElementRow().GetFlags());
 
         if (currentFlags.IsSet(AttributeType::Static))
         {
@@ -50,7 +50,7 @@ namespace CxxReflect { namespace { namespace Private {
             if (currentFlags.IsSet(AttributeType::Static) && !filter.IsSet(BindingAttribute::FlattenHierarchy))
                 return true;
 
-            StringReference const memberName(current.GetMemberRow().GetName());
+            StringReference const memberName(current.GetElementRow().GetName());
 
             // Nonpublic methods inherited from base classes are never returned, except for
             // explicit interface implementations, which may be returned:
@@ -369,7 +369,7 @@ namespace CxxReflect {
         // the full member table like we compute now, and one for declared members only.  This would
         // allow for much faster constructor resolution (and this is one of our core use cases).  We
         // still need to build a table, though, because we need to instantiate generic members.
-        Detail::MethodTable const& table(_assembly.Realize().GetContext(InternalKey()).GetOrCreateMethodTable(_type));
+        Detail::OwnedMethodTable const& table(_assembly.Realize().GetContext(InternalKey()).GetOrCreateMethodTable(_type));
         return MethodIterator(*this, table.Begin(), table.End(), flags);
     }
 
@@ -383,7 +383,7 @@ namespace CxxReflect {
         AssertInitialized();
         Detail::Assert([&]{ return !flags.IsSet(BindingAttribute::InternalUseOnlyMask); });
 
-        Detail::EventTable const& table(_assembly.Realize().GetContext(InternalKey()).GetOrCreateEventTable(_type));
+        Detail::OwnedEventTable const& table(_assembly.Realize().GetContext(InternalKey()).GetOrCreateEventTable(_type));
         return EventIterator(*this, table.Begin(), table.End(), flags);
     }
 
@@ -397,7 +397,7 @@ namespace CxxReflect {
         AssertInitialized();
         Detail::Assert([&]{ return !flags.IsSet(BindingAttribute::InternalUseOnlyMask); });
 
-        Detail::FieldTable const& table(_assembly.Realize().GetContext(InternalKey()).GetOrCreateFieldTable(_type));
+        Detail::OwnedFieldTable const& table(_assembly.Realize().GetContext(InternalKey()).GetOrCreateFieldTable(_type));
         return FieldIterator(*this, table.Begin(), table.End(), flags);
     }
 
@@ -411,7 +411,7 @@ namespace CxxReflect {
         AssertInitialized();
         Detail::Assert([&]{ return !flags.IsSet(BindingAttribute::InternalUseOnlyMask); });
 
-        Detail::MethodTable const& table(_assembly.Realize().GetContext(InternalKey()).GetOrCreateMethodTable(_type));
+        Detail::OwnedMethodTable const& table(_assembly.Realize().GetContext(InternalKey()).GetOrCreateMethodTable(_type));
         return MethodIterator(*this, table.Begin(), table.End(), flags);
     }
 
@@ -440,7 +440,7 @@ namespace CxxReflect {
         AssertInitialized();
         Detail::Assert([&]{ return !flags.IsSet(0x10000000); });
 
-        Detail::PropertyTable const& table(_assembly.Realize().GetContext(InternalKey()).GetOrCreatePropertyTable(_type));
+        Detail::OwnedPropertyTable const& table(_assembly.Realize().GetContext(InternalKey()).GetOrCreatePropertyTable(_type));
         return PropertyIterator(*this, table.Begin(), table.End(), flags);
     }
 
@@ -962,7 +962,7 @@ namespace CxxReflect {
             && lhs.GetMetadataToken() == rhs.GetMetadataToken();
     }
 
-    bool Type::FilterEvent(BindingFlags const /*filter*/, Type const& /*reflectedType*/, Detail::EventContext const& /*current*/)
+    bool Type::FilterEvent(BindingFlags const /*filter*/, Type const& /*reflectedType*/, Detail::OwnedEvent const& /*current*/)
     {
         // Metadata::RowReference const currentType(current.GetDeclaringType().AsRowReference());
         // bool const currentTypeIsDeclaringType(reflectedType.GetMetadataToken() == currentType.GetToken());
@@ -972,9 +972,9 @@ namespace CxxReflect {
         return false;
     }
 
-    bool Type::FilterField(BindingFlags const filter, Type const& reflectedType, Detail::FieldContext const& current)
+    bool Type::FilterField(BindingFlags const filter, Type const& reflectedType, Detail::OwnedField const& current)
     {
-        Metadata::RowReference const currentType(current.GetDeclaringType().AsRowReference());
+        Metadata::RowReference const currentType(current.GetOwningType().AsRowReference());
         bool const currentTypeIsDeclaringType(reflectedType.GetMetadataToken() == currentType.GetToken());
 
         if (Private::CoreFilterMember(filter, currentTypeIsDeclaringType, current))
@@ -983,23 +983,23 @@ namespace CxxReflect {
         return false;
     }
 
-    bool Type::FilterMethod(BindingFlags const filter, Type const& reflectedType, Detail::MethodContext const& current)
+    bool Type::FilterMethod(BindingFlags const filter, Type const& reflectedType, Detail::OwnedMethod const& current)
     {
-        Metadata::RowReference const currentType(current.GetDeclaringType().AsRowReference());
+        Metadata::RowReference const currentType(current.GetOwningType().AsRowReference());
         bool const currentTypeIsDeclaringType(reflectedType.GetMetadataToken() == currentType.GetToken());
 
         if (Private::CoreFilterMember(filter, currentTypeIsDeclaringType, current))
             return true;
 
-        StringReference const name(current.GetMemberRow().GetName());
+        StringReference const name(current.GetElementRow().GetName());
         bool const isConstructor(
-            current.GetMemberRow().GetFlags().IsSet(MethodAttribute::SpecialName) && 
+            current.GetElementRow().GetFlags().IsSet(MethodAttribute::SpecialName) && 
             (name == L".ctor" || name == L".cctor"));
 
         return isConstructor != filter.IsSet(BindingAttribute::InternalUseOnlyConstructor);
     }
 
-    bool Type::FilterProperty(BindingFlags const /*filter*/, Type const& /*reflectedType*/, Detail::PropertyContext const& /*current*/)
+    bool Type::FilterProperty(BindingFlags const /*filter*/, Type const& /*reflectedType*/, Detail::OwnedProperty const& /*current*/)
     {
         // Metadata::RowReference const currentType(current.GetDeclaringType().AsRowReference());
         // bool const currentTypeIsDeclaringType(reflectedType.GetMetadataToken() == currentType.GetToken());

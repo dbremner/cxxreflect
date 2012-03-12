@@ -15,18 +15,18 @@ namespace CxxReflect {
     {
     }
 
-    Property::Property(Type const& reflectedType, Detail::PropertyContext const* const context, InternalKey)
+    Property::Property(Type const& reflectedType, Detail::OwnedProperty const* const ownedProperty, InternalKey)
         : _reflectedType(reflectedType),
-          _context(context)
+          _ownedProperty(ownedProperty)
     {
-        Detail::AssertNotNull(context);
-        Detail::Assert([&]{ return reflectedType.IsInitialized(); });
-        Detail::Assert([&]{ return context->IsInitialized();      });
+        Detail::AssertNotNull(ownedProperty);
+        Detail::Assert([&]{ return reflectedType.IsInitialized();  });
+        Detail::Assert([&]{ return ownedProperty->IsInitialized(); });
     }
 
     bool Property::IsInitialized() const
     {
-        return _reflectedType.IsInitialized() && _context.Get() != nullptr;
+        return _reflectedType.IsInitialized() && _ownedProperty.Get() != nullptr;
     }
 
     bool Property::operator!() const
@@ -39,21 +39,21 @@ namespace CxxReflect {
         Detail::Assert([&]{ return IsInitialized(); });
     }
 
-    Detail::PropertyContext const& Property::GetContext(InternalKey) const
+    Detail::OwnedProperty const& Property::GetOwnedProperty(InternalKey) const
     {
         AssertInitialized();
-        return *_context.Get();
+        return *_ownedProperty.Get();
     }
 
     Type Property::GetDeclaringType() const
     {
         AssertInitialized();
         Loader                  const& loader  (_reflectedType.Realize().GetAssembly().GetContext(InternalKey()).GetLoader());
-        Metadata::Database      const& database(_context.Get()->GetDeclaringType().GetDatabase());
+        Metadata::Database      const& database(_ownedProperty.Get()->GetOwningType().GetDatabase());
         Detail::AssemblyContext const& context (loader.GetContextForDatabase(database, InternalKey()));
         Assembly                const  assembly(&context, InternalKey());
 
-        return Type(assembly, _context.Get()->GetDeclaringType().AsRowReference(), InternalKey());
+        return Type(assembly, _ownedProperty.Get()->GetOwningType().AsRowReference(), InternalKey());
     }
 
     Type Property::GetReflectedType() const
@@ -64,12 +64,12 @@ namespace CxxReflect {
 
     bool operator==(Property const& lhs, Property const& rhs)
     {
-        return lhs._context.Get() == rhs._context.Get();
+        return lhs._ownedProperty.Get() == rhs._ownedProperty.Get();
     }
 
     bool operator<(Property const& lhs, Property const& rhs)
     {
-        return std::less<Detail::PropertyContext const*>()(lhs._context.Get(), rhs._context.Get());
+        return std::less<Detail::OwnedProperty const*>()(lhs._ownedProperty.Get(), rhs._ownedProperty.Get());
     }
 
 }

@@ -14,9 +14,9 @@ namespace CxxReflect {
     public:
 
         Property();
-        Property(Type const& reflectedType, Detail::PropertyContext const* context, InternalKey);
+        Property(Type const& reflectedType, Detail::OwnedProperty const* ownedProperty, InternalKey);
 
-        Detail::PropertyContext const& GetContext(InternalKey) const;
+        Detail::OwnedProperty const& GetOwnedProperty(InternalKey) const;
 
         Type GetDeclaringType() const;
         Type GetReflectedType() const;
@@ -63,10 +63,8 @@ namespace CxxReflect {
 
         Metadata::PropertyRow GetPropertyRow() const;
 
-        Detail::TypeHandle                                       _reflectedType;
-        Detail::ValueInitialized<Detail::PropertyContext const*> _context;
-
-
+        Detail::TypeHandle                                     _reflectedType;
+        Detail::ValueInitialized<Detail::OwnedProperty const*> _ownedProperty;
     };
 
 }

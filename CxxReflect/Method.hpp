@@ -18,9 +18,9 @@ namespace CxxReflect {
         > ParameterIterator;
 
         Method();
-        Method(Type const& reflectedType, Detail::MethodContext const* context, InternalKey);
+        Method(Type const& reflectedType, Detail::OwnedMethod const* ownedMethod, InternalKey);
 
-        Detail::MethodContext const& GetContext(InternalKey) const;
+        Detail::OwnedMethod const& GetOwnedMethod(InternalKey) const;
 
         Type GetDeclaringType() const;
         Type GetReflectedType() const;
@@ -92,8 +92,8 @@ namespace CxxReflect {
 
         Metadata::MethodDefRow GetMethodDefRow() const;
 
-        Detail::TypeHandle                                     _reflectedType;
-        Detail::ValueInitialized<Detail::MethodContext const*> _context;
+        Detail::TypeHandle                                   _reflectedType;
+        Detail::ValueInitialized<Detail::OwnedMethod const*> _ownedMethod;
     };
 }
 
