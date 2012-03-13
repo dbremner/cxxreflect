@@ -15,18 +15,18 @@ namespace CxxReflect {
     {
     }
 
-    Event::Event(Type const& reflectedType, Detail::OwnedEvent const* const ownedEvent, InternalKey)
+    Event::Event(Type const& reflectedType, Detail::EventContext const* const context, InternalKey)
         : _reflectedType(reflectedType),
-          _ownedEvent(ownedEvent)
+          _context(context)
     {
-        Detail::AssertNotNull(ownedEvent);
+        Detail::AssertNotNull(context);
         Detail::Assert([&]{ return reflectedType.IsInitialized(); });
-        Detail::Assert([&]{ return ownedEvent->IsInitialized();   });
+        Detail::Assert([&]{ return context->IsInitialized();      });
     }
 
     bool Event::IsInitialized() const
     {
-        return _reflectedType.IsInitialized() && _ownedEvent.Get() != nullptr;
+        return _reflectedType.IsInitialized() && _context.Get() != nullptr;
     }
 
     bool Event::operator!() const
@@ -39,21 +39,21 @@ namespace CxxReflect {
         Detail::Assert([&]{ return IsInitialized(); });
     }
 
-    Detail::OwnedEvent const& Event::GetOwnedEvent(InternalKey) const
+    Detail::EventContext const& Event::GetContext(InternalKey) const
     {
         AssertInitialized();
-        return *_ownedEvent.Get();
+        return *_context.Get();
     }
 
     Type Event::GetDeclaringType() const
     {
         AssertInitialized();
         Loader                  const& loader  (_reflectedType.Realize().GetAssembly().GetContext(InternalKey()).GetLoader());
-        Metadata::Database      const& database(_ownedEvent.Get()->GetOwningType().GetDatabase());
+        Metadata::Database      const& database(_context.Get()->GetOwningType().GetDatabase());
         Detail::AssemblyContext const& context (loader.GetContextForDatabase(database, InternalKey()));
         Assembly                const  assembly(&context, InternalKey());
 
-        return Type(assembly, _ownedEvent.Get()->GetOwningType().AsRowReference(), InternalKey());
+        return Type(assembly, _context.Get()->GetOwningType().AsRowReference(), InternalKey());
     }
 
     Type Event::GetReflectedType() const
@@ -64,12 +64,12 @@ namespace CxxReflect {
 
     bool operator==(Event const& lhs, Event const& rhs)
     {
-        return lhs._ownedEvent.Get() == rhs._ownedEvent.Get();
+        return lhs._context.Get() == rhs._context.Get();
     }
 
     bool operator<(Event const& lhs, Event const& rhs)
     {
-        return std::less<Detail::OwnedEvent const*>()(lhs._ownedEvent.Get(), rhs._ownedEvent.Get());
+        return std::less<Detail::EventContext const*>()(lhs._context.Get(), rhs._context.Get());
     }
 
 }

@@ -18,9 +18,6 @@ namespace CxxReflect {
         > ParameterIterator;
 
         Method();
-        Method(Type const& reflectedType, Detail::OwnedMethod const* ownedMethod, InternalKey);
-
-        Detail::OwnedMethod const& GetOwnedMethod(InternalKey) const;
 
         Type GetDeclaringType() const;
         Type GetReflectedType() const;
@@ -86,14 +83,20 @@ namespace CxxReflect {
         CXXREFLECT_GENERATE_COMPARISON_OPERATORS(Method)
         CXXREFLECT_GENERATE_SAFE_BOOL_CONVERSION(Method)
 
+    public: // Internal Members
+
+        Method(Type const& reflectedType, Detail::MethodContext const* context, InternalKey);
+
+        Detail::MethodContext const& GetContext(InternalKey) const;
+
     private:
 
         void AssertInitialized() const;
 
         Metadata::MethodDefRow GetMethodDefRow() const;
 
-        Detail::TypeHandle                                   _reflectedType;
-        Detail::ValueInitialized<Detail::OwnedMethod const*> _ownedMethod;
+        Detail::TypeHandle                                     _reflectedType;
+        Detail::ValueInitialized<Detail::MethodContext const*> _context;
     };
 }
 

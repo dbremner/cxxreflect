@@ -43,7 +43,7 @@ namespace CxxReflect {
         Assembly LoadAssembly(String path) const;
         Assembly LoadAssembly(AssemblyName const& name) const;
 
-    public: // internals
+    public: // Internal Members
 
         // Gets the assembly locator being used by this metadata loader.
         IAssemblyLocator const& GetAssemblyLocator(InternalKey) const;
@@ -57,6 +57,12 @@ namespace CxxReflect {
         Metadata::FullReference ResolveType(Metadata::FullReference const& typeReference) const;
 
         Type GetFundamentalType(Metadata::ElementType const elementType, InternalKey) const;
+
+        Detail::EventContextTable     GetOrCreateEventTable    (Metadata::FullReference const& typeDef) const;
+        Detail::FieldContextTable     GetOrCreateFieldTable    (Metadata::FullReference const& typeDef) const;
+        Detail::InterfaceContextTable GetOrCreateInterfaceTable(Metadata::FullReference const& typeDef) const;
+        Detail::MethodContextTable    GetOrCreateMethodTable   (Metadata::FullReference const& typeDef) const;
+        Detail::PropertyContextTable  GetOrCreatePropertyTable (Metadata::FullReference const& typeDef) const;
 
     private:
 
@@ -73,6 +79,14 @@ namespace CxxReflect {
         // we frequently need to look them up (which is common in reflection use cases), so we cache
         // the set of fundamental type definitions for the type universe once, here, in the loader:
         mutable std::array<Detail::TypeHandle, FundamentalTypeCount> _fundamentalTypes;
+
+        Detail::ElementContextSignatureAllocator   mutable _signatureAllocator;
+
+        Detail::EventContextTableCollection        mutable _events;
+        Detail::FieldContextTableCollection        mutable _fields;
+        Detail::InterfaceContextTableCollection    mutable _interfaces;
+        Detail::MethodContextTableCollection       mutable _methods;
+        Detail::PropertyContextTableCollection     mutable _properties;
     };
 
 }

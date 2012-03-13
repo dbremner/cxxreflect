@@ -64,7 +64,7 @@
     <ClCompile Include="CoreComponents.cpp">
       <Filter>Sources\Core</Filter>
     </ClCompile>
-    <ClCompile Include="OwnedElements.cpp">
+    <ClCompile Include="ElementContexts.cpp">
       <Filter>Sources\Core</Filter>
     </ClCompile>
   </ItemGroup>
@@ -147,7 +147,7 @@
     <ClInclude Include="Assembly.hpp">
       <Filter>Headers\Interface</Filter>
     </ClInclude>
-    <ClInclude Include="OwnedElements.hpp">
+    <ClInclude Include="ElementContexts.hpp">
       <Filter>Headers\Core</Filter>
     </ClInclude>
   </ItemGroup>

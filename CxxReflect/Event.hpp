@@ -14,7 +14,6 @@ namespace CxxReflect {
     public:
 
         Event();
-        Event(Type const& reflectedType, Detail::OwnedEvent const* ownedEvent, InternalKey);
 
         Type GetDeclaringType() const;
         Type GetReflectedType() const;
@@ -48,9 +47,11 @@ namespace CxxReflect {
         CXXREFLECT_GENERATE_COMPARISON_OPERATORS(Event)
         CXXREFLECT_GENERATE_SAFE_BOOL_CONVERSION(Event)
 
-    public: // Internal members
+    public: // Internal Members
 
-        Detail::OwnedEvent const& GetOwnedEvent(InternalKey) const;
+        Event(Type const& reflectedType, Detail::EventContext const* context, InternalKey);
+
+        Detail::EventContext const& GetContext(InternalKey) const;
 
     private:
 
@@ -58,8 +59,8 @@ namespace CxxReflect {
 
         Metadata::EventRow GetEventRow() const;
 
-        Detail::TypeHandle                                  _reflectedType;
-        Detail::ValueInitialized<Detail::OwnedEvent const*> _ownedEvent;
+        Detail::TypeHandle                                    _reflectedType;
+        Detail::ValueInitialized<Detail::EventContext const*> _context;
 
     };
 

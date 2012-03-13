@@ -17,18 +17,18 @@ namespace CxxReflect {
     {
     }
 
-    Method::Method(Type const& reflectedType, Detail::OwnedMethod const* const ownedMethod, InternalKey)
+    Method::Method(Type const& reflectedType, Detail::MethodContext const* const context, InternalKey)
         : _reflectedType(reflectedType),
-          _ownedMethod(ownedMethod)
+          _context(context)
     {
-        Detail::AssertNotNull(ownedMethod);
+        Detail::AssertNotNull(context);
         Detail::Assert([&]{ return reflectedType.IsInitialized(); });
-        Detail::Assert([&]{ return ownedMethod->IsInitialized();  });
+        Detail::Assert([&]{ return context->IsInitialized();      });
     }
 
     bool Method::IsInitialized() const
     {
-        return _reflectedType.IsInitialized() && _ownedMethod.Get() != nullptr;
+        return _reflectedType.IsInitialized() && _context.Get() != nullptr;
     }
 
     bool Method::operator!() const
@@ -41,21 +41,21 @@ namespace CxxReflect {
         Detail::Assert([&]{ return IsInitialized(); });
     }
 
-    Detail::OwnedMethod const& Method::GetOwnedMethod(InternalKey) const
+    Detail::MethodContext const& Method::GetContext(InternalKey) const
     {
         AssertInitialized();
-        return *_ownedMethod.Get();
+        return *_context.Get();
     }
 
     Type Method::GetDeclaringType() const
     {
         AssertInitialized();
         Loader                  const& loader  (_reflectedType.Realize().GetAssembly().GetContext(InternalKey()).GetLoader());
-        Metadata::Database      const& database(_ownedMethod.Get()->GetOwningType().GetDatabase());
+        Metadata::Database      const& database(_context.Get()->GetOwningType().GetDatabase());
         Detail::AssemblyContext const& context (loader.GetContextForDatabase(database, InternalKey()));
         Assembly                const  assembly(&context, InternalKey());
 
-        return Type(assembly, _ownedMethod.Get()->GetOwningType().AsRowReference(), InternalKey());
+        return Type(assembly, _context.Get()->GetOwningType().AsRowReference(), InternalKey());
     }
 
     Type Method::GetReflectedType() const
@@ -66,12 +66,12 @@ namespace CxxReflect {
 
     bool operator==(Method const& lhs, Method const& rhs)
     {
-        return lhs._ownedMethod.Get() == rhs._ownedMethod.Get();
+        return lhs._context.Get() == rhs._context.Get();
     }
 
     bool operator<(Method const& lhs, Method const& rhs)
     {
-        return std::less<Detail::OwnedMethod const*>()(lhs._ownedMethod.Get(), rhs._ownedMethod.Get());
+        return std::less<Detail::MethodContext const*>()(lhs._context.Get(), rhs._context.Get());
     }
 
     bool Method::ContainsGenericParameters() const
@@ -86,7 +86,7 @@ namespace CxxReflect {
 
     CallingConvention Method::GetCallingConvention() const
     {
-        Metadata::SignatureAttribute const convention(_ownedMethod.Get()
+        Metadata::SignatureAttribute const convention(_context.Get()
             ->GetElementSignature(GetReflectedType().GetAssembly().GetContext(InternalKey()).GetLoader())
             .GetCallingConvention());
         return static_cast<CallingConvention>(static_cast<unsigned>(convention));
@@ -94,13 +94,13 @@ namespace CxxReflect {
 
     SizeType Method::GetMetadataToken() const
     {
-        return _ownedMethod.Get()->GetElement().AsRowReference().GetToken();
+        return _context.Get()->GetElement().AsRowReference().GetToken();
     }
 
     Metadata::MethodDefRow Method::GetMethodDefRow() const
     {
         AssertInitialized();
-        return _ownedMethod.Get()->GetElementRow();
+        return _context.Get()->GetElementRow();
     }
 
     StringReference Method::GetName() const
@@ -193,8 +193,8 @@ namespace CxxReflect {
 
         // TODO Is this usage of AsRowReference() safe?
         return CustomAttribute::BeginFor(
-            _ownedMethod.Get()->Resolve(_reflectedType.Realize()).GetDeclaringType().GetAssembly(),
-            _ownedMethod.Get()->GetElement().AsRowReference(),
+            _context.Get()->Resolve(_reflectedType.Realize()).GetDeclaringType().GetAssembly(),
+            _context.Get()->GetElement().AsRowReference(),
             InternalKey());
     }
 
@@ -204,8 +204,8 @@ namespace CxxReflect {
 
         // TODO Is this usage of AsRowReference() safe?
         return CustomAttribute::EndFor(
-            _ownedMethod.Get()->Resolve(_reflectedType.Realize()).GetDeclaringType().GetAssembly(),
-            _ownedMethod.Get()->GetElement().AsRowReference(),
+            _context.Get()->Resolve(_reflectedType.Realize()).GetDeclaringType().GetAssembly(),
+            _context.Get()->GetElement().AsRowReference(),
             InternalKey());
     }
 
@@ -213,8 +213,8 @@ namespace CxxReflect {
     {
         AssertInitialized();
 
-        Detail::OwnedMethod const& ownedMethod(*_ownedMethod.Get());
-        Metadata::MethodDefRow const& methodRow(ownedMethod.GetElementRow());
+        Detail::MethodContext const& context(*_context.Get());
+        Metadata::MethodDefRow const& methodRow(context.GetElementRow());
 
         Metadata::RowReference firstParameterReference(methodRow.GetFirstParameter());
         Metadata::RowReference const lastParameterReference(methodRow.GetLastParameter());
@@ -224,7 +224,7 @@ namespace CxxReflect {
         // metadata to the return type.
         if (firstParameterReference != lastParameterReference)
         {
-            Metadata::ParamRow const& firstParameter(ownedMethod.GetElement()
+            Metadata::ParamRow const& firstParameter(context.GetElement()
                 .GetDatabase()
                 .GetRow<Metadata::TableId::Param>(firstParameterReference));
 
@@ -240,7 +240,7 @@ namespace CxxReflect {
 
         return ParameterIterator(*this, Detail::ParameterData(
             firstParameterReference,
-            ownedMethod.GetElementSignature(typeResolver).BeginParameters(),
+            context.GetElementSignature(typeResolver).BeginParameters(),
             InternalKey()));
     }
 
@@ -255,8 +255,8 @@ namespace CxxReflect {
             .GetLoader());
 
         return ParameterIterator(*this, Detail::ParameterData(
-            _ownedMethod.Get()->GetElementRow().GetLastParameter(),
-            _ownedMethod.Get()->GetElementSignature(typeResolver).EndParameters(),
+            _context.Get()->GetElementRow().GetLastParameter(),
+            _context.Get()->GetElementSignature(typeResolver).EndParameters(),
             InternalKey()));
     }
 

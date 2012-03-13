@@ -109,18 +109,6 @@ namespace CxxReflect { namespace Detail {
         BindingFlags                    _filter;
     };
 
-    struct InterfaceImplTransformer
-    {
-        Metadata::RowReference operator()(Metadata::FullReference r) const volatile
-        {
-            Detail::Assert([&]{ return r.AsRowReference().GetTable() == Metadata::TableId::InterfaceImpl; });
-            return r
-                .GetDatabase()
-                .GetRow<Metadata::TableId::InterfaceImpl>(r.AsRowReference().GetIndex())
-                .GetInterface();
-        }
-    };
-
 } }
 
 namespace CxxReflect {
@@ -129,26 +117,24 @@ namespace CxxReflect {
     {
     private:
 
-        static bool FilterEvent   (BindingFlags, Type const&, Detail::OwnedEvent    const&);
-        static bool FilterField   (BindingFlags, Type const&, Detail::OwnedField    const&);
-        static bool FilterMethod  (BindingFlags, Type const&, Detail::OwnedMethod   const&);
-        static bool FilterProperty(BindingFlags, Type const&, Detail::OwnedProperty const&);
+        static bool FilterEvent    (BindingFlags, Type const&, Detail::EventContext     const&);
+        static bool FilterField    (BindingFlags, Type const&, Detail::FieldContext     const&);
+        static bool FilterInterface(BindingFlags, Type const&, Detail::InterfaceContext const&);
+        static bool FilterMethod   (BindingFlags, Type const&, Detail::MethodContext    const&);
+        static bool FilterProperty (BindingFlags, Type const&, Detail::PropertyContext  const&);
 
     public:
 
-        typedef Detail::MemberIterator<Type, Event,    Detail::OwnedEvent,    &Type::FilterEvent   > EventIterator;
-        typedef Detail::MemberIterator<Type, Field,    Detail::OwnedField,    &Type::FilterField   > FieldIterator;
-        typedef Detail::MemberIterator<Type, Method,   Detail::OwnedMethod,   &Type::FilterMethod  > MethodIterator;
-        typedef Detail::MemberIterator<Type, Property, Detail::OwnedProperty, &Type::FilterProperty> PropertyIterator;
-
-        typedef Detail::InstantiatingIterator<
-            Metadata::FullReference, Type, Assembly, Detail::InterfaceImplTransformer
-        > InterfaceIterator;
+        typedef Detail::MemberIterator<Type, Event,    Detail::EventContext,     &Type::FilterEvent    > EventIterator;
+        typedef Detail::MemberIterator<Type, Field,    Detail::FieldContext,     &Type::FilterField    > FieldIterator;
+        typedef Detail::MemberIterator<Type, Type,     Detail::InterfaceContext, &Type::FilterInterface> InterfaceIterator;
+        typedef Detail::MemberIterator<Type, Method,   Detail::MethodContext,    &Type::FilterMethod   > MethodIterator;
+        typedef Detail::MemberIterator<Type, Property, Detail::PropertyContext,  &Type::FilterProperty > PropertyIterator;
 
         Type();
         Type(Assembly const& assembly, Metadata::RowReference  const& type, InternalKey);
         Type(Assembly const& assembly, Metadata::BlobReference const& type, InternalKey);
-        Type(Type const& unused, Detail::OwnedInterface const* interfaceContext, InternalKey) { /* TODO */}
+        Type(Type const& reflectedType, Detail::InterfaceContext const* context, InternalKey);
 
         Assembly GetAssembly() const;
 
@@ -275,8 +261,6 @@ namespace CxxReflect {
         Metadata::TypeSignature GetTypeSpecSignature() const;
 
         typedef std::pair<Metadata::RowReference, Metadata::RowReference> InterfacesRange;
-
-        InterfacesRange GetInterfacesRange() const;
 
         #define CXXREFLECT_GENERATE decltype(std::declval<TCallback>()(std::declval<Type>()))
 

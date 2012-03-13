@@ -45,11 +45,19 @@ namespace CxxReflect {
         return LocateAssembly(name);
     }
 
+    #pragma warning(push)
+    #pragma warning(disable: 4355)
     Loader::Loader(std::unique_ptr<IAssemblyLocator> assemblyLocator)
-        : _assemblyLocator(std::move(assemblyLocator))
+        : _assemblyLocator(std::move(assemblyLocator)),
+          _events         (this, &_signatureAllocator),
+          _fields         (this, &_signatureAllocator),
+          _interfaces     (this, &_signatureAllocator),
+          _methods        (this, &_signatureAllocator),
+          _properties     (this, &_signatureAllocator)
     {
         Detail::AssertNotNull(_assemblyLocator.get());
     }
+    #pragma warning(pop)
 
     IAssemblyLocator const& Loader::GetAssemblyLocator(InternalKey) const
     {
@@ -210,6 +218,31 @@ namespace CxxReflect {
 
         _fundamentalTypes[Detail::AsInteger(elementType)] = Detail::TypeHandle(primitiveType);
         return primitiveType;
+    }
+
+    Detail::EventContextTable Loader::GetOrCreateEventTable(Metadata::FullReference const& typeDef) const
+    {
+        return _events.GetOrCreateTable(typeDef);
+    }
+
+    Detail::FieldContextTable Loader::GetOrCreateFieldTable(Metadata::FullReference const& typeDef) const
+    {
+        return _fields.GetOrCreateTable(typeDef);
+    }
+
+    Detail::InterfaceContextTable Loader::GetOrCreateInterfaceTable(Metadata::FullReference const& typeDef) const
+    {
+        return _interfaces.GetOrCreateTable(typeDef);
+    }
+
+    Detail::MethodContextTable Loader::GetOrCreateMethodTable(Metadata::FullReference const& typeDef) const
+    {
+        return _methods.GetOrCreateTable(typeDef);
+    }
+
+    Detail::PropertyContextTable Loader::GetOrCreatePropertyTable(Metadata::FullReference const& typeDef) const
+    {
+        return _properties.GetOrCreateTable(typeDef);
     }
 
 }

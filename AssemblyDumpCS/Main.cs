@@ -82,7 +82,12 @@ class Program
         sb.AppendLine(String.Format("    !!EndInterfaces"));
 
         sb.AppendLine(String.Format("    !!BeginCustomAttributes"));
-        foreach (CustomAttributeData c in t.GetCustomAttributesData().OrderBy(x => x.Constructor.DeclaringType.MetadataToken).Where(x => x.Constructor.DeclaringType.FullName != "System.SerializableAttribute"))
+        foreach (CustomAttributeData c in t.GetCustomAttributesData().OrderBy(x => x.Constructor.DeclaringType.MetadataToken).Where(x =>
+        {
+            return x.Constructor.DeclaringType.FullName != "System.SerializableAttribute"
+                && x.Constructor.DeclaringType.FullName != "System.Runtime.InteropServices.ComImportAttribute"
+                && !x.Constructor.DeclaringType.FullName.StartsWith("System.Security.Permissions.");
+        }))
         {
             sb.AppendLine(String.Format("     -- CustomAttribute [{0}]", c.Constructor.DeclaringType.FullName));
         }

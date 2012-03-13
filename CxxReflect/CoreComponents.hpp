@@ -7,7 +7,7 @@
 
 #include "CxxReflect/MetadataDatabase.hpp"
 #include "CxxReflect/MetadataSignature.hpp"
-#include "CxxReflect/OwnedElements.hpp"
+#include "CxxReflect/ElementContexts.hpp"
 
 namespace CxxReflect {
 
@@ -53,11 +53,6 @@ namespace CxxReflect { namespace Detail {
         String             const& GetLocation()     const;
         AssemblyName       const& GetAssemblyName() const;
 
-        OwnedEventTable    const GetOrCreateEventTable   (Metadata::ElementReference const& type) const;
-        OwnedFieldTable    const GetOrCreateFieldTable   (Metadata::ElementReference const& type) const;
-        OwnedMethodTable   const GetOrCreateMethodTable  (Metadata::ElementReference const& type) const;
-        OwnedPropertyTable const GetOrCreatePropertyTable(Metadata::ElementReference const& type) const;
-
         bool IsInitialized() const;
 
     private:
@@ -80,10 +75,6 @@ namespace CxxReflect { namespace Detail {
 
         FlagSet<RealizationState>          mutable _state;
         std::unique_ptr<AssemblyName>      mutable _name;
-        OwnedEventTableCollection          mutable _events;
-        OwnedFieldTableCollection          mutable _fields;
-        OwnedMethodTableCollection         mutable _methods;
-        OwnedPropertyTableCollection       mutable _properties;
     };
 
 
@@ -121,7 +112,7 @@ namespace CxxReflect { namespace Detail {
         MethodHandle();
         MethodHandle(AssemblyContext            const* reflectedTypeAssemblyContext,
                      Metadata::ElementReference const& reflectedTypeReference,
-                     OwnedMethod                const* ownedMethod);
+                     MethodContext              const* context);
         MethodHandle(Method const& method);
 
         Method Realize() const;
@@ -139,7 +130,7 @@ namespace CxxReflect { namespace Detail {
 
         ValueInitialized<AssemblyContext const*> _reflectedTypeAssemblyContext;
         Metadata::ElementReference               _reflectedTypeReference;
-        ValueInitialized<OwnedMethod const*>     _ownedMethod;
+        ValueInitialized<MethodContext const*>   _context;
     };
 
     class ParameterHandle
@@ -149,7 +140,7 @@ namespace CxxReflect { namespace Detail {
         ParameterHandle();
         ParameterHandle(AssemblyContext            const* reflectedTypeAssemblyContext,
                         Metadata::ElementReference const& reflectedTypeReference,
-                        OwnedMethod                const* ownedMethod,
+                        MethodContext              const* context,
                         Metadata::RowReference     const& parameterReference,
                         Metadata::TypeSignature    const& parameterSignature);
         ParameterHandle(Parameter const& parameter);
@@ -169,7 +160,7 @@ namespace CxxReflect { namespace Detail {
 
         ValueInitialized<AssemblyContext const*> _reflectedTypeAssemblyContext;
         Metadata::ElementReference               _reflectedTypeReference;
-        ValueInitialized<OwnedMethod const*>     _ownedMethod;
+        ValueInitialized<MethodContext const*>   _context;
 
         Metadata::RowReference                   _parameterReference;
         Metadata::TypeSignature                  _parameterSignature;

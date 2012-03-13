@@ -140,7 +140,7 @@ namespace
     {
         os << L"         -- [" << p.GetName().c_str()
            << L"] [$" << Detail::HexFormat(p.GetMetadataToken())
-           << L"] [" << p.GetType().GetFullName().c_str() << ((p.IsOut() && !p.GetType().IsByRef()) ? L"&" : L"") << L"]\n";
+           << L"] [" << p.GetType().GetFullName().c_str() << ((p.IsOut() && !p.GetType().IsByRef() && !p.GetType().IsArray()) ? L"&" : L"") << L"]\n";
 
         // TODO
     }

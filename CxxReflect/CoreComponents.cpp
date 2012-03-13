@@ -20,11 +20,7 @@ namespace CxxReflect { namespace Detail {
     AssemblyContext::AssemblyContext(Loader const* const loader, String uri, Metadata::Database&& database)
         : _loader(loader),
           _uri(std::move(uri)),
-          _database(std::move(database)),
-          _events(loader),
-          _fields(loader),
-          _methods(loader),
-          _properties(loader)
+          _database(std::move(database))
     {
         AssertNotNull(_loader.Get());
         Assert([&]{ return !_uri.empty(); });
@@ -35,11 +31,7 @@ namespace CxxReflect { namespace Detail {
           _uri       (std::move(other._uri       )),
           _database  (std::move(other._database  )),
           _name      (std::move(other._name      )),
-          _state     (std::move(other._state     )),
-          _events    (std::move(other._events    )),
-          _fields    (std::move(other._fields    )),
-          _methods   (std::move(other._methods   )),
-          _properties(std::move(other._properties))
+          _state     (std::move(other._state     ))
     {
         other._loader.Get() = nullptr;
         other._state.Reset();
@@ -59,10 +51,6 @@ namespace CxxReflect { namespace Detail {
         swap(other._database,   _database  );
         swap(other._name,       _name      );
         swap(other._state,      _state     );
-        swap(other._events,     _events    );
-        swap(other._fields,     _fields    );
-        swap(other._methods,    _methods   );
-        swap(other._properties, _properties);
     }
 
     Loader const& AssemblyContext::GetLoader() const
@@ -87,26 +75,6 @@ namespace CxxReflect { namespace Detail {
     {
         RealizeName();
         return *_name;
-    }
-
-    OwnedEventTable const AssemblyContext::GetOrCreateEventTable(Metadata::ElementReference const& type) const
-    {
-        return _events.GetOrCreateTable(Metadata::FullReference(&_database, type));
-    }
-
-    OwnedFieldTable const AssemblyContext::GetOrCreateFieldTable(Metadata::ElementReference const& type) const
-    {
-        return _fields.GetOrCreateTable(Metadata::FullReference(&_database, type));
-    }
-
-    OwnedMethodTable const AssemblyContext::GetOrCreateMethodTable(Metadata::ElementReference const& type) const
-    {
-        return _methods.GetOrCreateTable(Metadata::FullReference(&_database, type));
-    }
-
-    OwnedPropertyTable const AssemblyContext::GetOrCreatePropertyTable(Metadata::ElementReference const& type) const
-    {
-        return _properties.GetOrCreateTable(Metadata::FullReference(&_database, type));
     }
 
     void AssemblyContext::RealizeName() const
@@ -187,10 +155,10 @@ namespace CxxReflect { namespace Detail {
 
     MethodHandle::MethodHandle(AssemblyContext            const* reflectedTypeAssemblyContext,
                                Metadata::ElementReference const& reflectedTypeReference,
-                               OwnedMethod                const* ownedMethod)
+                               MethodContext              const* context)
         : _reflectedTypeAssemblyContext(reflectedTypeAssemblyContext),
           _reflectedTypeReference(reflectedTypeReference),
-          _ownedMethod(ownedMethod)
+          _context(context)
     {
         AssertInitialized();
     }
@@ -198,7 +166,7 @@ namespace CxxReflect { namespace Detail {
     MethodHandle::MethodHandle(Method const& method)
         : _reflectedTypeAssemblyContext(&method.GetReflectedType().GetAssembly().GetContext(InternalKey())),
           _reflectedTypeReference(method.GetReflectedType().GetSelfReference(InternalKey())),
-          _ownedMethod(&method.GetOwnedMethod(InternalKey()))
+          _context(&method.GetContext(InternalKey()))
     {
         AssertInitialized();
     }
@@ -212,14 +180,14 @@ namespace CxxReflect { namespace Detail {
             ? Type(assembly, _reflectedTypeReference.AsRowReference(),  InternalKey())
             : Type(assembly, _reflectedTypeReference.AsBlobReference(), InternalKey()));
 
-        return Method(reflectedType, _ownedMethod.Get(), InternalKey());
+        return Method(reflectedType, _context.Get(), InternalKey());
     }
 
     bool MethodHandle::IsInitialized() const
     {
         return _reflectedTypeAssemblyContext.Get() != nullptr
             && _reflectedTypeReference.IsInitialized()
-            && _ownedMethod.Get() != nullptr;
+            && _context.Get() != nullptr;
     }
 
     void MethodHandle::AssertInitialized() const
@@ -247,12 +215,12 @@ namespace CxxReflect { namespace Detail {
 
     ParameterHandle::ParameterHandle(AssemblyContext            const* reflectedTypeAssemblyContext,
                                      Metadata::ElementReference const& reflectedTypeReference,
-                                     OwnedMethod                const* ownedMethod,
+                                     MethodContext              const* context,
                                      Metadata::RowReference     const& parameterReference,
                                      Metadata::TypeSignature    const& parameterSignature)
         : _reflectedTypeAssemblyContext(reflectedTypeAssemblyContext),
           _reflectedTypeReference(reflectedTypeReference),
-          _ownedMethod(ownedMethod),
+          _context(context),
           _parameterReference(parameterReference),
           _parameterSignature(parameterSignature)
     {
@@ -262,7 +230,7 @@ namespace CxxReflect { namespace Detail {
     ParameterHandle::ParameterHandle(Parameter const& parameter)
         : _reflectedTypeAssemblyContext(&parameter.GetDeclaringMethod().GetReflectedType().GetAssembly().GetContext(InternalKey())),
           _reflectedTypeReference(parameter.GetDeclaringMethod().GetReflectedType().GetSelfReference(InternalKey())),
-          _ownedMethod(&parameter.GetDeclaringMethod().GetOwnedMethod(InternalKey())),
+          _context(&parameter.GetDeclaringMethod().GetContext(InternalKey())),
           _parameterReference(parameter.GetSelfReference(InternalKey())),
           _parameterSignature(parameter.GetSelfSignature(InternalKey()))
     {
@@ -278,7 +246,7 @@ namespace CxxReflect { namespace Detail {
             ? Type(assembly, _reflectedTypeReference.AsRowReference(),  InternalKey())
             : Type(assembly, _reflectedTypeReference.AsBlobReference(), InternalKey()));
 
-        Method const declaringMethod(reflectedType, _ownedMethod.Get(), InternalKey());
+        Method const declaringMethod(reflectedType, _context.Get(), InternalKey());
 
         /* TODO return Parameter(
             declaringMethod,
@@ -292,7 +260,7 @@ namespace CxxReflect { namespace Detail {
     {
         return _reflectedTypeAssemblyContext.Get() != nullptr
             && _reflectedTypeReference.IsInitialized()
-            && _ownedMethod.Get() != nullptr
+            && _context.Get() != nullptr
             && _parameterReference.IsInitialized()
             && _parameterSignature.IsInitialized();
     }

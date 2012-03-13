@@ -15,18 +15,18 @@ namespace CxxReflect {
     {
     }
 
-    Field::Field(Type const& reflectedType, Detail::OwnedField const* const ownedField, InternalKey)
+    Field::Field(Type const& reflectedType, Detail::FieldContext const* const context, InternalKey)
         : _reflectedType(reflectedType),
-          _ownedField(ownedField)
+          _context(context)
     {
-        Detail::AssertNotNull(ownedField);
+        Detail::AssertNotNull(context);
         Detail::Assert([&]{ return reflectedType.IsInitialized(); });
-        Detail::Assert([&]{ return ownedField->IsInitialized();   });
+        Detail::Assert([&]{ return context->IsInitialized();      });
     }
 
     bool Field::IsInitialized() const
     {
-        return _reflectedType.IsInitialized() && _ownedField.Get() != nullptr;
+        return _reflectedType.IsInitialized() && _context.Get() != nullptr;
     }
 
     bool Field::operator!() const
@@ -39,21 +39,21 @@ namespace CxxReflect {
         Detail::Assert([&]{ return IsInitialized(); });
     }
 
-    Detail::OwnedField const& Field::GetOwnedField(InternalKey) const
+    Detail::FieldContext const& Field::GetContext(InternalKey) const
     {
         AssertInitialized();
-        return *_ownedField.Get();
+        return *_context.Get();
     }
 
     Type Field::GetDeclaringType() const
     {
         AssertInitialized();
         Loader                  const& loader  (_reflectedType.Realize().GetAssembly().GetContext(InternalKey()).GetLoader());
-        Metadata::Database      const& database(_ownedField.Get()->GetOwningType().GetDatabase());
+        Metadata::Database      const& database(_context.Get()->GetOwningType().GetDatabase());
         Detail::AssemblyContext const& context (loader.GetContextForDatabase(database, InternalKey()));
         Assembly                const  assembly(&context, InternalKey());
 
-        return Type(assembly, _ownedField.Get()->GetOwningType().AsRowReference(), InternalKey());
+        return Type(assembly, _context.Get()->GetOwningType().AsRowReference(), InternalKey());
     }
 
     Type Field::GetReflectedType() const
@@ -64,25 +64,25 @@ namespace CxxReflect {
 
     FieldFlags Field::GetAttributes() const
     {
-        return GetOwnedField(InternalKey()).GetElementRow().GetFlags();
+        return GetContext(InternalKey()).GetElementRow().GetFlags();
     }
 
     Type Field::GetFieldType() const
     {
         return Type(
             GetDeclaringType().GetAssembly(),
-            GetOwnedField(InternalKey()).GetElementRow().GetSignature(),
+            GetContext(InternalKey()).GetElementRow().GetSignature(),
             InternalKey());
     }
 
     SizeType Field::GetMetadataToken() const
     {
-        return GetOwnedField(InternalKey()).GetElementRow().GetSelfReference().GetToken();
+        return GetContext(InternalKey()).GetElementRow().GetSelfReference().GetToken();
     }
 
     StringReference Field::GetName() const
     {
-        return GetOwnedField(InternalKey()).GetElementRow().GetName();
+        return GetContext(InternalKey()).GetElementRow().GetName();
     }
 
     bool Field::IsAssembly() const
@@ -148,12 +148,12 @@ namespace CxxReflect {
 
     bool operator==(Field const& lhs, Field const& rhs)
     {
-        return lhs._ownedField.Get() == rhs._ownedField.Get();
+        return lhs._context.Get() == rhs._context.Get();
     }
 
     bool operator<(Field const& lhs, Field const& rhs)
     {
-        return std::less<Detail::OwnedField const*>()(lhs._ownedField.Get(), rhs._ownedField.Get());
+        return std::less<Detail::FieldContext const*>()(lhs._context.Get(), rhs._context.Get());
     }
 
 }

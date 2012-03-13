@@ -188,6 +188,77 @@ namespace CxxReflect {
         }
     }
 
+    Type::Type(Type const& reflectedType, Detail::InterfaceContext const* const context, InternalKey)
+        : _assembly(&reflectedType
+            .GetAssembly()
+            .GetContext(InternalKey())
+            .GetLoader()
+            .GetContextForDatabase(context->GetElement().GetDatabase(), InternalKey()))
+    {
+        Loader const& loader(reflectedType.GetAssembly().GetContext(InternalKey()).GetLoader());
+
+        if (context->GetElementSignature(loader).IsInitialized())
+        {
+            Metadata::TypeSignature const typeSignature(context->GetElementSignature(loader));
+            _type = Metadata::BlobReference(typeSignature.BeginBytes(), typeSignature.EndBytes());
+        }
+        else
+        {
+            Assembly assembly(_assembly.Realize());
+            Metadata::RowReference const type(context->GetElementRow().GetInterface());
+            _type = type;
+            switch (type.GetTable())
+            {
+            case Metadata::TableId::TypeDef:
+            {
+                // Good news, everyone!  We have a TypeDef and we don't need to do any further work.
+                break;
+            }
+
+            case Metadata::TableId::TypeRef:
+            {
+                // Resolve the TypeRef into a TypeDef, throwing on failure:
+                Loader             const& loader(assembly.GetContext(InternalKey()).GetLoader());
+                Metadata::Database const& database(assembly.GetContext(InternalKey()).GetDatabase());
+
+                Metadata::FullReference const resolvedType(
+                    loader.ResolveType(Metadata::FullReference(&database, type)));
+
+                Detail::Assert([&]{ return resolvedType.IsInitialized(); });
+
+                _assembly = Assembly(
+                    &loader.GetContextForDatabase(resolvedType.GetDatabase(), InternalKey()),
+                    InternalKey());
+
+                _type = Metadata::ElementReference(resolvedType.AsRowReference());
+                Detail::Assert([&]{ return _type.AsRowReference().GetTable() == Metadata::TableId::TypeDef; });
+
+                break;
+            }
+
+            case Metadata::TableId::TypeSpec:
+            {
+                // Get the signature for the TypeSpec token and use that instead:
+                Metadata::Database const& database(assembly.GetContext(InternalKey()).GetDatabase());
+                Metadata::TypeSpecRow const typeSpec(database.GetRow<Metadata::TableId::TypeSpec>(type.GetIndex()));
+                _type = Metadata::ElementReference(typeSpec.GetSignature());
+
+                break;
+            }
+
+            default:
+            {
+                Detail::AssertFail(L"Unexpected argument");
+                break;
+            }
+            }
+        }
+
+        AssertInitialized();
+
+
+    }
+
     Assembly Type::GetAssembly() const
     {
         return _assembly.Realize();
@@ -271,7 +342,7 @@ namespace CxxReflect {
                 Type const classType(_assembly.Realize(), signature.GetTypeReference(), InternalKey());
                 classType.AccumulateFullNameInto(os);
 
-                if (signature.IsByRef())
+                if ((int)os.tellp() != 0 && signature.IsByRef())
                     os << L"&";
 
                 break;
@@ -284,10 +355,13 @@ namespace CxxReflect {
                     InternalKey());
 
                 classType.AccumulateFullNameInto(os);
-                os << L"[]";
+                if ((int)os.tellp() != 0)
+                {
+                    os << L"[]";
 
-                if (signature.IsByRef())
-                    os << L"&";
+                    if (signature.IsByRef())
+                        os << L"&";
+                }
 
                 break;
             }
@@ -369,7 +443,12 @@ namespace CxxReflect {
         // the full member table like we compute now, and one for declared members only.  This would
         // allow for much faster constructor resolution (and this is one of our core use cases).  We
         // still need to build a table, though, because we need to instantiate generic members.
-        Detail::OwnedMethodTable const& table(_assembly.Realize().GetContext(InternalKey()).GetOrCreateMethodTable(_type));
+        Detail::MethodContextTable const& table(_assembly
+            .Realize()
+            .GetContext(InternalKey())
+            .GetLoader()
+            .GetOrCreateMethodTable(Metadata::FullReference(&_assembly.Realize().GetContext(InternalKey()).GetDatabase(), _type)));
+
         return MethodIterator(*this, table.Begin(), table.End(), flags);
     }
 
@@ -383,7 +462,12 @@ namespace CxxReflect {
         AssertInitialized();
         Detail::Assert([&]{ return !flags.IsSet(BindingAttribute::InternalUseOnlyMask); });
 
-        Detail::OwnedEventTable const& table(_assembly.Realize().GetContext(InternalKey()).GetOrCreateEventTable(_type));
+        Detail::EventContextTable const& table(_assembly
+            .Realize()
+            .GetContext(InternalKey())
+            .GetLoader()
+            .GetOrCreateEventTable(Metadata::FullReference(&_assembly.Realize().GetContext(InternalKey()).GetDatabase(), _type)));
+
         return EventIterator(*this, table.Begin(), table.End(), flags);
     }
 
@@ -397,7 +481,12 @@ namespace CxxReflect {
         AssertInitialized();
         Detail::Assert([&]{ return !flags.IsSet(BindingAttribute::InternalUseOnlyMask); });
 
-        Detail::OwnedFieldTable const& table(_assembly.Realize().GetContext(InternalKey()).GetOrCreateFieldTable(_type));
+        Detail::FieldContextTable const& table(_assembly
+            .Realize()
+            .GetContext(InternalKey())
+            .GetLoader()
+            .GetOrCreateFieldTable(Metadata::FullReference(&_assembly.Realize().GetContext(InternalKey()).GetDatabase(), _type)));
+
         return FieldIterator(*this, table.Begin(), table.End(), flags);
     }
 
@@ -411,7 +500,12 @@ namespace CxxReflect {
         AssertInitialized();
         Detail::Assert([&]{ return !flags.IsSet(BindingAttribute::InternalUseOnlyMask); });
 
-        Detail::OwnedMethodTable const& table(_assembly.Realize().GetContext(InternalKey()).GetOrCreateMethodTable(_type));
+        Detail::MethodContextTable const& table(_assembly
+            .Realize()
+            .GetContext(InternalKey())
+            .GetLoader()
+            .GetOrCreateMethodTable(Metadata::FullReference(&_assembly.Realize().GetContext(InternalKey()).GetDatabase(), _type)));
+
         return MethodIterator(*this, table.Begin(), table.End(), flags);
     }
 
@@ -440,7 +534,12 @@ namespace CxxReflect {
         AssertInitialized();
         Detail::Assert([&]{ return !flags.IsSet(0x10000000); });
 
-        Detail::OwnedPropertyTable const& table(_assembly.Realize().GetContext(InternalKey()).GetOrCreatePropertyTable(_type));
+        Detail::PropertyContextTable const& table(_assembly
+            .Realize()
+            .GetContext(InternalKey())
+            .GetLoader()
+            .GetOrCreatePropertyTable(Metadata::FullReference(&_assembly.Realize().GetContext(InternalKey()).GetDatabase(), _type)));
+
         return PropertyIterator(*this, table.Begin(), table.End(), flags);
     }
 
@@ -467,40 +566,22 @@ namespace CxxReflect {
         });
     }
 
-    Type::InterfacesRange Type::GetInterfacesRange() const
-    {
-        AssertInitialized();
-
-        Assembly const assembly(_assembly.Realize());
-        Metadata::Database const& database(assembly.GetContext(InternalKey()).GetDatabase());
-
-        auto const first(database.Begin<Metadata::TableId::InterfaceImpl>());
-        auto const last(database.End<Metadata::TableId::InterfaceImpl>());
-
-        auto const range(std::equal_range(first, last, _type.AsRowReference(), Private::InterfaceStrictWeakOrdering()));
-        return std::make_pair(range.first->GetSelfReference(), range.second->GetSelfReference());
-    }
-
     Type::InterfaceIterator Type::BeginInterfaces() const
     {
         AssertInitialized();
 
-        Assembly const assembly(_assembly.Realize());
-        Metadata::Database const& database(assembly.GetContext(InternalKey()).GetDatabase());
-        InterfacesRange const& range(GetInterfacesRange());
+        Detail::InterfaceContextTable const& table(_assembly
+            .Realize()
+            .GetContext(InternalKey())
+            .GetLoader()
+            .GetOrCreateInterfaceTable(Metadata::FullReference(&_assembly.Realize().GetContext(InternalKey()).GetDatabase(), _type)));
 
-        return InterfaceIterator(assembly, Metadata::FullReference(&database, range.first));
+        return InterfaceIterator(*this, table.Begin(), table.End(), BindingFlags());
     }
 
     Type::InterfaceIterator Type::EndInterfaces() const
     {
-        AssertInitialized();
-
-        Assembly const assembly(_assembly.Realize());
-        Metadata::Database const& database(assembly.GetContext(InternalKey()).GetDatabase());
-        InterfacesRange const& range(GetInterfacesRange());
-
-        return InterfaceIterator(assembly, Metadata::FullReference(&database, range.second));
+        return InterfaceIterator();
     }
 
     Type Type::GetBaseType() const
@@ -962,7 +1043,7 @@ namespace CxxReflect {
             && lhs.GetMetadataToken() == rhs.GetMetadataToken();
     }
 
-    bool Type::FilterEvent(BindingFlags const /*filter*/, Type const& /*reflectedType*/, Detail::OwnedEvent const& /*current*/)
+    bool Type::FilterEvent(BindingFlags const /*filter*/, Type const& /*reflectedType*/, Detail::EventContext const& /*current*/)
     {
         // Metadata::RowReference const currentType(current.GetDeclaringType().AsRowReference());
         // bool const currentTypeIsDeclaringType(reflectedType.GetMetadataToken() == currentType.GetToken());
@@ -972,7 +1053,7 @@ namespace CxxReflect {
         return false;
     }
 
-    bool Type::FilterField(BindingFlags const filter, Type const& reflectedType, Detail::OwnedField const& current)
+    bool Type::FilterField(BindingFlags const filter, Type const& reflectedType, Detail::FieldContext const& current)
     {
         Metadata::RowReference const currentType(current.GetOwningType().AsRowReference());
         bool const currentTypeIsDeclaringType(reflectedType.GetMetadataToken() == currentType.GetToken());
@@ -983,7 +1064,12 @@ namespace CxxReflect {
         return false;
     }
 
-    bool Type::FilterMethod(BindingFlags const filter, Type const& reflectedType, Detail::OwnedMethod const& current)
+    bool Type::FilterInterface(BindingFlags, Type const&, Detail::InterfaceContext const&)
+    {
+        return false;
+    }
+
+    bool Type::FilterMethod(BindingFlags const filter, Type const& reflectedType, Detail::MethodContext const& current)
     {
         Metadata::RowReference const currentType(current.GetOwningType().AsRowReference());
         bool const currentTypeIsDeclaringType(reflectedType.GetMetadataToken() == currentType.GetToken());
@@ -999,7 +1085,7 @@ namespace CxxReflect {
         return isConstructor != filter.IsSet(BindingAttribute::InternalUseOnlyConstructor);
     }
 
-    bool Type::FilterProperty(BindingFlags const /*filter*/, Type const& /*reflectedType*/, Detail::OwnedProperty const& /*current*/)
+    bool Type::FilterProperty(BindingFlags const /*filter*/, Type const& /*reflectedType*/, Detail::PropertyContext const& /*current*/)
     {
         // Metadata::RowReference const currentType(current.GetDeclaringType().AsRowReference());
         // bool const currentTypeIsDeclaringType(reflectedType.GetMetadataToken() == currentType.GetToken());

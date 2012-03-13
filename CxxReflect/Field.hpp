@@ -14,7 +14,6 @@ namespace CxxReflect {
     public:
 
         Field();
-        Field(Type const& reflectedType, Detail::OwnedField const* ownedField, InternalKey);
 
         Type       GetDeclaringType()    const;
         Type       GetReflectedType()    const;
@@ -66,7 +65,9 @@ namespace CxxReflect {
 
     public: // Internal Members
 
-        Detail::OwnedField const& GetOwnedField(InternalKey) const;
+        Field(Type const& reflectedType, Detail::FieldContext const* context, InternalKey);
+
+        Detail::FieldContext const& GetContext(InternalKey) const;
 
     private:
 
@@ -74,8 +75,8 @@ namespace CxxReflect {
 
         Metadata::FieldRow GetFieldRow() const;
 
-        Detail::TypeHandle                                  _reflectedType;
-        Detail::ValueInitialized<Detail::OwnedField const*> _ownedField;
+        Detail::TypeHandle                                    _reflectedType;
+        Detail::ValueInitialized<Detail::FieldContext const*> _context;
 
     };
 

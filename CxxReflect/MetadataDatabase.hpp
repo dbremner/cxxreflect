@@ -1053,6 +1053,13 @@ namespace CxxReflect { namespace Metadata {
             return _database.Get() != nullptr && _data.Get() != nullptr;
         }
 
+        Database const& GetDatabase() const
+        {
+            AssertInitialized();
+            
+            return *_database.Get();
+        }
+
         RowReference GetSelfReference() const
         {
             AssertInitialized();
@@ -1068,8 +1075,12 @@ namespace CxxReflect { namespace Metadata {
         {
         }
 
-        Database const&   GetDatabase() const { AssertInitialized(); return *_database.Get(); }
-        ConstByteIterator GetIterator() const { AssertInitialized(); return _data.Get();      }
+        ConstByteIterator GetIterator() const
+        {
+            AssertInitialized();
+            
+            return _data.Get();
+        }
 
         void AssertInitialized() const
         {
