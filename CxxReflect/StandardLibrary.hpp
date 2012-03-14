@@ -49,7 +49,7 @@ namespace CxxReflect {
 
     typedef std::basic_string<wchar_t>                    String;
     typedef std::basic_istream<wchar_t>                   InputStream;
-    typedef std::basic_ostream<wchar_t>                   OutputStream;
+    typedef std::wostringstream                           OutputStream;
 
     typedef std::basic_string<char>                       NarrowString;
     typedef std::basic_istream<char>                      NarrowInputStream;

@@ -295,7 +295,7 @@ namespace CxxReflect {
         #undef CXXREFLECT_GENERATE
 
         bool AccumulateFullNameInto(OutputStream& os) const;
-        void AccumulateAssemblyQualifiedNameInto(OutputStream& os) const;
+        bool AccumulateAssemblyQualifiedNameInto(OutputStream& os) const;
 
         Detail::AssemblyHandle     _assembly;
         Metadata::ElementReference _type;

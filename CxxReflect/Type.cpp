@@ -175,7 +175,7 @@ namespace CxxReflect {
             .GetBlob(type)
             .As<Metadata::TypeSignature>());
 
-        if (signature.GetKind() == Metadata::TypeSignature::Kind::Primitive)
+        if (!signature.IsByRef() && signature.GetKind() == Metadata::TypeSignature::Kind::Primitive)
         {
             Type const primitiveType(assembly
                 .GetContext(InternalKey())
@@ -305,10 +305,15 @@ namespace CxxReflect {
                 }
 
                 Type const genericType(_assembly.Realize(), signature.GetGenericTypeReference(), InternalKey());
-                genericType.AccumulateFullNameInto(os);
+                if (!genericType.AccumulateFullNameInto(os))
+                {
+                    os = OutputStream();
+                    return false;
+                }
 
                 os << L'[';
                 bool isFirst(true);
+                bool reset(false);
                 std::for_each(
                     signature.BeginGenericArguments(),
                     signature.EndGenericArguments(),
@@ -326,13 +331,20 @@ namespace CxxReflect {
                         _assembly.Realize(),
                         Metadata::BlobReference(argumentSignature),
                         InternalKey());
-                    argumentType.AccumulateAssemblyQualifiedNameInto(os);
+                    if (!argumentType.AccumulateAssemblyQualifiedNameInto(os))
+                        reset = true;
+
                     os << L']';
                 });
 
                 os << L']';
 
-                if (signature.IsByRef())
+                if (reset)
+                {
+                    os = OutputStream();
+                    return false;
+                }
+                else if (signature.IsByRef())
                     os << L"&";
 
                 break;
@@ -340,9 +352,12 @@ namespace CxxReflect {
             case Metadata::TypeSignature::Kind::ClassType:
             {
                 Type const classType(_assembly.Realize(), signature.GetTypeReference(), InternalKey());
-                classType.AccumulateFullNameInto(os);
-
-                if ((int)os.tellp() != 0 && signature.IsByRef())
+                if (!classType.AccumulateFullNameInto(os))
+                {
+                    os = OutputStream();
+                    return false;
+                }
+                else if (signature.IsByRef())
                     os << L"&";
 
                 break;
@@ -354,14 +369,34 @@ namespace CxxReflect {
                     Metadata::BlobReference(signature.GetArrayType()),
                     InternalKey());
 
-                classType.AccumulateFullNameInto(os);
-                if ((int)os.tellp() != 0)
+                if (!classType.AccumulateFullNameInto(os))
+                {
+                    os = OutputStream();
+                    return false;
+                }
+                else
                 {
                     os << L"[]";
-
                     if (signature.IsByRef())
                         os << L"&";
                 }
+
+                break;
+            }
+            case Metadata::TypeSignature::Kind::Primitive:
+            {
+                Type const primitiveType(_assembly
+                    .Realize()
+                    .GetContext(InternalKey())
+                    .GetLoader()
+                    .GetFundamentalType(signature.GetPrimitiveElementType(), InternalKey()));
+                if (!primitiveType.AccumulateFullNameInto(os))
+                {
+                    os = OutputStream();
+                    return false;
+                }
+                else if (signature.IsByRef())
+                    os << L"&";
 
                 break;
             }
@@ -372,8 +407,13 @@ namespace CxxReflect {
                     Metadata::BlobReference(signature.GetPointerTypeSignature()),
                     InternalKey());
 
-                pointerType.AccumulateFullNameInto(os);
-                os << L"*";
+                if (!pointerType.AccumulateFullNameInto(os))
+                {
+                    os = OutputStream();
+                    return false;
+                }
+                else
+                    os << L"*";
 
                 if (signature.IsByRef())
                     os << L"&";
@@ -384,6 +424,7 @@ namespace CxxReflect {
             {
                 // TODO MVAR?
                 //os << L"Var!" << signature.GetVariableNumber();
+                return false;
                 break;
             }
             default:
@@ -399,12 +440,15 @@ namespace CxxReflect {
         return true;
     }
 
-    void Type::AccumulateAssemblyQualifiedNameInto(OutputStream& os) const
+    bool Type::AccumulateAssemblyQualifiedNameInto(OutputStream& os) const
     {
         if (AccumulateFullNameInto(os))
         {
             os << L", " << _assembly.Realize().GetName().GetFullName();
+            return true;
         }
+
+        return false;
     }
 
     Metadata::TypeDefRow Type::GetTypeDefRow() const

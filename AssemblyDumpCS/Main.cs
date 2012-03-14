@@ -33,7 +33,7 @@ class Program
         }
         sb.AppendLine("!!EndAssemblyReferences");
         sb.AppendLine("!!BeginTypes");
-        foreach (Type x in a.GetTypes().OrderBy(x => x.MetadataToken))
+        foreach (Type x in a.GetTypes().OrderBy(x => x.MetadataToken).Take(500))
         {
             if (x.FullName == "System.__ComObject" || x.FullName == "System.Runtime.InteropServices.WindowsRuntime.DisposableRuntimeClass")
                 continue;
@@ -43,14 +43,15 @@ class Program
         sb.AppendLine("!!EndTypes");
     }
 
-    static void Dump(StringBuilder sb, Type t)
+    static void DumpBasicTypeTraits(StringBuilder sb, Type t, int depth)
     {
-        sb.AppendLine(String.Format(" -- Type [{0}] [${1:x8}]", t.FullName, t.MetadataToken));
+        String pad = new String(' ', depth);
+        sb.AppendLine(String.Format("{0} -- Type [{1}] [${2:x8}]", pad, t.FullName, t.MetadataToken));
         // TODO t.Assembly
-        sb.AppendLine(String.Format("     -- AssemblyQualifiedName [{0}]", t.AssemblyQualifiedName));
+        sb.AppendLine(String.Format("{0}     -- AssemblyQualifiedName [{1}]", pad, t.AssemblyQualifiedName));
         // TODO t.Attributes
-        sb.AppendLine(String.Format("     -- BaseType [{0}]", t.BaseType != null ? t.BaseType.FullName : "NO BASE TYPE"));
-        sb.AppendLine(String.Format("         -- AssemblyQualifiedName [{0}]", t.BaseType != null ? t.BaseType.AssemblyQualifiedName : "NO BASE TYPE"));
+        sb.AppendLine(String.Format("{0}     -- BaseType [{1}]", pad, t.BaseType != null ? t.BaseType.FullName : "NO BASE TYPE"));
+        sb.AppendLine(String.Format("{0}         -- AssemblyQualifiedName [{1}]", pad, t.BaseType != null ? t.BaseType.AssemblyQualifiedName : "NO BASE TYPE"));
         // TODO t.BaseType
         // TODO t.ContainsGenericParameters
         // TODO t.DeclaringMethod
@@ -62,7 +63,7 @@ class Program
         // TODO ...
 
         Func<bool, int> F = (x) => x ? 1 : 0;
-        sb.AppendLine(String.Format("     -- IsTraits [{0}{1}{2}{3}{4}{5}{6}{7}] [{8}{9}{10}{11}{12}{13}{14}{15}] [{16}{17}{18}{19}{20}{21}{22}{23}] [{24}{25}{26}{27}{28}{29}{30}{31}] [{32}{33}{34}     ]",
+        sb.AppendLine(String.Format("{0}     -- IsTraits [{1}{2}{3}{4}{5}{6}{7}{8}] [{9}{10}{11}{12}{13}{14}{15}{16}] [{17}{18}{19}{20}{21}{22}{23}{24}] [{25}{26}{27}{28}{29}{30}{31}{32}] [{33}{34}{35}     ]", pad,
             F(t.IsAbstract), F(t.IsAnsiClass), F(t.IsArray), F(t.IsAutoClass), F(t.IsAutoLayout), F(t.IsByRef), F(t.IsClass), F(t.IsCOMObject),
             F(t.IsContextful), F(t.IsEnum), F(t.IsExplicitLayout), F(t.IsGenericParameter), F(t.IsGenericType), F(t.IsGenericTypeDefinition), F(t.IsImport), F(t.IsInterface),
             F(t.IsLayoutSequential), F(t.IsMarshalByRef), F(t.IsNested), F(t.IsNestedAssembly), F(t.IsNestedFamANDAssem), F(t.IsNestedFamily), F(t.IsNestedFamORAssem), F(t.IsNestedPrivate),
@@ -71,8 +72,13 @@ class Program
             ));
 
         // TODO ...
-        sb.AppendLine(String.Format("     -- Name [{0}]", t.Name));
-        sb.AppendLine(String.Format("     -- Namespace [{0}]", t.Namespace));
+        sb.AppendLine(String.Format("{0}     -- Name [{1}]", pad, t.Name));
+        sb.AppendLine(String.Format("{0}     -- Namespace [{1}]", pad, t.Namespace));
+    }
+
+    static void Dump(StringBuilder sb, Type t)
+    {
+        DumpBasicTypeTraits(sb, t, 0);
 
         sb.AppendLine(String.Format("    !!BeginInterfaces"));
         foreach (Type it in t.GetInterfaces().OrderBy(x => x.MetadataToken))
@@ -130,7 +136,11 @@ class Program
 
     static void Dump(StringBuilder sb, ParameterInfo p)
     {
-        sb.AppendLine(String.Format("         -- [{0}] [${1:x8}] [{2}]", p.Name, p.MetadataToken, p.ParameterType.FullName));
+        sb.AppendLine(String.Format("         -- [{0}] [${1:x8}] [{2}]",
+            p.Name,
+            p.MetadataToken,
+            p.ParameterType.IsGenericTypeDefinition ? "" : p.ParameterType.FullName));
+        DumpBasicTypeTraits(sb, p.ParameterType, 12);
     }
 
     static void Dump(StringBuilder sb, FieldInfo f)

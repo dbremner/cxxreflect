@@ -43,7 +43,7 @@ namespace
         });
         os << L"!!EndAssemblyReferences\n";
         os << L"!!BeginTypes\n";
-        std::for_each(a.BeginTypes(), a.EndTypes(), [&](Type const& x)
+        std::for_each(a.BeginTypes(), a.BeginTypes() + 500, [&](Type const& x)
         {
             if (IsKnownProblemType(x))
                 return;
@@ -53,15 +53,16 @@ namespace
         os << L"!!EndTypes\n";
     }
 
-    void Dump(Detail::FileHandle& os, Type const& t)
+    void DumpBasicTypeTraits(Detail::FileHandle& os, Type const& t, int depth)
     {
-        os << L" -- Type [" << t.GetFullName().c_str() << L"] [$" << Detail::HexFormat(t.GetMetadataToken()) << L"]\n";
-        os << L"     -- AssemblyQualifiedName [" << t.GetAssemblyQualifiedName().c_str() << L"]\n";
-        os << L"     -- BaseType [" << (t.GetBaseType() ? t.GetBaseType().GetFullName().c_str() : L"NO BASE TYPE") << L"]\n";
-        os << L"         -- AssemblyQualifiedName [" << (t.GetBaseType().IsInitialized() ? t.GetBaseType().GetAssemblyQualifiedName().c_str() : L"NO BASE TYPE") << L"]\n"; // TODO DO WE NEED TO DUMP FULL TYPE INFO?
+        std::wstring pad(depth, L' ');
+        os << pad.c_str() << L" -- Type [" << t.GetFullName().c_str() << L"] [$" << Detail::HexFormat(t.GetMetadataToken()) << L"]\n";
+        os << pad.c_str() << L"     -- AssemblyQualifiedName [" << t.GetAssemblyQualifiedName().c_str() << L"]\n";
+        os << pad.c_str() << L"     -- BaseType [" << (t.GetBaseType() ? t.GetBaseType().GetFullName().c_str() : L"NO BASE TYPE") << L"]\n";
+        os << pad.c_str() << L"         -- AssemblyQualifiedName [" << (t.GetBaseType().IsInitialized() ? t.GetBaseType().GetAssemblyQualifiedName().c_str() : L"NO BASE TYPE") << L"]\n"; // TODO DO WE NEED TO DUMP FULL TYPE INFO?
 
         #define F(n) (t.n() ? 1 : 0)
-        os << L"     -- IsTraits [" 
+        os << pad.c_str() << L"     -- IsTraits [" 
            << F(IsAbstract) << F(IsAnsiClass) << F(IsArray) << F(IsAutoClass) << F(IsAutoLayout) << F(IsByRef) << F(IsClass) << F(IsComObject) << L"] ["
            << F(IsContextful) << F(IsEnum) << F(IsExplicitLayout) << F(IsGenericParameter) << F(IsGenericType) << F(IsGenericTypeDefinition) << F(IsImport) << F(IsInterface) << L"] ["
            << F(IsLayoutSequential) << F(IsMarshalByRef) << F(IsNested) << F(IsNestedAssembly) << F(IsNestedFamilyAndAssembly) << F(IsNestedFamily) << F(IsNestedFamilyOrAssembly) << F(IsNestedPrivate) << L"] ["
@@ -69,8 +70,14 @@ namespace
            << F(IsUnicodeClass) << F(IsValueType) << F(IsVisible) << L"     ]\n";
         #undef F
 
-        os << L"     -- Name [" << t.GetName().c_str() << L"]\n";
-        os << L"     -- Namespace [" << t.GetNamespace().c_str() << L"]\n";
+        os << pad.c_str() << L"     -- Name [" << t.GetName().c_str() << L"]\n";
+        os << pad.c_str() << L"     -- Namespace [" << t.GetNamespace().c_str() << L"]\n";
+    }
+
+    void Dump(Detail::FileHandle& os, Type const& t)
+    {
+        DumpBasicTypeTraits(os, t, 0);
+
         os << L"    !!BeginInterfaces\n";
         std::vector<Type> allInterfaces(t.BeginInterfaces(), t.EndInterfaces());
         std::sort(allInterfaces.begin(), allInterfaces.end(), MetadataTokenStrictWeakOrdering());
@@ -138,10 +145,16 @@ namespace
 
     void Dump(Detail::FileHandle& os, Parameter const& p)
     {
+        if (p.GetMetadataToken() == 0x0800000b)
+        {
+            int b = 42;
+        }
+
         os << L"         -- [" << p.GetName().c_str()
            << L"] [$" << Detail::HexFormat(p.GetMetadataToken())
-           << L"] [" << p.GetType().GetFullName().c_str() << ((p.IsOut() && !p.GetType().IsByRef() && !p.GetType().IsArray()) ? L"&" : L"") << L"]\n";
+           << L"] [" << p.GetType().GetFullName().c_str() << ((p.IsOut() && !p.GetType().IsByRef() && !p.GetType().IsArray() && !p.GetType().IsPointer() && !p.IsIn() && p.GetType().GetFullName() != L"System.Text.StringBuilder" && !p.GetType().GetFullName().empty()) ? L"&" : L"") << L"]\n";
 
+        DumpBasicTypeTraits(os, p.GetType(), 12);
         // TODO
     }
 
