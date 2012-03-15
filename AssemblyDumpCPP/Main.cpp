@@ -23,7 +23,8 @@ namespace
     {
         return (t.GetNamespace() == L"System"                                        && t.GetName() == L"__ComObject")
             || (t.GetNamespace() == L"System.Runtime.Remoting.Proxies"               && t.GetName() == L"__TransparentProxy")
-            || (t.GetNamespace() == L"System.Runtime.InteropServices.WindowsRuntime" && t.GetName() == L"DisposableRuntimeClass");
+            || (t.GetNamespace() == L"System.Runtime.InteropServices.WindowsRuntime" && t.GetName() == L"DisposableRuntimeClass")
+            || (t.GetNamespace() == L"System.StubHelpers"                            && t.GetName() == L"HStringMarshaler");
     }
 
     void Dump(Detail::FileHandle& os, Assembly        const& a);
@@ -154,8 +155,9 @@ namespace
            << L"] [$" << Detail::HexFormat(p.GetMetadataToken())
            << L"] [" << p.GetType().GetFullName().c_str() << ((p.IsOut() && !p.GetType().IsByRef() && !p.GetType().IsArray() && !p.GetType().IsPointer() && !p.IsIn() && p.GetType().GetFullName() != L"System.Text.StringBuilder" && !p.GetType().GetFullName().empty()) ? L"&" : L"") << L"]\n";
 
-        DumpBasicTypeTraits(os, p.GetType(), 12);
-        // TODO
+        // TODO Not yet implemented feature:  we do not correctly handle uninstantiated generic parameters.
+        if (p.GetType().GetFullName().size() > 0)
+            DumpBasicTypeTraits(os, p.GetType(), 12);
     }
 
     void Dump(Detail::FileHandle& os, Field const& f)

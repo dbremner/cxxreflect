@@ -67,6 +67,48 @@ namespace CxxReflect { namespace { namespace Private {
         return false;
     }
 
+    Metadata::FullReference Resolve(Assembly               const& assembly,
+                                    Metadata::RowReference const& type,
+                                    InternalKey            const  key)
+    {
+        switch (type.GetTable())
+        {
+        case Metadata::TableId::TypeDef:
+        {
+            // Good news, everyone!  We have a TypeDef and we don't need to do any further work.
+            return Metadata::FullReference(&assembly.GetContext(key).GetDatabase(), type);
+        }
+
+        case Metadata::TableId::TypeRef:
+        {
+            // Resolve the TypeRef into a TypeDef, throwing on failure:
+            Loader             const& loader(assembly.GetContext(key).GetLoader());
+            Metadata::Database const& database(assembly.GetContext(key).GetDatabase());
+
+            Metadata::FullReference const resolvedType(
+                loader.ResolveType(Metadata::FullReference(&database, type)));
+
+            Detail::Assert([&]{ return resolvedType.AsRowReference().GetTable() == Metadata::TableId::TypeDef; });
+
+            return resolvedType;
+        }
+
+        case Metadata::TableId::TypeSpec:
+        {
+            // Get the signature for the TypeSpec token and use that instead:
+            Metadata::Database const& database(assembly.GetContext(InternalKey()).GetDatabase());
+            Metadata::TypeSpecRow const typeSpec(database.GetRow<Metadata::TableId::TypeSpec>(type.GetIndex()));
+            return Metadata::FullReference(&database, typeSpec.GetSignature());
+        }
+
+        default:
+        {
+            Detail::AssertFail(L"Unreachable code");
+            return Metadata::FullReference();
+        }
+        }
+    }
+
     struct InterfaceStrictWeakOrdering
     {
         typedef Metadata::InterfaceImplRow InterfaceImplRow;
@@ -99,6 +141,295 @@ namespace CxxReflect { namespace { namespace Private {
 
 } } }
 
+namespace CxxReflect { namespace Detail {
+
+    String TypeNameBuilder::BuildTypeName(Type const& type, Mode const mode)
+    {
+        return TypeNameBuilder(type, mode);
+    }
+
+    TypeNameBuilder::TypeNameBuilder(Type const& type, Mode const mode)
+    {
+        _buffer.reserve(1024);
+
+        if (!AccumulateTypeName(type, mode))
+            _buffer.resize(0);
+    }
+
+    TypeNameBuilder::operator String()
+    {
+        using std::swap;
+
+        String result;
+        swap(result, _buffer);
+        return result;
+    }
+
+    bool TypeNameBuilder::AccumulateTypeName(Type const& type, Mode const mode)
+    {
+        Assert([&]{ return type.IsInitialized(); });
+
+        return type.IsTypeDef()
+            ? AccumulateTypeDefName(type, mode)
+            : AccumulateTypeSpecName(type, mode);
+    }
+
+    bool TypeNameBuilder::AccumulateTypeDefName(Type const& type, Mode const mode)
+    {
+        Assert([&]{ return type.IsTypeDef(); });
+
+        if (mode == Mode::SimpleName)
+        {
+            _buffer += type.GetTypeDefRow().GetName().c_str();
+            return true;
+        }
+
+        // Otherwise, we have either a SimpleName or an AssemblyQualifiedName:
+        if (type.IsNested())
+        {
+            AccumulateTypeDefName(type.GetDeclaringType(), Mode::FullName);
+            _buffer.push_back(L'+');
+        }
+        else if (type.GetNamespace().size() > 0)
+        {
+            _buffer += type.GetNamespace().c_str();
+            _buffer.push_back(L'.');
+        }
+
+        _buffer += type.GetTypeDefRow().GetName().c_str();
+
+        if (mode == Mode::AssemblyQualifiedName)
+        {
+            _buffer.push_back(L',');
+            _buffer.push_back(L' ');
+            _buffer += type.GetAssembly().GetName().GetFullName().c_str();
+        }
+
+        return true;
+    }
+
+    bool TypeNameBuilder::AccumulateTypeSpecName(Type const& type, Mode const mode)
+    {
+        Assert([&]{ return type.IsTypeSpec(); });
+
+        Metadata::TypeSignature const signature(type.GetTypeSpecSignature());
+
+        typedef Metadata::ClassVariableSignatureInstantiator Instantiator;
+
+        // A TypeSpec for an uninstantiated generic type has no name:
+        if (mode != Mode::SimpleName && Instantiator::RequiresInstantiation(signature))
+            return false;
+
+        switch (signature.GetKind())
+        {
+        case Metadata::TypeSignature::Kind::Array:       return AccumulateArrayTypeSpecName      (type, mode);
+        case Metadata::TypeSignature::Kind::ClassType:   return AccumulateClassTypeSpecName      (type, mode);
+        case Metadata::TypeSignature::Kind::FnPtr:       return AccumulateFnPtrTypeSpecName      (type, mode);
+        case Metadata::TypeSignature::Kind::GenericInst: return AccumulateGenericInstTypeSpecName(type, mode);
+        case Metadata::TypeSignature::Kind::Primitive:   return AccumulatePrimitiveTypeSpecName  (type, mode);
+        case Metadata::TypeSignature::Kind::Ptr:         return AccumulatePtrTypeSpecName        (type, mode);
+        case Metadata::TypeSignature::Kind::SzArray:     return AccumulateSzArrayTypeSpecName    (type, mode);
+        case Metadata::TypeSignature::Kind::Var:         return AccumulateVarTypeSpecName        (type, mode);
+        default: AssertFail(L"Unreachable Code");        return false;
+        }
+    }
+
+    bool TypeNameBuilder::AccumulateArrayTypeSpecName(Type const& type, Mode)
+    {
+        Assert([&]{ return type.GetTypeSpecSignature().IsKind(Metadata::TypeSignature::Kind::Array); });
+
+        // TODO We need to figure out how to write the general array form:
+        AssertFail(L"General array not yet implemented");
+        return false;
+    }
+
+    bool TypeNameBuilder::AccumulateClassTypeSpecName(Type const& type, Mode const mode)
+    {
+        Assert([&]{ return type.GetTypeSpecSignature().IsKind(Metadata::TypeSignature::Kind::ClassType); });
+
+        Type const classType(
+            type.GetAssembly(),
+            type.GetTypeSpecSignature().GetTypeReference(),
+            InternalKey());
+
+        if (!AccumulateTypeName(classType, mode == Mode::SimpleName ? Mode::SimpleName : Mode::FullName))
+            return false;
+
+        if (type.GetTypeSpecSignature().IsByRef())
+            _buffer.push_back(L'&');
+
+        if (mode == Mode::AssemblyQualifiedName)
+        {
+            _buffer.push_back(L',');
+            _buffer.push_back(L' ');
+            _buffer += classType.GetAssembly().GetName().GetFullName().c_str();
+        }
+
+        return true;
+    }
+
+    bool TypeNameBuilder::AccumulateFnPtrTypeSpecName(Type const& type, Mode)
+    {
+        Assert([&]{ return type.GetTypeSpecSignature().IsKind(Metadata::TypeSignature::Kind::FnPtr); });
+
+        // TODO We need to figure out how to write the function pointer form:
+        AssertFail(L"Function pointer not yet implemented");
+        return false;
+    }
+
+    bool TypeNameBuilder::AccumulateGenericInstTypeSpecName(Type const& type, Mode const mode)
+    {
+        Assert([&]{ return type.GetTypeSpecSignature().IsKind(Metadata::TypeSignature::Kind::GenericInst); });
+
+        Type const genericType(
+            type.GetAssembly(),
+            type.GetTypeSpecSignature().GetGenericTypeReference(),
+            InternalKey());
+
+        if (!AccumulateTypeName(genericType, mode == Mode::SimpleName ? Mode::SimpleName : Mode::FullName))
+            return false;
+
+        Metadata::TypeSignature const signature(type.GetTypeSpecSignature());
+
+        if (mode == Mode::SimpleName)
+        {
+            if (signature.IsByRef())
+                _buffer.push_back(L'&');
+            return true;
+        }
+
+        _buffer.push_back(L'[');
+
+        auto const first(signature.BeginGenericArguments());
+        auto const last(signature.EndGenericArguments());
+        bool isFirst(true);
+        bool const success(std::all_of(first, last, [&](Metadata::TypeSignature const& argumentSignature) -> bool
+        {
+            if (!isFirst)
+                _buffer.push_back(L',');
+
+            isFirst = false;
+
+            _buffer.push_back(L'[');
+
+            Type const argumentType(type.GetAssembly(), Metadata::BlobReference(argumentSignature), InternalKey());
+            if (!AccumulateTypeName(argumentType, Mode::AssemblyQualifiedName))
+                return false;
+
+            _buffer.push_back(L']');
+            return true;
+        }));
+
+        if (!success)
+            return false;
+
+        _buffer.push_back(L']');
+
+        if (signature.IsByRef())
+            _buffer.push_back(L'&');
+
+        if (mode == Mode::AssemblyQualifiedName)
+        {
+            _buffer.push_back(L',');
+            _buffer.push_back(L' ');
+            _buffer += genericType.GetAssembly().GetName().GetFullName().c_str();
+        }
+
+        return true;
+    }
+
+    bool TypeNameBuilder::AccumulatePrimitiveTypeSpecName(Type const& type, Mode const mode)
+    {
+        Assert([&]{ return type.GetTypeSpecSignature().IsKind(Metadata::TypeSignature::Kind::Primitive); });
+
+        Type const primitiveType(type
+            .GetAssembly()
+            .GetContext(InternalKey())
+            .GetLoader()
+            .GetFundamentalType(type.GetTypeSpecSignature().GetPrimitiveElementType(), InternalKey()));
+
+        if (!AccumulateTypeName(primitiveType, mode == Mode::SimpleName ? Mode::SimpleName : Mode::FullName))
+            return false;
+
+        if (type.GetTypeSpecSignature().IsByRef())
+            _buffer.push_back(L'&');
+
+        if (mode == Mode::AssemblyQualifiedName)
+        {
+            _buffer.push_back(L',');
+            _buffer.push_back(L' ');
+            _buffer += primitiveType.GetAssembly().GetName().GetFullName().c_str();
+        }
+
+        return true;
+    }
+
+    bool TypeNameBuilder::AccumulatePtrTypeSpecName(Type const& type, Mode const mode)
+    {
+        Assert([&]{ return type.GetTypeSpecSignature().IsKind(Metadata::TypeSignature::Kind::Ptr); });
+
+        Type const pointerType(
+            type.GetAssembly(),
+            Metadata::BlobReference(type.GetTypeSpecSignature().GetPointerTypeSignature()),
+            InternalKey());
+
+        if (!AccumulateTypeName(pointerType, mode == Mode::SimpleName ? Mode::SimpleName : Mode::FullName))
+            return false;
+
+        _buffer.push_back(L'*');
+
+        if (type.GetTypeSpecSignature().IsByRef())
+            _buffer.push_back(L'&');
+
+        if (mode == Mode::AssemblyQualifiedName)
+        {
+            _buffer.push_back(L',');
+            _buffer.push_back(L' ');
+            _buffer += pointerType.GetAssembly().GetName().GetFullName().c_str();
+        }
+
+        return true;
+    }
+
+    bool TypeNameBuilder::AccumulateSzArrayTypeSpecName(Type const& type, Mode const mode)
+    {
+        Assert([&]{ return type.GetTypeSpecSignature().IsKind(Metadata::TypeSignature::Kind::SzArray); });
+
+        Type const arrayType(
+            type.GetAssembly(),
+            Metadata::BlobReference(type.GetTypeSpecSignature().GetArrayType()),
+            InternalKey());
+
+        if (!AccumulateTypeName(arrayType, mode == Mode::SimpleName ? Mode::SimpleName : Mode::FullName))
+            return false;
+
+        _buffer.push_back(L'[');
+        _buffer.push_back(L']');
+
+        if (type.GetTypeSpecSignature().IsByRef())
+            _buffer.push_back(L'&');
+
+        if (mode == Mode::AssemblyQualifiedName)
+        {
+            _buffer.push_back(L',');
+            _buffer.push_back(L' ');
+            _buffer += arrayType.GetAssembly().GetName().GetFullName().c_str();
+        }
+
+        return true;
+    }
+
+    bool TypeNameBuilder::AccumulateVarTypeSpecName(Type const& type, Mode)
+    {
+        Assert([&]{ return type.GetTypeSpecSignature().IsKind(Metadata::TypeSignature::Kind::Var); });
+
+        // TODO Do we need to support class and method variables?  If so, how do we decide when to
+        // write them to the type name (i.e., sometimes they definitely do not belong).
+        return false;
+    }
+
+} }
+
 namespace CxxReflect {
 
     bool const TodoNotYetImplementedFlag = false;
@@ -108,7 +439,6 @@ namespace CxxReflect {
     }
 
     Type::Type(Assembly const& assembly, Metadata::RowReference const& type, InternalKey)
-        : _assembly(assembly), _type(Metadata::ElementReference(type))
     {
         Detail::Assert([&] { return assembly.IsInitialized(); });
 
@@ -116,51 +446,13 @@ namespace CxxReflect {
         if (!type.IsInitialized())
             return;
 
-        switch (type.GetTable())
-        {
-        case Metadata::TableId::TypeDef:
-        {
-            // Good news, everyone!  We have a TypeDef and we don't need to do any further work.
-            break;
-        }
+        Metadata::FullReference const resolvedType(Private::Resolve(assembly, type, InternalKey()));
+        _assembly = Assembly(&assembly
+            .GetContext(InternalKey())
+            .GetLoader()
+            .GetContextForDatabase(resolvedType.GetDatabase(), InternalKey()), InternalKey());
 
-        case Metadata::TableId::TypeRef:
-        {
-            // Resolve the TypeRef into a TypeDef, throwing on failure:
-            Loader             const& loader(assembly.GetContext(InternalKey()).GetLoader());
-            Metadata::Database const& database(assembly.GetContext(InternalKey()).GetDatabase());
-
-            Metadata::FullReference const resolvedType(
-                loader.ResolveType(Metadata::FullReference(&database, type)));
-
-            Detail::Assert([&]{ return resolvedType.IsInitialized(); });
-
-            _assembly = Assembly(
-                &loader.GetContextForDatabase(resolvedType.GetDatabase(), InternalKey()),
-                InternalKey());
-
-            _type = Metadata::ElementReference(resolvedType.AsRowReference());
-            Detail::Assert([&]{ return _type.AsRowReference().GetTable() == Metadata::TableId::TypeDef; });
-
-            break;
-        }
-
-        case Metadata::TableId::TypeSpec:
-        {
-            // Get the signature for the TypeSpec token and use that instead:
-            Metadata::Database const& database(assembly.GetContext(InternalKey()).GetDatabase());
-            Metadata::TypeSpecRow const typeSpec(database.GetRow<Metadata::TableId::TypeSpec>(type.GetIndex()));
-            _type = Metadata::ElementReference(typeSpec.GetSignature());
-
-            break;
-        }
-
-        default:
-        {
-            Detail::AssertFail(L"Unexpected argument");
-            break;
-        }
-        }
+        _type = resolvedType.AsRowReference();
     }
 
     Type::Type(Assembly const& assembly, Metadata::BlobReference const& type, InternalKey)
@@ -189,13 +481,14 @@ namespace CxxReflect {
     }
 
     Type::Type(Type const& reflectedType, Detail::InterfaceContext const* const context, InternalKey)
-        : _assembly(&reflectedType
-            .GetAssembly()
-            .GetContext(InternalKey())
-            .GetLoader()
-            .GetContextForDatabase(context->GetElement().GetDatabase(), InternalKey()))
     {
         Loader const& loader(reflectedType.GetAssembly().GetContext(InternalKey()).GetLoader());
+
+        _assembly = Assembly(&reflectedType
+                .GetAssembly()
+                .GetContext(InternalKey())
+                .GetLoader()
+                .GetContextForDatabase(context->GetElement().GetDatabase(), InternalKey()), InternalKey());
 
         if (context->GetElementSignature(loader).IsInitialized())
         {
@@ -204,251 +497,25 @@ namespace CxxReflect {
         }
         else
         {
-            Assembly assembly(_assembly.Realize());
-            Metadata::RowReference const type(context->GetElementRow().GetInterface());
-            _type = type;
-            switch (type.GetTable())
-            {
-            case Metadata::TableId::TypeDef:
-            {
-                // Good news, everyone!  We have a TypeDef and we don't need to do any further work.
-                break;
-            }
+            Metadata::FullReference const resolvedType(Private::Resolve(
+                _assembly.Realize(),
+                context->GetElementRow().GetInterface(),
+                InternalKey()));
 
-            case Metadata::TableId::TypeRef:
-            {
-                // Resolve the TypeRef into a TypeDef, throwing on failure:
-                Loader             const& loader(assembly.GetContext(InternalKey()).GetLoader());
-                Metadata::Database const& database(assembly.GetContext(InternalKey()).GetDatabase());
-
-                Metadata::FullReference const resolvedType(
-                    loader.ResolveType(Metadata::FullReference(&database, type)));
-
-                Detail::Assert([&]{ return resolvedType.IsInitialized(); });
-
-                _assembly = Assembly(
-                    &loader.GetContextForDatabase(resolvedType.GetDatabase(), InternalKey()),
-                    InternalKey());
-
-                _type = Metadata::ElementReference(resolvedType.AsRowReference());
-                Detail::Assert([&]{ return _type.AsRowReference().GetTable() == Metadata::TableId::TypeDef; });
-
-                break;
-            }
-
-            case Metadata::TableId::TypeSpec:
-            {
-                // Get the signature for the TypeSpec token and use that instead:
-                Metadata::Database const& database(assembly.GetContext(InternalKey()).GetDatabase());
-                Metadata::TypeSpecRow const typeSpec(database.GetRow<Metadata::TableId::TypeSpec>(type.GetIndex()));
-                _type = Metadata::ElementReference(typeSpec.GetSignature());
-
-                break;
-            }
-
-            default:
-            {
-                Detail::AssertFail(L"Unexpected argument");
-                break;
-            }
-            }
+            _assembly = Assembly(&_assembly
+                .Realize()
+                .GetContext(InternalKey())
+                .GetLoader()
+                .GetContextForDatabase(resolvedType.GetDatabase(), InternalKey()), InternalKey());
+            _type = resolvedType.AsRowReference();
         }
 
         AssertInitialized();
-
-
     }
 
     Assembly Type::GetAssembly() const
     {
         return _assembly.Realize();
-    }
-
-    bool Type::AccumulateFullNameInto(OutputStream& os) const
-    {
-        // TODO ENSURE WE ESCAPE THE TYPE NAME CORRECTLY
-
-        if (IsTypeDef())
-        {
-            if (IsNested())
-            {
-                GetDeclaringType().AccumulateFullNameInto(os);
-                os << L'+' << GetName();
-            }
-            else if (GetNamespace().size() > 1) // TODO REMOVE NULL TERMINATOR FROM COUNT
-            {
-                os << GetNamespace() << L'.' << GetName();
-            }
-            else
-            {
-                os << GetName();
-            }
-        }
-        else
-        {
-            Metadata::TypeSignature const signature(GetTypeSpecSignature());
-
-            // A TypeSpec for an uninstantiated generic type has no name:
-            if (Metadata::ClassVariableSignatureInstantiator::RequiresInstantiation(signature))
-                return false;
-
-            switch (signature.GetKind())
-            {
-            case Metadata::TypeSignature::Kind::GenericInst:
-            {
-                if (std::any_of(signature.BeginGenericArguments(), signature.EndGenericArguments(), [&](Metadata::TypeSignature const& sig)
-                {
-                    return sig.GetKind() == Metadata::TypeSignature::Kind::Var;
-                }))
-                {
-                    return false;
-                }
-
-                Type const genericType(_assembly.Realize(), signature.GetGenericTypeReference(), InternalKey());
-                if (!genericType.AccumulateFullNameInto(os))
-                {
-                    os = OutputStream();
-                    return false;
-                }
-
-                os << L'[';
-                bool isFirst(true);
-                bool reset(false);
-                std::for_each(
-                    signature.BeginGenericArguments(),
-                    signature.EndGenericArguments(),
-                    [&](Metadata::TypeSignature const& argumentSignature)
-                {
-                    if (!isFirst)
-                    {
-                       os << L",";
-                    }
-
-                    isFirst = false;
-
-                    os << L'[';
-                    Type const argumentType(
-                        _assembly.Realize(),
-                        Metadata::BlobReference(argumentSignature),
-                        InternalKey());
-                    if (!argumentType.AccumulateAssemblyQualifiedNameInto(os))
-                        reset = true;
-
-                    os << L']';
-                });
-
-                os << L']';
-
-                if (reset)
-                {
-                    os = OutputStream();
-                    return false;
-                }
-                else if (signature.IsByRef())
-                    os << L"&";
-
-                break;
-            }
-            case Metadata::TypeSignature::Kind::ClassType:
-            {
-                Type const classType(_assembly.Realize(), signature.GetTypeReference(), InternalKey());
-                if (!classType.AccumulateFullNameInto(os))
-                {
-                    os = OutputStream();
-                    return false;
-                }
-                else if (signature.IsByRef())
-                    os << L"&";
-
-                break;
-            }
-            case Metadata::TypeSignature::Kind::SzArray:
-            {
-                Type const classType(
-                    _assembly.Realize(),
-                    Metadata::BlobReference(signature.GetArrayType()),
-                    InternalKey());
-
-                if (!classType.AccumulateFullNameInto(os))
-                {
-                    os = OutputStream();
-                    return false;
-                }
-                else
-                {
-                    os << L"[]";
-                    if (signature.IsByRef())
-                        os << L"&";
-                }
-
-                break;
-            }
-            case Metadata::TypeSignature::Kind::Primitive:
-            {
-                Type const primitiveType(_assembly
-                    .Realize()
-                    .GetContext(InternalKey())
-                    .GetLoader()
-                    .GetFundamentalType(signature.GetPrimitiveElementType(), InternalKey()));
-                if (!primitiveType.AccumulateFullNameInto(os))
-                {
-                    os = OutputStream();
-                    return false;
-                }
-                else if (signature.IsByRef())
-                    os << L"&";
-
-                break;
-            }
-            case Metadata::TypeSignature::Kind::Ptr:
-            {
-                Type const pointerType(
-                    _assembly.Realize(),
-                    Metadata::BlobReference(signature.GetPointerTypeSignature()),
-                    InternalKey());
-
-                if (!pointerType.AccumulateFullNameInto(os))
-                {
-                    os = OutputStream();
-                    return false;
-                }
-                else
-                    os << L"*";
-
-                if (signature.IsByRef())
-                    os << L"&";
-
-                break;
-            }
-            case Metadata::TypeSignature::Kind::Var:
-            {
-                // TODO MVAR?
-                //os << L"Var!" << signature.GetVariableNumber();
-                return false;
-                break;
-            }
-            default:
-            {
-                // Detail::AssertFail(L"NYI");
-                os << L"FAIL NYI";
-                break;
-            }
-            }
-        }
-
-        // TODO TYPESPEC SUPPORT
-        return true;
-    }
-
-    bool Type::AccumulateAssemblyQualifiedNameInto(OutputStream& os) const
-    {
-        if (AccumulateFullNameInto(os))
-        {
-            os << L", " << _assembly.Realize().GetName().GetFullName();
-            return true;
-        }
-
-        return false;
     }
 
     Metadata::TypeDefRow Type::GetTypeDefRow() const
@@ -630,6 +697,33 @@ namespace CxxReflect {
 
     Type Type::GetBaseType() const
     {
+        if (IsTypeSpec())
+        {
+            Metadata::TypeSignature const signature(GetTypeSpecSignature());
+            if (signature.IsByRef())
+                return Type();
+
+            switch (signature.GetKind())
+            {
+            // All arrays are derived directly from System.Array:
+            case Metadata::TypeSignature::Kind::Array:
+            case Metadata::TypeSignature::Kind::SzArray:
+                return Utility::GetSystemAssembly(GetAssembly()).GetType(L"System", L"Array", false);
+
+            case Metadata::TypeSignature::Kind::Ptr:
+                return Type();
+
+            case Metadata::TypeSignature::Kind::ClassType:
+            case Metadata::TypeSignature::Kind::FnPtr:
+            case Metadata::TypeSignature::Kind::GenericInst:
+            case Metadata::TypeSignature::Kind::Primitive:
+            case Metadata::TypeSignature::Kind::Var:
+            default:
+                ;
+            //    Detail::AssertFail(L"Not yet implemented");
+            }
+        }
+
         return ResolveTypeDefTypeAndCall([&](Type const& t) -> Type
         {
             Metadata::RowReference const extends(t.GetTypeDefRow().GetExtends());
@@ -644,14 +738,20 @@ namespace CxxReflect {
                 return Type(_assembly.Realize(), extends, InternalKey());
 
             default:
-                throw std::logic_error("wtf");
+                Detail::AssertFail(L"Unreachable Code");
+                return Type();
             }
         });
     }
 
     Type Type::GetDeclaringType() const
     {
-        if (IsNested())
+        // TODO REFACTOR THE ISNESTED LOGIC
+        if (ResolveTypeDefTypeAndCall([](Type const& t)
+        {
+            return t.GetTypeDefRow().GetFlags().WithMask(TypeAttribute::VisibilityMask)
+                >  TypeAttribute::Public;
+        }))
         {
             Metadata::Database const& database(_assembly.Realize().GetContext(InternalKey()).GetDatabase());
             auto const it(std::lower_bound(
@@ -688,43 +788,45 @@ namespace CxxReflect {
 
     String Type::GetAssemblyQualifiedName() const
     {
-        // TODO Remove use of <iostream>
-        std::wostringstream oss;
-        AccumulateAssemblyQualifiedNameInto(oss);
-        return oss.str();
+        return Detail::TypeNameBuilder::BuildTypeName(*this, Detail::TypeNameBuilder::Mode::AssemblyQualifiedName);
     }
 
     String Type::GetFullName() const
     {
-        // TODO Remove use of <iostream>
-        std::wostringstream oss;
-        AccumulateFullNameInto(oss);
-        return oss.str();
+        return Detail::TypeNameBuilder::BuildTypeName(*this, Detail::TypeNameBuilder::Mode::FullName);
     }
 
     SizeType Type::GetMetadataToken() const
     {
+        //if (IsTypeSpec())
+        //{
+        //    if (GetTypeSpecSignature().IsKind(Metadata::TypeSignature::Kind::Array) ||
+        //        GetTypeSpecSignature().IsKind(Metadata::TypeSignature::Kind::SzArray))
+        //        return 0x02000000;
+        //}
+        
         return ResolveTypeDefTypeAndCall([](Type const& t)
         {
            return t._type.IsRowReference() ? t._type.AsRowReference().GetToken() : 0; 
         });
     }
 
-    StringReference Type::GetName() const
+    String Type::GetName() const
     {
-        AssertInitialized();
-
-        if (IsTypeDef())
-            return GetTypeDefRow().GetName();
-
-        return L""; // TODO Implement GetName() for TypeSpecs
+        return Detail::TypeNameBuilder::BuildTypeName(*this, Detail::TypeNameBuilder::Mode::SimpleName);
     }
 
     StringReference Type::GetNamespace() const
     {
         // A nested type has an empty namespace string in the database; we instead return the 
         // namespace of its declaring type, for consistency.
-        if (IsNested())
+        // TODO Refactor the logic for IsNested().  A nested TypeSpec (e.g. A+B& returns false for
+        // IsNested but does inherit the namespace.
+        if (ResolveTypeDefTypeAndCall([](Type const& t)
+        {
+            return t.GetTypeDefRow().GetFlags().WithMask(TypeAttribute::VisibilityMask)
+                >  TypeAttribute::Public;
+        }))
         {
             return GetDeclaringType().GetNamespace();
         }
@@ -737,6 +839,22 @@ namespace CxxReflect {
 
     bool Type::IsAbstract() const
     {
+        if (IsTypeSpec())
+        {
+            if (GetTypeSpecSignature().IsByRef())
+                return false;
+
+            switch (GetTypeSpecSignature().GetKind())
+            {
+            case Metadata::TypeSignature::Kind::Array:
+            case Metadata::TypeSignature::Kind::SzArray:
+                return false;
+
+            default:
+                break;
+            }
+        }
+
         return ResolveTypeDefTypeAndCall([](Type const& t)
         {
             return t.GetTypeDefRow().GetFlags().IsSet(TypeAttribute::Abstract);
@@ -759,7 +877,7 @@ namespace CxxReflect {
             return false;
 
         Metadata::TypeSignature const signature(GetTypeSpecSignature());
-        return signature.IsSimpleArray() || signature.IsGeneralArray();
+        return !signature.IsByRef() && (signature.IsSimpleArray() || signature.IsGeneralArray());
     }
 
     bool Type::IsAutoClass() const
@@ -773,6 +891,23 @@ namespace CxxReflect {
 
     bool Type::IsAutoLayout() const
     {
+        if (IsTypeSpec())
+        {
+            if (GetTypeSpecSignature().IsByRef())
+                return true;
+
+            switch (GetTypeSpecSignature().GetKind())
+            {
+            case Metadata::TypeSignature::Kind::Array:
+            case Metadata::TypeSignature::Kind::Ptr:
+            case Metadata::TypeSignature::Kind::SzArray:
+                return true;
+
+            default:
+                break;
+            }
+        }
+
         return ResolveTypeDefTypeAndCall([](Type const& t)
         {
             return t.GetTypeDefRow().GetFlags().WithMask(TypeAttribute::LayoutMask) == TypeAttribute::AutoLayout;
@@ -814,14 +949,37 @@ namespace CxxReflect {
 
     bool Type::IsEnum() const
     {
-        if (!IsTypeDef())
-            return false;
+        if (IsTypeSpec())
+        {
+            if (GetTypeSpecSignature().IsByRef())
+                return false;
+        }
 
-        return Utility::IsDerivedFromSystemType(*this, L"System", L"Enum", false);
+        return ResolveTypeDefTypeAndCall([](Type const& t)
+        {
+            return Utility::IsDerivedFromSystemType(t, L"System", L"Enum", false);
+        });
     }
 
     bool Type::IsExplicitLayout() const
     {
+        if (IsTypeSpec())
+        {
+            if (GetTypeSpecSignature().IsByRef())
+                return false;
+
+            switch (GetTypeSpecSignature().GetKind())
+            {
+            case Metadata::TypeSignature::Kind::Array:
+            case Metadata::TypeSignature::Kind::Ptr:
+            case Metadata::TypeSignature::Kind::SzArray:
+                return false;
+
+            default:
+                break;
+            }
+        }
+
         return ResolveTypeDefTypeAndCall([](Type const& t)
         {
             return t.GetTypeDefRow().GetFlags().WithMask(TypeAttribute::LayoutMask)
@@ -846,14 +1004,14 @@ namespace CxxReflect {
             return true;
         }
 
-        StringReference const name(GetName());
-        return std::find(name.begin(), name.end(), L'`') != name.end();
+        String const name(GetName());
+        return std::find(name.begin(), name.end(), L'`') != name.end() && !IsByRef();
     }
 
     bool Type::IsGenericTypeDefinition() const
     {
         // TODO This is incorrect, but is a close approximation that works much of the time.
-        return IsGenericType();
+        return IsTypeDef() && IsGenericType();
     }
 
     bool Type::IsImport() const
@@ -866,6 +1024,23 @@ namespace CxxReflect {
 
     bool Type::IsInterface() const
     {
+        if (IsTypeSpec())
+        {
+            if (GetTypeSpecSignature().IsByRef())
+                return false;
+
+            switch (GetTypeSpecSignature().GetKind())
+            {
+            case Metadata::TypeSignature::Kind::Array:
+            case Metadata::TypeSignature::Kind::Ptr:
+            case Metadata::TypeSignature::Kind::SzArray:
+                return false;
+
+            default:
+                break;
+            }
+        }
+
         return ResolveTypeDefTypeAndCall([](Type const& t)
         {
             return t.GetTypeDefRow().GetFlags().WithMask(TypeAttribute::ClassSemanticsMask)
@@ -875,6 +1050,23 @@ namespace CxxReflect {
 
     bool Type::IsLayoutSequential() const
     {
+        if (IsTypeSpec())
+        {
+            if (GetTypeSpecSignature().IsByRef())
+                return false;
+
+            switch (GetTypeSpecSignature().GetKind())
+            {
+            case Metadata::TypeSignature::Kind::Array:
+            case Metadata::TypeSignature::Kind::Ptr:
+            case Metadata::TypeSignature::Kind::SzArray:
+                return false;
+
+            default:
+                break;
+            }
+        }
+
         return ResolveTypeDefTypeAndCall([](Type const& t)
         {
             return t.GetTypeDefRow().GetFlags().WithMask(TypeAttribute::LayoutMask)
@@ -884,6 +1076,27 @@ namespace CxxReflect {
 
     bool Type::IsMarshalByRef() const
     {
+        if (IsTypeSpec())
+        {
+            if (GetTypeSpecSignature().IsByRef())
+                return false;
+
+            switch (GetTypeSpecSignature().GetKind())
+            {
+            default:
+                return false;
+
+            case Metadata::TypeSignature::Kind::Array:
+            case Metadata::TypeSignature::Kind::SzArray:
+                return false;
+
+            case Metadata::TypeSignature::Kind::ClassType:
+            case Metadata::TypeSignature::Kind::GenericInst:
+            case Metadata::TypeSignature::Kind::Primitive:
+                break;
+            }
+        }
+
         return ResolveTypeDefTypeAndCall([](Type const& t)
         {
             return Utility::IsDerivedFromSystemType(t, L"System", L"MarshalByRefObject", true);
@@ -892,6 +1105,23 @@ namespace CxxReflect {
 
     bool Type::IsNested() const
     {
+        if (IsTypeSpec())
+        {
+            if (GetTypeSpecSignature().IsByRef())
+                return false;
+
+            switch (GetTypeSpecSignature().GetKind())
+            {
+            case Metadata::TypeSignature::Kind::Array:
+            case Metadata::TypeSignature::Kind::Ptr:
+            case Metadata::TypeSignature::Kind::SzArray:
+                return false;
+
+            default:
+                break;
+            }
+        }
+
         return ResolveTypeDefTypeAndCall([](Type const& t)
         {
             return t.GetTypeDefRow().GetFlags().WithMask(TypeAttribute::VisibilityMask)
@@ -901,6 +1131,27 @@ namespace CxxReflect {
 
     bool Type::IsNestedAssembly() const
     {
+        if (IsTypeSpec())
+        {
+            if (GetTypeSpecSignature().IsByRef())
+                return false;
+
+            switch (GetTypeSpecSignature().GetKind())
+            {
+            default:
+                return false;
+
+            case Metadata::TypeSignature::Kind::Array:
+            case Metadata::TypeSignature::Kind::SzArray:
+                return false;
+
+            case Metadata::TypeSignature::Kind::ClassType:
+            case Metadata::TypeSignature::Kind::GenericInst:
+            case Metadata::TypeSignature::Kind::Primitive:
+                break;
+            }
+        }
+
         return ResolveTypeDefTypeAndCall([](Type const& t)
         {
             return t.GetTypeDefRow().GetFlags().WithMask(TypeAttribute::VisibilityMask)
@@ -910,6 +1161,27 @@ namespace CxxReflect {
 
     bool Type::IsNestedFamilyAndAssembly() const
     {
+        if (IsTypeSpec())
+        {
+            if (GetTypeSpecSignature().IsByRef())
+                return false;
+
+            switch (GetTypeSpecSignature().GetKind())
+            {
+            default:
+                return false;
+
+            case Metadata::TypeSignature::Kind::Array:
+            case Metadata::TypeSignature::Kind::SzArray:
+                return false;
+
+            case Metadata::TypeSignature::Kind::ClassType:
+            case Metadata::TypeSignature::Kind::GenericInst:
+            case Metadata::TypeSignature::Kind::Primitive:
+                break;
+            }
+        }
+
         return ResolveTypeDefTypeAndCall([](Type const& t)
         {
             return t.GetTypeDefRow().GetFlags().WithMask(TypeAttribute::VisibilityMask)
@@ -919,6 +1191,27 @@ namespace CxxReflect {
     }
     bool Type::IsNestedFamily() const
     {
+        if (IsTypeSpec())
+        {
+            if (GetTypeSpecSignature().IsByRef())
+                return false;
+
+            switch (GetTypeSpecSignature().GetKind())
+            {
+            default:
+                return false;
+
+            case Metadata::TypeSignature::Kind::Array:
+            case Metadata::TypeSignature::Kind::SzArray:
+                return false;
+
+            case Metadata::TypeSignature::Kind::ClassType:
+            case Metadata::TypeSignature::Kind::GenericInst:
+            case Metadata::TypeSignature::Kind::Primitive:
+                break;
+            }
+        }
+
         return ResolveTypeDefTypeAndCall([](Type const& t)
         {
             return t.GetTypeDefRow().GetFlags().WithMask(TypeAttribute::VisibilityMask)
@@ -928,6 +1221,27 @@ namespace CxxReflect {
 
     bool Type::IsNestedFamilyOrAssembly() const
     {
+        if (IsTypeSpec())
+        {
+            if (GetTypeSpecSignature().IsByRef())
+                return false;
+
+            switch (GetTypeSpecSignature().GetKind())
+            {
+            default:
+                return false;
+
+            case Metadata::TypeSignature::Kind::Array:
+            case Metadata::TypeSignature::Kind::SzArray:
+                return false;
+
+            case Metadata::TypeSignature::Kind::ClassType:
+            case Metadata::TypeSignature::Kind::GenericInst:
+            case Metadata::TypeSignature::Kind::Primitive:
+                break;
+            }
+        }
+
         return ResolveTypeDefTypeAndCall([](Type const& t)
         {
             return t.GetTypeDefRow().GetFlags().WithMask(TypeAttribute::VisibilityMask)
@@ -937,6 +1251,27 @@ namespace CxxReflect {
 
     bool Type::IsNestedPrivate() const
     {
+        if (IsTypeSpec())
+        {
+            if (GetTypeSpecSignature().IsByRef())
+                return false;
+
+            switch (GetTypeSpecSignature().GetKind())
+            {
+            default:
+                return false;
+
+            case Metadata::TypeSignature::Kind::Array:
+            case Metadata::TypeSignature::Kind::SzArray:
+                return false;
+
+            case Metadata::TypeSignature::Kind::ClassType:
+            case Metadata::TypeSignature::Kind::GenericInst:
+            case Metadata::TypeSignature::Kind::Primitive:
+                break;
+            }
+        }
+
         return ResolveTypeDefTypeAndCall([](Type const& t)
         {
             return t.GetTypeDefRow().GetFlags().WithMask(TypeAttribute::VisibilityMask)
@@ -946,6 +1281,27 @@ namespace CxxReflect {
 
     bool Type::IsNestedPublic() const
     {
+        if (IsTypeSpec())
+        {
+            if (GetTypeSpecSignature().IsByRef())
+                return false;
+
+            switch (GetTypeSpecSignature().GetKind())
+            {
+            default:
+                return false;
+
+            case Metadata::TypeSignature::Kind::Array:
+            case Metadata::TypeSignature::Kind::SzArray:
+                return false;
+
+            case Metadata::TypeSignature::Kind::ClassType:
+            case Metadata::TypeSignature::Kind::GenericInst:
+            case Metadata::TypeSignature::Kind::Primitive:
+                break;
+            }
+        }
+
         return ResolveTypeDefTypeAndCall([](Type const& t)
         {
             return t.GetTypeDefRow().GetFlags().WithMask(TypeAttribute::VisibilityMask)
@@ -955,10 +1311,30 @@ namespace CxxReflect {
 
     bool Type::IsNotPublic() const
     {
+        if (IsTypeSpec())
+        {
+            if (GetTypeSpecSignature().IsByRef())
+                return true;
+
+            switch (GetTypeSpecSignature().GetKind())
+            {
+            default:
+                return true;
+
+            case Metadata::TypeSignature::Kind::Array:
+            case Metadata::TypeSignature::Kind::SzArray:
+                return false;
+
+            case Metadata::TypeSignature::Kind::ClassType:
+            case Metadata::TypeSignature::Kind::GenericInst:
+            case Metadata::TypeSignature::Kind::Primitive:
+                break;
+            }
+        }
+
         return ResolveTypeDefTypeAndCall([](Type const& t)
         {
-            return t.GetTypeDefRow().GetFlags().WithMask(TypeAttribute::VisibilityMask)
-                == TypeAttribute::NotPublic;
+            return t.GetTypeDefRow().GetFlags().WithMask(TypeAttribute::VisibilityMask) == TypeAttribute::NotPublic;
         });
     }
 
@@ -967,7 +1343,7 @@ namespace CxxReflect {
         if (IsTypeDef())
             return false;
 
-        return GetTypeSpecSignature().IsPointer();
+        return !GetTypeSpecSignature().IsByRef() && GetTypeSpecSignature().IsPointer();
     }
 
     bool Type::IsPrimitive() const
@@ -1000,6 +1376,27 @@ namespace CxxReflect {
 
     bool Type::IsPublic() const
     {
+        if (IsTypeSpec())
+        {
+            if (GetTypeSpecSignature().IsByRef())
+                return false;
+
+            switch (GetTypeSpecSignature().GetKind())
+            {
+            default:
+                return false;
+
+            case Metadata::TypeSignature::Kind::Array:
+            case Metadata::TypeSignature::Kind::SzArray:
+                return true;
+
+            case Metadata::TypeSignature::Kind::ClassType:
+            case Metadata::TypeSignature::Kind::GenericInst:
+            case Metadata::TypeSignature::Kind::Primitive:
+                break;
+            }
+        }
+
         return ResolveTypeDefTypeAndCall([](Type const& t)
         {
             return t.GetTypeDefRow().GetFlags().WithMask(TypeAttribute::VisibilityMask) == TypeAttribute::Public;
@@ -1008,6 +1405,25 @@ namespace CxxReflect {
 
     bool Type::IsSealed() const
     {
+        if (IsTypeSpec())
+        {
+            if (GetTypeSpecSignature().IsByRef())
+                return false;
+
+            switch (GetTypeSpecSignature().GetKind())
+            {
+            case Metadata::TypeSignature::Kind::Array:
+            case Metadata::TypeSignature::Kind::SzArray:
+                return true;
+
+            case Metadata::TypeSignature::Kind::Ptr:
+                return false;
+
+            default:
+                break;
+            }
+        }
+
         return ResolveTypeDefTypeAndCall([](Type const& t)
         {
             return t.GetTypeDefRow().GetFlags().IsSet(TypeAttribute::Sealed);
@@ -1016,6 +1432,25 @@ namespace CxxReflect {
 
     bool Type::IsSerializable() const
     {
+        if (IsTypeSpec())
+        {
+            if (GetTypeSpecSignature().IsByRef())
+                return false;
+
+            switch (GetTypeSpecSignature().GetKind())
+            {
+            case Metadata::TypeSignature::Kind::Array:
+            case Metadata::TypeSignature::Kind::SzArray:
+                return true;
+
+            case Metadata::TypeSignature::Kind::Ptr:
+                return false;
+
+            default:
+                break;
+            }
+        }
+
         return ResolveTypeDefTypeAndCall([](Type const& t)
         {
             return t.GetTypeDefRow().GetFlags().IsSet(TypeAttribute::Serializable)
@@ -1043,6 +1478,23 @@ namespace CxxReflect {
 
     bool Type::IsValueType() const
     {
+        if (IsTypeSpec())
+        {
+            if (GetTypeSpecSignature().IsByRef())
+                return false;
+
+            switch (GetTypeSpecSignature().GetKind())
+            {
+            case Metadata::TypeSignature::Kind::Array:
+            case Metadata::TypeSignature::Kind::Ptr:
+            case Metadata::TypeSignature::Kind::SzArray:
+                return false;
+
+            default:
+                break;
+            }
+        }
+
         return ResolveTypeDefTypeAndCall([](Type const& t)
         {
             return Utility::IsDerivedFromSystemType(t, L"System", L"ValueType", false)
@@ -1052,6 +1504,34 @@ namespace CxxReflect {
 
     bool Type::IsVisible() const
     {
+        if (IsTypeSpec())
+        {
+            switch (GetTypeSpecSignature().GetKind())
+            {
+            // A GenericInst type is visible if and only if the generic type definition is visible
+            // and all of the generic type arguments are visible.  We'll check the type definition
+            // itself below; we need only to check the arguments here:
+            case Metadata::TypeSignature::Kind::GenericInst:
+            {
+                Metadata::TypeSignature const genericType(GetTypeSpecSignature());
+                if (!std::all_of(genericType.BeginGenericArguments(),
+                                 genericType.EndGenericArguments(),
+                                 [&](Metadata::TypeSignature const argumentSignature) -> bool
+                {
+                    Type const argumentType(
+                        _assembly.Realize(),
+                        Metadata::BlobReference(argumentSignature),
+                        InternalKey());
+
+                    return argumentType.IsVisible();
+                }))
+                    return false;
+            }
+
+            default:
+                break;
+            }
+        }
         return ResolveTypeDefTypeAndCall([](Type const& t)
         {
             if (t.IsNested() && !t.GetDeclaringType().IsVisible())
@@ -1137,5 +1617,71 @@ namespace CxxReflect {
         // TODO To filter properties, we need to compute the most accessible related method.
 
         return false;
+    }
+
+    Type Type::ResolveTypeDef(Type const type)
+    {
+        Detail::Assert([&]{ return type.IsInitialized(); });
+
+        if (!type.IsInitialized() || type.IsTypeDef())
+            return type;
+
+        auto const& database(type.GetAssembly().GetContext(InternalKey()).GetDatabase());
+        auto const signature(type.GetTypeSpecSignature());
+
+        Metadata::FullReference nextType;
+        switch (signature.GetKind())
+        {
+        case Metadata::TypeSignature::Kind::Array:
+            nextType = Metadata::FullReference(&database, Metadata::BlobReference(signature.GetArrayType()));
+            break;
+
+        case Metadata::TypeSignature::Kind::ClassType:
+            nextType = Metadata::FullReference(&database, signature.GetTypeReference());
+            break;
+
+        case Metadata::TypeSignature::Kind::FnPtr:
+            // TODO FnPtr Not Yet Implemented (is there anything to implement here?)
+            Detail::AssertFail(L"FnPtr TypeDef Resolution Not Yet Implemented");
+            return Type();
+
+        case Metadata::TypeSignature::Kind::GenericInst:
+            nextType = Metadata::FullReference(&database, signature.GetGenericTypeReference());
+            break;
+
+        case Metadata::TypeSignature::Kind::Primitive:
+            return ResolveTypeDef(type
+                .GetAssembly()
+                .GetContext(InternalKey())
+                .GetLoader()
+                .GetFundamentalType(signature.GetPrimitiveElementType(), InternalKey()));
+
+        case Metadata::TypeSignature::Kind::Ptr:
+            nextType = Metadata::FullReference(
+                &database,
+                Metadata::BlobReference(signature.GetPointerTypeSignature()));
+            break;
+
+        case Metadata::TypeSignature::Kind::SzArray:
+            nextType = Metadata::FullReference(
+                &database,
+                Metadata::BlobReference(signature.GetArrayType()));
+            break;
+
+        case Metadata::TypeSignature::Kind::Var:
+            // A Class or Method Variable is never itself a TypeDef:
+            return Type();
+        }
+
+        // Recursively resolve the next type.  Note that 'type' and 'nextType' will always be in the
+        // same assembly because we haven't yet resolved the 'nextType' into another assembly:
+        if (nextType.IsRowReference())
+        {
+            return ResolveTypeDef(Type(type.GetAssembly(), nextType.AsRowReference(), InternalKey()));
+        }
+        else
+        {
+            return ResolveTypeDef(Type(type.GetAssembly(), nextType.AsBlobReference(), InternalKey()));
+        }
     }
 }

@@ -23,6 +23,14 @@ class Program
             BindingFlags.Public |
             BindingFlags.Static;
 
+    static int WorkaroundGetMetadataToken(Type t)
+    {
+        while (t.HasElementType)
+            t = t.GetElementType();
+
+        return t.MetadataToken;
+    }
+
     static void Dump(StringBuilder sb, Assembly a)
     {
         sb.AppendLine(String.Format("Assembly [{0}]", a.FullName));
@@ -35,7 +43,9 @@ class Program
         sb.AppendLine("!!BeginTypes");
         foreach (Type x in a.GetTypes().OrderBy(x => x.MetadataToken).Take(500))
         {
-            if (x.FullName == "System.__ComObject" || x.FullName == "System.Runtime.InteropServices.WindowsRuntime.DisposableRuntimeClass")
+            if (x.FullName == "System.__ComObject" ||
+                x.FullName == "System.StubHelpers.HStringMarshaler" ||
+                x.FullName == "System.Runtime.InteropServices.WindowsRuntime.DisposableRuntimeClass")
                 continue;
 
             Dump(sb, x);
@@ -46,7 +56,7 @@ class Program
     static void DumpBasicTypeTraits(StringBuilder sb, Type t, int depth)
     {
         String pad = new String(' ', depth);
-        sb.AppendLine(String.Format("{0} -- Type [{1}] [${2:x8}]", pad, t.FullName, t.MetadataToken));
+        sb.AppendLine(String.Format("{0} -- Type [{1}] [${2:x8}]", pad, t.FullName, WorkaroundGetMetadataToken(t)));
         // TODO t.Assembly
         sb.AppendLine(String.Format("{0}     -- AssemblyQualifiedName [{1}]", pad, t.AssemblyQualifiedName));
         // TODO t.Attributes
@@ -140,7 +150,11 @@ class Program
             p.Name,
             p.MetadataToken,
             p.ParameterType.IsGenericTypeDefinition ? "" : p.ParameterType.FullName));
-        DumpBasicTypeTraits(sb, p.ParameterType, 12);
+
+        // TODO These are not-yet-implemented features.  We do not correctly generate type names
+        // or properties for non-instantiated generic types.
+        if (p.ParameterType.FullName != null && !p.ParameterType.IsGenericTypeDefinition)
+            DumpBasicTypeTraits(sb, p.ParameterType, 12);
     }
 
     static void Dump(StringBuilder sb, FieldInfo f)

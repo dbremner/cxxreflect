@@ -617,13 +617,13 @@ namespace CxxReflect { namespace Detail {
 
         template <size_type N>
         EnhancedCString(value_type const (&data)[N])
-            : _first(data), _last(data + N)
+            : _first(data), _last(data + N - 1)
         {
         }
 
         template <size_type N>
         EnhancedCString(value_type (&data)[N])
-            : _first(data), _last(data + N)
+            : _first(data), _last(data + N - 1)
         {
         }
 
@@ -705,10 +705,10 @@ namespace CxxReflect { namespace Detail {
 
             // Finally, set the '_last' pointers for both strings if they don't have them set:
             if (lhs._last == nullptr && *lhs_it == '\0')
-                lhs._last = lhs_it + 1;
+                lhs._last = lhs_it;
 
             if (rhs._last == nullptr && *rhs_it == '\0')
-                rhs._last = rhs_it + 1;
+                rhs._last = rhs_it;
 
             return *lhs_it == 0 && *rhs_it == 0;
         }
@@ -731,7 +731,6 @@ namespace CxxReflect { namespace Detail {
             while (*_last != 0)
                 ++_last;
 
-            ++_last; // One-past-the-end of the null terminator
             return _last;
         }
 

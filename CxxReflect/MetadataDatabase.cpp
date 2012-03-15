@@ -297,6 +297,10 @@ namespace CxxReflect { namespace Metadata { namespace { namespace Private {
         return streamHeaders;
     }
 
+
+
+
+
     CompositeIndexSizeArray const CompositeIndexTagSize =
     {
         2, 2, 5, 1, 2, 3, 1, 1, 1, 2, 3, 2, 1
@@ -414,11 +418,19 @@ namespace CxxReflect { namespace Metadata { namespace { namespace Private {
 
     #undef CXXREFLECT_GENERATE
 
+
+
+
+
     template <typename T>
     T const& ReadAs(ConstByteIterator const data, SizeType const index)
     {
         return *reinterpret_cast<T const*>(data + index);
     }
+
+
+
+
 
     std::uint32_t ReadTableIndex(Database          const& database,
                                  ConstByteIterator const  data,
@@ -495,6 +507,10 @@ namespace CxxReflect { namespace Metadata { namespace { namespace Private {
         return RowReference(table, ReadTableIndex(database, data, table, offset));
     }
 
+
+
+
+
     typedef std::pair<std::uint32_t, std::uint32_t> TagIndexPair;
 
     TagIndexPair SplitCompositeIndex(CompositeIndex const index, std::uint32_t const value)
@@ -505,6 +521,10 @@ namespace CxxReflect { namespace Metadata { namespace { namespace Private {
             (value >> tagBits) - 1
             );
     }
+
+
+
+
 
     RowReference DecodeCustomAttributeTypeIndex(std::uint32_t const value)
     {
@@ -678,6 +698,10 @@ namespace CxxReflect { namespace Metadata { namespace { namespace Private {
         }
     }
 
+
+
+
+
     RowReference ReadRowReference(Database          const& database,
                                   ConstByteIterator const  data,
                                   CompositeIndex    const  index,
@@ -704,6 +728,10 @@ namespace CxxReflect { namespace Metadata { namespace { namespace Private {
         default:  Detail::AssertFail(L"Invalid index"); return RowReference();
         }
     }
+
+
+
+
 
     template <TableId TSourceId, TableId TTargetId, typename TFirstFunction>
     RowReference ComputeLastRowReference(Database          const& database,
@@ -821,9 +849,9 @@ namespace CxxReflect { namespace Metadata {
 
     RowReference::ValueType RowReference::ComposeValue(TableId const tableId, SizeType const index)
     {
-        Detail::Assert([&]{ return IsValidTableId(Detail::AsInteger(tableId)); });
+        Detail::Assert([&]{ return IsValidTableId(Detail::AsInteger(tableId));           });
         Detail::Assert([&]{ return Detail::AsInteger(tableId) < (1 << ValueTableIdBits); });
-        Detail::Assert([&]{ return index < ValueIndexMask; });
+        Detail::Assert([&]{ return index < ValueIndexMask;                               });
 
         ValueType const tableIdValue(Detail::AsInteger(tableId) & (ValueTableIdMask >> ValueIndexBits));
 
@@ -840,6 +868,7 @@ namespace CxxReflect { namespace Metadata {
         result._value.Get() = token - 1;
         return result;
     }
+
 
 
 
@@ -939,7 +968,7 @@ namespace CxxReflect { namespace Metadata {
         if (!Externals::ConvertUtf8ToUtf16(pointer, range.Begin(), required))
             throw std::logic_error("wtf");
 
-        return _index.insert(std::make_pair(index, StringReference(range.Begin(), range.End()))).first->second;
+        return _index.insert(std::make_pair(index, StringReference(range.Begin(), range.End() - 1))).first->second;
     }
 
     bool StringCollection::IsInitialized() const
@@ -986,8 +1015,10 @@ namespace CxxReflect { namespace Metadata {
 
     void Stream::Swap(Stream& other)
     {
-        std::swap(other._data, _data);
-        std::swap(other._size, _size);
+        using std::swap;
+
+        swap(other._data, _data);
+        swap(other._size, _size);
     }
 
 

@@ -109,6 +109,53 @@ namespace CxxReflect { namespace Detail {
         BindingFlags                    _filter;
     };
 
+    
+
+
+
+    // The TypeNameBuilder builds type names.  (Really... what did you think it did?)  It can build
+    // any form of name for a type.  This can be fairly expensive, especially for deeply recursive
+    // TypeSpec elements.
+    class TypeNameBuilder
+    {
+    public:
+        
+        enum class Mode
+        {
+            SimpleName,
+            FullName,
+            AssemblyQualifiedName
+        };
+
+        static String BuildTypeName(Type const& type, Mode mode);
+
+    private:
+
+        TypeNameBuilder(Type const& type, Mode mode);
+
+        // This type is noncopyable and these are unimplemented.
+        TypeNameBuilder(TypeNameBuilder const&);
+        TypeNameBuilder& operator=(TypeNameBuilder const&);
+
+        operator String();
+
+        bool AccumulateTypeName               (Type const& type, Mode mode);
+
+        bool AccumulateTypeDefName            (Type const& type, Mode mode);
+        bool AccumulateTypeSpecName           (Type const& type, Mode mode);
+
+        bool AccumulateArrayTypeSpecName      (Type const& type, Mode mode);
+        bool AccumulateClassTypeSpecName      (Type const& type, Mode mode);
+        bool AccumulateFnPtrTypeSpecName      (Type const& type, Mode mode);
+        bool AccumulateGenericInstTypeSpecName(Type const& type, Mode mode);
+        bool AccumulatePrimitiveTypeSpecName  (Type const& type, Mode mode);
+        bool AccumulatePtrTypeSpecName        (Type const& type, Mode mode);
+        bool AccumulateSzArrayTypeSpecName    (Type const& type, Mode Mode);
+        bool AccumulateVarTypeSpecName        (Type const& type, Mode mode);
+
+        String _buffer;
+    };
+
 } }
 
 namespace CxxReflect {
@@ -151,7 +198,7 @@ namespace CxxReflect {
 
         String          GetAssemblyQualifiedName() const;
         String          GetFullName()              const;
-        StringReference GetName()                  const;
+        String          GetName()                  const;
         StringReference GetNamespace()             const;
 
         bool IsAbstract()                const;
@@ -249,6 +296,8 @@ namespace CxxReflect {
 
     private:
 
+        friend Detail::TypeNameBuilder;
+
         void AssertInitialized() const
         {
             Detail::Assert([&] { return IsInitialized(); }, L"Type is not initialized");
@@ -264,6 +313,8 @@ namespace CxxReflect {
 
         #define CXXREFLECT_GENERATE decltype(std::declval<TCallback>()(std::declval<Type>()))
 
+        static Type ResolveTypeDef(Type const type);
+
         // Resolves the TypeDef associated with this type.  If this type is itself a TypeDef, it
         // returns itself.  If this type is a TypeSpec, it parses the TypeSpec to find the
         // primary TypeDef referenced by the TypeSpec; note that in this case the TypeDef may be
@@ -276,26 +327,14 @@ namespace CxxReflect {
         {
             AssertInitialized();
 
-            // If this type is itself a TypeDef, we can directly call the callback and return:
-            if (IsTypeDef())
-                return callback(*this);
+            Type const typeDefType(ResolveTypeDef(*this));
+            if (!typeDefType.IsInitialized())
+                return defaultResult;
 
-            // Otherwise, we need to visit the TypeSpec to find the primary TypeDef or TypeRef
-            // to which it refers; if it refers to a TypeRef, we must resolve it.
-            Metadata::TypeSignature const signature(GetTypeSpecSignature());
-            if (signature.IsGenericInstance())
-            {
-                Type const type(_assembly.Realize(), signature.GetGenericTypeReference(), InternalKey());
-                return callback(type);
-            }
-            
-            return defaultResult; // TODO TYPESPEC FIRST
+            return callback(typeDefType);
         }
 
         #undef CXXREFLECT_GENERATE
-
-        bool AccumulateFullNameInto(OutputStream& os) const;
-        bool AccumulateAssemblyQualifiedNameInto(OutputStream& os) const;
 
         Detail::AssemblyHandle     _assembly;
         Metadata::ElementReference _type;
