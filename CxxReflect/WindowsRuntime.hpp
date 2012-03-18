@@ -1,5 +1,5 @@
-#ifndef CXXREFLECT_WINRTINTEGRATION_HPP_
-#define CXXREFLECT_WINRTINTEGRATION_HPP_
+#ifndef CXXREFLECT_WINDOWSRUNTIME_HPP_
+#define CXXREFLECT_WINDOWSRUNTIME_HPP_
 
 //                 Copyright (c) 2012 James P. McNellis <james@jamesmcnellis.com>                 //
 //                   Distributed under the Boost Software License, Version 1.0.                   //
@@ -11,8 +11,6 @@
 
 #include "CxxReflect/Type.hpp"
 
-#include <ppl.h>
-
 struct IInspectable;
 struct IUnknown;
 
@@ -20,36 +18,24 @@ namespace CxxReflect { namespace Detail {
 
     static const wchar_t* const PlatformMetadataFileName(L"CxxReflectPlatform.dat");
 
-    // Utility function for making a Windows Runtime async call synchronous.  When we're already
-    // offloaded onto a worker thread and we need the answer immediately, the async API is just
-    // an unnecessary beating.
-    template <typename TCallable>
-    auto SyncCall(TCallable&& callable) -> decltype(callable()->GetResults())
-    {
-        typedef decltype(callable()->GetResults()) Result;
-        ::Concurrency::task<Result> asyncTask(callable());
-        asyncTask.wait();
-        return asyncTask.get();
-    }
-
 } }
 
 namespace CxxReflect {
 
-    class WinRTMetadataResolver : public IMetadataResolver
+    class WinRTAssemblyLocator : public IAssemblyLocator
     {
     public:
 
         typedef std::map<String, String> PathMap;
 
-        WinRTMetadataResolver(String const& packageRoot);
+        WinRTAssemblyLocator(String const& packageRoot);
 
         // TODO We should also provide support for out-of-package resolution.
 
-        virtual String ResolveAssembly(AssemblyName const& assemblyName) const;
+        virtual String LocateAssembly(AssemblyName const& assemblyName) const;
 
-        virtual String ResolveAssembly(AssemblyName const& assemblyName,
-                                       String       const& namespaceQualifiedTypeName) const;
+        virtual String LocateAssembly(AssemblyName const& assemblyName,
+                                      String       const& fullTypeName) const;
 
         PathMap::const_iterator BeginMetadataFiles() const;
         PathMap::const_iterator EndMetadataFiles()   const;
@@ -96,7 +82,21 @@ namespace CxxReflect {
 // the library proper).
 #ifdef __cplusplus_winrt
 
+#include <ppl.h>
+
 namespace CxxReflect { namespace Detail {
+
+    // Utility function for making a Windows Runtime async call synchronous.  When we're already
+    // offloaded onto a worker thread and we need the answer immediately, the async API is just
+    // an unnecessary beating.
+    template <typename TCallable>
+    auto SyncCall(TCallable&& callable) -> decltype(callable()->GetResults())
+    {
+        typedef decltype(callable()->GetResults()) Result;
+        ::Concurrency::task<Result> asyncTask(callable());
+        asyncTask.wait();
+        return asyncTask.get();
+    }
 
     inline String GetCxxReflectPlatformMetadataPath()
     {

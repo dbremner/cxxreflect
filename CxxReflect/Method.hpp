@@ -53,17 +53,16 @@ namespace CxxReflect {
         ParameterIterator BeginParameters() const;
         ParameterIterator EndParameters()   const;
 
+        Parameter GetReturnParameter() const;
+        Type      GetReturnType()      const;
+
         // Module
-        // ReturnParameter            -- Non-constructor only
-        // ReturnType                 -- Non-constructor only
-        // ReturnTypeCustomAttributes -- Non-constructor only
 
         // GetBaseDefinition          -- Non-constructor only
         // GetGenericArguments
         // GetGenericMethodDefinition -- Non-constructor only
         // GetMethodBody
         // GetMethodImplementationFlags
-        // GetParameters
         
         // IsDefined
         // MakeGenericMethod          -- Non-constructor only

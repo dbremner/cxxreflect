@@ -9,6 +9,7 @@
 #include "CxxReflect/CustomAttribute.hpp"
 #include "CxxReflect/Loader.hpp"
 #include "CxxReflect/Method.hpp"
+#include "CxxReflect/Parameter.hpp"
 #include "CxxReflect/Type.hpp"
 
 namespace CxxReflect {
@@ -258,6 +259,24 @@ namespace CxxReflect {
             _context.Get()->GetElementRow().GetLastParameter(),
             _context.Get()->GetElementSignature(typeResolver).EndParameters(),
             InternalKey()));
+    }
+
+    Parameter Method::GetReturnParameter() const
+    {
+        AssertInitialized();
+
+        // Metadata::TypeSignature const returnTypeSignature(_context.Get()->GetElementSignature().GetReturnType());
+        // TODO IMPLEMENT
+        throw 0;
+    }
+
+    Type Method::GetReturnType() const
+    {
+        AssertInitialized();
+
+        // Metadata::TypeSignature const returnTypeSignature(_context.Get()->GetElementSignature().GetReturnType());
+        // TODO IMPLEMENT
+        throw 0;
     }
 
 }

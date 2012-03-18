@@ -11,7 +11,6 @@
 #include "CxxReflect/ExternalFunctions.hpp"
 #include "CxxReflect/ExternalFunctionsWin32.hpp"
 #include "CxxReflect/ExternalFunctionsWinRT.hpp"
-#include "CxxReflect/StandardLibrary.hpp"
 
 
 
@@ -150,6 +149,12 @@ namespace CxxReflect { namespace Detail {
     {
         if (!callable())
              throw LogicError(message);
+    }
+
+    inline void AssertSuccess(HResult const hresult, CharacterIterator const message = L"")
+    {
+        if (hresult < 0)
+            throw HResultRuntimeError(hresult, message);
     }
 
     #else
@@ -1430,12 +1435,64 @@ namespace CxxReflect { namespace Detail {
 
 //
 //
-// MULTITHREADING AND SYNCHRONIZATION
+// CONTAINER ITERATOR ADAPTERS
 //
 //
 
 namespace CxxReflect { namespace Detail {
 
+    template <typename TIterator>
+    class RandomAccessSequence
+    {
+    public:
+
+        typedef typename std::iterator_traits<TIterator>::value_type value_type;
+        typedef typename std::iterator_traits<TIterator>::reference  reference;
+        typedef typename std::iterator_traits<TIterator>::pointer    pointer;
+        typedef std::size_t                                          size_type;
+        typedef TIterator                                            iterator;
+        typedef TIterator                                            const_iterator;
+        typedef std::reverse_iterator<TIterator>                     reverse_iterator;
+        typedef std::reverse_iterator<TIterator>                     const_reverse_iterator;
+
+        RandomAccessSequence()
+        {
+        }
+
+        RandomAccessSequence(TIterator const first, TIterator const last)
+            : _first(first), _last(last)
+        {
+        }
+
+        iterator  begin() const { return _first.Get();               }
+        iterator  end()   const { return _last.Get();                }
+
+        pointer   data()  const { return &*_first.Get();             }
+        size_type size()  const { return _last.Get() - _first.Get(); }
+
+        reference operator[](size_type const n) const { return _first.Get()[n]; }
+
+
+    private:
+
+        ValueInitialized<TIterator> _first;
+        ValueInitialized<TIterator> _last;
+    };
+
+} }
+
+
+
+
+
+//
+//
+// MULTITHREADING AND SYNCHRONIZATION
+//
+//
+
+namespace CxxReflect { namespace Detail {
+    /*
     template <typename T>
     class Lease;
 
@@ -1511,6 +1568,7 @@ namespace CxxReflect { namespace Detail {
 
         Synchronized<T> const* _object;
     };
+    */
 
 } }
 

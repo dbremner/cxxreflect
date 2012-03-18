@@ -4,7 +4,7 @@
 
 #include "CxxReflect/PrecompiledHeaders.hpp"
 
-#include "CxxReflect/WinRTIntegration.hpp"
+#include "CxxReflect/WindowsRuntime.hpp"
 
 #ifdef CXXREFLECT_ENABLE_WINDOWS_RUNTIME_INTEGRATION
 
@@ -12,6 +12,9 @@
 #include "CxxReflect/AssemblyName.hpp"
 #include "CxxReflect/Loader.hpp"
 #include "CxxReflect/Type.hpp"
+
+#include <future>
+#include <thread>
 
 #include <hstring.h>
 #include <inspectable.h>
@@ -60,22 +63,22 @@ namespace CxxReflect { namespace { namespace Private {
 
         SmartHString(const_pointer const s)
         {
-            Detail::ThrowOnFailure(::WindowsCreateString(s, static_cast<UINT32>(::wcslen(s)), &_value.Get()));
+            Detail::VerifySuccess(::WindowsCreateString(s, static_cast<UINT32>(::wcslen(s)), &_value.Get()));
         }
 
         SmartHString(StringReference const s)
         {
-            Detail::ThrowOnFailure(::WindowsCreateString(s.c_str(), static_cast<UINT32>(::wcslen(s.c_str())), &_value.Get()));
+            Detail::VerifySuccess(::WindowsCreateString(s.c_str(), static_cast<UINT32>(::wcslen(s.c_str())), &_value.Get()));
         }
 
         SmartHString(String const& s)
         {
-            Detail::ThrowOnFailure(::WindowsCreateString(s.c_str(), static_cast<UINT32>(::wcslen(s.c_str())), &_value.Get()));
+            Detail::VerifySuccess(::WindowsCreateString(s.c_str(), static_cast<UINT32>(::wcslen(s.c_str())), &_value.Get()));
         }
 
         SmartHString(SmartHString const& other)
         {
-            Detail::ThrowOnFailure(::WindowsDuplicateString(other._value.Get(), &_value.Get()));
+            Detail::VerifySuccess(::WindowsDuplicateString(other._value.Get(), &_value.Get()));
         }
 
         SmartHString& operator=(SmartHString other)
@@ -207,7 +210,7 @@ namespace CxxReflect { namespace { namespace Private {
         static int compare(SmartHString const& lhs, SmartHString const& rhs)
         {
             std::int32_t result(0);
-            Detail::ThrowOnFailure(::WindowsCompareStringOrdinal(lhs._value.Get(), rhs._value.Get(), &result));
+            Detail::VerifySuccess(::WindowsCompareStringOrdinal(lhs._value.Get(), rhs._value.Get(), &result));
             return result;
         }
 
@@ -322,7 +325,7 @@ namespace CxxReflect { namespace { namespace Private {
 
                 // Note that we cannot direct-initialize here due to a bug in the Visual C++ compiler.
                 void** const voidUnknown = reinterpret_cast<void**>(&_unknown.Get());
-                Detail::ThrowOnFailure(unknownThis->QueryInterface(interfaceId, voidUnknown));
+                Detail::VerifySuccess(unknownThis->QueryInterface(interfaceId, voidUnknown));
                 Detail::AssertNotNull(_unknown.Get());
             }
 
@@ -368,7 +371,7 @@ namespace CxxReflect { namespace { namespace Private {
         RaiiHStringArray filePaths;
         RaiiHStringArray nestedNamespaces;
 
-        Detail::ThrowOnFailure(::RoResolveNamespace(
+        Detail::VerifySuccess(::RoResolveNamespace(
             rootNamespace.value(),
             nullptr,
             0,
@@ -423,7 +426,7 @@ namespace CxxReflect { namespace { namespace Private {
 
 namespace CxxReflect {
 
-    WinRTMetadataResolver::WinRTMetadataResolver(String const& packageRoot)
+    WinRTAssemblyLocator::WinRTAssemblyLocator(String const& packageRoot)
         : _packageRoot(packageRoot)
     {
         auto const metadataFiles(Private::EnumerateUniverseMetadataFiles());
@@ -443,7 +446,7 @@ namespace CxxReflect {
         });
     }
 
-    String WinRTMetadataResolver::ResolveAssembly(AssemblyName const& assemblyName) const
+    String WinRTAssemblyLocator::LocateAssembly(AssemblyName const& assemblyName) const
     {
         String const simpleName(Detail::MakeLowercase(assemblyName.GetName()));
 
@@ -453,12 +456,11 @@ namespace CxxReflect {
             return _packageRoot + Detail::PlatformMetadataFileName;
         }
 
-        Detail::AssertFail("Not Yet Implemented");
+        Detail::AssertFail(L"Not Yet Implemented");
         return String();
     }
 
-    String WinRTMetadataResolver::ResolveAssembly(AssemblyName const& assemblyName,
-                                                  String       const& namespaceQualifiedTypeName) const
+    String WinRTAssemblyLocator::LocateAssembly(AssemblyName const& assemblyName, String const& fullTypeName) const
     {
         String const simpleName(Detail::MakeLowercase(assemblyName.GetName()));
 
@@ -471,27 +473,27 @@ namespace CxxReflect {
         // The assembly name must be a prefix of the namespace-qualified type name, per WinRT rules:
         Detail::Assert([&]() -> bool
         {
-            String const lowercaseNamespaceQualifiedTypeName(Detail::MakeLowercase(namespaceQualifiedTypeName));
-            return simpleName.size() <= namespaceQualifiedTypeName.size()
-                && std::equal(simpleName.begin(), simpleName.end(), lowercaseNamespaceQualifiedTypeName.begin());
+            String const lowercaseFullTypeName(Detail::MakeLowercase(fullTypeName));
+            return simpleName.size() <= lowercaseFullTypeName.size()
+                && std::equal(simpleName.begin(), simpleName.end(), lowercaseFullTypeName.begin());
         });
 
-        String namespaceName(namespaceQualifiedTypeName);
+        String namespaceName(fullTypeName);
         Private::RemoveRightmostTypeNameComponent(namespaceName);
         return FindMetadataFileForNamespace(namespaceName);
     }
 
-    WinRTMetadataResolver::PathMap::const_iterator WinRTMetadataResolver::BeginMetadataFiles() const
+    WinRTAssemblyLocator::PathMap::const_iterator WinRTAssemblyLocator::BeginMetadataFiles() const
     {
         return _metadataFiles.begin();
     }
 
-    WinRTMetadataResolver::PathMap::const_iterator WinRTMetadataResolver::EndMetadataFiles() const
+    WinRTAssemblyLocator::PathMap::const_iterator WinRTAssemblyLocator::EndMetadataFiles() const
     {
         return _metadataFiles.end();
     }
 
-    String WinRTMetadataResolver::FindMetadataFileForNamespace(String const& namespaceName) const
+    String WinRTAssemblyLocator::FindMetadataFileForNamespace(String const& namespaceName) const
     {
         String const lowercaseNamespaceName(Detail::MakeLowercase(namespaceName));
 
@@ -513,7 +515,7 @@ namespace CxxReflect {
         while (!enclosingNamespaceName.empty())
         {
             String winmdPath = _packageRoot + enclosingNamespaceName + L".winmd";
-            if (Detail::FileExists(winmdPath.c_str()))
+            if (Externals::FileExists(winmdPath.c_str()))
             {
                 _metadataFiles.insert(std::make_pair(enclosingNamespaceName, winmdPath));
                 return winmdPath;
@@ -531,7 +533,7 @@ namespace CxxReflect {
         }
 
         // TODO Should we throw here or return an empty string?
-        throw RuntimeError("Failed to locate metadata file");
+        throw RuntimeError(L"Failed to locate metadata file");
     }
 
     void WinRTPackageMetadata::BeginInitialization(String const& platformMetadataPath)
@@ -541,12 +543,12 @@ namespace CxxReflect {
 
         Private::_globalWinRTUniverseFuture = std::async(std::launch::async, [=]() -> std::unique_ptr<Loader>
         {
-            std::unique_ptr<WinRTMetadataResolver> resolver(new WinRTMetadataResolver(platformMetadataPath));
-            WinRTMetadataResolver const& rawResolver(*resolver.get());
+            std::unique_ptr<WinRTAssemblyLocator> resolver(new WinRTAssemblyLocator(platformMetadataPath));
+            WinRTAssemblyLocator const& rawResolver(*resolver.get());
 
-            std::unique_ptr<Loader> loader(new MetadataLoader(std::move(resolver)));
+            std::unique_ptr<Loader> loader(new Loader(std::move(resolver)));
 
-            typedef WinRTMetadataResolver::PathMap::value_type Element;
+            typedef WinRTAssemblyLocator::PathMap::value_type Element;
             std::for_each(rawResolver.BeginMetadataFiles(), rawResolver.EndMetadataFiles(), [&](Element const& e)
             {
                 loader->LoadAssembly(e.second);
@@ -580,8 +582,8 @@ namespace CxxReflect {
 
         String const namespaceName(typeName.begin(), std::prev(endOfNamespaceIt));
         
-        IMetadataResolver const& resolver(Private::GetGlobalWinRTUniverse().GetResolver());
-        WinRTMetadataResolver const& winrtResolver(dynamic_cast<WinRTMetadataResolver const&>(resolver));
+        IAssemblyLocator const& resolver(Private::GetGlobalWinRTUniverse().GetAssemblyLocator(InternalKey()));
+        WinRTAssemblyLocator const& winrtResolver(dynamic_cast<WinRTAssemblyLocator const&>(resolver));
 
         String metadataFileName(winrtResolver.FindMetadataFileForNamespace(namespaceName));
         if (metadataFileName.empty())

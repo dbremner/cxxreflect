@@ -35,7 +35,10 @@ namespace CxxReflect {
     {
     public:
 
-        Loader(std::unique_ptr<IAssemblyLocator>   assemblyLocator);
+        // Note:  The auto_ptr overload is provided for use from C++/CLI, which does not yet support
+        // move-only types.  If you aren't using C++/CLI, use the unique_ptr overload.
+        Loader(std::auto_ptr<IAssemblyLocator>   assemblyLocator);
+        Loader(std::unique_ptr<IAssemblyLocator> assemblyLocator);
 
         Loader(Loader&& other);
         Loader& operator=(Loader&& other);
@@ -58,11 +61,11 @@ namespace CxxReflect {
 
         Type GetFundamentalType(Metadata::ElementType const elementType, InternalKey) const;
 
-        Detail::EventContextTable     GetOrCreateEventTable    (Metadata::FullReference const& typeDef) const;
-        Detail::FieldContextTable     GetOrCreateFieldTable    (Metadata::FullReference const& typeDef) const;
-        Detail::InterfaceContextTable GetOrCreateInterfaceTable(Metadata::FullReference const& typeDef) const;
-        Detail::MethodContextTable    GetOrCreateMethodTable   (Metadata::FullReference const& typeDef) const;
-        Detail::PropertyContextTable  GetOrCreatePropertyTable (Metadata::FullReference const& typeDef) const;
+        Detail::EventContextTable     GetOrCreateEventTable    (Metadata::FullReference const& typeDef, InternalKey) const;
+        Detail::FieldContextTable     GetOrCreateFieldTable    (Metadata::FullReference const& typeDef, InternalKey) const;
+        Detail::InterfaceContextTable GetOrCreateInterfaceTable(Metadata::FullReference const& typeDef, InternalKey) const;
+        Detail::MethodContextTable    GetOrCreateMethodTable   (Metadata::FullReference const& typeDef, InternalKey) const;
+        Detail::PropertyContextTable  GetOrCreatePropertyTable (Metadata::FullReference const& typeDef, InternalKey) const;
 
     private:
 

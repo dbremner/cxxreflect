@@ -121,6 +121,12 @@ namespace CxxReflect {
             _context.Get()->GetDatabase().GetTables().GetTable(Metadata::TableId::TypeDef).GetRowCount()));
     }
 
+    Assembly::TypeSequence Assembly::GetTypes() const
+    {
+        AssertInitialized();
+        return TypeSequence(BeginTypes(), EndTypes());
+    }
+
     Type Assembly::GetType(StringReference const namespaceQualifiedTypeName, bool const caseInsensitive) const
     {
         Private::StringComparer const compare(Private::GetStringComparer(caseInsensitive));

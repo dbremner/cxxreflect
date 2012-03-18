@@ -11,9 +11,6 @@
 #include "CxxReflect/Property.hpp"
 #include "CxxReflect/Type.hpp"
 
-// TODO REMOVE CORE COMPONENTS
-#include "CxxReflect/CoreComponents.hpp"
-
 namespace CxxReflect { namespace Detail { namespace { namespace Private {
 
     // A helper function which, given a TypeSpec, returns its TypeSignature.

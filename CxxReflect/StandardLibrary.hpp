@@ -9,7 +9,6 @@
 
 #include <algorithm>
 #include <array>
-#include <atomic>
 #include <bitset>
 #include <cctype>
 #include <cstdint>
@@ -17,18 +16,15 @@
 #include <cstring>
 #include <cwchar>
 #include <functional>
-#include <future>
 #include <iostream>
 #include <iterator>
 #include <map>
 #include <memory>
-#include <mutex>
 #include <numeric>
 #include <set>
 #include <sstream>
 #include <stdexcept>
 #include <string>
-#include <thread>
 #include <type_traits>
 #include <utility>
 #include <vector>

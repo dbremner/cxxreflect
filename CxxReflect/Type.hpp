@@ -113,9 +113,8 @@ namespace CxxReflect { namespace Detail {
 
 
 
-    // The TypeNameBuilder builds type names.  (Really... what did you think it did?)  It can build
-    // any form of name for a type.  This can be fairly expensive, especially for deeply recursive
-    // TypeSpec elements.
+    // The TypeNameBuilder is used to build type names.  It can build any standard form of type
+    // name (simple, namespace-qualified, or assembly-qualified) and any form of TypeSpec.
     class TypeNameBuilder
     {
     public:
@@ -152,6 +151,10 @@ namespace CxxReflect { namespace Detail {
         bool AccumulatePtrTypeSpecName        (Type const& type, Mode mode);
         bool AccumulateSzArrayTypeSpecName    (Type const& type, Mode Mode);
         bool AccumulateVarTypeSpecName        (Type const& type, Mode mode);
+
+        void AccumulateAssemblyQualificationIfRequired(Type const& type, Mode mode);
+
+        static Mode WithoutAssemblyQualification(Mode mode);
 
         String _buffer;
     };
@@ -192,13 +195,22 @@ namespace CxxReflect {
         Type GetBaseType() const;
         Type GetDeclaringType() const;
 
+        Type GetElementType() const;
+
         InterfaceIterator BeginInterfaces()     const;
         InterfaceIterator EndInterfaces()       const;
         Type GetInterface(StringReference name) const;
 
+        // A type has many different names. GetName(), GetFullName(), and GetAssemblyQualifiedName()
+        // all match the CLI Reflection API Type's Name, FullName, and AssemblyQualifiedName.  The
+        // GetBasicName() returns the same result as GetName() for type definitions, but it only
+        // returns the most fundamental element type name for type specifications (e.g., for A.B*,
+        // GetName() would return "A.B*", but GetBasicName() would return "A.B").  GetSimpleName()
+        // is provided for performance.
         String          GetAssemblyQualifiedName() const;
         String          GetFullName()              const;
         String          GetName()                  const;
+        StringReference GetBasicName()             const;
         StringReference GetNamespace()             const;
 
         bool IsAbstract()                const;
@@ -269,14 +281,10 @@ namespace CxxReflect {
         // Attributes
         // ContainsGenericParameters
         // DeclaringMethod
-        // DeclaringType
         // [static] DefaultBinder
-        // FullName
         // GenericParameterAttributes
         // GenericParameterPosition
         // GUID
-        // HasElementType
-        // MemberType
         // Module
         // ReflectedType
         // StructLayoutAttribute

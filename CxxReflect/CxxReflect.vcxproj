@@ -39,7 +39,7 @@
     <ClInclude Include="Property.hpp" />
     <ClInclude Include="StandardLibrary.hpp" />
     <ClInclude Include="Type.hpp" />
-    <ClInclude Include="WinRTIntegration.hpp" />
+    <ClInclude Include="WindowsRuntime.hpp" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Assembly.cpp" />
@@ -65,7 +65,7 @@
     </ClCompile>
     <ClCompile Include="Property.cpp" />
     <ClCompile Include="Type.cpp" />
-    <ClCompile Include="WinRTIntegration.cpp" />
+    <ClCompile Include="WindowsRuntime.cpp" />
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="CxxReflectPlatform.il">

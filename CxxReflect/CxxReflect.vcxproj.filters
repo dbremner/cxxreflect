@@ -43,9 +43,6 @@
     <ClCompile Include="Type.cpp">
       <Filter>Sources\Interface</Filter>
     </ClCompile>
-    <ClCompile Include="WinRTIntegration.cpp">
-      <Filter>Sources\Interface</Filter>
-    </ClCompile>
     <ClCompile Include="Loader.cpp">
       <Filter>Sources\Interface</Filter>
     </ClCompile>
@@ -66,6 +63,9 @@
     </ClCompile>
     <ClCompile Include="ElementContexts.cpp">
       <Filter>Sources\Core</Filter>
+    </ClCompile>
+    <ClCompile Include="WindowsRuntime.cpp">
+      <Filter>Sources\Interface</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -114,9 +114,6 @@
     <ClInclude Include="AssemblyName.hpp">
       <Filter>Headers\Interface</Filter>
     </ClInclude>
-    <ClInclude Include="WinRTIntegration.hpp">
-      <Filter>Headers\Interface</Filter>
-    </ClInclude>
     <ClInclude Include="StandardLibrary.hpp">
       <Filter>Headers\Core</Filter>
     </ClInclude>
@@ -149,6 +146,9 @@
     </ClInclude>
     <ClInclude Include="ElementContexts.hpp">
       <Filter>Headers\Core</Filter>
+    </ClInclude>
+    <ClInclude Include="WindowsRuntime.hpp">
+      <Filter>Headers\Interface</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

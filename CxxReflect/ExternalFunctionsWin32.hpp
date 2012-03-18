@@ -9,7 +9,7 @@
 
 namespace CxxReflect { namespace Detail {
 
-    class Win32ExternalFunctions : IExternalFunctions
+    class Win32ExternalFunctions : public IExternalFunctions
     {
     public:
 

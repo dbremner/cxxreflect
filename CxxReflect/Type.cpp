@@ -139,6 +139,23 @@ namespace CxxReflect { namespace { namespace Private {
         }
     };
 
+    template <typename TTable>
+    TTable GetOrCreateTable(TTable (CxxReflect::Loader::*getOrCreate)(Metadata::FullReference const&, InternalKey) const,
+                            Detail::AssemblyHandle     const& assembly,
+                            Metadata::ElementReference const& type,
+                            InternalKey key)
+    {
+        Metadata::FullReference const typeReference(&assembly.Realize().GetContext(key).GetDatabase(), type);
+
+        TTable const& table((assembly
+            .Realize()
+            .GetContext(key)
+            .GetLoader()
+            .*getOrCreate)(typeReference, key));
+
+        return table; 
+    }
+
 } } }
 
 namespace CxxReflect { namespace Detail {
@@ -198,13 +215,7 @@ namespace CxxReflect { namespace Detail {
 
         _buffer += type.GetTypeDefRow().GetName().c_str();
 
-        if (mode == Mode::AssemblyQualifiedName)
-        {
-            _buffer.push_back(L',');
-            _buffer.push_back(L' ');
-            _buffer += type.GetAssembly().GetName().GetFullName().c_str();
-        }
-
+        AccumulateAssemblyQualificationIfRequired(type, mode);
         return true;
     }
 
@@ -252,19 +263,13 @@ namespace CxxReflect { namespace Detail {
             type.GetTypeSpecSignature().GetTypeReference(),
             InternalKey());
 
-        if (!AccumulateTypeName(classType, mode == Mode::SimpleName ? Mode::SimpleName : Mode::FullName))
+        if (!AccumulateTypeName(classType, WithoutAssemblyQualification(mode)))
             return false;
 
         if (type.GetTypeSpecSignature().IsByRef())
             _buffer.push_back(L'&');
 
-        if (mode == Mode::AssemblyQualifiedName)
-        {
-            _buffer.push_back(L',');
-            _buffer.push_back(L' ');
-            _buffer += classType.GetAssembly().GetName().GetFullName().c_str();
-        }
-
+        AccumulateAssemblyQualificationIfRequired(classType, mode);
         return true;
     }
 
@@ -286,7 +291,7 @@ namespace CxxReflect { namespace Detail {
             type.GetTypeSpecSignature().GetGenericTypeReference(),
             InternalKey());
 
-        if (!AccumulateTypeName(genericType, mode == Mode::SimpleName ? Mode::SimpleName : Mode::FullName))
+        if (!AccumulateTypeName(genericType, WithoutAssemblyQualification(mode)))
             return false;
 
         Metadata::TypeSignature const signature(type.GetTypeSpecSignature());
@@ -328,13 +333,7 @@ namespace CxxReflect { namespace Detail {
         if (signature.IsByRef())
             _buffer.push_back(L'&');
 
-        if (mode == Mode::AssemblyQualifiedName)
-        {
-            _buffer.push_back(L',');
-            _buffer.push_back(L' ');
-            _buffer += genericType.GetAssembly().GetName().GetFullName().c_str();
-        }
-
+        AccumulateAssemblyQualificationIfRequired(genericType, mode);
         return true;
     }
 
@@ -348,19 +347,13 @@ namespace CxxReflect { namespace Detail {
             .GetLoader()
             .GetFundamentalType(type.GetTypeSpecSignature().GetPrimitiveElementType(), InternalKey()));
 
-        if (!AccumulateTypeName(primitiveType, mode == Mode::SimpleName ? Mode::SimpleName : Mode::FullName))
+        if (!AccumulateTypeName(primitiveType, WithoutAssemblyQualification(mode)))
             return false;
 
         if (type.GetTypeSpecSignature().IsByRef())
             _buffer.push_back(L'&');
 
-        if (mode == Mode::AssemblyQualifiedName)
-        {
-            _buffer.push_back(L',');
-            _buffer.push_back(L' ');
-            _buffer += primitiveType.GetAssembly().GetName().GetFullName().c_str();
-        }
-
+        AccumulateAssemblyQualificationIfRequired(primitiveType, mode);
         return true;
     }
 
@@ -373,7 +366,7 @@ namespace CxxReflect { namespace Detail {
             Metadata::BlobReference(type.GetTypeSpecSignature().GetPointerTypeSignature()),
             InternalKey());
 
-        if (!AccumulateTypeName(pointerType, mode == Mode::SimpleName ? Mode::SimpleName : Mode::FullName))
+        if (!AccumulateTypeName(pointerType, WithoutAssemblyQualification(mode)))
             return false;
 
         _buffer.push_back(L'*');
@@ -381,13 +374,7 @@ namespace CxxReflect { namespace Detail {
         if (type.GetTypeSpecSignature().IsByRef())
             _buffer.push_back(L'&');
 
-        if (mode == Mode::AssemblyQualifiedName)
-        {
-            _buffer.push_back(L',');
-            _buffer.push_back(L' ');
-            _buffer += pointerType.GetAssembly().GetName().GetFullName().c_str();
-        }
-
+        AccumulateAssemblyQualificationIfRequired(pointerType, mode);
         return true;
     }
 
@@ -400,7 +387,7 @@ namespace CxxReflect { namespace Detail {
             Metadata::BlobReference(type.GetTypeSpecSignature().GetArrayType()),
             InternalKey());
 
-        if (!AccumulateTypeName(arrayType, mode == Mode::SimpleName ? Mode::SimpleName : Mode::FullName))
+        if (!AccumulateTypeName(arrayType, WithoutAssemblyQualification(mode)))
             return false;
 
         _buffer.push_back(L'[');
@@ -409,13 +396,7 @@ namespace CxxReflect { namespace Detail {
         if (type.GetTypeSpecSignature().IsByRef())
             _buffer.push_back(L'&');
 
-        if (mode == Mode::AssemblyQualifiedName)
-        {
-            _buffer.push_back(L',');
-            _buffer.push_back(L' ');
-            _buffer += arrayType.GetAssembly().GetName().GetFullName().c_str();
-        }
-
+        AccumulateAssemblyQualificationIfRequired(arrayType, mode);
         return true;
     }
 
@@ -426,6 +407,21 @@ namespace CxxReflect { namespace Detail {
         // TODO Do we need to support class and method variables?  If so, how do we decide when to
         // write them to the type name (i.e., sometimes they definitely do not belong).
         return false;
+    }
+
+    void TypeNameBuilder::AccumulateAssemblyQualificationIfRequired(Type const& type, Mode const mode)
+    {
+        if (mode != Mode::AssemblyQualifiedName)
+            return;
+
+        _buffer.push_back(L',');
+        _buffer.push_back(L' ');
+        _buffer += type.GetAssembly().GetName().GetFullName().c_str();
+    }
+
+    TypeNameBuilder::Mode TypeNameBuilder::WithoutAssemblyQualification(Mode const mode)
+    {
+        return mode == Mode::SimpleName ? Mode::SimpleName : Mode::FullName;
     }
 
 } }
@@ -558,7 +554,9 @@ namespace CxxReflect {
             .Realize()
             .GetContext(InternalKey())
             .GetLoader()
-            .GetOrCreateMethodTable(Metadata::FullReference(&_assembly.Realize().GetContext(InternalKey()).GetDatabase(), _type)));
+            .GetOrCreateMethodTable(
+                Metadata::FullReference(&_assembly.Realize().GetContext(InternalKey()).GetDatabase(), _type),
+                InternalKey()));
 
         return MethodIterator(*this, table.Begin(), table.End(), flags);
     }
@@ -577,7 +575,9 @@ namespace CxxReflect {
             .Realize()
             .GetContext(InternalKey())
             .GetLoader()
-            .GetOrCreateEventTable(Metadata::FullReference(&_assembly.Realize().GetContext(InternalKey()).GetDatabase(), _type)));
+            .GetOrCreateEventTable(
+                Metadata::FullReference(&_assembly.Realize().GetContext(InternalKey()).GetDatabase(), _type),
+                InternalKey()));
 
         return EventIterator(*this, table.Begin(), table.End(), flags);
     }
@@ -592,11 +592,7 @@ namespace CxxReflect {
         AssertInitialized();
         Detail::Assert([&]{ return !flags.IsSet(BindingAttribute::InternalUseOnlyMask); });
 
-        Detail::FieldContextTable const& table(_assembly
-            .Realize()
-            .GetContext(InternalKey())
-            .GetLoader()
-            .GetOrCreateFieldTable(Metadata::FullReference(&_assembly.Realize().GetContext(InternalKey()).GetDatabase(), _type)));
+        auto const& table(Private::GetOrCreateTable(&Loader::GetOrCreateFieldTable, _assembly, _type, InternalKey()));
 
         return FieldIterator(*this, table.Begin(), table.End(), flags);
     }
@@ -611,11 +607,7 @@ namespace CxxReflect {
         AssertInitialized();
         Detail::Assert([&]{ return !flags.IsSet(BindingAttribute::InternalUseOnlyMask); });
 
-        Detail::MethodContextTable const& table(_assembly
-            .Realize()
-            .GetContext(InternalKey())
-            .GetLoader()
-            .GetOrCreateMethodTable(Metadata::FullReference(&_assembly.Realize().GetContext(InternalKey()).GetDatabase(), _type)));
+        auto const& table(Private::GetOrCreateTable(&Loader::GetOrCreateMethodTable, _assembly, _type, InternalKey()));
 
         return MethodIterator(*this, table.Begin(), table.End(), flags);
     }
@@ -645,11 +637,7 @@ namespace CxxReflect {
         AssertInitialized();
         Detail::Assert([&]{ return !flags.IsSet(0x10000000); });
 
-        Detail::PropertyContextTable const& table(_assembly
-            .Realize()
-            .GetContext(InternalKey())
-            .GetLoader()
-            .GetOrCreatePropertyTable(Metadata::FullReference(&_assembly.Realize().GetContext(InternalKey()).GetDatabase(), _type)));
+        auto const& table(Private::GetOrCreateTable(&Loader::GetOrCreatePropertyTable, _assembly, _type, InternalKey()));
 
         return PropertyIterator(*this, table.Begin(), table.End(), flags);
     }
@@ -681,11 +669,7 @@ namespace CxxReflect {
     {
         AssertInitialized();
 
-        Detail::InterfaceContextTable const& table(_assembly
-            .Realize()
-            .GetContext(InternalKey())
-            .GetLoader()
-            .GetOrCreateInterfaceTable(Metadata::FullReference(&_assembly.Realize().GetContext(InternalKey()).GetDatabase(), _type)));
+        auto const& table(Private::GetOrCreateTable(&Loader::GetOrCreateInterfaceTable, _assembly, _type, InternalKey()));
 
         return InterfaceIterator(*this, table.Begin(), table.End(), BindingFlags());
     }
@@ -786,6 +770,17 @@ namespace CxxReflect {
         return Type();
     }
 
+    Type Type::GetElementType() const
+    {
+        // Only a TypeSpec has an element type:
+        if (IsTypeDef())
+            return Type();
+
+        // TODO
+        Detail::AssertFail(L"Not yet implemented");
+        return Type();
+    }
+
     String Type::GetAssemblyQualifiedName() const
     {
         return Detail::TypeNameBuilder::BuildTypeName(*this, Detail::TypeNameBuilder::Mode::AssemblyQualifiedName);
@@ -814,6 +809,14 @@ namespace CxxReflect {
     String Type::GetName() const
     {
         return Detail::TypeNameBuilder::BuildTypeName(*this, Detail::TypeNameBuilder::Mode::SimpleName);
+    }
+
+    StringReference Type::GetBasicName() const
+    {
+        return ResolveTypeDefTypeAndCall([](Type const& t)
+        {
+            return t.GetTypeDefRow().GetName();
+        });
     }
 
     StringReference Type::GetNamespace() const

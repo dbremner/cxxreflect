@@ -10,11 +10,10 @@
 // calling Externals::Initialize<Platform>() with the current target platform.
 
 #include "CxxReflect/Configuration.hpp"
-#include "CxxReflect/StandardLibrary.hpp"
 
 namespace CxxReflect {
 
-    enum class Platform
+    enum class Platform : SizeType
     {
         Win32,
         WinRT
@@ -78,7 +77,9 @@ namespace CxxReflect {
         static void Initialize()
         {
             typedef typename Detail::PlatformToExternalFunctions<P>::Type ExternalFunctionsType;
-            Initialize(std::unique_ptr<IExternalFunctions>(new ExternalFunctionsType()));
+
+            std::auto_ptr<IExternalFunctions> instance(new ExternalFunctionsType());
+            Initialize(std::auto_ptr<IExternalFunctions>(instance));
         }
 
         static Sha1Hash ComputeSha1Hash(ConstByteIterator first, ConstByteIterator last);
@@ -100,7 +101,10 @@ namespace CxxReflect {
         Externals& operator=(Externals const&);
         ~Externals();
 
-        static void Initialize(std::unique_ptr<IExternalFunctions> externals);
+        // Note:  We use auto_ptr for compatibility with C++/CLI, which does not support move-only
+        // types.  This is not a publicly accessible interface, so we are not concerned about misuse
+        // of the error-prone auto_ptr type.
+        static void Initialize(std::auto_ptr<IExternalFunctions> externals);
 
         static IExternalFunctions& Get();
     };

@@ -23,6 +23,8 @@ namespace CxxReflect {
         typedef Detail::InstantiatingIterator<Metadata::RowReference, Type,         Assembly> TypeIterator;
         typedef Detail::InstantiatingIterator<Metadata::RowReference, AssemblyName, Assembly> AssemblyNameIterator;
 
+        typedef Detail::RandomAccessSequence<TypeIterator> TypeSequence;
+
         SizeType             GetReferencedAssemblyCount()   const;
         AssemblyNameIterator BeginReferencedAssemblyNames() const;
         AssemblyNameIterator EndReferencedAssemblyNames()   const;
@@ -39,6 +41,7 @@ namespace CxxReflect {
 
         TypeIterator BeginTypes() const;
         TypeIterator EndTypes()   const;
+        TypeSequence GetTypes()   const;
 
         Type GetType(StringReference namespaceQualifiedTypeName, bool caseInsensitive = false) const;
 

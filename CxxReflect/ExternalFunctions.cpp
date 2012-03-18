@@ -9,7 +9,7 @@
 
 namespace CxxReflect { namespace { namespace Private {
 
-    std::unique_ptr<IExternalFunctions> Externals;
+    std::auto_ptr<IExternalFunctions> Externals;
 
 } } }
 
@@ -17,18 +17,22 @@ namespace CxxReflect {
 
     IExternalFunctions::~IExternalFunctions()
     {
-        // Virtual destructor requires no definition
+        // Virtual destructor requires definition; no action is required
     }
 
-    void Externals::Initialize(std::unique_ptr<IExternalFunctions> externals)
+    void Externals::Initialize(std::auto_ptr<IExternalFunctions> externals)
     {
-        // TODO VERIFY EXTERNALS IS NOT YET INITIALIZED
+        if (Private::Externals.get() != nullptr)
+            throw CxxReflect::LogicError(L"Externals was already initialized");
+
         Private::Externals.reset(externals.release());
     }
 
     IExternalFunctions& Externals::Get()
     {
-        // TODO VERIFY EXTERNALS IS VALID
+        if (Private::Externals.get() == nullptr)
+            throw CxxReflect::LogicError(L"Externals was not initialized before use");
+
         return *Private::Externals.get();
     }
 

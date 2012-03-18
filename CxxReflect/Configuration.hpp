@@ -36,7 +36,7 @@
 // (i.e., /ZW).  CxxReflect works fine with both "low-level" and "high-level" C++ code.
 // TODO Make sure the WinRT integration actually works without the /ZW language projections.
 //
-// #define CXXREFLECT_ENABLE_WINDOWS_RUNTIME_INTEGRATION
+#define CXXREFLECT_ENABLE_WINDOWS_RUNTIME_INTEGRATION
 
 //
 // Modify the lines below this point at your own peril.
