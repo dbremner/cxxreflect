@@ -31,43 +31,47 @@ namespace R
 
 namespace
 {
-    class StateStack;
+    ref class StateStack;
 
-    typedef std::function<System::String^()> StateCall;
-
-    class StateFrame
+    ref class StatePopper
     {
     public:
 
-    private:
-
-        std::function<System::String^()> _call;
-    };
-
-    class StatePopper
-    {
-    public:
-
-        StatePopper(StateStack* state)
-            : _state(state)
+        explicit StatePopper(StateStack% state)
+            : _state(%state)
         {
+        }
+
+        // This is an auto_ptr-like resource-stealing copy.  It's evil, yes, but C++/CLI doesn't
+        // support move semantics (yet?), and the way we use this class, it should be safe.
+        StatePopper(StatePopper% other)
+            : _state(other._state)
+        {
+            other._state = nullptr;
         }
 
         ~StatePopper();
 
     private:
 
-        StateStack* _state;
+        StateStack^ _state;
     };
 
-    class StateStack
+    ref class StateStack
     {
     public:
 
-        StatePopper Push(StateCall frameCall)
+        StateStack()
+            : _message(gcnew System::Text::StringBuilder())
         {
-            _stack.push_back(frameCall);
+        }
+
+        StatePopper% Push(System::Object^ frame)
+        {
+            _stack.push_back(frame);
             _isSet = false;
+
+            return *gcnew StatePopper(*this);
         }
 
         void Pop()
@@ -76,22 +80,75 @@ namespace
             _isSet = false;
         }
 
+        void Report(System::String^ name, System::String^ expected, System::String^ actual)
+        {
+            if (!_isSet)
+            {
+                int depth(0);
+                for (auto it(_stack.begin()); it != _stack.end(); ++it)
+                {
+                    _message->AppendLine(System::String::Format(L"{0} * {1}",
+                        gcnew System::String(L' ', depth),
+                        AsString(*it)));
+
+                    depth += 2;
+                }
+
+                _isSet = true;
+            }
+
+            System::String^ pad(gcnew System::String(L' ', 2 * _stack.size()));
+
+            _message->AppendLine(System::String::Format(L"{0} * Incorrect Value for [{1}]:", pad, name));
+
+            _message->AppendLine(System::String::Format(L"{0}   Expected [{1}]", pad, expected));
+            _message->AppendLine(System::String::Format(L"{0}   Actual   [{1}]", pad, actual));
+        }
+
+        System::String^ GetMessages()
+        {
+            return _message->ToString();
+        }
+
     private:
 
-        std::vector<StateCall> _stack;
-        bool                   _isSet;
+        System::String^ AsString(System::Object^ o)
+        {
+            System::Type^ oType(o->GetType());
+            if (R::Assembly::typeid->IsAssignableFrom(oType))
+            {
+                R::Assembly^ a(safe_cast<R::Assembly^>(o));
+                return System::String::Format(L"Assembly [{0}] [{1}]", a->FullName, a->CodeBase);
+            }
+            else if (R::Type::typeid->IsAssignableFrom(oType))
+            {
+                R::Type^ t(safe_cast<R::Type^>(o));
+                return System::String::Format(L"Type [{0}] [${1:x8}]", t->FullName, t->MetadataToken);
+            }
+            else
+            {
+                return L"[UNKNOWN]";
+            }
+
+            // TODO
+        }
+
+        cliext::vector<System::Object^> _stack;
+        bool                            _isSet;
+        System::Text::StringBuilder^    _message;
     };
 
     StatePopper::~StatePopper()
     {
-        _state->Pop();
+        if (_state != nullptr)
+            _state->Pop();
     }
 }
 
 namespace
 {
     template <typename T>
-    System::String^ AsSystemString(T t)               { return gcnew System::String(t.c_str()); }
+    System::String^ AsSystemString(T const& t)        { return gcnew System::String(t.c_str()); }
     System::String^ AsSystemString(System::String^ t) { return t;                               }
     System::String^ AsSystemString(wchar_t const* t)  { return gcnew System::String(t);         }
 
@@ -104,59 +161,171 @@ namespace
         return System::String::Equals(tString, uString, mode);
     }
 
-    void Compare(StateStack&, R::Assembly^,  C::Assembly  const&);
-    void Compare(StateStack&, R::Type^,      C::Type      const&);
-    void Compare(StateStack&, R::Method^,    C::Method    const&);
-    void Compare(StateStack&, R::Parameter^, C::Parameter const&);
+    std::uint32_t GetMetadataToken(C::Method const& x) { return x.GetMetadataToken(); }
+    std::uint32_t GetMetadataToken(C::Type   const& x) { return x.GetMetadataToken(); }
     
-    void Compare(StateStack& state, R::Assembly^ rAssembly, C::Assembly const& cAssembly)
+    std::uint32_t GetMetadataToken(R::Method^       x) { return x->MetadataToken;     }
+    std::uint32_t GetMetadataToken(R::Type^         x) { return x->MetadataToken;     }
+
+    class MetadataTokenStrictWeakOrdering
     {
-        auto const revert([&]{ return gcnew System::String(L""); });
+    public:
+
+        template <typename T>
+        bool operator()(T const& lhs, T const& rhs)
+        {
+            return GetMetadataToken(lhs) < GetMetadataToken(rhs);
+        }
+
+        template <typename T>
+        bool operator()(T^ lhs, T^ rhs)
+        {
+            return GetMetadataToken(lhs) < GetMetadataToken(rhs);
+        }
+    };
+
+    template <typename TExpected, typename TActual>
+    void VerifyStringEquals(StateStack% state, System::String^ name, TExpected expected, TActual actual)
+    {
+        if (StringEquals(expected, actual))
+            return;
+
+        state.Report(name, AsSystemString(expected), AsSystemString(actual));
+    }
+
+    template <typename T, typename U>
+    void VerifyIntegerEquals(StateStack% state, System::String^ name, T expected, U actual)
+    {
+        if ((unsigned)expected == (unsigned)actual)
+            return;
+
+        state.Report(
+            name,
+            System::String::Format("{0:x8}", (unsigned)expected),
+            System::String::Format("{0:x8}", (unsigned)actual));
+    }
+
+    void VerifyBooleanEquals(StateStack% state, System::String^ name, bool expected, bool actual)
+    {
+        if (expected == actual)
+            return;
+
+        state.Report(name, System::String::Format("{0}", expected), System::String::Format("{0}", actual));
+    }
+
+    void Compare(StateStack%, R::Assembly^,  C::Assembly  const&);
+    void Compare(StateStack%, R::Type^,      C::Type      const&);
+    void Compare(StateStack%, R::Method^,    C::Method    const&);
+    void Compare(StateStack%, R::Parameter^, C::Parameter const&);
+    
+    void Compare(StateStack% state, R::Assembly^ rAssembly, C::Assembly const& cAssembly)
+    {
+        auto frame(state.Push(rAssembly));
 
         cliext::vector<R::Type^>  rTypes(rAssembly->GetTypes());
         C::Assembly::TypeSequence cTypes(cAssembly.GetTypes());
 
-        cliext::sort(rTypes.begin(), rTypes.end(), [](R::Type^ lhs, R::Type^ rhs) -> bool
-        {
-            return lhs->MetadataToken < rhs->MetadataToken;
-        });
-
-        std::sort(cTypes.begin(), cTypes.end(), [](C::Type lhs, C::Type rhs) -> bool
-        {
-            return lhs.GetMetadataToken() < rhs.GetMetadataToken();
-        });
+        cliext::sort(rTypes.begin(), rTypes.end(), MetadataTokenStrictWeakOrdering());
+        std::sort(cTypes.begin(), cTypes.end(), MetadataTokenStrictWeakOrdering());
 
         auto rIt(rTypes.begin());
         auto cIt(cTypes.begin());
         for (; rIt != rTypes.end() && cIt != cTypes.end(); ++rIt, ++cIt)
-        {
-            if (!StringEquals(rIt->Name, cIt->GetName()))
-            {
-                int x = 42;
-            }
+        {   
+            Compare(state, *rIt, *cIt);
         }
+    }
+
+    void Compare(StateStack% state, R::Type^ rType, C::Type const& cType)
+    {
+        auto frame(state.Push(rType));
+
+        // Assembly
+        VerifyStringEquals(state, L"AssemblyQualifiedName", rType->AssemblyQualifiedName, cType.GetAssemblyQualifiedName());
+        VerifyIntegerEquals(state, L"Attributes", rType->Attributes, cType.GetAttributes().GetIntegral());
+        // BaseType
+
+        // VerifyBooleanEquals(state, L"ContainsGenericParameters", rType->ContainsGenericParameters, cType.ContainsGenericParameters());
+        // CustomAttributes
+        // DeclaringMethods
+        VerifyStringEquals(state, L"FullName", rType->FullName, cType.GetFullName());
+        rType->G
+        VerifyStringEquals(state, L"Name", rType->Name, cType.GetName());
+
+        #define VERIFY_IS(r, c) VerifyBooleanEquals(state, # r, rType->r, cType.c());
+
+        VERIFY_IS(IsAbstract,              IsAbstract               );
+        VERIFY_IS(IsAnsiClass,             IsAnsiClass              );
+        VERIFY_IS(IsArray,                 IsArray                  );
+        VERIFY_IS(IsAutoClass,             IsAutoClass              );
+        VERIFY_IS(IsAutoLayout,            IsAutoLayout             );
+        VERIFY_IS(IsByRef,                 IsByRef                  );
+        VERIFY_IS(IsClass,                 IsClass                  );
+        VERIFY_IS(IsCOMObject,             IsComObject              );
+        VERIFY_IS(IsContextful,            IsContextful             );
+        VERIFY_IS(IsEnum,                  IsEnum                   );
+        VERIFY_IS(IsExplicitLayout,        IsExplicitLayout         );
+        VERIFY_IS(IsGenericParameter,      IsGenericParameter       );
+        VERIFY_IS(IsGenericType,           IsGenericType            );
+        VERIFY_IS(IsGenericTypeDefinition, IsGenericTypeDefinition  );
+        VERIFY_IS(IsImport,                IsImport                 );
+        VERIFY_IS(IsInterface,             IsInterface              );
+        VERIFY_IS(IsLayoutSequential,      IsLayoutSequential       );
+        VERIFY_IS(IsMarshalByRef,          IsMarshalByRef           );
+        VERIFY_IS(IsNested,                IsNested                 );
+        VERIFY_IS(IsNestedAssembly,        IsNestedAssembly         );
+        VERIFY_IS(IsNestedFamANDAssem,     IsNestedFamilyAndAssembly);
+        VERIFY_IS(IsNestedFamily,          IsNestedFamily           );
+        VERIFY_IS(IsNestedFamORAssem,      IsNestedFamilyOrAssembly );
+        VERIFY_IS(IsNestedPrivate,         IsNestedPrivate          );
+        VERIFY_IS(IsNestedPublic,          IsNestedPublic           );
+        VERIFY_IS(IsNotPublic,             IsNotPublic              );
+        VERIFY_IS(IsPointer,               IsPointer                );
+        VERIFY_IS(IsPrimitive,             IsPrimitive              );
+        VERIFY_IS(IsPublic,                IsPublic                 );
+        VERIFY_IS(IsSealed,                IsSealed                 );
+        //        IsSecurityCritical
+        //        IsSecuritySafeCritical
+        //        IsSecurityTransparent
+        VERIFY_IS(IsSerializable,          IsSerializable           );
+        VERIFY_IS(IsSpecialName,           IsSpecialName            );
+        VERIFY_IS(IsUnicodeClass,          IsUnicodeClass           );
+        VERIFY_IS(IsValueType,             IsValueType              );
+        VERIFY_IS(IsVisible,               IsVisible                );
+
+        #undef VERIFY_IS
+
+        VerifyStringEquals(state, L"Name", rType->Name, cType.GetName());
     }
 }
 
 int main()
 {
-    wchar_t const* const assemblyPath(L"C:\\Windows\\Microsoft.NET\\Framework\\v4.0.30319\\mscorlib.dll");
+    wchar_t const* const assemblyPath(L"C:\\Windows\\Microsoft.NET\\Framework\\v4.0.30319\\system.core.dll");
 
     // Load the assembly using CxxReflect:
     C::Externals::Initialize<CxxReflect::Platform::Win32>();
 
     C::DirectoryBasedAssemblyLocator::DirectorySet directories;
     directories.insert(L"C:\\Windows\\Microsoft.NET\\Framework\\v4.0.30319");
+    directories.insert(L"C:\\Windows\\Microsoft.NET\\Framework\\v4.0.30319\\wpf");
     std::auto_ptr<C::IAssemblyLocator> resolver(new C::DirectoryBasedAssemblyLocator(directories));
     C::Loader loader(resolver);
     C::Assembly cAssembly(loader.LoadAssembly(assemblyPath));
 
     // Load the assembly using Reflection:
-    R::Assembly^ rAssembly(R::Assembly::ReflectionOnlyLoadFrom(gcnew System::String(assemblyPath)));
+    R::Assembly^ rAssembly(R::Assembly::LoadFrom(gcnew System::String(assemblyPath)));
 
     StateStack state;
 
     Compare(state, rAssembly, cAssembly);
+
+    System::IO::StreamWriter^ resultFile(gcnew System::IO::StreamWriter(L"c:\\jm\\reflectresult.txt"));
+    resultFile->Write(state.GetMessages());
+    resultFile->Close();
+
+    // TODO THE Two-component GetType() doesn't work.
+    C::Type const& a(cAssembly.GetType(L"System.IO.MemoryMappedFiles.MemoryMappedFileSecurity"));
 
     return 0;
 }

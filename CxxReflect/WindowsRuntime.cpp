@@ -13,6 +13,11 @@
 #include "CxxReflect/Loader.hpp"
 #include "CxxReflect/Type.hpp"
 
+// Note:  We cannot include any of the concurrency headers in our headers because they cannot be
+// used in a C++/CLI program.  This source file only has functionality usable from a Windows Runtime
+// program.   Windows Runtime and C++/CLI cannot be used together, so usage of these Standard 
+// Library components here is safe.
+#include <atomic>
 #include <future>
 #include <thread>
 
@@ -22,23 +27,123 @@
 #include <windows.h>
 #include <winstring.h>
 
+
+
+
+
+//
+//
+// GLOBAL WINDOWS RUNTIME METADATA LOADER
+//
+//
+
 namespace CxxReflect { namespace { namespace Private {
 
-    // TODO These statics require initialization on the main thread, otherwise there may be an 
-    // initialization race.  We should synchronize access to them during initialization.
-    bool                                 _globalWinRTUniverseInitializationStarted;
-    std::future<std::unique_ptr<Loader>> _globalWinRTUniverseFuture;
-    std::unique_ptr<Loader>              _globalWinRTUniverse;
+    typedef std::atomic<bool>                           InitializedFlag;
+    typedef std::shared_future<std::unique_ptr<Loader>> LoaderFuture;
+    typedef std::mutex                                  LoaderMutex;
+    typedef std::unique_lock<LoaderMutex>               LoaderLock;
 
-    Loader& GetGlobalWinRTUniverse()
+    // To help us to avoid silly mistakes, we encapsulate the synchronized Loader using this
+    // LoaderLease class.  It is only possible to get the Loader instance through a lease (the
+    // GlobalWindowsRuntimeLoader class, below, ensures this).  This doesn't prevent obviously
+    // stupid code, e.g., storing a pointer to the loader, then using that pointer after the
+    // lease is released (i.e., destroyed), but it helps to prevent subtle issues.  Perhaps.
+    class LoaderLease
     {
-        if (_globalWinRTUniverse == nullptr)
-            _globalWinRTUniverse = _globalWinRTUniverseFuture.get();
+    public:
 
-        return *_globalWinRTUniverse;
-    }
+        LoaderLease(Loader& loader, LoaderMutex& mutex)
+            : _loader(&loader), _lock(mutex)
+        {
+        }
 
-    // An RAII wrapper around the HSTRING type, providing a container-like interface to the HSTRING.
+        LoaderLease(LoaderLease&& other)
+            : _loader(other._loader), _lock(std::move(other._lock))
+        {
+            other._loader.Reset();
+        }
+
+        LoaderLease& operator=(LoaderLease&& other)
+        {
+            _loader = other._loader;
+            _lock = std::move(other._lock);
+
+            other._loader.Reset();
+
+            return *this;
+        }
+
+        Loader& Get() const
+        {
+            return *_loader.Get();
+        }
+
+    private:
+
+        LoaderLease(LoaderLease const&);
+        LoaderLease& operator=(LoaderLease const&);
+
+        Detail::ValueInitialized<Loader*> _loader;
+        LoaderLock                        _lock;
+    };
+
+    class GlobalWindowsRuntimeLoader
+    {
+    public:
+
+        static void Initialize(LoaderFuture&& loader)
+        {
+            bool expected(false);
+            if (!_initialized.compare_exchange_strong(expected, true))
+                throw LogicError(L"Global Windows Runtime Loader was already initialized");
+
+            _loader = std::move(loader);
+        }
+
+        static LoaderLease Lease()
+        {
+            Detail::Assert([&]{ return _initialized.load(); });
+
+            Loader* const loader(_loader.get().get());
+            Detail::Verify([&]{ return loader != nullptr; }, L"Global Windows Runtime Loader is not valid");
+
+            return LoaderLease(*loader, _mutex);
+        }
+
+        static bool IsInitialized() { return _initialized.load(); }
+        static bool IsReady()       { return _loader.valid();     }
+
+    private:
+
+        // This type is not constructible.  It exists solely to prevent direct access to _loader.
+        GlobalWindowsRuntimeLoader();
+        GlobalWindowsRuntimeLoader(GlobalWindowsRuntimeLoader const&);
+        GlobalWindowsRuntimeLoader& operator=(GlobalWindowsRuntimeLoader const&);
+
+        static InitializedFlag _initialized;
+        static LoaderFuture    _loader;
+        static LoaderMutex     _mutex;
+    };
+
+    InitializedFlag GlobalWindowsRuntimeLoader::_initialized;
+    LoaderFuture    GlobalWindowsRuntimeLoader::_loader;
+    LoaderMutex     GlobalWindowsRuntimeLoader::_mutex;
+
+} } }
+
+
+
+
+
+//
+//
+// HSTRING CONTAINER WRAPPER AND UTILITIES
+//
+//
+
+namespace CxxReflect { namespace { namespace Private {
+
     class SmartHString
     {
     public:
@@ -258,6 +363,20 @@ namespace CxxReflect { namespace { namespace Private {
         Detail::ValueInitialized<HSTRING*> _array;
     };
 
+} } }
+
+
+
+
+
+//
+//
+// LOW-LEVEL DYNAMIC METHOD INVOCATION UTILITIES AND VTABLE HELPERS
+//
+//
+
+namespace CxxReflect { namespace { namespace Private {
+
     // Contains logic for invoking a virtual function on an object via vtable lookup.  Currently this
     // only supports functions that take no arguments or that take one or two reference-type arguments.
     // TODO Add support for value-type arguments.  This may or may not be very easy.
@@ -424,6 +543,16 @@ namespace CxxReflect { namespace { namespace Private {
 
 } } }
 
+
+
+
+
+//
+//
+// HEADER-DEFINED PUBLIC (AND NOT-SO-PUBLIC) INTERFACE
+//
+//
+
 namespace CxxReflect {
 
     WinRTAssemblyLocator::WinRTAssemblyLocator(String const& packageRoot)
@@ -538,10 +667,11 @@ namespace CxxReflect {
 
     void WinRTPackageMetadata::BeginInitialization(String const& platformMetadataPath)
     {
-        if (Private::_globalWinRTUniverseInitializationStarted)
+        if (Private::GlobalWindowsRuntimeLoader::IsInitialized())
             return;
 
-        Private::_globalWinRTUniverseFuture = std::async(std::launch::async, [=]() -> std::unique_ptr<Loader>
+        Private::GlobalWindowsRuntimeLoader::Initialize(std::async(std::launch::async,
+        [=]() -> std::unique_ptr<Loader>
         {
             std::unique_ptr<WinRTAssemblyLocator> resolver(new WinRTAssemblyLocator(platformMetadataPath));
             WinRTAssemblyLocator const& rawResolver(*resolver.get());
@@ -555,17 +685,17 @@ namespace CxxReflect {
             });
 
             return loader;
-        });
+        }));
     }
 
     bool WinRTPackageMetadata::HasInitializationBegun()
     {
-        return Private::_globalWinRTUniverseInitializationStarted;
+        return Private::GlobalWindowsRuntimeLoader::IsInitialized();
     }
 
     bool WinRTPackageMetadata::IsInitialized()
     {
-        return Private::_globalWinRTUniverseFuture.valid() || Private::_globalWinRTUniverse != nullptr;
+        return Private::GlobalWindowsRuntimeLoader::IsReady();
     }
 
     Type WinRTPackageMetadata::GetTypeOf(IInspectable* const inspectable)
@@ -581,15 +711,17 @@ namespace CxxReflect {
         Detail::Assert([&]{ return endOfNamespaceIt != typeName.rend().base(); });
 
         String const namespaceName(typeName.begin(), std::prev(endOfNamespaceIt));
+
+        Private::LoaderLease loader(Private::GlobalWindowsRuntimeLoader::Lease());
         
-        IAssemblyLocator const& resolver(Private::GetGlobalWinRTUniverse().GetAssemblyLocator(InternalKey()));
+        IAssemblyLocator const& resolver(loader.Get().GetAssemblyLocator(InternalKey()));
         WinRTAssemblyLocator const& winrtResolver(dynamic_cast<WinRTAssemblyLocator const&>(resolver));
 
         String metadataFileName(winrtResolver.FindMetadataFileForNamespace(namespaceName));
         if (metadataFileName.empty())
             return Type();
 
-        Assembly assembly(Private::GetGlobalWinRTUniverse().LoadAssembly(metadataFileName));
+        Assembly assembly(loader.Get().LoadAssembly(metadataFileName));
         if (!assembly.IsInitialized())
             return Type();
 

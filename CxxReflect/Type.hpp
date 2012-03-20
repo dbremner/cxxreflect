@@ -190,7 +190,8 @@ namespace CxxReflect {
 
         Metadata::ElementReference GetSelfReference(InternalKey) const { return _type; }
 
-        SizeType GetMetadataToken() const;
+        SizeType  GetMetadataToken() const;
+        TypeFlags GetAttributes()    const;
 
         Type GetBaseType() const;
         Type GetDeclaringType() const;
@@ -278,7 +279,6 @@ namespace CxxReflect {
 
         bool operator!() const { return !IsInitialized(); }
 
-        // Attributes
         // ContainsGenericParameters
         // DeclaringMethod
         // [static] DefaultBinder

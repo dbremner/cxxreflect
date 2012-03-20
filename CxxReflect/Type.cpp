@@ -448,7 +448,9 @@ namespace CxxReflect {
             .GetLoader()
             .GetContextForDatabase(resolvedType.GetDatabase(), InternalKey()), InternalKey());
 
-        _type = resolvedType.AsRowReference();
+        _type = resolvedType.IsRowReference()
+            ? Metadata::ElementReference(resolvedType.AsRowReference())
+            : Metadata::ElementReference(resolvedType.AsBlobReference());
     }
 
     Type::Type(Assembly const& assembly, Metadata::BlobReference const& type, InternalKey)
@@ -719,7 +721,7 @@ namespace CxxReflect {
             case Metadata::TableId::TypeDef:
             case Metadata::TableId::TypeRef:
             case Metadata::TableId::TypeSpec:
-                return Type(_assembly.Realize(), extends, InternalKey());
+                return Type(t.GetAssembly(), extends, InternalKey());
 
             default:
                 Detail::AssertFail(L"Unreachable Code");
@@ -803,6 +805,14 @@ namespace CxxReflect {
         return ResolveTypeDefTypeAndCall([](Type const& t)
         {
            return t._type.IsRowReference() ? t._type.AsRowReference().GetToken() : 0; 
+        });
+    }
+
+    TypeFlags Type::GetAttributes() const
+    {
+        return ResolveTypeDefTypeAndCall([](Type const& t)
+        {
+            return t.GetTypeDefRow().GetFlags();
         });
     }
 
