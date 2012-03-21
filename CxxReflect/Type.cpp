@@ -258,8 +258,18 @@ namespace CxxReflect { namespace Detail {
     {
         Assert([&]{ return type.GetTypeSpecSignature().IsKind(Metadata::TypeSignature::Kind::ClassType); });
 
+        Metadata::Database const* const database(type.GetTypeSpecSignature().GetTypeReferenceScope());
+
+        Assembly const assembly(database != nullptr
+            ? Assembly(&type
+                .GetAssembly()
+                .GetContext(InternalKey())
+                .GetLoader()
+                .GetContextForDatabase(*database, InternalKey()), InternalKey())
+            : type.GetAssembly());
+
         Type const classType(
-            type.GetAssembly(),
+            assembly,
             type.GetTypeSpecSignature().GetTypeReference(),
             InternalKey());
 

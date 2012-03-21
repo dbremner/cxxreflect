@@ -37,32 +37,32 @@ namespace CxxReflect { namespace Detail { namespace { namespace Private {
 
     // A pair that contains a TypeDef and a TypeSpec.  The TypeDef is guaranteed to be present, but
     // the TypeSpec may or may not be present.  This pair type is returned by ResolveTypeDefAndSpec.
-    class TypeDefAndSpec
+    class TypeDefAndSignature
     {
     public:
 
-        TypeDefAndSpec(Metadata::FullReference const& typeDef)
+        TypeDefAndSignature(Metadata::FullReference const& typeDef)
             : _typeDef(typeDef)
         {
             Assert([&]{ return typeDef.AsRowReference().GetTable() == Metadata::TableId::TypeDef; });
         }
 
-        TypeDefAndSpec(Metadata::FullReference const& typeDef, Metadata::FullReference const& typeSpec)
-            : _typeDef (typeDef ),
-              _typeSpec(typeSpec)
+        TypeDefAndSignature(Metadata::FullReference const& typeDef, Metadata::FullReference const& typeSignature)
+            : _typeDef      (typeDef      ),
+              _typeSignature(typeSignature)
         {
-            Assert([&]{ return typeDef .AsRowReference().GetTable() == Metadata::TableId::TypeDef;  });
-            Assert([&]{ return typeSpec.AsRowReference().GetTable() == Metadata::TableId::TypeSpec; });
+            Assert([&]{ return typeDef.AsRowReference().GetTable() == Metadata::TableId::TypeDef;  });
+            Assert([&]{ return typeSignature.IsBlobReference();                                    });
         }
 
-        Metadata::FullReference const& GetTypeDef()  const { return _typeDef;                  }
-        Metadata::FullReference const& GetTypeSpec() const { return _typeSpec;                 }
-        bool                           HasTypeSpec() const { return _typeSpec.IsInitialized(); }
+        Metadata::FullReference const& GetTypeDef()       const { return _typeDef;                       }
+        Metadata::FullReference const& GetTypeSignature() const { return _typeSignature;                 }
+        bool                           HasTypeSignature() const { return _typeSignature.IsInitialized(); }
 
     private:
 
         Metadata::FullReference _typeDef;
-        Metadata::FullReference _typeSpec;
+        Metadata::FullReference _typeSignature;
     };
 
 
@@ -76,36 +76,71 @@ namespace CxxReflect { namespace Detail { namespace { namespace Private {
     //       returned as the TypeDef and the TypeSpec is returned as the TypeSpec.
     //  * ...TypeRef, it is resolved to the TypeDef or TypeSpec to which it refers.  The function
     //       then behaves as if that TypeDef or TypeSpec was passed directly into this function.
-    TypeDefAndSpec ResolveTypeDefAndSpec(Metadata::ITypeResolver const& typeResolver,
-                                         Metadata::FullReference const& originalType)
+    TypeDefAndSignature ResolveTypeDefAndSignature(Metadata::ITypeResolver const& typeResolver,
+                                                   Metadata::FullReference const& originalType)
     {
         Assert([&]{ return originalType.IsInitialized(); });
 
-        // Resolve the original type; this will give us either a TypeDef or a TypeSpec:
-        Metadata::FullReference const resolvedType(typeResolver.ResolveType(originalType));
+        if (originalType.IsRowReference())
+        {
+            // Resolve the original type; this will give us either a TypeDef or a TypeSpec:
+            Metadata::FullReference const resolvedType(typeResolver.ResolveType(originalType));
 
-        // If we resolve 'type' to a TypeDef, there is no TypeSpec so we can just return the TypeDef:
-        if (resolvedType.AsRowReference().GetTable() == Metadata::TableId::TypeDef)
-            return TypeDefAndSpec(resolvedType);
+            // If we resolve 'type' to a TypeDef, there is no TypeSpec so we can just return the TypeDef:
+            if (resolvedType.AsRowReference().GetTable() == Metadata::TableId::TypeDef)
+                return TypeDefAndSignature(resolvedType);
 
-        // Otherwise, we must have a TypeSpec, and we need to resolve the TypeDef to which it refers:
-        Verify([&]{ return resolvedType.AsRowReference().GetTable() == Metadata::TableId::TypeSpec; });
+            // Otherwise, we must have a TypeSpec, and we need to resolve the TypeDef to which it refers:
+            Verify([&]{ return resolvedType.AsRowReference().GetTable() == Metadata::TableId::TypeSpec; });
 
-        Metadata::TypeSignature const typeSignature(GetTypeSpecSignature(resolvedType));
+            Metadata::TypeSignature const typeSignature(GetTypeSpecSignature(resolvedType));
 
-        // We are only expecting to resolve to a base class, so we only expect a GenericInst:
-        Verify([&]{ return typeSignature.GetKind() == Metadata::TypeSignature::Kind::GenericInst; });
+            // We are only expecting to resolve to a base class, so we only expect a GenericInst:
+            Verify([&]{ return typeSignature.GetKind() == Metadata::TypeSignature::Kind::GenericInst; });
 
-        // Re-resolve the generic type reference to the TypeDef it instantiates:
-        Metadata::FullReference const reResolvedType(typeResolver.ResolveType(Metadata::FullReference(
-            &resolvedType.GetDatabase(),
-            typeSignature.GetGenericTypeReference())));
+            // Re-resolve the generic type reference to the TypeDef it instantiates:
+            Metadata::FullReference const reResolvedType(typeResolver.ResolveType(Metadata::FullReference(
+                &resolvedType.GetDatabase(),
+                typeSignature.GetGenericTypeReference())));
 
-        // A GenericInst should refer to a TypeDef or a TypeRef, never another TypeSpec.  We resolve
-        // the TypeRef above, so at this point we should always have a TypeDef:
-        Verify([&]{ return reResolvedType.AsRowReference().GetTable() == Metadata::TableId::TypeDef; });
+            // A GenericInst should refer to a TypeDef or a TypeRef, never another TypeSpec.  We resolve
+            // the TypeRef above, so at this point we should always have a TypeDef:
+            Verify([&]{ return reResolvedType.AsRowReference().GetTable() == Metadata::TableId::TypeDef; });
 
-        return TypeDefAndSpec(reResolvedType, resolvedType);
+            return TypeDefAndSignature(reResolvedType, Metadata::FullReference(
+                &resolvedType.GetDatabase(),
+                Metadata::BlobReference(GetTypeSpecSignature(resolvedType))));
+        }
+        else if (originalType.IsBlobReference())
+        {
+            Metadata::BlobReference originalBlob(originalType.AsBlobReference());
+            if (originalBlob.HasEncodedLength())
+            {
+                Metadata::Blob const blob(originalType.GetDatabase().GetBlob(originalBlob));
+                originalBlob = Metadata::BlobReference(blob.Begin(), blob.End());
+            }
+            Metadata::TypeSignature const typeSignature(originalBlob.Begin(), originalBlob.End());
+
+            // We are only expecting to resolve to a base class, so we only expect a GenericInst:
+            Verify([&]{ return typeSignature.GetKind() == Metadata::TypeSignature::Kind::GenericInst; });
+
+            // Re-resolve the generic type reference to the TypeDef it instantiates:
+            Metadata::FullReference const reResolvedType(typeResolver.ResolveType(Metadata::FullReference(
+                &originalType.GetDatabase(),
+                typeSignature.GetGenericTypeReference())));
+
+            // A GenericInst should refer to a TypeDef or a TypeRef, never another TypeSpec.  We resolve
+            // the TypeRef above, so at this point we should always have a TypeDef:
+            Verify([&]{ return reResolvedType.AsRowReference().GetTable() == Metadata::TableId::TypeDef; });
+
+            return TypeDefAndSignature(reResolvedType, Metadata::FullReference(
+                &originalType.GetDatabase(),
+                Metadata::BlobReference(originalBlob.Begin(), originalBlob.End())));
+        }
+        else
+        {
+            throw LogicError(L"Unreachable code");
+        }
     }
 
 
@@ -228,15 +263,16 @@ namespace CxxReflect { namespace Detail { namespace { namespace Private {
     Metadata::ClassVariableSignatureInstantiator CreateInstantiator(Metadata::FullReference const& type)
     {
         // If 'type' isn't a TypeSpec, there is nothing to instantiate:
-        if (!type.IsInitialized() || type.AsRowReference().GetTable() != Metadata::TableId::TypeSpec)
+        if (!type.IsInitialized() || !type.IsBlobReference())
             return Metadata::ClassVariableSignatureInstantiator();
 
-        Metadata::TypeSignature const typeSignature(GetTypeSpecSignature(type));
+        Metadata::TypeSignature const typeSignature(type.AsBlobReference().Begin(), type.AsBlobReference().End());
 
         // We are only expecting to get base classes here, so it should be a GenericInst TypeSpec:
         Verify([&]{ return typeSignature.GetKind() == Metadata::TypeSignature::Kind::GenericInst; });
 
         return Metadata::ClassVariableSignatureInstantiator(
+            &type.GetDatabase(),
             typeSignature.BeginGenericArguments(),
             typeSignature.EndGenericArguments());
     }
@@ -765,16 +801,16 @@ namespace CxxReflect { namespace Detail {
         // that we can reuse it.
         ScopeGuard const bufferCleanupGuard([&]{ _buffer.resize(0); });
 
-        Private::TypeDefAndSpec const typeDefAndSpec(Private::ResolveTypeDefAndSpec(*_typeResolver.Get(), type));
-        FullReference const& typeDefReference(typeDefAndSpec.GetTypeDef());
-        FullReference const& typeSpecReference(typeDefAndSpec.GetTypeSpec());
+        Private::TypeDefAndSignature const typeDefAndSig(Private::ResolveTypeDefAndSignature(*_typeResolver.Get(), type));
+        FullReference const& typeDefReference(typeDefAndSig.GetTypeDef());
+        FullReference const& typeSigReference(typeDefAndSig.GetTypeSignature());
 
         Metadata::Database const& database(typeDefReference.GetDatabase());
 
         SizeType const typeDefIndex(typeDefReference.AsRowReference().GetIndex());
         Metadata::TypeDefRow const typeDef(database.GetRow<Metadata::TableId::TypeDef>(typeDefIndex));
 
-        Instantiator const instantiator(Private::CreateInstantiator(typeSpecReference));
+        Instantiator const instantiator(Private::CreateInstantiator(typeSigReference));
 
         // First, recursively handle the base type hierarchy so that inherited members are emplaced
         // into the table first; this allows us to emulate runtime overriding and hiding behaviors.
@@ -829,7 +865,7 @@ namespace CxxReflect { namespace Detail {
                 : ConstByteRange(elementSig.BeginBytes(), elementSig.EndBytes()));
 
             ContextType const ownedElement(instantiatedSig.IsInitialized()
-                ? ContextType(typeDefReference, elementDefReference, typeSpecReference, instantiatedSig)
+                ? ContextType(typeDefReference, elementDefReference, typeSigReference, instantiatedSig)
                 : ContextType(typeDefReference, elementDefReference));
 
             return InsertIntoBuffer(ownedElement, inheritedMemberCount);

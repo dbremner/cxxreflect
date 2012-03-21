@@ -86,7 +86,9 @@ namespace CxxReflect { namespace Metadata {
         CustomAttributeBoxedObject = 0x51,
         CustomAttributeField       = 0x53,
         CustomAttributeProperty    = 0x54,
-        CustomAttributeEnum        = 0x55
+        CustomAttributeEnum        = 0x55,
+
+        CrossModuleTypeReference   = 0x5f
     };
 
     CXXREFLECT_GENERATE_SCOPED_ENUM_OPERATORS(ElementType);
@@ -100,7 +102,7 @@ namespace CxxReflect { namespace Metadata {
             1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
             0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
             1, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-            1, 1, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+            1, 1, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1
         };
 
         return id < mask.size() && mask[id] == 1;
@@ -608,6 +610,7 @@ namespace CxxReflect { namespace Metadata {
             SzArrayType              = static_cast<SizeType>(Kind::SzArray)     + 0x04,
 
             ClassTypeReference       = static_cast<SizeType>(Kind::ClassType)   + 0x04,
+            ClassTypeScope           = static_cast<SizeType>(Kind::ClassType)   + 0x05,
 
             MethodSignature          = static_cast<SizeType>(Kind::FnPtr)       + 0x04,
 
@@ -638,6 +641,7 @@ namespace CxxReflect { namespace Metadata {
         ConstByteIterator SeekTo(Part part) const;
         Kind              GetKind()         const;
         bool              IsKind(Kind kind) const;
+        ElementType       GetElementType()  const;
 
         // FieldSig, PropertySig, Param, RetType signatures, and PTR and SZARRAY Type signatures:
         CustomModifierIterator BeginCustomModifiers() const;
@@ -658,9 +662,10 @@ namespace CxxReflect { namespace Metadata {
         ArrayShape    GetArrayShape()  const; // ARRAY only
 
         // CLASS and VALUETYPE:
-        bool         IsClassType()      const;
-        bool         IsValueType()      const;
-        RowReference GetTypeReference() const;
+        bool            IsClassType()           const;
+        bool            IsValueType()           const;
+        RowReference    GetTypeReference()      const;
+        Database const* GetTypeReferenceScope() const;
 
         // FNPTR:
         bool            IsFunctionPointer()  const;
@@ -685,8 +690,6 @@ namespace CxxReflect { namespace Metadata {
         SizeType GetVariableNumber()    const;
 
     private:
-
-        ElementType GetElementType() const;
 
         void AssertKind(Kind kind) const;
     };
@@ -735,10 +738,26 @@ namespace CxxReflect { namespace Metadata {
         ClassVariableSignatureInstantiator();
 
         template <typename TForIt>
-        ClassVariableSignatureInstantiator(TForIt const firstArgument, TForIt const lastArgument)
-            : _arguments(firstArgument, lastArgument)
+        ClassVariableSignatureInstantiator(Database const* scope,
+                                           TForIt   const  firstArgument,
+                                           TForIt   const  lastArgument)
+            : _scope(scope)
         {
+            Detail::AssertNotNull(scope);
+
+            std::transform(firstArgument, lastArgument, std::back_inserter(_arguments),
+                           [&](TypeSignature const& s) -> TypeSignature
+            {
+                _argumentSignatures.resize(_argumentSignatures.size() + 1);
+                InstantiateInto(_argumentSignatures.back(), s);
+                return TypeSignature(
+                    &*_argumentSignatures.back().begin(),
+                    &*_argumentSignatures.back().begin() + _argumentSignatures.back().size());
+            });
         }
+
+        ClassVariableSignatureInstantiator(ClassVariableSignatureInstantiator&&);
+        ClassVariableSignatureInstantiator& operator=(ClassVariableSignatureInstantiator&&);
 
         bool HasArguments() const { return !_arguments.empty(); }
 
@@ -758,6 +777,9 @@ namespace CxxReflect { namespace Metadata {
 
         typedef std::vector<TypeSignature> TypeSignatureSequence;
         typedef std::vector<Byte>          InternalBuffer;
+
+        ClassVariableSignatureInstantiator(ClassVariableSignatureInstantiator const&);
+        ClassVariableSignatureInstantiator& operator=(ClassVariableSignatureInstantiator const&);
 
         void InstantiateInto(InternalBuffer& buffer, ArrayShape        const& s) const;
         void InstantiateInto(InternalBuffer& buffer, FieldSignature    const& s) const;
@@ -780,8 +802,10 @@ namespace CxxReflect { namespace Metadata {
         template <typename TForIt>
         static bool AnyRequiresInstantiationInternal(TForIt first, TForIt last);
 
-        InternalBuffer        mutable _buffer;
-        TypeSignatureSequence         _arguments;
+        InternalBuffer                            mutable _buffer;
+        TypeSignatureSequence                             _arguments;
+        std::vector<InternalBuffer>                       _argumentSignatures;
+        Detail::ValueInitialized<Database const*>         _scope;
     };
 
 } }

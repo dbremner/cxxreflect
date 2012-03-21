@@ -178,6 +178,22 @@ namespace CxxReflect { namespace Metadata { namespace { namespace Private {
         return ReadElementType(it, last);
     }
 
+    std::uintptr_t ReadPointer(ConstByteIterator& it, ConstByteIterator const last)
+    {
+        if (std::distance(it, last) < sizeof(std::uintptr_t))
+            throw MetadataReadError(Private::IteratorReadUnexpectedEnd);
+
+        std::uintptr_t value(0);
+        std::copy(it, it + sizeof(std::uintptr_t), Detail::BeginBytes(value));
+        it += sizeof(std::uintptr_t);
+        return value;
+    }
+
+    std::uintptr_t PeekPointer(ConstByteIterator it, ConstByteIterator const last)
+    {
+        return ReadPointer(it, last);
+    }
+
     bool IsCustomModifierElementType(Byte const value)
     {
         return value == ElementType::CustomModifierOptional
@@ -442,6 +458,23 @@ namespace CxxReflect { namespace Metadata {
     ClassVariableSignatureInstantiator::ClassVariableSignatureInstantiator()
     {
     }
+
+    ClassVariableSignatureInstantiator::ClassVariableSignatureInstantiator(ClassVariableSignatureInstantiator&& other)
+        : _scope             (std::move(other._scope             )),
+          _arguments         (std::move(other._arguments         )),
+          _argumentSignatures(std::move(other._argumentSignatures)),
+          _buffer            (std::move(other._buffer            ))
+    {
+    }
+
+    ClassVariableSignatureInstantiator& ClassVariableSignatureInstantiator::operator=(ClassVariableSignatureInstantiator&& other)
+    {
+        _scope              = std::move(other._scope             );
+        _arguments          = std::move(other._arguments         );
+        _argumentSignatures = std::move(other._argumentSignatures);
+        _buffer             = std::move(other._buffer            );
+        return *this;
+    }
     
     template <typename TSignature>
     TSignature ClassVariableSignatureInstantiator::Instantiate(TSignature const& signature) const
@@ -460,6 +493,7 @@ namespace CxxReflect { namespace Metadata {
     template <typename TSignature>
     bool ClassVariableSignatureInstantiator::RequiresInstantiation(TSignature const& signature)
     {
+        // TODO Does this need to handle scope-conversion?
         return RequiresInstantiationInternal(signature);
     }
 
@@ -515,9 +549,30 @@ namespace CxxReflect { namespace Metadata {
         switch (s.GetKind())
         {
         case TypeSignature::Kind::Primitive:
-        case Metadata::TypeSignature::Kind::ClassType:
         {
             CopyBytesInto(buffer, s, Part::Begin, Part::End);
+            break;
+        }
+        case TypeSignature::Kind::ClassType:
+        {
+            switch (s.GetElementType())
+            {
+            case ElementType::Class:
+            case ElementType::ValueType:
+                buffer.push_back(static_cast<Byte>(ElementType::CrossModuleTypeReference));
+                CopyBytesInto(buffer, s, Part::ClassTypeReference, Part::End);
+                std::copy(Detail::BeginBytes(_scope.Get()),
+                          Detail::EndBytes(_scope.Get()),
+                          std::back_inserter(buffer));
+                break;
+
+            case ElementType::CrossModuleTypeReference:
+                CopyBytesInto(buffer, s, Part::Begin, Part::End);
+                break;
+
+            default:
+                throw LogicError(L"Invalid Type Kind");
+            }
             break;
         }
         case TypeSignature::Kind::Array:
@@ -556,10 +611,14 @@ namespace CxxReflect { namespace Metadata {
             if (s.IsClassVariableType())
             {
                 SizeType const variableNumber(s.GetVariableNumber());
+                // TODO THIS IS PROBABLY INVALID METADATA IF WE HAVE A BAD ARG!
                 if (variableNumber >= _arguments.size())
                     CopyBytesInto(buffer, s, Part::Begin, Part::End);
-                else // TODO THIS IS PROBABLY INVALID METADATA IF WE HAVE A BAD ARG!
+                else
                     CopyBytesInto(buffer, _arguments[variableNumber], Part::Begin, Part::End);
+                    
+                // TODO This is incorrect for cross-module instantiations.  We can have arguments
+                // with a different resolution scope than the signature being instantiated. :'(
             }
             else if (s.IsMethodVariableType())
             {
@@ -1365,6 +1424,7 @@ namespace CxxReflect { namespace Metadata {
 
         case ElementType::Class:
         case ElementType::ValueType:
+        case ElementType::CrossModuleTypeReference:
             return Kind::ClassType;
 
         case ElementType::FnPtr:
@@ -1537,6 +1597,16 @@ namespace CxxReflect { namespace Metadata {
             Private::PeekTypeDefOrRefOrSpecEncoded(SeekTo(Part::ClassTypeReference), EndBytes()));
     }
 
+    Database const* TypeSignature::GetTypeReferenceScope() const
+    {
+        AssertInitialized();
+
+        if (GetElementType() != ElementType::CrossModuleTypeReference)
+            return nullptr;
+
+        return reinterpret_cast<Database const*>(Private::PeekPointer(SeekTo(Part::ClassTypeScope), EndBytes()));
+    }
+
     bool TypeSignature::IsFunctionPointer() const
     {
         AssertInitialized();
@@ -1663,7 +1733,7 @@ namespace CxxReflect { namespace Metadata {
 
         if (partCode > Part::TypeCode)
         {
-            Private::ReadByte(current, EndBytes());
+            Byte const typeCode(Private::ReadByte(current, EndBytes()));
             if (partKind != Kind::Unknown && !IsKind(partKind))
             {
                 Detail::AssertFail(L"Invalid signature part requested");
@@ -1674,7 +1744,8 @@ namespace CxxReflect { namespace Metadata {
                 return static_cast<Part>(static_cast<SizeType>(p) & ~static_cast<SizeType>(Kind::Mask));
             });
 
-            switch (GetKind())
+            Kind const kind(GetKind());
+            switch (kind)
             {
             case Kind::Primitive:
             {
@@ -1708,6 +1779,11 @@ namespace CxxReflect { namespace Metadata {
                 if (partCode > ExtractPart(Part::ClassTypeReference))
                 {
                     Private::ReadTypeDefOrRefOrSpecEncoded(current, EndBytes());
+                }
+
+                if (partCode > ExtractPart(Part::ClassTypeScope) && typeCode == ElementType::CrossModuleTypeReference)
+                {
+                    Private::ReadPointer(current, EndBytes());
                 }
 
                 break;

@@ -149,7 +149,7 @@ namespace
 {
     template <typename T>
     System::String^ AsSystemString(T const& t)        { return gcnew System::String(t.c_str()); }
-    System::String^ AsSystemString(System::String^ t) { return t;                               }
+    System::String^ AsSystemString(System::String^ t) { return t == nullptr ? L"" : t;          }
     System::String^ AsSystemString(wchar_t const* t)  { return gcnew System::String(t);         }
 
     template <typename T, typename U>
@@ -243,14 +243,67 @@ namespace
         // Assembly
         VerifyStringEquals(state, L"AssemblyQualifiedName", rType->AssemblyQualifiedName, cType.GetAssemblyQualifiedName());
         VerifyIntegerEquals(state, L"Attributes", rType->Attributes, cType.GetAttributes().GetIntegral());
+
+        {
+            auto frame(state.Push(L"Base Type"));
+            if (rType->BaseType != nullptr)
+            {
+                Compare(state, rType->BaseType, cType.GetBaseType());
+            }
+        }
         // BaseType
 
         // VerifyBooleanEquals(state, L"ContainsGenericParameters", rType->ContainsGenericParameters, cType.ContainsGenericParameters());
         // CustomAttributes
         // DeclaringMethods
         VerifyStringEquals(state, L"FullName", rType->FullName, cType.GetFullName());
-        rType->G
-        VerifyStringEquals(state, L"Name", rType->Name, cType.GetName());
+        // GenericParameterAttributes
+        // GenericParameterPosition
+        // GenericTypeArguments
+        // GetArrayRank
+        // GetConstructor
+        // GetConstructors
+        // GetDefaultMembers
+        // GetElementType
+        // GetEnumName
+        // GetEnumNames
+        // GetEnumUnderlyingType
+        // GetEnumValues
+        // GetEvent
+        // GetEvents
+        // GetField
+        // GetFields
+        // GetGenericArguments
+        // GetGenericParameterConstraints
+        // GetGenericTypeDefinition
+        // GetInterface
+        
+        cliext::vector<R::Type^> rInterfaces(rType->GetInterfaces());
+        std::vector<C::Type>     cInterfaces(cType.BeginInterfaces(), cType.EndInterfaces());
+
+        cliext::sort(rInterfaces.begin(), rInterfaces.end(), MetadataTokenStrictWeakOrdering());
+        std::sort(cInterfaces.begin(), cInterfaces.end(), MetadataTokenStrictWeakOrdering());
+
+        // TODO We cannot correctly handle the case where one list contains more than the other.
+        VerifyIntegerEquals(state, L"Interface Count", rInterfaces.size(), cInterfaces.size());
+        auto rInterfaceIt(rInterfaces.begin());
+        auto cInterfaceIt(cInterfaces.begin());
+        for (; rInterfaceIt != rInterfaces.end() && cInterfaceIt != cInterfaces.end(); ++rInterfaceIt, ++cInterfaceIt)
+        {
+            // TODO Do a recursive check of the interface types
+            VerifyStringEquals(state, L"Interface Name", (*rInterfaceIt)->FullName, cInterfaceIt->GetFullName());
+        }
+
+        // GetMember
+        // GetMembers
+        // GetMethod
+        // GetMethods
+        // GetNestedType
+        // GetNestedTypes
+        // GetProperties
+        // GetProperty
+        // GUID
+        // HasElementType
 
         #define VERIFY_IS(r, c) VerifyBooleanEquals(state, # r, rType->r, cType.c());
 
@@ -295,7 +348,16 @@ namespace
 
         #undef VERIFY_IS
 
+        // MemberType
+        // Module
+
         VerifyStringEquals(state, L"Name", rType->Name, cType.GetName());
+        VerifyStringEquals(state, L"Namespace", rType->Namespace, cType.GetNamespace());
+
+        // ReflectedType
+        // StructLayoutAttribute
+        // TypeHandle
+        // TypeInitializer
     }
 }
 
