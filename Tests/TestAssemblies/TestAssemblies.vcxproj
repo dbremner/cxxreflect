@@ -1,0 +1,17 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup Label="Globals">
+    <ConfigurationType>Application</ConfigurationType>
+  </PropertyGroup>
+  <Import Project="$(SolutionDir)CxxReflect\CxxReflect.props" />
+  <ItemGroup>
+    <CustomBuild Include="*.il">
+      <Command>ilasm /nologo /dll /clock /output=$(OutDir)%(Filename).dat %(FullPath)</Command>
+      <Outputs>$(OutDir)%(Filename).dat</Outputs>
+    </CustomBuild>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="Stub.cpp" />
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+</Project>
