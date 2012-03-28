@@ -431,6 +431,29 @@ namespace CxxReflect {
             && type.GetName()      == systemTypeSimpleName;
     }
 
+    bool Utility::IsDerivedFromSystemType(Type                  const& type,
+                                          Metadata::ElementType const  systemType,
+                                          bool                         includeSelf)
+    {
+        Detail::Assert([&]{ return type.IsInitialized(); });
+
+        Type currentType(type);
+        if (!includeSelf && currentType.IsInitialized())
+            currentType = currentType.GetBaseType();
+
+        Type const targetType(type.GetAssembly().GetContext(InternalKey()).GetLoader().GetFundamentalType(systemType, InternalKey()));
+
+        while (currentType.IsInitialized())
+        {
+            if (currentType == targetType)
+                return true;
+
+            currentType = currentType.GetBaseType();
+        }
+
+        return false;
+    }
+
     bool Utility::IsDerivedFromSystemType(Type            const& type,
                                           StringReference const& systemTypeNamespace,
                                           StringReference const& systemTypeSimpleName,

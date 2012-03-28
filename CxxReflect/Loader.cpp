@@ -171,11 +171,12 @@ namespace CxxReflect {
 
     Assembly Loader::LoadAssembly(String path) const
     {
-        auto it(_contexts.find(path));
+        String canonicalUri(Externals::ComputeCanonicalUri(path.c_str()));
+        auto it(_contexts.find(canonicalUri));
         if (it == end(_contexts))
         {
             it = _contexts.insert(std::make_pair(
-                Externals::ComputeCanonicalUri(path.c_str()),
+                canonicalUri,
                 Detail::AssemblyContext(this, path, Metadata::Database(path.c_str())))).first;
         }
 
@@ -213,6 +214,7 @@ namespace CxxReflect {
         case Metadata::ElementType::U:          primitiveTypeName = L"UIntPtr";        break;
         case Metadata::ElementType::Object:     primitiveTypeName = L"Object";         break;
         case Metadata::ElementType::String:     primitiveTypeName = L"String";         break;
+        case Metadata::ElementType::ValueType:  primitiveTypeName = L"ValueType";      break;
         case Metadata::ElementType::Void:       primitiveTypeName = L"Void";           break;
         case Metadata::ElementType::TypedByRef: primitiveTypeName = L"TypedReference"; break;
         default:

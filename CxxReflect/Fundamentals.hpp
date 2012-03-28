@@ -166,6 +166,8 @@ namespace CxxReflect { namespace Detail {
     template <typename TCallable>
     void Assert(TCallable&&, CharacterIterator = L"") { }
 
+    inline void AssertSuccess(HResult, CharacterIterator = L"") { }
+
     #endif
 
     template <typename TCallable>

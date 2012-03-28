@@ -252,6 +252,8 @@ namespace CxxReflect {
                                  StringReference const& systemTypeNamespace,
                                  StringReference const& systemTypeSimpleName);
 
+        static bool IsDerivedFromSystemType(Type const&, Metadata::ElementType, bool);
+
         // Tests whether 'type' is derived from the named system type, optionally including the type
         // itself.  This is used to test whether a type is contextual, an enumeration, etc.
         static bool IsDerivedFromSystemType(Type            const& type,

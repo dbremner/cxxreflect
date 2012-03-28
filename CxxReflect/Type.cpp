@@ -1520,7 +1520,7 @@ namespace CxxReflect {
 
         return ResolveTypeDefTypeAndCall([](Type const& t)
         {
-            return Utility::IsDerivedFromSystemType(t, L"System", L"ValueType", false)
+            return Utility::IsDerivedFromSystemType(t, Metadata::ElementType::ValueType, false)
                 && !Utility::IsSystemType(t, L"System", L"Enum");
         });
     }
