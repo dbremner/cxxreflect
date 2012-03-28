@@ -198,6 +198,10 @@ namespace CxxReflect { namespace Detail { namespace { namespace Private {
 
 
 
+    // This recursive element inserter creates elements using the TCreateElement functor, inserts
+    // them into a buffer using the TInsertElement functor, then finally recurses, getting the next
+    // set of elements to be processed from the element that was just processed.  We do not recurse
+    // for all element types (for the moment, we only recurse for InterfaceContexts).
     template <typename TTraits, typename TCreateElement, typename TInsertElement>
     class RecursiveElementInserter
     {
@@ -213,32 +217,44 @@ namespace CxxReflect { namespace Detail { namespace { namespace Private {
         template <typename T>
         void operator()(T const& x)
         {
-            auto const element(_create(x));
-            _insert(element);
+            ContextType const newContext(_create(x));
+            _insert(newContext);
 
-            MaybeRecurse(element, typename TTraits::TagType());
+            Recurse(newContext);
         }
 
     private:
 
-        template <typename TElement, typename TTagType>
-        void MaybeRecurse(TElement const&, TTagType) { }
+        typedef typename TTraits::ContextType ContextType;
 
-        template <typename TElement>
-        void MaybeRecurse(TElement const& element, InterfaceContextTag)
+        // This type is copy constructable but not assignable because the TCreateElement and
+        // TInsertElement types are likely to be non-assignable lambda types.  This is kind of ugly.
+        RecursiveElementInserter& operator=(RecursiveElementInserter const&);
+
+        // By default, we don't actually recurse.  We provide nontemplate overloads for the context
+        // types for which we are going to recurse.
+        template <typename T>
+        void Recurse(T const&)
         {
-            auto const elementRef(element.GetElement());
-            auto const elementRow(element.GetElementRow());
+        }
 
-            auto const nextRow(elementRow.GetInterface());
-            Metadata::FullReference const nextRowRef(&elementRef.GetDatabase(), nextRow);
+        // For an interface element, we get the interface type and enumerate all of the interfaces
+        // that it implements.
+        void Recurse(InterfaceContext const& context)
+        {
+            Metadata::FullReference const interfaceRef(
+                &context.GetElement().GetDatabase(),
+                context.GetElementRow().GetInterface());
 
-            auto const typeDefAndSig(ResolveTypeDefAndSignature(*_typeResolver.Get(), nextRowRef));
+            TypeDefAndSignature const typeDefAndSig(ResolveTypeDefAndSignature(*_typeResolver.Get(), interfaceRef));
 
-            auto const nextTypeDefRow(elementRef.GetDatabase().GetRow<Metadata::TableId::TypeDef>(typeDefAndSig.GetTypeDef()));
+            Metadata::TypeDefRow const typeDefRow(typeDefAndSig
+                .GetTypeDef()
+                .GetDatabase()
+                .GetRow<Metadata::TableId::TypeDef>(typeDefAndSig.GetTypeDef()));
 
-            auto const firstElement(TTraits::BeginElements(nextTypeDefRow));
-            auto const lastElement (TTraits::EndElements  (nextTypeDefRow));
+            auto const firstElement(TTraits::BeginElements(typeDefRow));
+            auto const lastElement (TTraits::EndElements  (typeDefRow));
 
             std::for_each(firstElement, lastElement, *this);
         }
