@@ -198,6 +198,67 @@ namespace CxxReflect { namespace Detail { namespace { namespace Private {
 
 
 
+    template <typename TTraits, typename TCreateElement, typename TInsertElement>
+    class RecursiveElementInserter
+    {
+    public:
+
+        RecursiveElementInserter(Metadata::ITypeResolver const* const typeResolver,
+                                 TCreateElement                 const create,
+                                 TInsertElement                 const insert)
+            : _typeResolver(typeResolver), _create(create), _insert(insert)
+        {
+        }
+
+        template <typename T>
+        void operator()(T const& x)
+        {
+            auto const element(_create(x));
+            _insert(element);
+
+            MaybeRecurse(element, typename TTraits::TagType());
+        }
+
+    private:
+
+        template <typename TElement, typename TTagType>
+        void MaybeRecurse(TElement const&, TTagType) { }
+
+        template <typename TElement>
+        void MaybeRecurse(TElement const& element, InterfaceContextTag)
+        {
+            auto const elementRef(element.GetElement());
+            auto const elementRow(element.GetElementRow());
+
+            auto const nextRow(elementRow.GetInterface());
+            Metadata::FullReference const nextRowRef(&elementRef.GetDatabase(), nextRow);
+
+            auto const typeDefAndSig(ResolveTypeDefAndSignature(*_typeResolver.Get(), nextRowRef));
+
+            auto const nextTypeDefRow(elementRef.GetDatabase().GetRow<Metadata::TableId::TypeDef>(typeDefAndSig.GetTypeDef()));
+
+            auto const firstElement(TTraits::BeginElements(nextTypeDefRow));
+            auto const lastElement (TTraits::EndElements  (nextTypeDefRow));
+
+            std::for_each(firstElement, lastElement, *this);
+        }
+
+        Detail::ValueInitialized<Metadata::ITypeResolver const*> _typeResolver;
+        TCreateElement _create;
+        TInsertElement _insert;
+    };
+
+    template <typename TTraits, typename TCreateElement, typename TInsertElement>
+    RecursiveElementInserter<TTraits, TCreateElement, TInsertElement>
+    CreateRecursiveElementInserter(Metadata::ITypeResolver const* typeResolver, TCreateElement create, TInsertElement insert)
+    {
+        return RecursiveElementInserter<TTraits, TCreateElement, TInsertElement>(typeResolver, create, insert);
+    }
+
+
+
+
+
     typedef Metadata::RowIterator<Metadata::TableId::Event> EventIterator;
     typedef std::pair<EventIterator, EventIterator>         EventIteratorPair;
 
@@ -837,13 +898,7 @@ namespace CxxReflect { namespace Detail {
 
         SizeType const inheritedMemberCount(static_cast<SizeType>(_buffer.size()));
 
-        // Second, enumerate the elements declared by this type itself (i.e., not inherited) and
-        // insert them into the buffer in the correct location.
-
-        auto const firstElement(TraitsType::BeginElements(typeDef));
-        auto const lastElement (TraitsType::EndElements  (typeDef));
-
-        std::for_each(firstElement, lastElement, [&](RowType const& elementDef)
+        auto const createElement([&](RowType const& elementDef) -> ContextType
         {
             Metadata::FullReference const signatureRef(TraitsType::GetSignature(
                 *_typeResolver.Get(), 
@@ -852,7 +907,7 @@ namespace CxxReflect { namespace Detail {
             Metadata::FullReference const elementDefReference(&database, elementDef.GetSelfReference());
 
             if (!signatureRef.IsInitialized())
-                return InsertIntoBuffer(ContextType(typeDefReference, elementDefReference), inheritedMemberCount);
+                return ContextType(typeDefReference, elementDefReference);
 
             SignatureType const elementSig(database.GetBlob(signatureRef.AsBlobReference()).As<SignatureType>());
 
@@ -864,12 +919,28 @@ namespace CxxReflect { namespace Detail {
                 ? Instantiate(instantiator, elementSig)
                 : ConstByteRange(elementSig.BeginBytes(), elementSig.EndBytes()));
 
-            ContextType const ownedElement(instantiatedSig.IsInitialized()
+            return instantiatedSig.IsInitialized()
                 ? ContextType(typeDefReference, elementDefReference, typeSigReference, instantiatedSig)
-                : ContextType(typeDefReference, elementDefReference));
-
-            return InsertIntoBuffer(ownedElement, inheritedMemberCount);
+                : ContextType(typeDefReference, elementDefReference);
         });
+
+        auto const insertIntoBuffer([&](ContextType const& element) -> void
+        {
+            InsertIntoBuffer(element, inheritedMemberCount);
+        });
+
+        // Second, enumerate the elements declared by this type itself (i.e., not inherited) and
+        // insert them into the buffer in the correct location.
+        RowIteratorType const firstElement(TraitsType::BeginElements(typeDef));
+        RowIteratorType const lastElement (TraitsType::EndElements  (typeDef));
+
+        // TODO This function has become a disaster. :'(
+        auto const recursiveInserter(Private::CreateRecursiveElementInserter<TraitsType>(
+            _typeResolver.Get(),
+            createElement,
+            insertIntoBuffer));
+
+        std::for_each(firstElement, lastElement, recursiveInserter);
 
         ContextTableType const range(_tableAllocator.Allocate(_buffer.size()));
         RangeCheckedCopy(_buffer.begin(), _buffer.end(), range.Begin(), range.End());

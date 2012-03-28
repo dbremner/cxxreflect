@@ -363,7 +363,7 @@ namespace
 
 int main()
 {
-    wchar_t const* const assemblyPath(L"C:\\Windows\\Microsoft.NET\\Framework\\v4.0.30319\\system.core.dll");
+    wchar_t const* const assemblyPath(L"C:\\jm\\CxxReflect\\Build\\Output\\Win32\\Debug\\TestAssemblies\\A0.dat");
 
     // Load the assembly using CxxReflect:
     C::Externals::Initialize<CxxReflect::Platform::Win32>();

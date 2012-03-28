@@ -102,10 +102,6 @@ namespace CxxReflect { namespace Detail {
     {
     public:
 
-        typedef Type                          ResolvedType;
-        typedef Metadata::InterfaceImplRow    RowType;
-        typedef Metadata::TypeSignature       SignatureType;
-
         static const Metadata::TableId RowTableId = Metadata::TableId::InterfaceImpl;
 
         typedef InterfaceContextTag                  TagType;
@@ -301,6 +297,7 @@ namespace CxxReflect { namespace Detail {
         typedef Range<ContextType>                           ContextTableType;
 
         typedef typename TraitsType::RowType                 RowType;
+        typedef typename TraitsType::RowIteratorType         RowIteratorType;
         typedef typename TraitsType::SignatureType           SignatureType;
 
         typedef ElementContextSignatureAllocator             SignatureAllocator;
