@@ -399,6 +399,9 @@ namespace CxxReflect { namespace Metadata {
         Detail::ValueInitialized<Database const*> _database;
     };
 
+    bool operator==(FullReference const& lhs, FullReference const& rhs);
+    bool operator< (FullReference const& lhs, FullReference const& rhs);
+
 
 
 

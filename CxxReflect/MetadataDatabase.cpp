@@ -873,6 +873,35 @@ namespace CxxReflect { namespace Metadata {
 
 
 
+    bool operator==(FullReference const& lhs, FullReference const& rhs)
+    {
+        if (lhs.GetDatabase() != rhs.GetDatabase())
+            return false;
+
+        BaseElementReference const& lhsBase(lhs);
+        BaseElementReference const& rhsBase(rhs);
+
+        return lhsBase == rhsBase;
+    }
+
+    bool operator<(FullReference const& lhs, FullReference const& rhs)
+    {
+        if (lhs.GetDatabase() < rhs.GetDatabase())
+            return true;
+
+        if (lhs.GetDatabase() > rhs.GetDatabase())
+            return false;
+
+        BaseElementReference const& lhsBase(lhs);
+        BaseElementReference const& rhsBase(rhs);
+
+        return lhsBase < rhsBase;
+    }
+
+
+
+
+
     Blob::Range Blob::ComputeBounds(ConstByteIterator const first, ConstByteIterator const last, SizeType const size)
     {
         if (first == last)
