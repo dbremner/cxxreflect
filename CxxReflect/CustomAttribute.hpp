@@ -6,6 +6,7 @@
 //     (See accompanying file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)    //
 
 #include "CxxReflect/CoreComponents.hpp"
+#include "CxxReflect/Guid.hpp"
 
 namespace CxxReflect {
 
@@ -30,6 +31,11 @@ namespace CxxReflect {
 
         NamedArgumentIterator BeginNamedArguments() const;
         NamedArgumentIterator EndNamedArguments()   const;
+
+        // TODO Remove this.  We've implemented this solely to allow rapid prototyping and exposition
+        // of the GuidAttribute, which has a single string parameter.
+        String GetSingleStringArgument() const;
+        Guid GetGuidArgument() const;
 
         bool IsInitialized() const;
 

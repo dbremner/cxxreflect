@@ -76,6 +76,18 @@ namespace CxxReflect {
     };
 }
 
+namespace CxxReflect { namespace WindowsRuntime {
+
+    std::vector<Type> GetImplementersOf(decltype(__uuidof(0)) const& guid);
+
+    template<typename T>
+    std::vector<Type> GetImplementersOf()
+    {
+        return GetImplementersOf(__uuidof(T));
+    }
+
+} }
+
 // There is no support for C++/CX language extentions in static libraries.  So, in order not to
 // require a consumer of the library to also include a source file with this definition, we just
 // define it here, inline, if and only if it is actually being included by a consumer (and not by
@@ -83,6 +95,7 @@ namespace CxxReflect {
 #ifdef __cplusplus_winrt
 
 #include <ppl.h>
+#include <ppltasks.h>
 
 namespace CxxReflect { namespace Detail {
 
@@ -100,18 +113,7 @@ namespace CxxReflect { namespace Detail {
 
     inline String GetCxxReflectPlatformMetadataPath()
     {
-        // TODO We should catch any Windows Runtime exceptions here and throw our own instead:
-        Windows::Foundation::Uri^ fileUri(
-            ref new Windows::Foundation::Uri(L"ms-appx:///CxxReflectPlatform.winmd"));
-
-        Windows::Storage::StorageFile^ file(Detail::SyncCall([&]
-        {
-            return Windows::Storage::StorageFile::GetFileFromApplicationUriAsync(fileUri);
-        }));
-
-        String path(file->Path->Data());
-        path.resize(path.size() - file->Name->Length());
-        return path;
+        return String(Windows::ApplicationModel::Package::Current->InstalledLocation->Path->Data()) + L"\\";
     }
 
     template <typename T> struct IsCarrot         { enum { value = false }; };

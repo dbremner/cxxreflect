@@ -15,6 +15,7 @@
 #include <cstdio>
 #include <cstring>
 #include <cwchar>
+#include <filesystem>
 #include <functional>
 #include <iostream>
 #include <iterator>

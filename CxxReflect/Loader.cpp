@@ -143,7 +143,12 @@ namespace CxxReflect {
                 resolutionScope,
                 InternalKey());
 
-            Assembly const definingAssembly(LoadAssembly(definingAssemblyName));
+            // TODO Add a LocateAssembly overload that takes a namespace and simple type name.
+            String const& path(_assemblyLocator->LocateAssembly(
+                definingAssemblyName,
+                String(typeRef.GetNamespace().c_str()) + L"." + typeRef.GetName().c_str()));
+
+            Assembly const definingAssembly(LoadAssembly(path));
             if (!definingAssembly.IsInitialized())
                 throw RuntimeError(L"Failed to resolve assembly reference");
 

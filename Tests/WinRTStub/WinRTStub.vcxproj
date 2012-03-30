@@ -1,0 +1,33 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <AppContainerApplication>true</AppContainerApplication>
+    <ConfigurationType>Application</ConfigurationType>
+    <DefaultLanguage>en-US</DefaultLanguage>
+    <PackageCertificateKeyFile>WinRTStub_TemporaryKey.pfx</PackageCertificateKeyFile>
+    <PackageCertificateThumbprint>E4CC09D5A281DF0333E7CC2183A68111F66BCAB9</PackageCertificateThumbprint>
+    <ProjectGuid>{4f7f27ff-d783-482f-8290-1b365c39a3a7}</ProjectGuid>
+  </PropertyGroup>
+  <Import Project="$(SolutionDir)CxxReflect\CxxReflect.props"/>
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <AppxManifest Include="Package.appxmanifest">
+      <SubType>Designer</SubType>
+    </AppxManifest>
+    <None Include="WinRTStub_TemporaryKey.pfx" />
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="Assets\Logo.png" />
+    <Image Include="Assets\SmallLogo.png" />
+    <Image Include="Assets\StoreLogo.png" />
+    <Image Include="Assets\SplashScreen.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="Main.cpp" />
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+</Project>

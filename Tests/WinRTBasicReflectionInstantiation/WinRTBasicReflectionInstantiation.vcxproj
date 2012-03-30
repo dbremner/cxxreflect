@@ -1,0 +1,44 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <AppContainerApplication>true</AppContainerApplication>
+    <ConfigurationType>Application</ConfigurationType>
+    <DefaultLanguage>en-US</DefaultLanguage>
+    <ProjectGuid>{bc2be606-2a66-4736-9e7d-7d0dcabeb16b}</ProjectGuid>
+    <RootNamespace>WinRTBasicReflectionInstantiation</RootNamespace>
+  </PropertyGroup>
+  <Import Project="$(SolutionDir)CxxReflect\CxxReflect.props" />
+  <PropertyGroup>
+    <PackageCertificateKeyFile>WinRTBasicReflectionInstantiation_TemporaryKey.pfx</PackageCertificateKeyFile>
+    <PackageCertificateThumbprint>6C92FC996E40DFEF913D32422B13A371802C7A32</PackageCertificateThumbprint>
+  </PropertyGroup>
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <AppxManifest Include="Package.appxmanifest">
+      <SubType>Designer</SubType>
+    </AppxManifest>
+    <None Include="..\..\Build\Output\Win32\Release\CxxReflect\CxxReflectPlatform.dat">
+      <DeploymentContent>true</DeploymentContent>
+    </None>
+    <None Include="WinRTBasicReflectionInstantiation_TemporaryKey.pfx" />
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="Assets\Logo.png" />
+    <Image Include="Assets\SmallLogo.png" />
+    <Image Include="Assets\StoreLogo.png" />
+    <Image Include="Assets\SplashScreen.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="Main.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\WinRTBasicReflectionTest\WinRTBasicReflectionTest.vcxproj">
+      <Project>{f2749823-c77a-4907-8546-78dff66bf6e2}</Project>
+    </ProjectReference>
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+</Project>

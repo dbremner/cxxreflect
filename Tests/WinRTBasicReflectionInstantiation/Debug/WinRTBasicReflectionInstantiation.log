@@ -1,0 +1,26 @@
+﻿Build started 3/28/2012 9:43:58 PM.
+     1>Project "C:\jm\CxxReflect\Tests\WinRTBasicReflectionInstantiation\WinRTBasicReflectionInstantiation.vcxproj" on node 2 (Build target(s)).
+     1>GetInstalledSDKLocations:
+         Searching for SDKs targeting "Windows, 8.0".
+       ResolveSDKReferences:
+           Reading SDK manifest file "C:\Program Files (x86)\Microsoft SDKs\Windows\v8.0\ExtensionSDKs\Microsoft.VCLibs\11.0\SDKManifest.xml".
+           Targeted configuration and architecture "Debug|x86"
+           Could not find "FrameworkIdentity" attribute "FrameworkIdentity-Debug-x86" in the SDK manifest. 
+           Found "FrameworkIdentity" attribute "Name = Microsoft.VCLibs.110.Debug, MinVersion = 11.0.0.0" in the SDK manifest.
+           Runtime architecture used to find APPX is "x86"
+           Found "APPX" location attribute ".\AppX\Debug\x86\Microsoft.VCLibs.x86.Debug.11.appx" in the SDK manifest.
+           Found "APPX" location attribute ".\AppX\Debug\x64\Microsoft.VCLibs.x64.Debug.11.appx" in the SDK manifest.
+       ExpandSDKReferences:
+         Enumerating SDK Reference "Microsoft.VCLibs, Version=11.0" from "C:\Program Files (x86)\Microsoft SDKs\Windows\v8.0\ExtensionSDKs\Microsoft.VCLibs\11.0\".
+         Adding reference "References\CommonConfiguration\neutral\platform.winmd".
+       InitializeBuildStatus:
+         Creating "Debug\WinRTBasicReflectionInstantiation.unsuccessfulbuild" because "AlwaysCreate" was specified.
+       ClCompile:
+         C:\Program Files (x86)\Microsoft Visual Studio 11.0\VC\bin\CL.exe /c /IC:\jm\CxxReflect\Tests\WinRTBasicReflectionInstantiation\ /IDebug\ /ZI /ZW /ZW:nostdlib /nologo /W3 /WX- /MP /Od /Oy- /D _UNICODE /D UNICODE /D _DEBUG /D WINAPI_FAMILY=WINAPI_FAMILY_APP /Gm- /EHsc /RTC1 /MDd /GS /fp:precise /Zc:wchar_t /Zc:forScope /Yu"pch.h" /Fp"Debug\WinRTBasicReflectionInstantiation.pch" /Fo"Debug\\" /Fd"Debug\vc110.pdb" /Gd /TP /FU"C:\Program Files (x86)\Microsoft SDKs\Windows\v8.0\ExtensionSDKs\Microsoft.VCLibs\11.0\References\CommonConfiguration\neutral\platform.winmd" /FU"C:\Program Files (x86)\Windows Kits\8.0\Windows Metadata\Windows.winmd" /analyze- /errorReport:prompt Main.cpp
+         Main.cpp
+     1>c:\jm\cxxreflect\tests\winrtbasicreflectioninstantiation\main.cpp(4): fatal error C1010: unexpected end of file while looking for precompiled header. Did you forget to add '#include "pch.h"' to your source?
+     1>Done Building Project "C:\jm\CxxReflect\Tests\WinRTBasicReflectionInstantiation\WinRTBasicReflectionInstantiation.vcxproj" (Build target(s)) -- FAILED.
+
+Build FAILED.
+
+Time Elapsed 00:00:00.37

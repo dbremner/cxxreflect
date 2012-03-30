@@ -4,9 +4,10 @@
 
 // This is a C++/CLI program that loads an assembly into the reflection-only context and loads the
 // same assembly using the CxxReflect library.  We can then do a direct comparison of the results
-// returned by each of the APIs.
+// returned by each of the APIs.  Currently we do a fully-recursive comparison, which is time
+// consuming and expensive, but also gives full coverage of the APIs.
 
-// TODO This is nowhere near complete.  It's also proven much more cumbersome than we expected.
+// TODO This is nowhere near complete.
 
 #include "CxxReflect/CxxReflect.hpp"
 
@@ -22,6 +23,7 @@ namespace C = CxxReflect;
 namespace R
 {
     typedef System::Reflection::Assembly      Assembly;
+    typedef System::Reflection::BindingFlags  BindingFlags;
     typedef System::Reflection::FieldInfo     Field;
     typedef System::Reflection::MethodInfo    Method;
     typedef System::Reflection::ParameterInfo Parameter;
@@ -31,6 +33,20 @@ namespace R
 
 namespace
 {
+    R::BindingFlags RAllBindingFlags = 
+        R::BindingFlags::Public |
+        R::BindingFlags::NonPublic |
+        R::BindingFlags::Static |
+        R::BindingFlags::Instance |
+        R::BindingFlags::FlattenHierarchy;
+
+    C::BindingAttribute const CAllBindingFlags =
+        C::BindingAttribute::Public |
+        C::BindingAttribute::NonPublic |
+        C::BindingAttribute::Static |
+        C::BindingAttribute::Instance |
+        C::BindingAttribute::FlattenHierarchy;
+
     ref class StateStack;
 
     ref class StatePopper
@@ -284,13 +300,11 @@ namespace
         cliext::sort(rInterfaces.begin(), rInterfaces.end(), MetadataTokenStrictWeakOrdering());
         std::sort(cInterfaces.begin(), cInterfaces.end(), MetadataTokenStrictWeakOrdering());
 
-        // TODO We cannot correctly handle the case where one list contains more than the other.
         VerifyIntegerEquals(state, L"Interface Count", rInterfaces.size(), cInterfaces.size());
         auto rInterfaceIt(rInterfaces.begin());
         auto cInterfaceIt(cInterfaces.begin());
         for (; rInterfaceIt != rInterfaces.end() && cInterfaceIt != cInterfaces.end(); ++rInterfaceIt, ++cInterfaceIt)
         {
-            // TODO Do a recursive check of the interface types
             VerifyStringEquals(state, L"Interface Name", (*rInterfaceIt)->FullName, cInterfaceIt->GetFullName());
         }
 
@@ -298,6 +312,22 @@ namespace
         // GetMembers
         // GetMethod
         // GetMethods
+
+        cliext::vector<R::Method^> rMethods(rType->GetMethods(RAllBindingFlags));
+        std::vector<C::Method>     cMethods(cType.BeginMethods(CAllBindingFlags), cType.EndMethods());
+
+        cliext::sort(rMethods.begin(), rMethods.end(), MetadataTokenStrictWeakOrdering());
+        std::sort(cMethods.begin(), cMethods.end(), MetadataTokenStrictWeakOrdering());
+
+        VerifyIntegerEquals(state, L"Method Count", rMethods.size(), cMethods.size());
+        auto rMethodIt(rMethods.begin());
+        auto cMethodIt(cMethods.begin());
+        for (; rMethodIt != rMethods.end() && cMethodIt != cMethods.end(); ++rMethodIt, ++cMethodIt)
+        {
+            // TODO DO METHOD COMPARISON
+            VerifyStringEquals(state, L"Method Name", (*rMethodIt)->Name, cMethodIt->GetName());
+        }
+
         // GetNestedType
         // GetNestedTypes
         // GetProperties
@@ -385,9 +415,6 @@ int main()
     System::IO::StreamWriter^ resultFile(gcnew System::IO::StreamWriter(L"c:\\jm\\reflectresult.txt"));
     resultFile->Write(state.GetMessages());
     resultFile->Close();
-
-    // TODO THE Two-component GetType() doesn't work.
-    C::Type const& a(cAssembly.GetType(L"System.IO.MemoryMappedFiles.MemoryMappedFileSecurity"));
 
     return 0;
 }

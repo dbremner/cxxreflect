@@ -146,11 +146,6 @@ namespace
 
     void Dump(Detail::FileHandle& os, Parameter const& p)
     {
-        if (p.GetMetadataToken() == 0x0800000b)
-        {
-            int b = 42;
-        }
-
         os << L"         -- [" << p.GetName().c_str()
            << L"] [$" << Detail::HexFormat(p.GetMetadataToken())
            << L"] [" << p.GetType().GetFullName().c_str() << ((p.IsOut() && !p.GetType().IsByRef() && !p.GetType().IsArray() && !p.GetType().IsPointer() && !p.IsIn() && p.GetType().GetFullName() != L"System.Text.StringBuilder" && !p.GetType().GetFullName().empty()) ? L"&" : L"") << L"]\n";

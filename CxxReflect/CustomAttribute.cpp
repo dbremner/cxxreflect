@@ -138,8 +138,31 @@ namespace CxxReflect {
         }
         else if (customAttributeRow.GetType().GetTable() == Metadata::TableId::MemberRef)
         {
-            // TODO
-            Detail::AssertFail(L"NYI");
+            Metadata::RowReference const memberRefReference(customAttributeRow.GetType());
+            Metadata::MemberRefRow const memberRefRow(
+                parentDatabase.GetRow<Metadata::TableId::MemberRef>(memberRefReference));
+
+            Metadata::RowReference const memberRefClassRef(memberRefRow.GetClass());
+            if (memberRefClassRef.GetTable() == Metadata::TableId::TypeRef)
+            {
+                Type const type(assembly, memberRefClassRef, InternalKey());
+                if (memberRefRow.GetName() == L".ctor")
+                {
+                    BindingFlags const flags(
+                        BindingAttribute::Public    |
+                        BindingAttribute::NonPublic |
+                        BindingAttribute::Instance);
+
+                    if (type.BeginConstructors(flags) == type.EndConstructors())
+                        Detail::AssertFail(L"NYI");
+
+                    _constructor = Detail::MethodHandle(*type.BeginConstructors(flags));
+                }
+            }
+            else
+            {
+                Detail::AssertFail(L"NYI");
+            }
         }
         else
         {
@@ -186,6 +209,162 @@ namespace CxxReflect {
         AssertInitialized();
 
         return _constructor.Realize();
+    }
+
+    // TODO REMOVE ALL OF THIS; It's copypasta'ed from MetadataSignature.cpp
+    namespace { namespace Private {
+
+        CharacterIterator const IteratorReadUnexpectedEnd(L"Unexpectedly reached end of range");
+
+        Byte ReadByte(ConstByteIterator& it, ConstByteIterator const last)
+        {
+            if (it == last)
+                throw MetadataReadError(Private::IteratorReadUnexpectedEnd);
+
+            return *it++;
+        }
+
+        Byte PeekByte(ConstByteIterator it, ConstByteIterator const last)
+        {
+            return ReadByte(it, last);
+        }
+
+        struct CompressedIntBytes
+        {
+            std::array<Byte, 4> Bytes;
+            SizeType            Count;
+
+            CompressedIntBytes()
+                : Bytes(), Count()
+            {
+            }
+        };
+
+        CompressedIntBytes ReadCompressedIntBytes(ConstByteIterator& it, ConstByteIterator const last)
+        {
+            CompressedIntBytes result;
+
+            if (it == last)
+                throw MetadataReadError(Private::IteratorReadUnexpectedEnd);
+
+            // Note:  we've manually unrolled this for performance.  Thank you, Mr. Profiler.
+            result.Bytes[0] = *it++;
+            if ((result.Bytes[0] & 0x80) == 0)
+            {
+                result.Count = 1;
+                return result;
+            }
+            else if ((result.Bytes[0] & 0x40) == 0)
+            {
+                result.Count = 2;
+                result.Bytes[1] = result.Bytes[0];
+                result.Bytes[1] ^= 0x80;
+
+                if (last - it < 1)
+                    throw MetadataReadError(Private::IteratorReadUnexpectedEnd);
+
+                result.Bytes[0] = *it++;
+                return result;
+            }
+            else if ((result.Bytes[0] & 0x20) == 0)
+            {
+                result.Count = 4;
+                result.Bytes[3] = result.Bytes[0];
+                result.Bytes[3] ^= 0xC0;
+
+                if (last - it < 3)
+                    throw MetadataReadError(Private::IteratorReadUnexpectedEnd);
+
+                result.Bytes[2] = *it++;
+                result.Bytes[1] = *it++;
+                result.Bytes[0] = *it++;
+                return result;
+            }
+            else
+            {
+                throw MetadataReadError(Private::IteratorReadUnexpectedEnd);
+            }
+        }
+
+        std::uint32_t ReadCompressedUInt32(ConstByteIterator& it, ConstByteIterator const last)
+        {
+            CompressedIntBytes const bytes(ReadCompressedIntBytes(it, last));
+
+            switch (bytes.Count)
+            {
+            case 1:  return *reinterpret_cast<std::uint8_t  const*>(&bytes.Bytes[0]);
+            case 2:  return *reinterpret_cast<std::uint16_t const*>(&bytes.Bytes[0]);
+            case 4:  return *reinterpret_cast<std::uint32_t const*>(&bytes.Bytes[0]);
+            default: Detail::AssertFail(L"It is impossible to get here"); return 0;
+            }
+        }
+
+        template <typename T>
+        T Read(ConstByteIterator& it, ConstByteIterator const last)
+        {
+            if (std::distance(it, last) < sizeof(T))
+                throw std::logic_error("WTF");
+
+            T const value(*reinterpret_cast<T const*>(it));
+            it += sizeof(T);
+            return value;
+        }
+
+    } }
+
+    String CustomAttribute::GetSingleStringArgument() const
+    {
+        Metadata::Database const& database(_constructor
+            .Realize()
+            .GetDeclaringType()
+            .GetAssembly()
+            .GetContext(InternalKey())
+            .GetDatabase());
+
+        Metadata::CustomAttributeRow const& customAttribute(database
+            .GetRow<Metadata::TableId::CustomAttribute>(_attribute));
+
+        Metadata::Blob const& valueBlob(database.GetBlob(customAttribute.GetValue()));
+        ConstByteIterator it(valueBlob.Begin());
+
+        it += 2;
+        std::uint32_t length(Private::ReadCompressedUInt32(it, valueBlob.End()));
+
+        SizeType realLength(Externals::ComputeUtf16LengthOfUtf8String(reinterpret_cast<char const*>(it)));
+        std::vector<wchar_t> buffer(realLength + 1);
+
+        Externals::ConvertUtf8ToUtf16(reinterpret_cast<char const*>(it), buffer.data(), realLength + 1);
+        return String(buffer.data());
+    }
+
+    Guid CustomAttribute::GetGuidArgument() const
+    {
+        Metadata::Database const& database(_parent.GetDatabase());
+
+        Metadata::CustomAttributeRow const& customAttribute(database
+            .GetRow<Metadata::TableId::CustomAttribute>(_attribute));
+
+        Metadata::Blob const& valueBlob(database.GetBlob(customAttribute.GetValue()));
+        ConstByteIterator it(valueBlob.Begin());
+
+        // SKIP THE PREFIX
+        it += 2;
+
+        auto a0(Private::Read<std::uint32_t>(it, valueBlob.End()));
+
+        auto a1(Private::Read<std::uint16_t>(it, valueBlob.End()));
+        auto a2(Private::Read<std::uint16_t>(it, valueBlob.End()));
+
+        auto a3(Private::Read<std::uint8_t>(it, valueBlob.End()));
+        auto a4(Private::Read<std::uint8_t>(it, valueBlob.End()));
+        auto a5(Private::Read<std::uint8_t>(it, valueBlob.End()));
+        auto a6(Private::Read<std::uint8_t>(it, valueBlob.End()));
+        auto a7(Private::Read<std::uint8_t>(it, valueBlob.End()));
+        auto a8(Private::Read<std::uint8_t>(it, valueBlob.End()));
+        auto a9(Private::Read<std::uint8_t>(it, valueBlob.End()));
+        auto aa(Private::Read<std::uint8_t>(it, valueBlob.End()));
+
+        return Guid(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, aa);
     }
 
 }

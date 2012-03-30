@@ -10,7 +10,9 @@
 
 #include "CxxReflect/Assembly.hpp"
 #include "CxxReflect/AssemblyName.hpp"
+#include "CxxReflect/CustomAttribute.hpp"
 #include "CxxReflect/Loader.hpp"
+#include "CxxReflect/Method.hpp"
 #include "CxxReflect/Type.hpp"
 
 // Note:  We cannot include any of the concurrency headers in our headers because they cannot be
@@ -18,6 +20,7 @@
 // program.   Windows Runtime and C++/CLI cannot be used together, so usage of these Standard 
 // Library components here is safe.
 #include <atomic>
+#include <filesystem>
 #include <future>
 #include <thread>
 
@@ -491,7 +494,7 @@ namespace CxxReflect { namespace { namespace Private {
         RaiiHStringArray nestedNamespaces;
 
         Detail::VerifySuccess(::RoResolveNamespace(
-            rootNamespace.value(),
+            rootNamespace.empty() ? nullptr : rootNamespace.value(),
             nullptr,
             0,
             nullptr,
@@ -512,11 +515,22 @@ namespace CxxReflect { namespace { namespace Private {
         });
     }
 
-    std::vector<String> EnumerateUniverseMetadataFiles()
+    std::vector<String> EnumerateUniverseMetadataFiles(StringReference const packageDirectory)
     {
         std::vector<String> result;
 
         EnumerateUniverseMetadataFilesInto(SmartHString(), result);
+
+        // TODO This is an ugly workaround:  it appears that RoResolveNamespace doesn't actually
+        // give us non-Windows namespaces when we ask for the root namespaces.
+        for (std::tr2::sys::wdirectory_iterator it(packageDirectory.c_str()), end; it != end; ++it)
+        {
+            if (it->path().extension() != L".winmd")
+                continue;
+
+            result.push_back(String(packageDirectory.c_str()) + it->path().filename());
+        }
+
 
         std::sort(result.begin(), result.end());
         result.erase(std::unique(result.begin(), result.end()), result.end());
@@ -538,7 +552,7 @@ namespace CxxReflect { namespace { namespace Private {
         Detail::Assert([&]{ return !typeName.empty(); });
 
         // TODO This does not handle generics.  Does it need to handle generics?
-        typeName.erase(std::find(typeName.rbegin(), typeName.rend(), L'.').base(), typeName.end());
+        typeName.erase(std::find(typeName.rbegin(), typeName.rend(), L'.').base() - 1, typeName.end());
     }
 
 } } }
@@ -558,7 +572,7 @@ namespace CxxReflect {
     WinRTAssemblyLocator::WinRTAssemblyLocator(String const& packageRoot)
         : _packageRoot(packageRoot)
     {
-        auto const metadataFiles(Private::EnumerateUniverseMetadataFiles());
+        auto const metadataFiles(Private::EnumerateUniverseMetadataFiles(StringReference(packageRoot.c_str())));
 
         std::transform(metadataFiles.begin(),
                        metadataFiles.end(),
@@ -728,5 +742,88 @@ namespace CxxReflect {
         return assembly.GetType(StringReference(typeName.c_str()));
     }
 }
+
+namespace CxxReflect { namespace { namespace Private {
+
+    // TODO Performance:  We do a linear search of the entire type system for every query, which is,
+    // it suffices to say, ridiculously slow.  :-|
+
+    Type GetTypeFromGuid(Assembly const& assembly, GUID const& comGuid)
+    {
+        Guid const ourGuid(comGuid.Data1, comGuid.Data2, comGuid.Data3,
+            comGuid.Data4[0],
+            comGuid.Data4[1],
+            comGuid.Data4[2],
+            comGuid.Data4[3],
+            comGuid.Data4[4],
+            comGuid.Data4[5],
+            comGuid.Data4[6],
+            comGuid.Data4[7]);
+        String const guidAttributeName(L"Windows.Foundation.Metadata.GuidAttribute");
+        for (auto typeIt(assembly.BeginTypes()); typeIt != assembly.EndTypes(); ++typeIt)
+        {
+            for (auto caIt(typeIt->BeginCustomAttributes()); caIt != typeIt->EndCustomAttributes(); ++caIt)
+            {
+                if (caIt->GetConstructor().GetDeclaringType().GetFullName() == guidAttributeName)
+                {
+                    Guid const typeGuid(caIt->GetGuidArgument());
+                    if (typeGuid == ourGuid)
+                        return *typeIt;
+
+                }
+            }
+        }
+
+        return Type();
+    }
+
+} } }
+
+namespace CxxReflect { namespace WindowsRuntime {
+
+    std::vector<Type> GetImplementersOf(decltype(__uuidof(0)) const& guid)
+    {
+        Private::LoaderLease lease(Private::GlobalWindowsRuntimeLoader::Lease());
+
+        WinRTAssemblyLocator const& locator(static_cast<WinRTAssemblyLocator const&>(lease.Get().GetAssemblyLocator(InternalKey())));
+        
+        std::vector<String> names;
+        std::transform(locator.BeginMetadataFiles(), locator.EndMetadataFiles(), std::back_inserter(names),
+            [&](std::pair<String, String> const& s) { return s.second; });
+
+        Type targetType;
+        for (auto it(locator.BeginMetadataFiles()); it != locator.EndMetadataFiles(); ++it)
+        {
+            Assembly a(lease.Get().LoadAssembly(it->second));
+
+            targetType = Private::GetTypeFromGuid(a, guid);
+            if (targetType.IsInitialized())
+                break;
+        }
+
+        std::vector<Type> result;
+        std::for_each(locator.BeginMetadataFiles(), locator.EndMetadataFiles(), [&](std::pair<String, String> const& f)
+        {
+            // TODO We need to handle Windows too, but without caching this would be absurdly expensive!
+            if (f.first.substr(0, 7) == L"windows")
+            {
+                return;
+            }
+
+            Assembly a(lease.Get().LoadAssembly(f.second));
+            std::for_each(a.BeginTypes(), a.EndTypes(), [&](Type const& t)
+            {
+                auto const it = std::find(t.BeginInterfaces(), t.EndInterfaces(), targetType);
+                if (it != t.EndInterfaces())
+                    result.push_back(t);
+            });
+            
+
+        });
+
+        return result;
+    }
+
+} }
 
 #endif
