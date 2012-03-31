@@ -26,9 +26,11 @@
 
 #include <hstring.h>
 #include <inspectable.h>
+#include <roapi.h>
 #include <rometadataresolution.h>
 #include <windows.h>
 #include <winstring.h>
+#include <wrl/client.h>
 
 
 
@@ -40,7 +42,7 @@
 //
 //
 
-namespace CxxReflect { namespace { namespace Private {
+namespace CxxReflect { namespace WindowsRuntime { namespace { namespace Private {
 
     typedef std::atomic<bool>                           InitializedFlag;
     typedef std::shared_future<std::unique_ptr<Loader>> LoaderFuture;
@@ -80,6 +82,14 @@ namespace CxxReflect { namespace { namespace Private {
         Loader& Get() const
         {
             return *_loader.Get();
+        }
+
+        PackageAssemblyLocator const& GetLocator() const
+        {
+            IAssemblyLocator const& locator(_loader.Get()->GetAssemblyLocator(InternalKey()));
+
+            Detail::Assert([&]{ return dynamic_cast<PackageAssemblyLocator const*>(&locator) != nullptr; });
+            return static_cast<PackageAssemblyLocator const&>(locator);
         }
 
     private:
@@ -133,7 +143,7 @@ namespace CxxReflect { namespace { namespace Private {
     LoaderFuture    GlobalWindowsRuntimeLoader::_loader;
     LoaderMutex     GlobalWindowsRuntimeLoader::_mutex;
 
-} } }
+} } } }
 
 
 
@@ -145,7 +155,7 @@ namespace CxxReflect { namespace { namespace Private {
 //
 //
 
-namespace CxxReflect { namespace { namespace Private {
+namespace CxxReflect { namespace WindowsRuntime { namespace { namespace Private {
 
     class SmartHString
     {
@@ -366,7 +376,7 @@ namespace CxxReflect { namespace { namespace Private {
         Detail::ValueInitialized<HSTRING*> _array;
     };
 
-} } }
+} } } }
 
 
 
@@ -378,7 +388,7 @@ namespace CxxReflect { namespace { namespace Private {
 //
 //
 
-namespace CxxReflect { namespace { namespace Private {
+namespace CxxReflect { namespace WindowsRuntime { namespace { namespace Private {
 
     // Contains logic for invoking a virtual function on an object via vtable lookup.  Currently this
     // only supports functions that take no arguments or that take one or two reference-type arguments.
@@ -488,6 +498,20 @@ namespace CxxReflect { namespace { namespace Private {
         }
     };
 
+} } } }
+
+
+
+
+
+//
+//
+// METADATA FILE DISCOVERY AND GENERAL UTILITIES
+//
+//
+
+namespace CxxReflect { namespace WindowsRuntime { namespace { namespace Private {
+
     void EnumerateUniverseMetadataFilesInto(SmartHString const rootNamespace, std::vector<String>& result)
     {
         RaiiHStringArray filePaths;
@@ -555,7 +579,53 @@ namespace CxxReflect { namespace { namespace Private {
         typeName.erase(std::find(typeName.rbegin(), typeName.rend(), L'.').base() - 1, typeName.end());
     }
 
-} } }
+
+
+
+
+    GUID ToComGuid(Guid const& cxxGuid)
+    {
+        GUID comGuid;
+        std::copy(cxxGuid.AsByteArray().begin(), cxxGuid.AsByteArray().end(), Detail::BeginBytes(comGuid));
+        return comGuid;
+    }
+
+    Guid ToCxxGuid(GUID const& comGuid)
+    {
+        return Guid(
+            comGuid.Data1, comGuid.Data2, comGuid.Data3, 
+            comGuid.Data4[0], comGuid.Data4[1], comGuid.Data4[2], comGuid.Data4[3],
+            comGuid.Data4[4], comGuid.Data4[5], comGuid.Data4[6], comGuid.Data4[7]);
+    }
+
+
+
+
+
+    // TODO Performance:  We do a linear search of the entire type system for every query, which is,
+    // it suffices to say, ridiculously slow.  :-|
+    Type GetTypeFromGuid(Assembly const& assembly, GUID const& comGuid)
+    {
+        Guid const cxxGuid(ToCxxGuid(comGuid));
+        String const guidAttributeName(L"Windows.Foundation.Metadata.GuidAttribute");
+        for (auto typeIt(assembly.BeginTypes()); typeIt != assembly.EndTypes(); ++typeIt)
+        {
+            for (auto caIt(typeIt->BeginCustomAttributes()); caIt != typeIt->EndCustomAttributes(); ++caIt)
+            {
+                if (caIt->GetConstructor().GetDeclaringType().GetFullName() == guidAttributeName)
+                {
+                    Guid const typeGuid(caIt->GetSingleGuidArgument());
+                    if (typeGuid == cxxGuid)
+                        return *typeIt;
+
+                }
+            }
+        }
+
+        return Type();
+    }
+
+} } } }
 
 
 
@@ -563,13 +633,25 @@ namespace CxxReflect { namespace { namespace Private {
 
 //
 //
-// HEADER-DEFINED PUBLIC (AND NOT-SO-PUBLIC) INTERFACE
+// IMPLEMENTATION OF HEADER-DECLARED FUNCTIONS (I.E., THE PUBLIC INTERFACE)
 //
 //
 
-namespace CxxReflect {
+namespace CxxReflect { namespace WindowsRuntime {
 
-    WinRTAssemblyLocator::WinRTAssemblyLocator(String const& packageRoot)
+    void InspectableDeleter::operator()(IInspectable* inspectable)
+    {
+        if (inspectable == nullptr)
+            return;
+
+        inspectable->Release();
+    }
+
+
+
+
+
+    PackageAssemblyLocator::PackageAssemblyLocator(String const& packageRoot)
         : _packageRoot(packageRoot)
     {
         auto const metadataFiles(Private::EnumerateUniverseMetadataFiles(StringReference(packageRoot.c_str())));
@@ -589,28 +671,28 @@ namespace CxxReflect {
         });
     }
 
-    String WinRTAssemblyLocator::LocateAssembly(AssemblyName const& assemblyName) const
+    String PackageAssemblyLocator::LocateAssembly(AssemblyName const& assemblyName) const
     {
         String const simpleName(Detail::MakeLowercase(assemblyName.GetName()));
 
         // The platform metadata and system assembly are special-cased to use our platform metadata:
         if (simpleName == L"platform" || simpleName == L"mscorlib")
         {
-            return _packageRoot + Detail::PlatformMetadataFileName;
+            return _packageRoot + PlatformMetadataFileName;
         }
 
         Detail::AssertFail(L"Not Yet Implemented");
         return String();
     }
 
-    String WinRTAssemblyLocator::LocateAssembly(AssemblyName const& assemblyName, String const& fullTypeName) const
+    String PackageAssemblyLocator::LocateAssembly(AssemblyName const& assemblyName, String const& fullTypeName) const
     {
         String const simpleName(Detail::MakeLowercase(assemblyName.GetName()));
 
         // The platform metadata and system assembly are special-cased to use our platform metadata:
         if (simpleName == L"platform" || simpleName == L"mscorlib")
         {
-            return _packageRoot + Detail::PlatformMetadataFileName;
+            return _packageRoot + PlatformMetadataFileName;
         }
 
         // The assembly name must be a prefix of the namespace-qualified type name, per WinRT rules:
@@ -626,17 +708,17 @@ namespace CxxReflect {
         return FindMetadataFileForNamespace(namespaceName);
     }
 
-    WinRTAssemblyLocator::PathMap::const_iterator WinRTAssemblyLocator::BeginMetadataFiles() const
+    PackageAssemblyLocator::PathMap::const_iterator PackageAssemblyLocator::BeginMetadataFiles() const
     {
         return _metadataFiles.begin();
     }
 
-    WinRTAssemblyLocator::PathMap::const_iterator WinRTAssemblyLocator::EndMetadataFiles() const
+    PackageAssemblyLocator::PathMap::const_iterator PackageAssemblyLocator::EndMetadataFiles() const
     {
         return _metadataFiles.end();
     }
 
-    String WinRTAssemblyLocator::FindMetadataFileForNamespace(String const& namespaceName) const
+    String PackageAssemblyLocator::FindMetadataFileForNamespace(String const& namespaceName) const
     {
         String const lowercaseNamespaceName(Detail::MakeLowercase(namespaceName));
 
@@ -672,14 +754,18 @@ namespace CxxReflect {
         if (lowercaseNamespaceName.substr(0, 8) == L"platform" ||
             lowercaseNamespaceName.substr(0, 6) == L"system")
         {
-            return _packageRoot + Detail::PlatformMetadataFileName;
+            return _packageRoot + PlatformMetadataFileName;
         }
 
         // TODO Should we throw here or return an empty string?
         throw RuntimeError(L"Failed to locate metadata file");
     }
 
-    void WinRTPackageMetadata::BeginInitialization(String const& platformMetadataPath)
+
+
+
+
+    void BeginInitialization(String const& platformMetadataPath)
     {
         if (Private::GlobalWindowsRuntimeLoader::IsInitialized())
             return;
@@ -687,12 +773,12 @@ namespace CxxReflect {
         Private::GlobalWindowsRuntimeLoader::Initialize(std::async(std::launch::async,
         [=]() -> std::unique_ptr<Loader>
         {
-            std::unique_ptr<WinRTAssemblyLocator> resolver(new WinRTAssemblyLocator(platformMetadataPath));
-            WinRTAssemblyLocator const& rawResolver(*resolver.get());
+            std::unique_ptr<PackageAssemblyLocator> resolver(new PackageAssemblyLocator(platformMetadataPath));
+            PackageAssemblyLocator const& rawResolver(*resolver.get());
 
             std::unique_ptr<Loader> loader(new Loader(std::move(resolver)));
 
-            typedef WinRTAssemblyLocator::PathMap::value_type Element;
+            typedef PackageAssemblyLocator::PathMap::value_type Element;
             std::for_each(rawResolver.BeginMetadataFiles(), rawResolver.EndMetadataFiles(), [&](Element const& e)
             {
                 loader->LoadAssembly(e.second);
@@ -702,90 +788,58 @@ namespace CxxReflect {
         }));
     }
 
-    bool WinRTPackageMetadata::HasInitializationBegun()
+    bool HasInitializationBegun()
     {
         return Private::GlobalWindowsRuntimeLoader::IsInitialized();
     }
 
-    bool WinRTPackageMetadata::IsInitialized()
+    bool IsInitialized()
     {
         return Private::GlobalWindowsRuntimeLoader::IsReady();
     }
 
-    Type WinRTPackageMetadata::GetTypeOf(IInspectable* const inspectable)
+
+
+
+
+    std::vector<Type> GetImplementersOf(Type const interfaceType)
     {
-        // TODO CHANGE TO USE StringReference EVENTUALLY
-        Detail::AssertNotNull(inspectable);
+        Detail::Assert([&]{ return interfaceType.IsInitialized(); });
 
-        Private::SmartHString typeNameHString;
-        Detail::AssertSuccess(inspectable->GetRuntimeClassName(typeNameHString.proxy()));
-        String const typeName(typeNameHString.begin(), typeNameHString.end());
+        // We only need to test Windows types if the target interface is from Windows:
+        // TODO Is this really correct?
+        bool const includeWindowsTypes(String(interfaceType.GetNamespace().c_str()).substr(0, 7) == L"Windows");
 
-        auto const endOfNamespaceIt(std::find(typeName.rbegin(), typeName.rend(), '.').base());
-        Detail::Assert([&]{ return endOfNamespaceIt != typeName.rend().base(); });
+        Private::LoaderLease const lease(Private::GlobalWindowsRuntimeLoader::Lease());
+        PackageAssemblyLocator const& locator(lease.GetLocator());
 
-        String const namespaceName(typeName.begin(), std::prev(endOfNamespaceIt));
+        std::vector<Type> implementers;
 
-        Private::LoaderLease loader(Private::GlobalWindowsRuntimeLoader::Lease());
-        
-        IAssemblyLocator const& resolver(loader.Get().GetAssemblyLocator(InternalKey()));
-        WinRTAssemblyLocator const& winrtResolver(dynamic_cast<WinRTAssemblyLocator const&>(resolver));
-
-        String metadataFileName(winrtResolver.FindMetadataFileForNamespace(namespaceName));
-        if (metadataFileName.empty())
-            return Type();
-
-        Assembly assembly(loader.Get().LoadAssembly(metadataFileName));
-        if (!assembly.IsInitialized())
-            return Type();
-
-        return assembly.GetType(StringReference(typeName.c_str()));
-    }
-}
-
-namespace CxxReflect { namespace { namespace Private {
-
-    // TODO Performance:  We do a linear search of the entire type system for every query, which is,
-    // it suffices to say, ridiculously slow.  :-|
-
-    Type GetTypeFromGuid(Assembly const& assembly, GUID const& comGuid)
-    {
-        Guid const ourGuid(comGuid.Data1, comGuid.Data2, comGuid.Data3,
-            comGuid.Data4[0],
-            comGuid.Data4[1],
-            comGuid.Data4[2],
-            comGuid.Data4[3],
-            comGuid.Data4[4],
-            comGuid.Data4[5],
-            comGuid.Data4[6],
-            comGuid.Data4[7]);
-        String const guidAttributeName(L"Windows.Foundation.Metadata.GuidAttribute");
-        for (auto typeIt(assembly.BeginTypes()); typeIt != assembly.EndTypes(); ++typeIt)
+        // TODO Fix the type of the lambda parameter:
+        std::for_each(locator.BeginMetadataFiles(), locator.EndMetadataFiles(), [&](std::pair<String, String> const& f)
         {
-            for (auto caIt(typeIt->BeginCustomAttributes()); caIt != typeIt->EndCustomAttributes(); ++caIt)
+            // TODO We need to add some StartsWith function that tests StringReference directly
+            if (!includeWindowsTypes && f.first.substr(0, 7) == L"windows")
+                return;
+
+            // TODO We can do better filtering than this by checking assembly references.
+            // TODO Add caching of the obtained data.
+            Assembly const a(lease.Get().LoadAssembly(f.second));
+            std::for_each(a.BeginTypes(), a.EndTypes(), [&](Type const& t)
             {
-                if (caIt->GetConstructor().GetDeclaringType().GetFullName() == guidAttributeName)
-                {
-                    Guid const typeGuid(caIt->GetGuidArgument());
-                    if (typeGuid == ourGuid)
-                        return *typeIt;
+                if (std::find(t.BeginInterfaces(), t.EndInterfaces(), interfaceType) != t.EndInterfaces())
+                    implementers.push_back(t);
+            });
+        });
 
-                }
-            }
-        }
-
-        return Type();
+        return implementers;
     }
 
-} } }
-
-namespace CxxReflect { namespace WindowsRuntime {
-
-    std::vector<Type> GetImplementersOf(decltype(__uuidof(0)) const& guid)
+    std::vector<Type> GetImplementersOf(GUID const& guid)
     {
         Private::LoaderLease lease(Private::GlobalWindowsRuntimeLoader::Lease());
 
-        WinRTAssemblyLocator const& locator(static_cast<WinRTAssemblyLocator const&>(lease.Get().GetAssemblyLocator(InternalKey())));
+        PackageAssemblyLocator const& locator(lease.GetLocator());
         
         std::vector<String> names;
         std::transform(locator.BeginMetadataFiles(), locator.EndMetadataFiles(), std::back_inserter(names),
@@ -801,27 +855,231 @@ namespace CxxReflect { namespace WindowsRuntime {
                 break;
         }
 
-        std::vector<Type> result;
-        std::for_each(locator.BeginMetadataFiles(), locator.EndMetadataFiles(), [&](std::pair<String, String> const& f)
+        if (!targetType.IsInitialized())
+            throw RuntimeError(L"Failed to locate interface type by GUID");
+
+        return GetImplementersOf(targetType);
+    }
+
+    std::vector<Type> GetImplementersOf(StringReference const interfaceFullName, bool caseSensitive)
+    {
+        Type const interfaceType(GetType(interfaceFullName, caseSensitive));
+        if (!interfaceType.IsInitialized())
+            throw RuntimeError(L"Failed to locate named interface type");
+
+        return GetImplementersOf(interfaceType);
+    }
+
+    std::vector<Type> GetImplementersOf(StringReference const namespaceName,
+                                        StringReference const interfaceSimpleName,
+                                        bool            const caseSensitive)
+    {
+        Type const interfaceType(GetType(namespaceName, interfaceSimpleName, caseSensitive));
+        if (!interfaceType.IsInitialized())
+            throw RuntimeError(L"Failed to locate named interface type");
+
+        return GetImplementersOf(interfaceType);
+    }
+
+
+
+
+
+
+    Type GetType(StringReference typeFullName, bool caseSensitive)
+    {
+        auto const endOfNamespaceIt(std::find(typeFullName.rbegin(), typeFullName.rend(), '.').base());
+        Detail::Assert([&]{ return endOfNamespaceIt != typeFullName.rend().base(); });
+
+        String const namespaceName(typeFullName.begin(), std::prev(endOfNamespaceIt));
+        String const typeSimpleName(endOfNamespaceIt, typeFullName.end());
+
+        return GetType(StringReference(namespaceName.c_str()), StringReference(typeSimpleName.c_str()), caseSensitive);
+    }
+
+    Type GetType(StringReference const namespaceName,
+                 StringReference const typeSimpleName,
+                 bool            const caseSensitive)
+    {
+        Private::LoaderLease loader(Private::GlobalWindowsRuntimeLoader::Lease());
+        
+        PackageAssemblyLocator const& assemblyLocator(loader.GetLocator());
+
+        String metadataFileName(assemblyLocator.FindMetadataFileForNamespace(namespaceName.c_str()));
+        if (metadataFileName.empty())
+            return Type();
+
+        Assembly assembly(loader.Get().LoadAssembly(metadataFileName));
+        if (!assembly.IsInitialized())
+            return Type();
+
+        return assembly.GetType(StringReference(namespaceName.c_str()), StringReference(typeSimpleName.c_str()), !caseSensitive);
+    }
+
+    Type GetTypeOf(IInspectable* object)
+    {
+        Detail::AssertNotNull(object);
+
+        Private::SmartHString typeNameHString;
+        Detail::AssertSuccess(object->GetRuntimeClassName(typeNameHString.proxy()));
+        Detail::AssertNotNull(typeNameHString.value());
+
+        return GetType(StringReference(typeNameHString.c_str()));
+    }
+
+
+
+
+
+    UniqueInspectable CreateInspectableInstance(Type const type)
+    {
+        Detail::Assert([&]{ return type.IsInitialized(); });
+        // TODO Verify that 'type' is a valid kind of type to be activated.
+
+        Private::SmartHString const typeFullName(type.GetFullName());
+
+        Microsoft::WRL::ComPtr<IInspectable> instance;
+
+        Detail::VerifySuccess(::RoActivateInstance(typeFullName.value(), instance.ReleaseAndGetAddressOf()));
+
+        if (instance.Get() == nullptr)
+            throw RuntimeError(L"Type activation failed");
+
+        return UniqueInspectable(instance.Detach());
+    }
+
+} }
+
+
+
+
+
+namespace CxxReflect { namespace Detail { namespace { namespace Private {
+
+    Method GetActivatableAttributeFactoryConstructor()
+    {
+        Type const activatableType(WindowsRuntime::GetType(
+            StringReference(L"Windows.Foundation.Metadata"),
+            StringReference(L"ActivatableAttribute")));
+
+        Verify([&]{ return activatableType.IsInitialized(); });
+
+        auto const activatableConstructorIt(std::find_if(
+            activatableType.BeginConstructors(BindingAttribute::Public | BindingAttribute::Instance), 
+            activatableType.EndConstructors(),
+            [&](Method const& constructor)
         {
-            // TODO We need to handle Windows too, but without caching this would be absurdly expensive!
-            if (f.first.substr(0, 7) == L"windows")
-            {
-                return;
-            }
+            // TODO We should also check the parameter types.
+            return std::distance(constructor.BeginParameters(), constructor.EndParameters()) == 2;
+        }));
 
-            Assembly a(lease.Get().LoadAssembly(f.second));
-            std::for_each(a.BeginTypes(), a.EndTypes(), [&](Type const& t)
-            {
-                auto const it = std::find(t.BeginInterfaces(), t.EndInterfaces(), targetType);
-                if (it != t.EndInterfaces())
-                    result.push_back(t);
-            });
-            
+        Verify([&]{ return activatableConstructorIt != activatableType.EndConstructors(); });
 
-        });
+        return *activatableConstructorIt;
+    }
 
-        return result;
+    Type GetActivationFactoryType(Type const type)
+    {
+        Method const activatableConstructor(GetActivatableAttributeFactoryConstructor());
+
+        auto const activatableAttributeIt(std::find_if(
+            type.BeginCustomAttributes(),
+            type.EndCustomAttributes(),
+            [&](CustomAttribute const& a)
+        {
+            return a.GetConstructor() == activatableConstructor;
+        }));
+
+        Verify([&]{ return activatableAttributeIt != type.EndCustomAttributes(); });
+
+        String const factoryTypeName(activatableAttributeIt->GetSingleStringArgument());
+
+        return WindowsRuntime::GetType(StringReference(factoryTypeName.c_str()));
+    }
+
+} } } }
+
+namespace CxxReflect { namespace Detail {
+
+    void VariantArgumentPack::Push(bool const value)
+    {
+        Push(Metadata::ElementType::Boolean, BeginBytes(value), EndBytes(value));
+    }
+
+    void VariantArgumentPack::Push(wchar_t const value)
+    {
+        Push(Metadata::ElementType::Char, BeginBytes(value), EndBytes(value));
+    }
+
+    void VariantArgumentPack::Push(std::int8_t const value)
+    {
+        Push(Metadata::ElementType::I1, BeginBytes(value), EndBytes(value));
+    }
+
+    void VariantArgumentPack::Push(std::uint8_t const value)
+    {
+        Push(Metadata::ElementType::U1, BeginBytes(value), EndBytes(value));
+    }
+
+    void VariantArgumentPack::Push(std::int16_t const value)
+    {
+        Push(Metadata::ElementType::I2, BeginBytes(value), EndBytes(value));
+    }
+
+    void VariantArgumentPack::Push(std::uint16_t const value)
+    {
+        Push(Metadata::ElementType::U2, BeginBytes(value), EndBytes(value));
+    }
+
+    void VariantArgumentPack::Push(std::int32_t const value)
+    {
+        Push(Metadata::ElementType::I4, BeginBytes(value), EndBytes(value));
+    }
+
+    void VariantArgumentPack::Push(std::uint32_t const value)
+    {
+        Push(Metadata::ElementType::U4, BeginBytes(value), EndBytes(value));
+    }
+
+    void VariantArgumentPack::Push(std::int64_t const value)
+    {
+        Push(Metadata::ElementType::I8, BeginBytes(value), EndBytes(value));
+    }
+
+    void VariantArgumentPack::Push(std::uint64_t const value)
+    {
+        Push(Metadata::ElementType::U8, BeginBytes(value), EndBytes(value));
+    }
+        
+    void VariantArgumentPack::Push(float const value)
+    {
+        Push(Metadata::ElementType::R4, BeginBytes(value), EndBytes(value));
+    }
+
+    void VariantArgumentPack::Push(double const value)
+    {
+        Push(Metadata::ElementType::R8, BeginBytes(value), EndBytes(value));
+    }
+
+    void VariantArgumentPack::Push(IInspectable* const value)
+    {
+        Push(Metadata::ElementType::Class, BeginBytes(value), EndBytes(value));
+    }
+
+    void VariantArgumentPack::Push(Metadata::ElementType const type,
+                                   ConstByteIterator     const first,
+                                   ConstByteIterator     const last)
+    {
+        SizeType const index(_data.size());
+
+        std::copy(first, last, std::back_inserter(_data));
+        _arguments.push_back(Argument(type, index, index + std::distance(first, last)));
+    }
+
+    WindowsRuntime::UniqueInspectable CreateInspectableInstance(Type const type, VariantArgumentPack const& arguments)
+    {
+        Type factoryType = Private::GetActivationFactoryType(type);
+        return WindowsRuntime::UniqueInspectable();
     }
 
 } }

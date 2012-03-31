@@ -281,6 +281,15 @@ namespace CxxReflect { namespace Detail {
 
     #endif
 
+    // We frequently compute the distance between two iterators and compare with a size; to avoid
+    // lots of casts and to avoid unsigned/signed comparison warnings, we cast to unsigned here:
+    template <typename TForIt>
+    SizeType Distance(TForIt const first, TForIt const last)
+    {
+        // Note:  The result of std::distance is always positive.
+        return static_cast<SizeType>(std::distance(first, last));
+    }
+
     template <typename TRanIt, typename TValue, typename TComparer>
     TRanIt BinarySearch(TRanIt const first, TRanIt const last, TValue const& value, TComparer const comparer)
     {

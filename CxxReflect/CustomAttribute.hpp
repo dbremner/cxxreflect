@@ -32,10 +32,13 @@ namespace CxxReflect {
         NamedArgumentIterator BeginNamedArguments() const;
         NamedArgumentIterator EndNamedArguments()   const;
 
-        // TODO Remove this.  We've implemented this solely to allow rapid prototyping and exposition
-        // of the GuidAttribute, which has a single string parameter.
+        // TODO These must be removed. These return the first fixed argument of the custom attribute,
+        // interpreted either as a string or a GUID.  They do no type checking (and are therefore
+        // really bad and unsafe).  They are here only to support handling of GuidAttribute and
+        // ActivatableAttribute.  Once we implement the positional and named argument support, we
+        // will remove these.
         String GetSingleStringArgument() const;
-        Guid GetGuidArgument() const;
+        Guid GetSingleGuidArgument() const;
 
         bool IsInitialized() const;
 

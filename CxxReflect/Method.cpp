@@ -67,7 +67,8 @@ namespace CxxReflect {
 
     bool operator==(Method const& lhs, Method const& rhs)
     {
-        return lhs._context.Get() == rhs._context.Get();
+        // TODO This does not correctly handle generics or other instantiated types.  Or does it?
+        return lhs._context.Get()->GetElement() == rhs._context.Get()->GetElement();
     }
 
     bool operator<(Method const& lhs, Method const& rhs)

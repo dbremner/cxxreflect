@@ -26,4 +26,11 @@ namespace WinRTBasicReflectionTest
 
         default::int32 GetNumber() { return 42; }
     };
+
+    public ref class TestClass sealed
+    {
+    public:
+
+        TestClass(default::int32) { }
+    };
 }

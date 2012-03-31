@@ -15,19 +15,6 @@ namespace CxxReflect { namespace Metadata { namespace { namespace Private {
 
     CharacterIterator const IteratorReadUnexpectedEnd(L"Unexpectedly reached end of range");
 
-    Byte ReadByte(ConstByteIterator& it, ConstByteIterator const last)
-    {
-        if (it == last)
-            throw MetadataReadError(Private::IteratorReadUnexpectedEnd);
-
-        return *it++;
-    }
-
-    Byte PeekByte(ConstByteIterator it, ConstByteIterator const last)
-    {
-        return ReadByte(it, last);
-    }
-
     struct CompressedIntBytes
     {
         std::array<Byte, 4> Bytes;
@@ -85,9 +72,34 @@ namespace CxxReflect { namespace Metadata { namespace { namespace Private {
         }
     }
 
+  
+
+    bool IsCustomModifierElementType(Byte const value)
+    {
+        return value == ElementType::CustomModifierOptional
+            || value == ElementType::CustomModifierRequired;
+    }
+
+} } } }
+
+namespace CxxReflect { namespace Metadata {
+
+    Byte ReadByte(ConstByteIterator& it, ConstByteIterator const last)
+    {
+        if (it == last)
+            throw MetadataReadError(Private::IteratorReadUnexpectedEnd);
+
+        return *it++;
+    }
+
+    Byte PeekByte(ConstByteIterator it, ConstByteIterator const last)
+    {
+        return ReadByte(it, last);
+    }
+
     std::int32_t ReadCompressedInt32(ConstByteIterator& it, ConstByteIterator const last)
     {
-        CompressedIntBytes bytes(ReadCompressedIntBytes(it, last));
+        Private::CompressedIntBytes bytes(Private::ReadCompressedIntBytes(it, last));
 
         bool const lsbSet((bytes.Bytes[bytes.Count - 1] & 0x01) != 0);
 
@@ -129,7 +141,7 @@ namespace CxxReflect { namespace Metadata { namespace { namespace Private {
 
     std::uint32_t ReadCompressedUInt32(ConstByteIterator& it, ConstByteIterator const last)
     {
-        CompressedIntBytes const bytes(ReadCompressedIntBytes(it, last));
+        Private::CompressedIntBytes const bytes(Private::ReadCompressedIntBytes(it, last));
 
         switch (bytes.Count)
         {
@@ -145,7 +157,7 @@ namespace CxxReflect { namespace Metadata { namespace { namespace Private {
         return ReadCompressedUInt32(it, last);
     }
 
-    std::uint32_t ReadTypeDefOrRefOrSpecEncoded(ConstByteIterator& it, ConstByteIterator const last)
+    std::uint32_t ReadTypeDefOrRefOrSpec(ConstByteIterator& it, ConstByteIterator const last)
     {
         std::uint32_t const tokenValue(ReadCompressedUInt32(it, last));
         std::uint32_t const tokenType(tokenValue & 0x03);
@@ -159,9 +171,9 @@ namespace CxxReflect { namespace Metadata { namespace { namespace Private {
         }
     }
 
-    std::uint32_t PeekTypeDefOrRefOrSpecEncoded(ConstByteIterator it, ConstByteIterator const last)
+    std::uint32_t PeekTypeDefOrRefOrSpec(ConstByteIterator it, ConstByteIterator const last)
     {
-        return ReadTypeDefOrRefOrSpecEncoded(it, last);
+        return ReadTypeDefOrRefOrSpec(it, last);
     }
 
     ElementType ReadElementType(ConstByteIterator& it, ConstByteIterator const last)
@@ -184,7 +196,7 @@ namespace CxxReflect { namespace Metadata { namespace { namespace Private {
             throw MetadataReadError(Private::IteratorReadUnexpectedEnd);
 
         std::uintptr_t value(0);
-        std::copy(it, it + sizeof(std::uintptr_t), Detail::BeginBytes(value));
+        Detail::RangeCheckedCopy(it, it + sizeof(std::uintptr_t), Detail::BeginBytes(value), Detail::EndBytes(value));
         it += sizeof(std::uintptr_t);
         return value;
     }
@@ -194,15 +206,9 @@ namespace CxxReflect { namespace Metadata { namespace { namespace Private {
         return ReadPointer(it, last);
     }
 
-    bool IsCustomModifierElementType(Byte const value)
-    {
-        return value == ElementType::CustomModifierOptional
-            || value == ElementType::CustomModifierRequired;
-    }
 
-} } } }
 
-namespace CxxReflect { namespace Metadata {
+
 
     SignatureComparer::SignatureComparer(ITypeResolver const* loader,
                                          Database      const* lhsDatabase,
@@ -467,7 +473,8 @@ namespace CxxReflect { namespace Metadata {
     {
     }
 
-    ClassVariableSignatureInstantiator& ClassVariableSignatureInstantiator::operator=(ClassVariableSignatureInstantiator&& other)
+    ClassVariableSignatureInstantiator& 
+    ClassVariableSignatureInstantiator::operator=(ClassVariableSignatureInstantiator&& other)
     {
         _scope              = std::move(other._scope             );
         _arguments          = std::move(other._arguments         );
@@ -797,14 +804,14 @@ namespace CxxReflect { namespace Metadata {
     {
         AssertInitialized();
 
-        return Private::PeekCompressedUInt32(SeekTo(Part::Rank), EndBytes());
+        return PeekCompressedUInt32(SeekTo(Part::Rank), EndBytes());
     }
 
     SizeType ArrayShape::GetSizesCount() const
     {
         AssertInitialized();
 
-        return Private::PeekCompressedUInt32(SeekTo(Part::NumSizes), EndBytes());
+        return PeekCompressedUInt32(SeekTo(Part::NumSizes), EndBytes());
     }
 
     ArrayShape::SizeIterator ArrayShape::BeginSizes() const
@@ -826,7 +833,7 @@ namespace CxxReflect { namespace Metadata {
     {
         AssertInitialized();
 
-        return Private::PeekCompressedUInt32(SeekTo(Part::NumLowBounds), EndBytes());
+        return PeekCompressedUInt32(SeekTo(Part::NumLowBounds), EndBytes());
     }
 
     ArrayShape::LowBoundIterator ArrayShape::BeginLowBounds() const
@@ -859,31 +866,31 @@ namespace CxxReflect { namespace Metadata {
 
         if (part > Part::Rank)
         {
-            Private::ReadCompressedUInt32(current, EndBytes());
+            ReadCompressedUInt32(current, EndBytes());
         }
 
         std::uint32_t numSizes(0);
         if (part > Part::NumSizes)
         {
-            numSizes = Private::ReadCompressedUInt32(current, EndBytes());
+            numSizes = ReadCompressedUInt32(current, EndBytes());
         }
 
         if (part > Part::FirstSize)
         {
             for (unsigned i(0); i < numSizes; ++i)
-                Private::ReadCompressedUInt32(current, EndBytes());
+                ReadCompressedUInt32(current, EndBytes());
         }
 
         std::uint32_t numLowBounds(0);
         if (part > Part::NumLowBounds)
         {
-            numLowBounds = Private::ReadCompressedUInt32(current, EndBytes());
+            numLowBounds = ReadCompressedUInt32(current, EndBytes());
         }
 
         if (part > Part::FirstLowBound)
         {
             for (unsigned i(0); i < numSizes; ++i)
-                Private::ReadCompressedUInt32(current, EndBytes());
+                ReadCompressedUInt32(current, EndBytes());
         }
 
         Detail::Assert([&]{ return part <= Part::End; }, L"Invalid signature part requested");
@@ -893,12 +900,12 @@ namespace CxxReflect { namespace Metadata {
 
     SizeType ArrayShape::ReadSize(ConstByteIterator& current, ConstByteIterator const last)
     {
-        return Private::ReadCompressedUInt32(current, last);
+        return ReadCompressedUInt32(current, last);
     }
 
     SizeType ArrayShape::ReadLowBound(ConstByteIterator& current, ConstByteIterator const last)
     {
-        return Private::ReadCompressedUInt32(current, last);
+        return ReadCompressedUInt32(current, last);
     }
 
 
@@ -919,14 +926,14 @@ namespace CxxReflect { namespace Metadata {
     {
         AssertInitialized();
 
-        return Private::PeekByte(SeekTo(Part::ReqOptFlag), EndBytes()) == ElementType::CustomModifierOptional;
+        return PeekByte(SeekTo(Part::ReqOptFlag), EndBytes()) == ElementType::CustomModifierOptional;
     }
 
     bool CustomModifier::IsRequired() const
     {
         AssertInitialized();
 
-        return Private::PeekByte(SeekTo(Part::ReqOptFlag), EndBytes()) == ElementType::CustomModifierRequired;
+        return PeekByte(SeekTo(Part::ReqOptFlag), EndBytes()) == ElementType::CustomModifierRequired;
     }
 
     RowReference CustomModifier::GetTypeReference() const
@@ -934,7 +941,7 @@ namespace CxxReflect { namespace Metadata {
         AssertInitialized();
 
         return RowReference::FromToken(
-            Private::PeekTypeDefOrRefOrSpecEncoded(SeekTo(Part::Type), EndBytes()));
+            PeekTypeDefOrRefOrSpec(SeekTo(Part::Type), EndBytes()));
     }
 
     SizeType CustomModifier::ComputeSize() const
@@ -952,12 +959,12 @@ namespace CxxReflect { namespace Metadata {
 
         if (part > Part::ReqOptFlag)
         {
-            Private::ReadByte(current, EndBytes());
+            ReadByte(current, EndBytes());
         }
 
         if (part > Part::Type)
         {
-            Private::ReadTypeDefOrRefOrSpecEncoded(current, EndBytes());
+            ReadTypeDefOrRefOrSpec(current, EndBytes());
         }
 
         if (part > Part::End)
@@ -981,7 +988,7 @@ namespace CxxReflect { namespace Metadata {
     {
         Detail::Assert([&]
         {
-            return Private::PeekByte(SeekTo(Part::FieldTag), EndBytes()) == SignatureAttribute::Field; }
+            return PeekByte(SeekTo(Part::FieldTag), EndBytes()) == SignatureAttribute::Field; }
         );
     }
 
@@ -1007,7 +1014,7 @@ namespace CxxReflect { namespace Metadata {
 
         if (part > Part::FieldTag)
         {
-            Private::ReadByte(current, EndBytes());
+            ReadByte(current, EndBytes());
         }
 
         if (part > Part::Type)
@@ -1036,7 +1043,7 @@ namespace CxxReflect { namespace Metadata {
     {
         Detail::Assert([&]() -> bool
         {
-            Byte const initialByte(Private::PeekByte(SeekTo(Part::PropertyTag), EndBytes()));
+            Byte const initialByte(PeekByte(SeekTo(Part::PropertyTag), EndBytes()));
             return initialByte == SignatureAttribute::Property
                 || initialByte == (SignatureAttribute::Property | SignatureAttribute::HasThis);
         });
@@ -1046,7 +1053,7 @@ namespace CxxReflect { namespace Metadata {
     {
         AssertInitialized();
 
-        return SignatureFlags(Private::PeekByte(SeekTo(Part::PropertyTag), EndBytes()))
+        return SignatureFlags(PeekByte(SeekTo(Part::PropertyTag), EndBytes()))
             .IsSet(SignatureAttribute::HasThis);
     }
 
@@ -1054,7 +1061,7 @@ namespace CxxReflect { namespace Metadata {
     {
         AssertInitialized();
 
-        return Private::PeekCompressedUInt32(SeekTo(Part::ParameterCount), EndBytes());
+        return PeekCompressedUInt32(SeekTo(Part::ParameterCount), EndBytes());
     }
 
     PropertySignature::ParameterIterator PropertySignature::BeginParameters() const
@@ -1094,13 +1101,13 @@ namespace CxxReflect { namespace Metadata {
 
         if (part > Part::PropertyTag)
         {
-            Private::ReadByte(current, EndBytes());
+            ReadByte(current, EndBytes());
         }
 
         SizeType parameterCount(0);
         if (part > Part::ParameterCount)
         {
-            parameterCount = Private::ReadCompressedUInt32(current, EndBytes());
+            parameterCount = ReadCompressedUInt32(current, EndBytes());
         }
 
         if (part > Part::Type)
@@ -1144,7 +1151,7 @@ namespace CxxReflect { namespace Metadata {
 
     bool MethodSignature::ParameterEndCheck(ConstByteIterator current, ConstByteIterator last)
     {
-        return Private::PeekByte(current, last) == ElementType::Sentinel;
+        return PeekByte(current, last) == ElementType::Sentinel;
     }
 
     TypeSignature MethodSignature::ReadParameter(ConstByteIterator& current, ConstByteIterator last)
@@ -1158,7 +1165,7 @@ namespace CxxReflect { namespace Metadata {
     {
         AssertInitialized();
 
-        return SignatureFlags(Private::PeekByte(SeekTo(Part::TypeTag), EndBytes()))
+        return SignatureFlags(PeekByte(SeekTo(Part::TypeTag), EndBytes()))
             .IsSet(SignatureAttribute::HasThis);
     }
 
@@ -1166,7 +1173,7 @@ namespace CxxReflect { namespace Metadata {
     {
         AssertInitialized();
 
-        return SignatureFlags(Private::PeekByte(SeekTo(Part::TypeTag), EndBytes()))
+        return SignatureFlags(PeekByte(SeekTo(Part::TypeTag), EndBytes()))
             .IsSet(SignatureAttribute::ExplicitThis);
     }
 
@@ -1174,7 +1181,7 @@ namespace CxxReflect { namespace Metadata {
     {
         AssertInitialized();
 
-        return SignatureFlags(Private::PeekByte(SeekTo(Part::TypeTag), EndBytes()))
+        return SignatureFlags(PeekByte(SeekTo(Part::TypeTag), EndBytes()))
             .WithMask(SignatureAttribute::CallingConventionMask)
             .GetEnum();
     }
@@ -1183,7 +1190,7 @@ namespace CxxReflect { namespace Metadata {
     {
         AssertInitialized();
 
-        return SignatureFlags(Private::PeekByte(SeekTo(Part::TypeTag), EndBytes()))
+        return SignatureFlags(PeekByte(SeekTo(Part::TypeTag), EndBytes()))
             .WithMask(SignatureAttribute::CallingConventionMask) == SignatureAttribute::Default;
     }
 
@@ -1191,7 +1198,7 @@ namespace CxxReflect { namespace Metadata {
     {
         AssertInitialized();
 
-        return SignatureFlags(Private::PeekByte(SeekTo(Part::TypeTag), EndBytes()))
+        return SignatureFlags(PeekByte(SeekTo(Part::TypeTag), EndBytes()))
             .WithMask(SignatureAttribute::CallingConventionMask) == SignatureAttribute::VarArg;
     }
 
@@ -1199,7 +1206,7 @@ namespace CxxReflect { namespace Metadata {
     {
         AssertInitialized();
 
-        return SignatureFlags(Private::PeekByte(SeekTo(Part::TypeTag), EndBytes()))
+        return SignatureFlags(PeekByte(SeekTo(Part::TypeTag), EndBytes()))
             .WithMask(SignatureAttribute::CallingConventionMask) == SignatureAttribute::C;
     }
 
@@ -1207,7 +1214,7 @@ namespace CxxReflect { namespace Metadata {
     {
         AssertInitialized();
 
-        return SignatureFlags(Private::PeekByte(SeekTo(Part::TypeTag), EndBytes()))
+        return SignatureFlags(PeekByte(SeekTo(Part::TypeTag), EndBytes()))
             .WithMask(SignatureAttribute::CallingConventionMask) == SignatureAttribute::StdCall;
     }
 
@@ -1215,7 +1222,7 @@ namespace CxxReflect { namespace Metadata {
     {
         AssertInitialized();
 
-        return SignatureFlags(Private::PeekByte(SeekTo(Part::TypeTag), EndBytes()))
+        return SignatureFlags(PeekByte(SeekTo(Part::TypeTag), EndBytes()))
             .WithMask(SignatureAttribute::CallingConventionMask) == SignatureAttribute::ThisCall;
     }
 
@@ -1224,7 +1231,7 @@ namespace CxxReflect { namespace Metadata {
     {
         AssertInitialized();
 
-        return SignatureFlags(Private::PeekByte(SeekTo(Part::TypeTag), EndBytes()))
+        return SignatureFlags(PeekByte(SeekTo(Part::TypeTag), EndBytes()))
             .WithMask(SignatureAttribute::CallingConventionMask) == SignatureAttribute::FastCall;
     }
 
@@ -1232,7 +1239,7 @@ namespace CxxReflect { namespace Metadata {
     {
         AssertInitialized();
 
-        return SignatureFlags(Private::PeekByte(SeekTo(Part::TypeTag), EndBytes()))
+        return SignatureFlags(PeekByte(SeekTo(Part::TypeTag), EndBytes()))
             .IsSet(SignatureAttribute::Generic);
     }
 
@@ -1243,7 +1250,7 @@ namespace CxxReflect { namespace Metadata {
         if (!IsGeneric())
             return 0;
 
-        return Private::PeekCompressedUInt32(SeekTo(Part::GenParamCount), EndBytes());
+        return PeekCompressedUInt32(SeekTo(Part::GenParamCount), EndBytes());
     }
 
     TypeSignature MethodSignature::GetReturnType() const
@@ -1257,7 +1264,7 @@ namespace CxxReflect { namespace Metadata {
     {
         AssertInitialized();
 
-        return Private::PeekCompressedUInt32(SeekTo(Part::ParamCount), EndBytes());
+        return PeekCompressedUInt32(SeekTo(Part::ParamCount), EndBytes());
     }
 
     MethodSignature::ParameterIterator MethodSignature::BeginParameters() const
@@ -1313,7 +1320,7 @@ namespace CxxReflect { namespace Metadata {
         SignatureFlags typeFlags;
         if (part > Part::TypeTag)
         {
-            typeFlags = Private::ReadByte(current, EndBytes());
+            typeFlags = ReadByte(current, EndBytes());
         }
 
         if (part == Part::GenParamCount && !typeFlags.IsSet(SignatureAttribute::Generic))
@@ -1323,13 +1330,13 @@ namespace CxxReflect { namespace Metadata {
 
         if (part > Part::GenParamCount && typeFlags.IsSet(SignatureAttribute::Generic))
         {
-            Private::ReadCompressedUInt32(current, EndBytes());
+            ReadCompressedUInt32(current, EndBytes());
         }
 
         SizeType parameterCount(0);
         if (part > Part::ParamCount)
         {
-            parameterCount = Private::ReadCompressedUInt32(current, EndBytes());
+            parameterCount = ReadCompressedUInt32(current, EndBytes());
         }
 
         if (part > Part::RetType)
@@ -1341,16 +1348,16 @@ namespace CxxReflect { namespace Metadata {
         if (part > Part::FirstParam)
         {
             while (parametersRead < parameterCount &&
-                   Private::PeekByte(current, EndBytes()) != ElementType::Sentinel)
+                   PeekByte(current, EndBytes()) != ElementType::Sentinel)
             {
                 ++parametersRead;
                 current += TypeSignature(current, EndBytes()).ComputeSize();
             }
 
             if (current != EndBytes() &&
-                Private::PeekByte(current, EndBytes()) == ElementType::Sentinel)
+                PeekByte(current, EndBytes()) == ElementType::Sentinel)
             {
-                current += Private::ReadByte(current, EndBytes());
+                current += ReadByte(current, EndBytes());
             }
         }
 
@@ -1465,7 +1472,7 @@ namespace CxxReflect { namespace Metadata {
 
     bool TypeSignature::CustomModifierEndCheck(ConstByteIterator current, ConstByteIterator last)
     {
-        return current == last || !Private::IsCustomModifierElementType(Private::PeekByte(current, last));
+        return current == last || !Private::IsCustomModifierElementType(PeekByte(current, last));
     }
 
     CustomModifier TypeSignature::ReadCustomModifier(ConstByteIterator& current, ConstByteIterator last)
@@ -1494,7 +1501,7 @@ namespace CxxReflect { namespace Metadata {
     {
         AssertInitialized();
 
-        Byte const typeTag(Private::PeekByte(SeekTo(Part::TypeCode), EndBytes()));
+        Byte const typeTag(PeekByte(SeekTo(Part::TypeCode), EndBytes()));
         return IsValidElementType(typeTag) ? static_cast<ElementType>(typeTag) : ElementType::End;
     }
 
@@ -1503,7 +1510,7 @@ namespace CxxReflect { namespace Metadata {
         AssertInitialized();
 
         ConstByteIterator const byRefTag(SeekTo(Part::ByRefTag));
-        return byRefTag != nullptr && Private::PeekByte(byRefTag, EndBytes()) == ElementType::ByRef;
+        return byRefTag != nullptr && PeekByte(byRefTag, EndBytes()) == ElementType::ByRef;
     }
 
     bool TypeSignature::IsPrimitive() const
@@ -1593,8 +1600,7 @@ namespace CxxReflect { namespace Metadata {
     {
         AssertInitialized();
 
-        return RowReference::FromToken(
-            Private::PeekTypeDefOrRefOrSpecEncoded(SeekTo(Part::ClassTypeReference), EndBytes()));
+        return RowReference::FromToken(PeekTypeDefOrRefOrSpec(SeekTo(Part::ClassTypeReference), EndBytes()));
     }
 
     Database const* TypeSignature::GetTypeReferenceScope() const
@@ -1604,7 +1610,7 @@ namespace CxxReflect { namespace Metadata {
         if (GetElementType() != ElementType::CrossModuleTypeReference)
             return nullptr;
 
-        return reinterpret_cast<Database const*>(Private::PeekPointer(SeekTo(Part::ClassTypeScope), EndBytes()));
+        return reinterpret_cast<Database const*>(PeekPointer(SeekTo(Part::ClassTypeScope), EndBytes()));
     }
 
     bool TypeSignature::IsFunctionPointer() const
@@ -1632,29 +1638,28 @@ namespace CxxReflect { namespace Metadata {
     {
         AssertInitialized();
 
-        return Private::PeekByte(SeekTo(Part::GenericInstTypeCode), EndBytes()) == ElementType::Class;
+        return PeekByte(SeekTo(Part::GenericInstTypeCode), EndBytes()) == ElementType::Class;
     }
 
     bool TypeSignature::IsGenericValueTypeInstance() const
     {
         AssertInitialized();
 
-        return Private::PeekByte(SeekTo(Part::GenericInstTypeCode), EndBytes()) == ElementType::ValueType;
+        return PeekByte(SeekTo(Part::GenericInstTypeCode), EndBytes()) == ElementType::ValueType;
     }
 
     RowReference TypeSignature::GetGenericTypeReference() const
     {
         AssertInitialized();
 
-        return RowReference::FromToken(
-            Private::PeekTypeDefOrRefOrSpecEncoded(SeekTo(Part::GenericInstTypeReference), EndBytes()));
+        return RowReference::FromToken(PeekTypeDefOrRefOrSpec(SeekTo(Part::GenericInstTypeReference), EndBytes()));
     }
 
     SizeType TypeSignature::GetGenericArgumentCount() const
     {
         AssertInitialized();
 
-        return Private::PeekCompressedUInt32(SeekTo(Part::GenericInstArgumentCount), EndBytes());
+        return PeekCompressedUInt32(SeekTo(Part::GenericInstArgumentCount), EndBytes());
     }
 
     TypeSignature::GenericArgumentIterator TypeSignature::BeginGenericArguments() const
@@ -1672,7 +1677,7 @@ namespace CxxReflect { namespace Metadata {
     {
         AssertInitialized();
 
-        SizeType const count(Private::PeekCompressedUInt32(SeekTo(Part::GenericInstArgumentCount), EndBytes()));
+        SizeType const count(PeekCompressedUInt32(SeekTo(Part::GenericInstArgumentCount), EndBytes()));
         return GenericArgumentIterator(nullptr, nullptr, count, count);
     }
 
@@ -1708,7 +1713,7 @@ namespace CxxReflect { namespace Metadata {
     {
         AssertInitialized();
 
-        return Private::PeekCompressedUInt32(SeekTo(Part::VariableNumber), EndBytes());
+        return PeekCompressedUInt32(SeekTo(Part::VariableNumber), EndBytes());
     }
 
     ConstByteIterator TypeSignature::SeekTo(Part const part) const
@@ -1722,18 +1727,18 @@ namespace CxxReflect { namespace Metadata {
 
         if (partCode > Part::FirstCustomMod)
         {
-            while (Private::IsCustomModifierElementType(Private::PeekByte(current, EndBytes())))
+            while (Private::IsCustomModifierElementType(PeekByte(current, EndBytes())))
                 current += CustomModifier(current, EndBytes()).ComputeSize();
         }
 
-        if (partCode > Part::ByRefTag && Private::PeekByte(current, EndBytes()) == ElementType::ByRef)
+        if (partCode > Part::ByRefTag && PeekByte(current, EndBytes()) == ElementType::ByRef)
         {
-            Private::ReadByte(current, EndBytes());
+            ReadByte(current, EndBytes());
         }
 
         if (partCode > Part::TypeCode)
         {
-            Byte const typeCode(Private::ReadByte(current, EndBytes()));
+            Byte const typeCode(ReadByte(current, EndBytes()));
             if (partKind != Kind::Unknown && !IsKind(partKind))
             {
                 Detail::AssertFail(L"Invalid signature part requested");
@@ -1778,12 +1783,12 @@ namespace CxxReflect { namespace Metadata {
             {
                 if (partCode > ExtractPart(Part::ClassTypeReference))
                 {
-                    Private::ReadTypeDefOrRefOrSpecEncoded(current, EndBytes());
+                    ReadTypeDefOrRefOrSpec(current, EndBytes());
                 }
 
                 if (partCode > ExtractPart(Part::ClassTypeScope) && typeCode == ElementType::CrossModuleTypeReference)
                 {
-                    Private::ReadPointer(current, EndBytes());
+                    ReadPointer(current, EndBytes());
                 }
 
                 break;
@@ -1801,18 +1806,18 @@ namespace CxxReflect { namespace Metadata {
             {
                 if (partCode > ExtractPart(Part::GenericInstTypeCode))
                 {
-                    Private::ReadByte(current, EndBytes());
+                    ReadByte(current, EndBytes());
                 }
 
                 if (partCode > ExtractPart(Part::GenericInstTypeReference))
                 {
-                    Private::ReadTypeDefOrRefOrSpecEncoded(current, EndBytes());
+                    ReadTypeDefOrRefOrSpec(current, EndBytes());
                 }
 
                 SizeType argumentCount(0);
                 if (partCode > ExtractPart(Part::GenericInstArgumentCount))
                 {
-                    argumentCount = Private::ReadCompressedUInt32(current, EndBytes());
+                    argumentCount = ReadCompressedUInt32(current, EndBytes());
                 }
 
                 if (partCode > ExtractPart(Part::FirstGenericInstArgument))
@@ -1836,7 +1841,7 @@ namespace CxxReflect { namespace Metadata {
             {
                 if (partCode > ExtractPart(Part::VariableNumber))
                 {
-                    Private::ReadCompressedUInt32(current, EndBytes());
+                    ReadCompressedUInt32(current, EndBytes());
                 }
 
                 break;

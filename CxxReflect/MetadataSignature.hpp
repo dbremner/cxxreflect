@@ -124,6 +124,41 @@ namespace CxxReflect { namespace Metadata {
 
 
 
+    // Raw signature reading functions.  We use these both here for reading metadata signatures and
+    // in the CustomAttribute processing where we read arguments to the attribute.  The functions
+    // that Read an element take the iterator by reference and advance it past the element that is
+    // read.  The elements that Peek can be used to peek at the next element.  A MetadataReadError
+    // is thrown if an attempt is made to read past the end of the range.
+    Byte ReadByte(ConstByteIterator& it, ConstByteIterator last);
+    Byte PeekByte(ConstByteIterator  it, ConstByteIterator last);
+
+    std::int32_t ReadCompressedInt32(ConstByteIterator& it, ConstByteIterator last);
+    std::int32_t PeekCompressedInt32(ConstByteIterator  it, ConstByteIterator last);
+
+    std::uint32_t ReadCompressedUInt32(ConstByteIterator& it, ConstByteIterator last);
+    std::uint32_t PeekCompressedUInt32(ConstByteIterator  it, ConstByteIterator last);
+
+    std::uint32_t ReadTypeDefOrRefOrSpec(ConstByteIterator& it, ConstByteIterator last);
+    std::uint32_t PeekTypeDefOrRefOrSpec(ConstByteIterator  it, ConstByteIterator last);
+
+    ElementType ReadElementType(ConstByteIterator& it, ConstByteIterator last);
+    ElementType PeekElementType(ConstByteIterator  it, ConstByteIterator last);
+
+    std::uintptr_t ReadPointer(ConstByteIterator& it, ConstByteIterator last);
+    std::uintptr_t PeekPointer(ConstByteIterator  it, ConstByteIterator last);
+
+    template <typename T>
+    T ReadSignatureElement(ConstByteIterator& it, ConstByteIterator const last)
+    {
+        if (Detail::Distance(it, last) < sizeof(T))
+            throw LogicError(L"Invalid read request:  insufficient bytes to fill target");
+
+        T const value(*reinterpret_cast<T const*>(it));
+        it += sizeof(T);
+        return value;
+    }
+
+
     // A generic iterator that reads elements from a sequence via FMaterialize until FSentinelCheck
     // returns false.  This is used for sequences of elements where the sequence is terminated by
     // failing to read another element (e.g. CustomMod sequences).
