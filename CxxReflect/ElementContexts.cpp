@@ -11,6 +11,8 @@
 #include "CxxReflect/Property.hpp"
 #include "CxxReflect/Type.hpp"
 
+#include <mutex>
+
 namespace CxxReflect { namespace Detail { namespace { namespace Private {
 
     // A helper function which, given a TypeSpec, returns its TypeSignature.
@@ -352,6 +354,16 @@ namespace CxxReflect { namespace Detail { namespace { namespace Private {
             &type.GetDatabase(),
             typeSignature.BeginGenericArguments(),
             typeSignature.EndGenericArguments());
+    }
+
+    template <typename TStorage, typename TSignature, typename TInstantiator>
+    ConstByteRange Instantiate(TStorage& storage, TSignature const& signature, TInstantiator const& instantiator)
+    {
+        Assert([&]{ return signature.IsInitialized(); });
+        Assert([&]{ return TInstantiator::RequiresInstantiation(signature); });
+
+        TSignature const& instantiation(instantiator.Instantiate(signature));
+        return storage.AllocateSignature(instantiation.BeginBytes(), instantiation.EndBytes());
     }
 
 } } } }
@@ -804,49 +816,202 @@ namespace CxxReflect { namespace Detail {
 
 
 
+    class ElementContextTableStorage
+    {
+    public:
+        
+        typedef std::recursive_mutex        MutexType;
+        typedef std::unique_lock<MutexType> LockType;
+
+        typedef LinearArrayAllocator<Byte,             (1 << 16)> SignatureStorage;
+
+        typedef LinearArrayAllocator<EventContext,     (1 << 12)> EventContextStorage;
+        typedef LinearArrayAllocator<FieldContext,     (1 << 12)> FieldContextStorage;
+        typedef LinearArrayAllocator<InterfaceContext, (1 << 12)> InterfaceContextStorage;
+        typedef LinearArrayAllocator<MethodContext,    (1 << 12)> MethodContextStorage;
+        typedef LinearArrayAllocator<PropertyContext,  (1 << 12)> PropertyContextStorage;
+
+        typedef std::map<Metadata::FullReference, EventContextTable    > EventContextIndex;
+        typedef std::map<Metadata::FullReference, FieldContextTable    > FieldContextIndex;
+        typedef std::map<Metadata::FullReference, InterfaceContextTable> InterfaceContextIndex;
+        typedef std::map<Metadata::FullReference, MethodContextTable   > MethodContextIndex;
+        typedef std::map<Metadata::FullReference, PropertyContextTable > PropertyContextIndex;
+
+        class StorageLock
+        {
+        public:
+            
+            StorageLock(StorageLock&& other)
+                : _storage(other._storage), _lock(std::move(other._lock))
+            {
+                other._storage.Get() = nullptr;
+            }
+
+            StorageLock& operator=(StorageLock&& other)
+            {
+                _lock = std::move(other._lock);
+                _storage = other._storage;
+                other._storage.Get() = nullptr;
+            }
+
+            ConstByteRange AllocateSignature(ConstByteIterator const first, ConstByteIterator const last) const
+            {
+                AssertInitialized();
+                
+                auto& storage(_storage.Get()->_signatureStorage);
+                auto const range(storage.Allocate(std::distance(first, last)));
+                Detail::RangeCheckedCopy(first, last, range.Begin(), range.End());
+                return range;
+            }
+
+            template <typename TContextTag, typename TForwardIterator>
+            Range<ElementContext<TContextTag>>
+            AllocateTable(Metadata::FullReference const& type, TForwardIterator const first, TForwardIterator const last) const
+            {
+                AssertInitialized();
+
+                auto& storage(GetStorage(TContextTag()));
+                auto const range(storage.Allocate(std::distance(first, last)));
+                Detail::RangeCheckedCopy(first, last, range.Begin(), range.End());
+                GetIndex(TContextTag()).insert(std::make_pair(type, range));
+                return range;
+            }
+
+            template <typename TContextTag>
+            std::pair<bool, Range<ElementContext<TContextTag>>> FindTable(Metadata::FullReference const& type) const
+            {
+                AssertInitialized();
+
+                auto const& index(GetIndex(TContextTag()));
+                auto const it(index.find(type));
+                if (it == index.end())
+                    return std::make_pair(false, Default());
+
+                return std::make_pair(true, it->second);
+            }
+
+            bool IsInitialized() const
+            {
+                return _storage.Get() != nullptr;
+            }
+
+        private:
+
+            EventContextIndex    & GetIndex(EventContextTag    ) const { return _storage.Get()->_eventIndex;     }
+            FieldContextIndex    & GetIndex(FieldContextTag    ) const { return _storage.Get()->_fieldIndex;     }
+            InterfaceContextIndex& GetIndex(InterfaceContextTag) const { return _storage.Get()->_interfaceIndex; }
+            MethodContextIndex   & GetIndex(MethodContextTag   ) const { return _storage.Get()->_methodIndex;    }
+            PropertyContextIndex & GetIndex(PropertyContextTag ) const { return _storage.Get()->_propertyIndex;  }
+
+            EventContextStorage    & GetStorage(EventContextTag    ) const { return _storage.Get()->_eventStorage;     }
+            FieldContextStorage    & GetStorage(FieldContextTag    ) const { return _storage.Get()->_fieldStorage;     }
+            InterfaceContextStorage& GetStorage(InterfaceContextTag) const { return _storage.Get()->_interfaceStorage; }
+            MethodContextStorage   & GetStorage(MethodContextTag   ) const { return _storage.Get()->_methodStorage;    }
+            PropertyContextStorage & GetStorage(PropertyContextTag ) const { return _storage.Get()->_propertyStorage;  }
+
+            friend ElementContextTableStorage;
+
+            StorageLock(ElementContextTableStorage const* const storage)
+                : _storage(storage), _lock(storage->_sync)
+            {
+            }
+
+            // This class is noncopyable (it is, however, moveable)
+            StorageLock(StorageLock const&);
+            StorageLock& operator=(StorageLock const&);
+
+            void AssertInitialized() const
+            {
+                Detail::Assert([&]{ return IsInitialized(); });
+            }
+
+            Detail::ValueInitialized<ElementContextTableStorage const*> _storage;
+            LockType                                                    _lock;
+        };
+
+        ElementContextTableStorage()
+        {
+        }
+
+        StorageLock Lock() const
+        {
+            return StorageLock(this);
+        }
+
+    private:
+
+        ElementContextTableStorage(ElementContextTableStorage const&);
+        ElementContextTableStorage& operator=(ElementContextTableStorage const&);
+
+        SignatureStorage        mutable _signatureStorage;
+
+        // TODO We could combine all five of these into a single allocator, since each context type
+        // has exactly the same data members.  We could also merge all of the indices together and
+        // have each type map to a set of five tables, one for each element type.  This would help
+        // to cut back on the number of dynamic allocations.
+        EventContextStorage     mutable _eventStorage;
+        FieldContextStorage     mutable _fieldStorage;
+        InterfaceContextStorage mutable _interfaceStorage;
+        MethodContextStorage    mutable _methodStorage;
+        PropertyContextStorage  mutable _propertyStorage;
+
+        EventContextIndex       mutable _eventIndex;
+        FieldContextIndex       mutable _fieldIndex;
+        InterfaceContextIndex   mutable _interfaceIndex;
+        MethodContextIndex      mutable _methodIndex;
+        PropertyContextIndex    mutable _propertyIndex;
+
+        MutexType               mutable _sync;
+    };
+
+    ElementContextTableStorageInstance CreateElementContextTableStorage()
+    {
+        ElementContextTableStorageInstance instance(new ElementContextTableStorage());
+        return instance;
+    }
+
+    void ElementContextTableStorageDeleter::operator()(ElementContextTableStorage const volatile* p) const volatile
+    {
+        delete p;
+    }
+
+
+
+
+
     template <typename T>
-    ElementContextTableCollection<T>::ElementContextTableCollection(Metadata::ITypeResolver const*    const typeResolver,
-                                                                    ElementContextSignatureAllocator* const signatureAllocator)
+    ElementContextTableCollection<T>::ElementContextTableCollection(Metadata::ITypeResolver    const* const typeResolver,
+                                                                    ElementContextTableStorage const* const storage)
         : _typeResolver(typeResolver),
-          _signatureAllocator(signatureAllocator)
+          _storage(storage)
     {
         AssertNotNull(typeResolver);
-        AssertNotNull(signatureAllocator);
+        AssertNotNull(storage);
     }
 
     template <typename T>
     ElementContextTableCollection<T>::ElementContextTableCollection(ElementContextTableCollection&& other)
-        : _typeResolver      (std::move(other._typeResolver      )),
-          _signatureAllocator(std::move(other._signatureAllocator)),
-          _tableAllocator    (std::move(other._tableAllocator    )),
-          _index             (std::move(other._index             )),
-          _buffer            (std::move(other._buffer            ))
+        : _typeResolver(std::move(other._typeResolver)),
+          _storage     (std::move(other._storage     ))
     {
         AssertInitialized();
         other._typeResolver.Reset();
-        other._signatureAllocator.Reset();
+        other._storage.Reset();
     }
 
     template <typename T>
     ElementContextTableCollection<T>& ElementContextTableCollection<T>::operator=(ElementContextTableCollection&& other)
     {
-        Swap(other);
+        other.AssertInitialized();
 
-        AssertInitialized();
+        // All of these are pointer operations; none will throw.
+        _typeResolver = other._typeResolver;
+        _storage = other._storage;
+
         other._typeResolver.Reset();
-        other._signatureAllocator.Reset();
-        return *this;
-    }
+        other._storage.Reset();
 
-    template <typename T>
-    void ElementContextTableCollection<T>::Swap(ElementContextTableCollection& other)
-    {
-        using std::swap;
-        swap(other._typeResolver,       _typeResolver      );
-        swap(other._signatureAllocator, _signatureAllocator);
-        swap(other._tableAllocator,     _tableAllocator    );
-        swap(other._index,              _index             );
-        swap(other._buffer,             _buffer            );
+        return *this;
     }
 
     template <typename T>
@@ -867,16 +1032,14 @@ namespace CxxReflect { namespace Detail {
     {
         AssertInitialized();
 
-        // First, handle the "Get" of "GetOrCreate".  If we already created a table, return it:
-        auto const it(_index.find(type));
-        if (it != end(_index))
-            return it->second;
+        ElementContextTableStorage::StorageLock storage(_storage.Get()->Lock());
 
-        // When this function returns, we want to clear the buffer so it is ready for our next use.
-        // Note that we use resize(0) instead of clear() because in the Visual C++ 11 implementation
-        // the latter will destroy the underlying storage.  We want to keep the buffer intact so
-        // that we can reuse it.
-        ScopeGuard const bufferCleanupGuard([&]{ _buffer.resize(0); });
+        // First, handle the "Get" of "GetOrCreate".  If we already created a table, return it:
+        auto const result(storage.FindTable<TagType>(type));
+        if (result.first)
+            return result.second;
+
+        std::vector<ContextType> newTable;
 
         Private::TypeDefAndSignature const typeDefAndSig(Private::ResolveTypeDefAndSignature(*_typeResolver.Get(), type));
         FullReference const& typeDefReference(typeDefAndSig.GetTypeDef());
@@ -896,7 +1059,7 @@ namespace CxxReflect { namespace Detail {
         {
             ContextTableType const table(GetOrCreateTable(FullReference(&database, baseTypeReference)));
 
-            std::transform(table.Begin(), table.End(), std::back_inserter(_buffer), [&](ContextType const& e)
+            std::transform(table.Begin(), table.End(), std::back_inserter(newTable), [&](ContextType const& e)
                 -> ContextType
             {
                 if (!instantiator.HasArguments() ||
@@ -908,11 +1071,11 @@ namespace CxxReflect { namespace Detail {
                     e.GetOwningType(),
                     e.GetElement(),
                     e.GetInstantiatingType(),
-                    Instantiate(instantiator, e.GetElementSignature(*_typeResolver.Get())));
+                    Private::Instantiate(storage, e.GetElementSignature(*_typeResolver.Get()), instantiator));
             });
         }
 
-        SizeType const inheritedMemberCount(static_cast<SizeType>(_buffer.size()));
+        SizeType const inheritedElementCount(static_cast<SizeType>(newTable.size()));
 
         auto const createElement([&](RowType const& elementDef) -> ContextType
         {
@@ -932,7 +1095,7 @@ namespace CxxReflect { namespace Detail {
                 Instantiator::RequiresInstantiation(elementSig));
 
             ConstByteRange const instantiatedSig(requiresInstantiation
-                ? Instantiate(instantiator, elementSig)
+                ? Private::Instantiate(storage, elementSig, instantiator)
                 : ConstByteRange(elementSig.BeginBytes(), elementSig.EndBytes()));
 
             return instantiatedSig.IsInitialized()
@@ -942,7 +1105,7 @@ namespace CxxReflect { namespace Detail {
 
         auto const insertIntoBuffer([&](ContextType const& element) -> void
         {
-            InsertIntoBuffer(element, inheritedMemberCount);
+            TraitsType::InsertElement(*_typeResolver.Get(), newTable, element, inheritedElementCount);
         });
 
         // Second, enumerate the elements declared by this type itself (i.e., not inherited) and
@@ -958,38 +1121,7 @@ namespace CxxReflect { namespace Detail {
 
         std::for_each(firstElement, lastElement, recursiveInserter);
 
-        ContextTableType const range(_tableAllocator.Allocate(_buffer.size()));
-        RangeCheckedCopy(_buffer.begin(), _buffer.end(), range.Begin(), range.End());
-
-        _index.insert(std::make_pair(type, range));
-        return range;
-    }
-
-    template <typename T>
-    ConstByteRange ElementContextTableCollection<T>::Instantiate(Instantiator  const& instantiator,
-                                                                 SignatureType const& signature) const
-    {
-        Assert([&]{ return signature.IsInitialized(); });
-        Assert([&]{ return Instantiator::RequiresInstantiation(signature); });
-
-        SignatureType const& instantiation(instantiator.Instantiate(signature));
-        SizeType const instantiationSize(
-            static_cast<SizeType>(std::distance(instantiation.BeginBytes(), instantiation.EndBytes())));
-
-        ByteRange const ownedInstantiation(_signatureAllocator.Get()->Allocate(instantiationSize));
-
-        RangeCheckedCopy(
-            instantiation.BeginBytes(), instantiation.EndBytes(),
-            ownedInstantiation.Begin(), ownedInstantiation.End());
-
-        return ownedInstantiation;
-    }
-
-    template <typename T>
-    void ElementContextTableCollection<T>::InsertIntoBuffer(ContextType const& newElement,
-                                                            SizeType    const inheritedElementCount) const
-    {
-        return TraitsType::InsertElement(*_typeResolver.Get(), _buffer, newElement, inheritedElementCount);
+        return storage.AllocateTable<TagType>(type, newTable.begin(), newTable.end());
     }
 
 

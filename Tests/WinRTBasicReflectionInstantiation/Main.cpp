@@ -19,6 +19,10 @@ int main(Platform::Array<Platform::String^>^)
 
     std::for_each(begin(types), end(types), [&](cxr::Type const& type)
     {
+        // If the type is not default constructible; skip it:
+        if (!type.IsDefaultConstructible(cxr::BindingAttribute::Instance | cxr::BindingAttribute::Public))
+            return;
+
         auto const instance(cxr::CreateInstance<WinRTBasicReflectionTest::IProvideANumber>(type));
         
         std::wstringstream formatter;
@@ -27,13 +31,7 @@ int main(Platform::Array<Platform::String^>^)
         OutputDebugString(formatter.str().c_str());
     });
 
-    cxr::Type t = cxr::GetType(L"WinRTBasicReflectionTest.TestClass");
-    std::for_each(t.BeginCustomAttributes(), t.EndCustomAttributes(), [&](cxr::CustomAttribute const& a)
-    {
-        OutputDebugString(L"CA:");
-        OutputDebugString(a.GetConstructor().GetDeclaringType().GetFullName().c_str());
-        OutputDebugString(L"\n");
-    });
+    cxr::Type const userType(cxr::GetType(L"WinRTBasicReflectionTest.UserProvidedNumber"));
 
-    cxr::CreateInspectableInstance(t, 42);
+    auto const userInstance(cxr::CreateInstance<WinRTBasicReflectionTest::IProvideANumber>(userType, 10));
 }

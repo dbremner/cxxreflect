@@ -83,7 +83,7 @@ namespace CxxReflect {
         // the set of fundamental type definitions for the type universe once, here, in the loader:
         mutable std::array<Detail::TypeHandle, FundamentalTypeCount> _fundamentalTypes;
 
-        Detail::ElementContextSignatureAllocator   mutable _signatureAllocator;
+        Detail::ElementContextTableStorageInstance mutable _contextStorage;
 
         Detail::EventContextTableCollection        mutable _events;
         Detail::FieldContextTableCollection        mutable _fields;

@@ -27,10 +27,19 @@ namespace WinRTBasicReflectionTest
         default::int32 GetNumber() { return 42; }
     };
 
-    public ref class TestClass sealed
+    public ref class UserProvidedNumber sealed : IProvideANumber
     {
     public:
 
-        TestClass(default::int32) { }
+        UserProvidedNumber(default::int32 value)
+            : _value(value)
+        {
+        }
+
+        default::int32 GetNumber() { return _value; }
+
+    private:
+
+        default::int32 _value;
     };
 }

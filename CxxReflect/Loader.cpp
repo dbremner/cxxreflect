@@ -49,27 +49,27 @@ namespace CxxReflect {
     #pragma warning(disable: 4355) // Disables "don't use 'this' in initializer list" warning; I know what I'm doing.
     Loader::Loader(std::auto_ptr<IAssemblyLocator> assemblyLocator)
         : _assemblyLocator(assemblyLocator.release()),
-          _events         (this, &_signatureAllocator),
-          _fields         (this, &_signatureAllocator),
-          _interfaces     (this, &_signatureAllocator),
-          _methods        (this, &_signatureAllocator),
-          _properties     (this, &_signatureAllocator)
+          _contextStorage (Detail::CreateElementContextTableStorage()),
+          _events         (this, _contextStorage.get()),
+          _fields         (this, _contextStorage.get()),
+          _interfaces     (this, _contextStorage.get()),
+          _methods        (this, _contextStorage.get()),
+          _properties     (this, _contextStorage.get())
     {
         Detail::AssertNotNull(_assemblyLocator.get());
     }
 
     Loader::Loader(std::unique_ptr<IAssemblyLocator> assemblyLocator)
         : _assemblyLocator(std::move(assemblyLocator)),
-          _events         (this, &_signatureAllocator),
-          _fields         (this, &_signatureAllocator),
-          _interfaces     (this, &_signatureAllocator),
-          _methods        (this, &_signatureAllocator),
-          _properties     (this, &_signatureAllocator)
+          _contextStorage (Detail::CreateElementContextTableStorage()),
+          _events         (this, _contextStorage.get()),
+          _fields         (this, _contextStorage.get()),
+          _interfaces     (this, _contextStorage.get()),
+          _methods        (this, _contextStorage.get()),
+          _properties     (this, _contextStorage.get())
     {
         Detail::AssertNotNull(_assemblyLocator.get());
     }
-
-
     #pragma warning(pop)
 
     IAssemblyLocator const& Loader::GetAssemblyLocator(InternalKey) const

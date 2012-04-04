@@ -27,10 +27,9 @@ namespace CxxReflect {
         // We store and provide access to the GUID via a byte[16]
         typedef std::array<std::uint8_t, 16> ByteArray;
 
+        Guid();
         Guid(String const& guid);
-
         Guid(Element0 m0, Element1 m1, Element2 m2);
-
         Guid(U4 m0, U2 m1a, U2 m1b, U1 m2a, U1 m2b, U1 m2c, U1 m2d, U1 m2e, U1 m2f, U1 m2g, U1 m2h);
 
         ByteArray const& AsByteArray() const

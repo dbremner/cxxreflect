@@ -8,6 +8,11 @@
 
 namespace CxxReflect {
 
+    Guid::Guid()
+        : _data()
+    {
+    }
+
     Guid::Guid(String const&)
     {
         Detail::AssertFail(L"Not Yet Implemented due to linker bug with WinMD generation.");
@@ -20,8 +25,8 @@ namespace CxxReflect {
     Guid::Guid(Element0 m0, Element1 m1, Element2 m2)
     {
         using namespace Detail;
-        RangeCheckedCopy(ReverseBeginBytes(m0), ReverseEndBytes(m0), _data.begin(), _data.end());
-        RangeCheckedCopy(ReverseBeginBytes(m1.data() + m1.size()), ReverseEndBytes(m1.data()),
+        RangeCheckedCopy(BeginBytes(m0), EndBytes(m0), _data.begin(), _data.end());
+        RangeCheckedCopy(BeginBytes(m1.data() + m1.size()), EndBytes(m1.data()),
                          _data.begin() + 4, _data.end());
 
         RangeCheckedCopy(m2.begin(), m2.end(), _data.begin() + 8, _data.end());
@@ -30,9 +35,9 @@ namespace CxxReflect {
     Guid::Guid(U4 m0, U2 m1a, U2 m1b, U1 m2a, U1 m2b, U1 m2c, U1 m2d, U1 m2e, U1 m2f, U1 m2g, U1 m2h)
     {
         using namespace Detail;
-        RangeCheckedCopy(ReverseBeginBytes(m0),  ReverseEndBytes(m0),  _data.begin(),     _data.end());
-        RangeCheckedCopy(ReverseBeginBytes(m1a), ReverseEndBytes(m1a), _data.begin() + 4, _data.end());
-        RangeCheckedCopy(ReverseBeginBytes(m1b), ReverseEndBytes(m1b), _data.begin() + 6, _data.end());
+        RangeCheckedCopy(BeginBytes(m0),  EndBytes(m0),  _data.begin(),     _data.end());
+        RangeCheckedCopy(BeginBytes(m1a), EndBytes(m1a), _data.begin() + 4, _data.end());
+        RangeCheckedCopy(BeginBytes(m1b), EndBytes(m1b), _data.begin() + 6, _data.end());
 
         _data[0x8] = m2a; _data[0x9] = m2b; _data[0xA] = m2c; _data[0xB] = m2d;
         _data[0xC] = m2e; _data[0xD] = m2f; _data[0xE] = m2g; _data[0xF] = m2h;

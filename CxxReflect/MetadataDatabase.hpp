@@ -761,6 +761,15 @@ namespace CxxReflect { namespace Metadata {
 
 
 
+    // The StringCollection has a mutable cache, which requires us to use synchronization to access
+    // it.  Because C++/CLI translation units do not support the C++11 synchronization primitives,
+    // we use this implementation class with the pimpl idiom.
+    class StringCollectionCache;
+
+
+
+
+
     // Encapsulates the strings stream, providing conversion from the raw UTF-8 strings to the
     // more convenient UTF-16 used by Windows.  It caches the transformed strings so that we can
     // just use references to the strings everywhere and not have to copy tons of data.
@@ -774,7 +783,7 @@ namespace CxxReflect { namespace Metadata {
 
         StringCollection& operator=(StringCollection&& other);
 
-        void Swap(StringCollection& other);
+        ~StringCollection();
 
         StringReference At(SizeType index) const;
 
@@ -782,17 +791,9 @@ namespace CxxReflect { namespace Metadata {
 
     private:
 
-        typedef Detail::LinearArrayAllocator<Character, (1 << 16)> Allocator;
-        typedef std::map<SizeType, StringReference>                StringMap;
-
-        StringCollection(StringCollection const&);
-        StringCollection& operator=(StringCollection const&);
-
         void AssertInitialized() const;
 
-        Stream            _stream;
-        mutable Allocator _buffer; // Stores the transformed UTF-16 strings
-        mutable StringMap _index;  // Maps string heap indices into indices in the buffer
+        std::unique_ptr<StringCollectionCache> _cache;
     };
 
 

@@ -618,10 +618,7 @@ namespace CxxReflect { namespace Detail {
         {
         }
 
-        // We mark this explicit so that the constructor templates taking value_type[N] are
-        // preferred for string literals (and other arrays); that constructor provides O(1) end
-        // pointer computation.
-        explicit EnhancedCString(const_pointer const first)
+        EnhancedCString(const_pointer const first)
             : _first(first), _last(nullptr)
         {
         }
@@ -641,6 +638,15 @@ namespace CxxReflect { namespace Detail {
         EnhancedCString(value_type (&data)[N])
             : _first(data), _last(data + N - 1)
         {
+        }
+
+        template <size_type N>
+        static EnhancedCString OfArray(value_type const (&data)[N])
+        {
+            EnhancedCString value;
+            value._first = data;
+            value._last = data + N - 1;
+            return value;
         }
 
         const_iterator begin()  const { return _first;          }
@@ -817,6 +823,17 @@ namespace CxxReflect { namespace Detail {
 //
 
 namespace CxxReflect { namespace Detail {
+
+    class Default
+    {
+    public:
+
+        template <typename T>
+        operator T() const volatile
+        {
+            return T();
+        }
+    };
 
     // A scope-guard class that performs an operation on destruction.  The implementation is "good
     // enough" for most uses, though its use of std::function, which may itself perform dynamic
@@ -1498,88 +1515,128 @@ namespace CxxReflect { namespace Detail {
 
 //
 //
-// MULTITHREADING AND SYNCHRONIZATION
+// STACK ALLOCATOR
 //
 //
 
 namespace CxxReflect { namespace Detail {
-    /*
-    template <typename T>
-    class Lease;
 
-    template <typename T>
-    class Synchronized
+    // This allocator is based on the stack_alloc<T, N> implementation by Howard Hinnant, found at
+    // http://home.roadrunner.com/~hinnant/stack_alloc.h.
+    template <typename T, SizeType N> class StackAllocator;
+
+    template <SizeType N>
+    class StackAllocator<void, N>
     {
     public:
 
-        Lease<T> ObtainLease() const
+        typedef void const* const_pointer;
+        typedef void        value_type;
+    };
+
+    template <typename T, SizeType N>
+    class StackAllocator
+    {
+    public:
+
+        typedef SizeType          size_type;
+        typedef T                 value_type;
+        typedef value_type      * pointer;
+        typedef value_type const* const_pointer;
+        typedef value_type      & reference;
+        typedef value_type const& const_reference;
+
+        StackAllocator()
+            : _current(root())
         {
-            return Lease<T>(this);
+        }
+
+        StackAllocator(StackAllocator const&)
+            : _current(root())
+        {
+        }
+
+        template <typename U>
+        StackAllocator(StackAllocator<U, N> const&)
+            : _current(root())
+        {
+        }
+
+        template <typename U>
+        struct rebind
+        {
+            typedef StackAllocator<U, N> other;
+        };
+
+        pointer allocate(size_type const n, typename StackAllocator<void, N>::const_pointer = 0)
+        {
+            if (root() + N - _current >= n)
+            {
+                pointer const r(_current);
+                _current += n;
+                return r;
+            }
+
+            return static_cast<pointer>(::operator new(n * sizeof(value_type)));
+        }
+
+        pointer deallocate(pointer const p, size_type const n)
+        {
+            if (root() <= p && p < root() + N)
+            {
+                if (p + n == _current)
+                    _current = p;
+            }
+            else
+            {
+                ::operator delete(p);
+            }
+        }
+
+        size_type max_size() const
+        {
+            return static_cast<size_type>(-1) / sizeof(value_type);
+        }
+
+        void destroy(pointer const p)
+        {
+            p->~value_type();
+        }
+
+        void construct(pointer const p)
+        {
+            ::new(static_cast<void*>(p)) value_type();
+        }
+
+        template <typename P0>
+        void construct(pointer const p, P0&& a0)
+        {
+            ::new(static_cast<void*>(p)) value_type(a0);
+        }
+
+        friend bool operator==(StackAllocator const& lhs, StackAllocator const& rhs)
+        {
+            return &lhs._storage == &rhs._storage;
+        }
+
+        friend bool operator!=(StackAllocator const& lhs, StackAllocator const& rhs)
+        {
+            return &lhs._storage != &rhs._storage;
         }
 
     private:
 
-        friend Lease<T>;
+        typedef typename std::aligned_storage<sizeof(T) * N, 16>::type buffer_type;
 
-        T&   Get()    const { return _object;  }
-        void Lock()   const { _mutex.lock();   }
-        void Unlock() const { _mutex.unlock(); }
+        // This class is not assignable:
+        StackAllocator& operator=(StackAllocator const&);
 
-        T          mutable _object;
-        std::mutex mutable _mutex;
+        pointer       root()       { return reinterpret_cast<pointer      >(&_storage); }
+        const_pointer root() const { return reinterpret_cast<const_pointer>(&_storage); }
+
+        buffer_type _storage;
+        pointer     _current;
     };
-
-    template <typename T>
-    class Lease
-    {
-    public:
-
-        explicit Lease(Synchronized<T> const* object)
-            : _object(object)
-        {
-            Detail::AssertNotNull(object);
-
-            _object->Lock();
-        }
-
-        Lease(Lease&& other)
-            : _object(other._object)
-        {
-            AssertNotNull(_object);
-
-            other._object = nullptr;
-        }
-
-        Lease& operator=(Lease&& other)
-        {
-            Detail::AssertNotNull(other._object);
-
-            if (_object != nullptr && _object != other._object)
-                _object->Unlock();
-
-            _object = other._object;
-            other._object = nullptr;
-        }
-
-        ~Lease()
-        {
-            if (_object != nullptr)
-                _object->Unlock();
-        }
-
-        T& Get() const
-        {
-            return _object->Get();
-        }
-
-    private:
-
-        Lease(Lease const&);
-        Lease& operator=(Lease const&);
-
-        Synchronized<T> const* _object;
-    };
-    */
 
 } }
 

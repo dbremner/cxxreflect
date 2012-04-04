@@ -271,7 +271,29 @@ namespace CxxReflect { namespace Detail {
 
 
 
-    typedef LinearArrayAllocator<Byte, (1 << 16)> ElementContextSignatureAllocator;
+    // We allocate all of the element contexts in an instance of this class.  It's entirely defined
+    // within the ElementContexts.cpp file because it requires internal synchronization and we can't
+    // include the mutex header in any of our public API headers (thanks a lot, C++/CLI).  So, we
+    // also need to have a factory method and deleter.
+    class ElementContextTableStorage;
+
+    // For completeness ;-)
+    class ElementContextTableStorageDeleter
+    {
+    public:
+
+        void operator()(ElementContextTableStorage const volatile*) const volatile;
+    };
+
+    typedef std::unique_ptr<
+        ElementContextTableStorage,
+        ElementContextTableStorageDeleter
+    > ElementContextTableStorageInstance;
+
+    // Implementation factory for ElementContextTableAllocator
+    ElementContextTableStorageInstance CreateElementContextTableStorage();
+
+
 
 
 
@@ -283,9 +305,6 @@ namespace CxxReflect { namespace Detail {
     //
     // TODO We should provide a way to rollback to a previous cache state.  This should be fairly
     // simple since we use a linear cache without any internal reallocation of data.
-    //
-    // TODO We should try to use a single allocator for all of the ElementContext types; this would
-    // substantially cut back the overhead for small type universes.
     template <typename TContextTag>
     class ElementContextTableCollection
     {
@@ -300,19 +319,14 @@ namespace CxxReflect { namespace Detail {
         typedef typename TraitsType::RowIteratorType         RowIteratorType;
         typedef typename TraitsType::SignatureType           SignatureType;
 
-        typedef ElementContextSignatureAllocator             SignatureAllocator;
-        typedef LinearArrayAllocator<ContextType, (1 << 11)> TableAllocator;
-
         typedef Metadata::ClassVariableSignatureInstantiator Instantiator;
         typedef Metadata::FullReference                      FullReference;
 
-        ElementContextTableCollection(Metadata::ITypeResolver const* typeResolver,
-                                      SignatureAllocator           * signatureAllocator);
+        ElementContextTableCollection(Metadata::ITypeResolver    const* typeResolver,
+                                      ElementContextTableStorage const* storage);
 
         ElementContextTableCollection(ElementContextTableCollection&& other);
         ElementContextTableCollection& operator=(ElementContextTableCollection&& other);
-
-        void Swap(ElementContextTableCollection& other);
 
         ContextTableType GetOrCreateTable(FullReference const& type) const;
 
@@ -320,22 +334,13 @@ namespace CxxReflect { namespace Detail {
 
     private:
 
-        typedef std::map<FullReference, ContextTableType>    IndexType;
-        typedef std::vector<ContextType>                     BufferType;
-
         ElementContextTableCollection(ElementContextTableCollection const&);
         ElementContextTableCollection& operator=(ElementContextTableCollection const&);
 
-        ConstByteRange Instantiate(Instantiator const& instantiator, SignatureType const& signature) const;
-        void InsertIntoBuffer(ContextType const& newElement, SizeType const inheritedElementCount) const;
-
         void AssertInitialized() const;
 
-        ValueInitialized<Metadata::ITypeResolver const*>            _typeResolver;
-        ValueInitialized<ElementContextSignatureAllocator*>         _signatureAllocator;
-        TableAllocator                                      mutable _tableAllocator;
-        IndexType                                           mutable _index;
-        BufferType                                          mutable _buffer;
+        ValueInitialized<Metadata::ITypeResolver    const*> _typeResolver;
+        ValueInitialized<ElementContextTableStorage const*> _storage;
     };
 
 

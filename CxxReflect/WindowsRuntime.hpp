@@ -222,10 +222,11 @@ namespace CxxReflect { namespace WindowsRuntime {
 
 namespace CxxReflect { namespace Detail {
     
-    // TYPE INSTANTIATION WITH ARGUMENTS
-    //
-    // TODO Documentation
-
+    // We use the VariantArgumentPack to pack the arguments to a function, with original type
+    // information.  These arguments are then passed into the method invoker or object activator,
+    // where they are used during overload resolution to select the best matching function.  They
+    // are then transformed into one of the platform-specific argument packs to construct the
+    // arguments portion of the activation frame to be passed to the function.
     class VariantArgumentPack
     {
     public:
@@ -245,6 +246,8 @@ namespace CxxReflect { namespace Detail {
             Detail::ValueInitialized<SizeType>              _valueIndex;
             Detail::ValueInitialized<SizeType>              _valueSize;
         };
+
+        SizeType Arity() const;
 
         void Push(bool);
 

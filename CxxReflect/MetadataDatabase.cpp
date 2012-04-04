@@ -6,6 +6,8 @@
 
 #include "CxxReflect/CoreComponents.hpp"
 
+#include <mutex>
+
 namespace CxxReflect { namespace Metadata { namespace { namespace Private {
 
     // The PE headers and related structures are naturally aligned, so we shouldn't need any custom
@@ -955,54 +957,99 @@ namespace CxxReflect { namespace Metadata {
 
 
 
+    class StringCollectionCache
+    {
+    public:
+
+        StringCollectionCache()
+        {
+        }
+
+        explicit StringCollectionCache(Stream&& stream)
+            : _stream(std::move(stream))
+        {
+        }
+
+        StringReference At(SizeType const index)
+        {
+            // TODO We can easily break this work up into smaller chunks if this becomes contentious.
+            // We can easily do the UTF8->UTF16 conversion outside of any locks.
+            Lock const lock(_sync);
+
+            auto const existingIt(_index.find(index));
+            if (existingIt != _index.end())
+                return existingIt->second;
+
+            char const* pointer(_stream.ReinterpretAs<char>(index));
+            int const required(Externals::ComputeUtf16LengthOfUtf8String(pointer));
+
+            auto const range(_buffer.Allocate(required));
+            if (!Externals::ConvertUtf8ToUtf16(pointer, range.Begin(), required))
+                throw std::logic_error("wtf");
+
+            return _index.insert(std::make_pair(index, StringReference(range.Begin(), range.End() - 1))).first->second;
+        }
+
+        bool IsInitialized() const
+        {
+            return _stream.IsInitialized();
+        }
+
+    private:
+
+        typedef Detail::LinearArrayAllocator<Character, (1 << 16)> Allocator;
+        typedef std::map<SizeType, StringReference>                StringMap;
+        typedef std::mutex                                         Mutex;
+        typedef std::lock_guard<Mutex>                             Lock;
+
+        StringCollectionCache(StringCollectionCache const&);
+        StringCollectionCache& operator=(StringCollectionCache const&);
+
+        void AssertInitialized() const
+        {
+            Detail::Assert([&]{ return IsInitialized(); });
+        }
+
+        Stream            _stream;
+        Allocator mutable _buffer;  // Stores the transformed UTF-16 strings
+        StringMap mutable _index;   // Maps string heap indices into indices in the buffer
+        Mutex     mutable _sync;
+    };
+
+
     StringCollection::StringCollection()
     {
     }
 
     StringCollection::StringCollection(Stream&& stream)
-        : _stream(std::move(stream))
+        : _cache(new StringCollectionCache(std::move(stream)))
     {
     }
 
     StringCollection::StringCollection(StringCollection&& other)
-        : _stream(std::move(other._stream)),
-          _buffer(std::move(other._buffer)),
-          _index(std::move(other._index))
+        : _cache(std::move(other._cache))
     {
     }
 
     StringCollection& StringCollection::operator=(StringCollection&& other)
     {
-        Swap(other);
+        _cache = std::move(other._cache);
         return *this;
     }
 
-    void StringCollection::Swap(StringCollection& other)
+    StringCollection::~StringCollection()
     {
-        std::swap(other._stream, _stream);
-        std::swap(other._buffer, _buffer);
-        std::swap(other._index,  _index );
+        // User-defined destructor required for pimpl'ed unique_ptr
     }
 
     StringReference StringCollection::At(SizeType const index) const
     {
-        auto const existingIt(_index.find(index));
-        if (existingIt != _index.end())
-            return existingIt->second;
-
-        char const* pointer(_stream.ReinterpretAs<char>(index));
-        int const required(Externals::ComputeUtf16LengthOfUtf8String(pointer));
-
-        auto const range(_buffer.Allocate(required));
-        if (!Externals::ConvertUtf8ToUtf16(pointer, range.Begin(), required))
-            throw std::logic_error("wtf");
-
-        return _index.insert(std::make_pair(index, StringReference(range.Begin(), range.End() - 1))).first->second;
+        return _cache->At(index);
     }
 
     bool StringCollection::IsInitialized() const
     {
-        return _stream.IsInitialized();
+        return _cache != nullptr && _cache->IsInitialized();
     }
 
     void StringCollection::AssertInitialized() const
