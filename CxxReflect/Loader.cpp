@@ -10,6 +10,32 @@
 #include "CxxReflect/Method.hpp"
 #include "CxxReflect/Type.hpp"
 
+#include <mutex>
+
+namespace CxxReflect { namespace Detail {
+
+    // Note:  In order to prevent deadlocks, please be sure to mind the lock hierarchy.  There are
+    // two locks that may conflict:  (a) the element contexts lock and (b) the loader lock.  When
+    // we build an element context table, we may need to resolve and load other assemblies, so there
+    // is a well-known a->b dependency.  We must therefore ensure that we do not introduce a b->a
+    // dependency anywhere in the code.  This is fairly straightforward, we just have to be sure not
+    // to materialize any of the contexts during assembly loading.
+    class LoaderSynchronizationContext
+    {
+    public:
+
+        std::unique_lock<std::recursive_mutex> Lock() const
+        {
+            return std::unique_lock<std::recursive_mutex>(_lock);
+        }
+
+    private:
+
+        std::recursive_mutex mutable _lock;
+    };
+
+} }
+
 namespace CxxReflect {
 
     DirectoryBasedAssemblyLocator::DirectoryBasedAssemblyLocator(DirectorySet const& directories)
@@ -54,7 +80,8 @@ namespace CxxReflect {
           _fields         (this, _contextStorage.get()),
           _interfaces     (this, _contextStorage.get()),
           _methods        (this, _contextStorage.get()),
-          _properties     (this, _contextStorage.get())
+          _properties     (this, _contextStorage.get()),
+          _sync           (new Detail::LoaderSynchronizationContext())
     {
         Detail::AssertNotNull(_assemblyLocator.get());
     }
@@ -66,11 +93,17 @@ namespace CxxReflect {
           _fields         (this, _contextStorage.get()),
           _interfaces     (this, _contextStorage.get()),
           _methods        (this, _contextStorage.get()),
-          _properties     (this, _contextStorage.get())
+          _properties     (this, _contextStorage.get()),
+          _sync           (new Detail::LoaderSynchronizationContext())
     {
         Detail::AssertNotNull(_assemblyLocator.get());
     }
     #pragma warning(pop)
+
+    Loader::~Loader()
+    {
+        // For completeness
+    }
 
     IAssemblyLocator const& Loader::GetAssemblyLocator(InternalKey) const
     {
@@ -79,6 +112,8 @@ namespace CxxReflect {
 
     Detail::AssemblyContext const& Loader::GetContextForDatabase(Metadata::Database const& database, InternalKey) const
     {
+        auto const lock(_sync->Lock());
+
         typedef std::pair<String const, Detail::AssemblyContext> ValueType;
         auto const it(std::find_if(begin(_contexts), end(_contexts), [&](ValueType const& a)
         {
@@ -176,6 +211,8 @@ namespace CxxReflect {
 
     Assembly Loader::LoadAssembly(String path) const
     {
+        auto const lock(_sync->Lock());
+
         String canonicalUri(Externals::ComputeCanonicalUri(path.c_str()));
         auto it(_contexts.find(canonicalUri));
         if (it == end(_contexts))
@@ -195,6 +232,8 @@ namespace CxxReflect {
 
     Type Loader::GetFundamentalType(Metadata::ElementType const elementType, InternalKey) const
     {
+        auto const lock(_sync->Lock());
+
         Detail::Assert([&]{ return elementType < Metadata::ElementType::ConcreteElementTypeMax; });
 
         if (_fundamentalTypes[Detail::AsInteger(elementType)].IsInitialized())

@@ -11,6 +11,14 @@
 
 #include "CxxReflect/CoreComponents.hpp"
 
+namespace CxxReflect { namespace Detail {
+
+    // Provides a synchronization object for the Loader (we must use pimpl because we cannot include
+    // <mutex> in the public interface headers.  (Thanks, C++/CLI!)
+    class LoaderSynchronizationContext;
+
+} }
+
 namespace CxxReflect {
 
     class DirectoryBasedAssemblyLocator : public IAssemblyLocator
@@ -30,6 +38,9 @@ namespace CxxReflect {
     };
 
 
+
+
+
     // Loader is the entry point for the library.  It is used to resolve and load assemblies.
     class Loader : public Metadata::ITypeResolver
     {
@@ -39,6 +50,8 @@ namespace CxxReflect {
         // move-only types.  If you aren't using C++/CLI, use the unique_ptr overload.
         Loader(std::auto_ptr<IAssemblyLocator>   assemblyLocator);
         Loader(std::unique_ptr<IAssemblyLocator> assemblyLocator);
+
+        ~Loader();
 
         Loader(Loader&& other);
         Loader& operator=(Loader&& other);
@@ -85,11 +98,13 @@ namespace CxxReflect {
 
         Detail::ElementContextTableStorageInstance mutable _contextStorage;
 
-        Detail::EventContextTableCollection        mutable _events;
-        Detail::FieldContextTableCollection        mutable _fields;
-        Detail::InterfaceContextTableCollection    mutable _interfaces;
-        Detail::MethodContextTableCollection       mutable _methods;
-        Detail::PropertyContextTableCollection     mutable _properties;
+        Detail::EventContextTableCollection           mutable _events;
+        Detail::FieldContextTableCollection           mutable _fields;
+        Detail::InterfaceContextTableCollection       mutable _interfaces;
+        Detail::MethodContextTableCollection          mutable _methods;
+        Detail::PropertyContextTableCollection        mutable _properties;
+
+        std::unique_ptr<Detail::LoaderSynchronizationContext> _sync;
     };
 
 }
