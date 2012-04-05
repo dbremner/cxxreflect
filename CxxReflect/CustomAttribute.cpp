@@ -169,7 +169,7 @@ namespace CxxReflect {
                                  [&](Method const& constructor)
                     {
                         return comparer(
-                            parentDatabase.GetBlob(memberRefRow.GetSignature()).As<Metadata::MethodSignature>(),
+                            memberRefRow.GetSignature().As<Metadata::MethodSignature>(),
                             constructor.GetContext(InternalKey()).GetElementSignature(typeResolver));
                     }));
 
@@ -241,7 +241,7 @@ namespace CxxReflect {
         Metadata::CustomAttributeRow const& customAttribute(database
             .GetRow<Metadata::TableId::CustomAttribute>(_attribute));
 
-        Metadata::Blob const& valueBlob(database.GetBlob(customAttribute.GetValue()));
+        Metadata::BlobReference const& valueBlob(customAttribute.GetValue());
         ConstByteIterator it(valueBlob.Begin());
 
         // All custom attribute signatures begin with a two-byte, little-endian integer with the
@@ -272,7 +272,7 @@ namespace CxxReflect {
         Metadata::CustomAttributeRow const& customAttribute(database
             .GetRow<Metadata::TableId::CustomAttribute>(_attribute));
 
-        Metadata::Blob const& valueBlob(database.GetBlob(customAttribute.GetValue()));
+        Metadata::BlobReference const& valueBlob(customAttribute.GetValue());
         ConstByteIterator it(valueBlob.Begin());
 
         // All custom attribute signatures begin with a two-byte, little-endian integer with the

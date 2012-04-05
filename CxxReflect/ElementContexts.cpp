@@ -25,10 +25,7 @@ namespace CxxReflect { namespace Detail { namespace { namespace Private {
             .GetDatabase()
             .GetRow<Metadata::TableId::TypeSpec>(type));
 
-        Metadata::TypeSignature const typeSignature(type
-            .GetDatabase()
-            .GetBlob(typeSpec.GetSignature())
-            .As<Metadata::TypeSignature>());
+        Metadata::TypeSignature const typeSignature(typeSpec.GetSignature().As<Metadata::TypeSignature>());
 
         return typeSignature;
     }
@@ -116,11 +113,7 @@ namespace CxxReflect { namespace Detail { namespace { namespace Private {
         else if (originalType.IsBlobReference())
         {
             Metadata::BlobReference originalBlob(originalType.AsBlobReference());
-            if (originalBlob.HasEncodedLength())
-            {
-                Metadata::Blob const blob(originalType.GetDatabase().GetBlob(originalBlob));
-                originalBlob = Metadata::BlobReference(blob.Begin(), blob.End());
-            }
+
             Metadata::TypeSignature const typeSignature(originalBlob.Begin(), originalBlob.End());
 
             // We are only expecting to resolve to a base class, so we only expect a GenericInst:
@@ -756,10 +749,7 @@ namespace CxxReflect { namespace Detail {
             return SignatureType();
         }
 
-        return _element
-            .GetDatabase()
-            .GetBlob(signatureReference.AsBlobReference())
-            .As<SignatureType>();
+        return signatureReference.AsBlobReference().As<SignatureType>();
     }
 
     template <typename T>
@@ -1088,7 +1078,7 @@ namespace CxxReflect { namespace Detail {
             if (!signatureRef.IsInitialized())
                 return ContextType(typeDefReference, elementDefReference);
 
-            SignatureType const elementSig(database.GetBlob(signatureRef.AsBlobReference()).As<SignatureType>());
+            SignatureType const elementSig(signatureRef.AsBlobReference().As<SignatureType>());
 
             bool const requiresInstantiation(
                 instantiator.HasArguments() &&

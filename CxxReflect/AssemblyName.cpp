@@ -12,7 +12,7 @@ namespace CxxReflect { namespace { namespace Private {
 
     using namespace CxxReflect;
 
-    PublicKeyToken ComputePublicKeyToken(Metadata::Blob const blob, bool const isFullPublicKey)
+    PublicKeyToken ComputePublicKeyToken(Metadata::BlobReference const blob, bool const isFullPublicKey)
     {
         PublicKeyToken result((PublicKeyToken()));
 
@@ -21,9 +21,9 @@ namespace CxxReflect { namespace { namespace Private {
             Sha1Hash const hash(Externals::ComputeSha1Hash(blob.Begin(), blob.End()));
             std::copy(hash.rbegin(), hash.rbegin() + 8, result.begin());
         }
-        else if (blob.GetSize() > 0) // TODO WHY WOULD THIS BE ZERO?
+        else if (Detail::Distance(blob.Begin(), blob.End()) > 0) // TODO WHY WOULD THIS BE ZERO?
         {
-            if (blob.GetSize() != 8)
+            if (Detail::Distance(blob.Begin(), blob.End()) != 8)
                 throw std::runtime_error("wtf");
 
             std::copy(blob.Begin(), blob.End(), result.begin());
@@ -40,7 +40,7 @@ namespace CxxReflect { namespace { namespace Private {
         AssemblyFlags const flags(row.GetFlags());
 
         PublicKeyToken const publicKeyToken(ComputePublicKeyToken(
-            database.GetBlob(row.GetPublicKey()),
+            row.GetPublicKey(),
             flags.IsSet(AssemblyAttribute::PublicKey)));
 
         Version const version(

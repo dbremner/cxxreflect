@@ -469,11 +469,7 @@ namespace CxxReflect {
         Detail::Assert([&]{ return assembly.IsInitialized(); });
         Detail::Assert([&]{ return type.IsInitialized();     });
 
-        Metadata::TypeSignature const signature(assembly
-            .GetContext(InternalKey())
-            .GetDatabase()
-            .GetBlob(type)
-            .As<Metadata::TypeSignature>());
+        Metadata::TypeSignature const signature(type.As<Metadata::TypeSignature>());
 
         if (!signature.IsByRef() && signature.GetKind() == Metadata::TypeSignature::Kind::Primitive)
         {
@@ -541,12 +537,7 @@ namespace CxxReflect {
     {
         Detail::Assert([&]{ return IsTypeSpec(); });
 
-        return _assembly
-            .Realize()
-            .GetContext(InternalKey())
-            .GetDatabase()
-            .GetBlob(_type.AsBlobReference())
-            .As<Metadata::TypeSignature>();
+        return _type.AsBlobReference().As<Metadata::TypeSignature>();
     }
 
     bool Type::IsDefaultConstructible(BindingFlags const flags) const

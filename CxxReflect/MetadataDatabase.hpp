@@ -180,28 +180,13 @@ namespace CxxReflect { namespace Metadata {
 
 
 
-    // Represents a reference to a blob.  There are two representations used within:
-    //
-    // * If 'last' is null, the length of the referenced blob is specified in the first several
-    //   bytes of the blob, as a compressed integer.  All blob references with this representation
-    //   refer to blobs actually in the blob heap (and not cached elsewhere).
-    //
-    // * Otherwise, if 'last' is non-null, 'first' points to the initial byte of the blob and the
-    //   length of the blob is 'last' - 'first'.  In this case, the blob may be in the blob heap or
-    //   may be cached outside of the blob heap.
+    // Represents a reference to a blob.
     class BlobReference
     {
     public:
 
-        BlobReference()
-        {
-        }
-
-        explicit BlobReference(ConstByteIterator const first, ConstByteIterator const last = nullptr)
-            : _first(first), _last(last)
-        {
-            AssertInitialized();
-        }
+        BlobReference();
+        BlobReference(ConstByteIterator const first, ConstByteIterator const last);
 
         template <typename TSignature>
         explicit BlobReference(TSignature const& signature,
@@ -210,30 +195,27 @@ namespace CxxReflect { namespace Metadata {
         {
         }
 
-        ConstByteIterator Begin()            const { AssertInitialized(); return _first.Get();           }
-        ConstByteIterator End()              const { AssertInitialized(); return _last.Get();            }
-        bool              HasEncodedLength() const { AssertInitialized(); return _last.Get() == nullptr; }
-        bool              IsValid()          const { return _first.Get() != nullptr;                     }
-        bool              IsInitialized()    const { return _first.Get() != nullptr;                     }
+        ConstByteIterator Begin()         const;
+        ConstByteIterator End()           const;
+        bool              IsInitialized() const;
 
-        friend bool operator==(BlobReference const& lhs, BlobReference const& rhs)
+        template <typename TSignature>
+        TSignature As() const
         {
-            return std::equal_to<ConstByteIterator>()(lhs._first.Get(), rhs._first.Get());
+            AssertInitialized();
+            return TSignature(_first.Get(), _last.Get());
         }
 
-        friend bool operator<(BlobReference const& lhs, BlobReference const& rhs)
-        {
-            return std::less<ConstByteIterator>()(lhs._first.Get(), rhs._first.Get());
-        }
+        static BlobReference ComputeFromStream(ConstByteIterator first, ConstByteIterator last);
+
+        friend bool operator==(BlobReference const& lhs, BlobReference const& rhs);
+        friend bool operator< (BlobReference const& lhs, BlobReference const& rhs);
 
         CXXREFLECT_GENERATE_COMPARISON_OPERATORS(BlobReference)
 
     private:
 
-        void AssertInitialized() const
-        {
-            Detail::Assert([&] { return IsInitialized(); });
-        }
+        void AssertInitialized() const;
 
         Detail::ValueInitialized<ConstByteIterator> _first;
         Detail::ValueInitialized<ConstByteIterator> _last;
@@ -569,66 +551,6 @@ namespace CxxReflect { namespace Metadata {
 
 
 
-    // Represents a Blob in the metadata database
-    class Blob
-    {
-    public:
-
-        Blob()
-        {
-        }
-
-        // Note that this 'last' is not the end of the blob, it is the end of the whole blob stream.
-        Blob(ConstByteIterator const first, ConstByteIterator const last, SizeType const size = 0)
-        {
-            Detail::AssertNotNull(first);
-            Detail::AssertNotNull(last);
-
-            std::tie(_first.Get(), _last.Get()) = ComputeBounds(first, last, size);
-        }
-
-        ConstByteIterator Begin()   const { AssertInitialized(); return _first.Get(); }
-        ConstByteIterator End()     const { AssertInitialized(); return _last.Get();  }
-
-        SizeType GetSize() const
-        {
-            AssertInitialized();
-            return static_cast<SizeType>(_last.Get() - _first.Get());
-        }
-
-        bool IsInitialized() const
-        {
-            return _first.Get() != nullptr && _last.Get() != nullptr;
-        }
-
-        template <typename TSignature>
-        TSignature As() const
-        {
-            AssertInitialized();
-            return TSignature(_first.Get(), _last.Get());
-        }
-
-    private:
-
-        typedef std::pair<ConstByteIterator, ConstByteIterator> Range;
-
-        static Range ComputeBounds(ConstByteIterator const first,
-                                   ConstByteIterator const last,
-                                   SizeType          const size);
-
-        void AssertInitialized() const
-        {
-            Detail::Assert([&]{ return IsInitialized(); });
-        }
-
-        Detail::ValueInitialized<ConstByteIterator> _first;
-        Detail::ValueInitialized<ConstByteIterator> _last;
-    };
-
-
-
-
-
     // This provides general-purpose access to a metadata table; it does not own the table data, it
     // is just a wrapper to provide convenient access for row offset computation and bounds checking.
     class Table
@@ -702,16 +624,13 @@ namespace CxxReflect { namespace Metadata {
         SizeType GetTableIndexSize(TableId tableId) const;
         SizeType GetCompositeIndexSize(CompositeIndex index) const;
 
-        SizeType GetStringHeapIndexSize() const { return _state.Get()._stringHeapIndexSize; }
-        SizeType GetGuidHeapIndexSize()   const { return _state.Get()._guidHeapIndexSize;   }
-        SizeType GetBlobHeapIndexSize()   const { return _state.Get()._blobHeapIndexSize;   }
+        SizeType GetStringHeapIndexSize() const;
+        SizeType GetGuidHeapIndexSize()   const;
+        SizeType GetBlobHeapIndexSize()   const;
 
         SizeType GetTableColumnOffset(TableId tableId, SizeType column) const;
 
-        bool IsInitialized() const
-        {
-            return _stream.IsInitialized();
-        }
+        bool IsInitialized() const;
 
     private:
 
@@ -725,10 +644,7 @@ namespace CxxReflect { namespace Metadata {
         TableCollection(TableCollection const&);
         TableCollection& operator=(TableCollection const&);
 
-        void AssertInitialized() const
-        {
-            Detail::Assert([&]{ return IsInitialized(); });
-        }
+        void AssertInitialized() const;
 
         void ComputeCompositeIndexSizes();
         void ComputeTableRowSizes();
@@ -820,70 +736,23 @@ namespace CxxReflect { namespace Metadata {
 
         void Swap(Database& other);
 
-        template <TableId TId>
-        RowIterator<TId> Begin() const
-        {
-            return RowIterator<TId>(this, 0);
-        }
+        template <TableId TId> RowIterator<TId> Begin() const;
+        template <TableId TId> RowIterator<TId> End()   const;
 
-        template <TableId TId>
-        RowIterator<TId> End() const
-        {
-            return RowIterator<TId>(this, _tables.GetTable(TId).GetRowCount());
-        }
+        template <TableId TId> typename TableIdToRowType<TId>::Type GetRow(SizeType                    index    ) const;
+        template <TableId TId> typename TableIdToRowType<TId>::Type GetRow(RowReference         const& reference) const;
+        template <TableId TId> typename TableIdToRowType<TId>::Type GetRow(BaseElementReference const& reference) const;
 
-        template <TableId TId>
-        typename TableIdToRowType<TId>::Type GetRow(SizeType const index) const
-        {
-            typedef typename TableIdToRowType<TId>::Type ReturnType;
-            return CreateRow<ReturnType>(this, _tables.GetTable(TId).At(index));
-        }
+        StringReference GetString(SizeType index) const;
 
-        template <TableId TId>
-        typename TableIdToRowType<TId>::Type GetRow(RowReference const& reference) const
-        {
-            typedef typename TableIdToRowType<TId>::Type ReturnType;
-            Detail::Assert([&]{ return reference.GetTable() == TId; });
-            return CreateRow<ReturnType>(this, _tables.GetTable(TId).At(reference.GetIndex()));
-        }
+        TableCollection  const& GetTables()  const;
+        StringCollection const& GetStrings() const;
+        Stream           const& GetBlobs()   const;
 
-        template <TableId TId>
-        typename TableIdToRowType<TId>::Type GetRow(BaseElementReference const& reference) const
-        {
-            typedef typename TableIdToRowType<TId>::Type ReturnType;
-            Detail::Assert([&]{ return reference.AsRowReference().GetTable() == TId; });
-            return CreateRow<ReturnType>(this, _tables.GetTable(TId).At(reference.AsRowReference().GetIndex()));
-        }
+        bool IsInitialized() const;
 
-        Blob GetBlob(BlobReference const blobReference) const;
-
-        StringReference GetString(SizeType const index) const
-        {
-            return StringReference(_strings.At(index));
-        }
-
-        TableCollection  const& GetTables()  const { return _tables;     }
-        StringCollection const& GetStrings() const { return _strings;    }
-        Stream           const& GetBlobs()   const { return _blobStream; }
-
-        bool IsInitialized() const
-        {
-            return _blobStream.IsInitialized()
-                && _guidStream.IsInitialized()
-                && _strings.IsInitialized()
-                && _tables.IsInitialized();
-        }
-
-        // Every Database object is unique, so we can compare via address:
-        friend bool operator==(Database const& lhs, Database const& rhs)
-        {
-            return &lhs == &rhs;
-        }
-
-        friend bool operator<(Database const& lhs, Database const& rhs)
-        {
-            return std::less<Database const*>()(&lhs, &rhs);
-        }
+        friend bool operator==(Database const& lhs, Database const& rhs);
+        friend bool operator< (Database const& lhs, Database const& rhs);
 
         CXXREFLECT_GENERATE_COMPARISON_OPERATORS(Database)
 
@@ -892,10 +761,7 @@ namespace CxxReflect { namespace Metadata {
         Database(Database const&);
         Database& operator=(Database const&);
 
-        void AssertInitialized() const
-        {
-            Detail::Assert([&]{ return IsInitialized(); });
-        }
+        void AssertInitialized() const;
 
         String _fileName;
 

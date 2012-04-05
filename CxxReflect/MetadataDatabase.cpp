@@ -481,7 +481,9 @@ namespace CxxReflect { namespace Metadata { namespace { namespace Private {
 
     BlobReference ReadBlobReference(Database const& database, ConstByteIterator const data, SizeType const offset)
     {
-        return BlobReference(ReadBlobHeapIndex(database, data, offset) + database.GetBlobs().Begin());
+        return BlobReference::ComputeFromStream(
+            ReadBlobHeapIndex(database, data, offset) + database.GetBlobs().Begin(),
+            database.GetBlobs().End());
     }
 
     std::uint32_t ReadStringHeapIndex(Database const& database, ConstByteIterator const data, SizeType const offset)
@@ -875,42 +877,55 @@ namespace CxxReflect { namespace Metadata {
 
 
 
-    bool operator==(FullReference const& lhs, FullReference const& rhs)
+    BlobReference::BlobReference()
     {
-        if (lhs.GetDatabase() != rhs.GetDatabase())
-            return false;
-
-        BaseElementReference const& lhsBase(lhs);
-        BaseElementReference const& rhsBase(rhs);
-
-        return lhsBase == rhsBase;
     }
 
-    bool operator<(FullReference const& lhs, FullReference const& rhs)
+    BlobReference::BlobReference(ConstByteIterator const first, ConstByteIterator const last)
+        : _first(first), _last(last)
     {
-        if (lhs.GetDatabase() < rhs.GetDatabase())
-            return true;
-
-        if (lhs.GetDatabase() > rhs.GetDatabase())
-            return false;
-
-        BaseElementReference const& lhsBase(lhs);
-        BaseElementReference const& rhsBase(rhs);
-
-        return lhsBase < rhsBase;
+        Detail::AssertNotNull(first);
+        Detail::AssertNotNull(last);
     }
 
+    ConstByteIterator BlobReference::Begin() const
+    {
+        AssertInitialized();
 
+        return _first.Get();
+    }
 
+    ConstByteIterator BlobReference::End() const
+    {
+        AssertInitialized();
 
+        return _last.Get();
+    }
 
-    Blob::Range Blob::ComputeBounds(ConstByteIterator const first, ConstByteIterator const last, SizeType const size)
+    bool BlobReference::IsInitialized() const
+    {
+        return _first.Get() != nullptr && _last.Get() != nullptr;
+    }
+
+    void BlobReference::AssertInitialized() const
+    {
+        Detail::Assert([&] { return IsInitialized(); });
+    }
+
+    bool operator==(BlobReference const& lhs, BlobReference const& rhs)
+    {
+        return std::equal_to<ConstByteIterator>()(lhs.Begin(), rhs.Begin());
+    }
+
+    bool operator<(BlobReference const& lhs, BlobReference const& rhs)
+    {
+        return std::less<ConstByteIterator>()(lhs.Begin(), rhs.Begin());
+    }
+
+    BlobReference BlobReference::ComputeFromStream(ConstByteIterator const first, ConstByteIterator const last)
     {
         if (first == last)
             throw MetadataReadError(L"Invalid blob");
-
-        if (size > 0)
-            return std::make_pair(first, first + size);
 
         Byte initialByte(*first);
         SizeType blobSizeBytes(0);
@@ -940,17 +955,46 @@ namespace CxxReflect { namespace Metadata {
             throw MetadataReadError(L"Invalid blob");
         }
 
-        if (static_cast<SizeType>(last - first) < blobSizeBytes)
+        if (Detail::Distance(first, last) < blobSizeBytes)
             throw MetadataReadError(L"Invalid blob");
 
         SizeType blobSize(initialByte);
         for (unsigned i(1); i < blobSizeBytes; ++ i)
             blobSize = (blobSize << 8) + *(first + i);
 
-        if (static_cast<SizeType>(last - first) < blobSizeBytes + blobSize)
+        if (Detail::Distance(first, last) < blobSizeBytes + blobSize)
             throw MetadataReadError(L"Invalid blob");
 
-        return std::make_pair(first + blobSizeBytes, first + blobSizeBytes + blobSize);
+        return BlobReference(first + blobSizeBytes, first + blobSizeBytes + blobSize);
+    }
+
+
+
+
+
+    bool operator==(FullReference const& lhs, FullReference const& rhs)
+    {
+        if (lhs.GetDatabase() != rhs.GetDatabase())
+            return false;
+
+        BaseElementReference const& lhsBase(lhs);
+        BaseElementReference const& rhsBase(rhs);
+
+        return lhsBase == rhsBase;
+    }
+
+    bool operator<(FullReference const& lhs, FullReference const& rhs)
+    {
+        if (lhs.GetDatabase() < rhs.GetDatabase())
+            return true;
+
+        if (lhs.GetDatabase() > rhs.GetDatabase())
+            return false;
+
+        BaseElementReference const& lhsBase(lhs);
+        BaseElementReference const& rhsBase(rhs);
+
+        return lhsBase < rhsBase;
     }
 
 
@@ -987,7 +1031,10 @@ namespace CxxReflect { namespace Metadata {
             if (!Externals::ConvertUtf8ToUtf16(pointer, range.Begin(), required))
                 throw std::logic_error("wtf");
 
-            return _index.insert(std::make_pair(index, StringReference(range.Begin(), range.End() - 1))).first->second;
+            return _index.insert(std::make_pair(
+                index,
+                StringReference(range.Begin(), range.End() - 1)
+            )).first->second;
         }
 
         bool IsInitialized() const
@@ -1362,11 +1409,35 @@ namespace CxxReflect { namespace Metadata {
 
     SizeType TableCollection::GetCompositeIndexSize(CompositeIndex const index) const
     {
+        AssertInitialized();
+
         return _state.Get()._compositeIndexSizes[Detail::AsInteger(index)];
+    }
+
+    SizeType TableCollection::GetStringHeapIndexSize() const
+    {
+        AssertInitialized();
+
+        return _state.Get()._stringHeapIndexSize;
+    }
+
+    SizeType TableCollection::GetGuidHeapIndexSize() const
+    {
+        AssertInitialized();
+
+        return _state.Get()._guidHeapIndexSize;
+    }
+
+    SizeType TableCollection::GetBlobHeapIndexSize() const
+    {
+        AssertInitialized();
+
+        return _state.Get()._blobHeapIndexSize;
     }
 
     SizeType TableCollection::GetTableColumnOffset(TableId const tableId, SizeType const column) const
     {
+        AssertInitialized();
         Detail::Assert([&]
         {
             return column < MaximumColumnCount
@@ -1379,13 +1450,29 @@ namespace CxxReflect { namespace Metadata {
 
     Table const& TableCollection::GetTable(TableId const tableId) const
     {
+        AssertInitialized();
+
         return _state.Get()._tables[Detail::AsInteger(tableId)];
     }
 
     SizeType TableCollection::GetTableIndexSize(TableId const tableId) const
     {
+        AssertInitialized();
+
         return _state.Get()._rowCounts[Detail::AsInteger(tableId)] < (1 << 16) ? 2 : 4;
     }
+
+    bool TableCollection::IsInitialized() const
+    {
+        return _stream.IsInitialized();
+    }
+
+    void TableCollection::AssertInitialized() const
+    {
+        Detail::Assert([&]{ return IsInitialized(); });
+    }
+
+
 
 
 
@@ -1461,21 +1548,155 @@ namespace CxxReflect { namespace Metadata {
         std::swap(_tables,     other._tables    );
     }
 
-    Blob Database::GetBlob(BlobReference const blobReference) const
+    template <TableId TId>
+    RowIterator<TId> Database::Begin() const
     {
         AssertInitialized();
 
-        auto const first(blobReference.Begin());
-
-        auto const last(blobReference.End() != nullptr ? blobReference.End() : _blobStream.End());
-
-        auto const size(blobReference.End() != nullptr
-            ? Detail::Distance(blobReference.Begin(), blobReference.End())
-            : 0);
-
-        return Blob(first, last, size);
+        return RowIterator<TId>(this, 0);
     }
 
+    template <TableId TId>
+    RowIterator<TId> Database::End() const
+    {
+        AssertInitialized();
+
+        return RowIterator<TId>(this, _tables.GetTable(TId).GetRowCount());
+    }
+
+    template <TableId TId>
+    typename TableIdToRowType<TId>::Type Database::GetRow(SizeType const index) const
+    {
+        typedef typename TableIdToRowType<TId>::Type ReturnType;
+
+        AssertInitialized();
+
+        return CreateRow<ReturnType>(this, _tables.GetTable(TId).At(index));
+    }
+
+    template <TableId TId>
+    typename TableIdToRowType<TId>::Type Database::GetRow(RowReference const& reference) const
+    {
+        typedef typename TableIdToRowType<TId>::Type ReturnType;
+
+        AssertInitialized();
+        Detail::Assert([&]{ return reference.GetTable() == TId; });
+
+        return CreateRow<ReturnType>(this, _tables.GetTable(TId).At(reference.GetIndex()));
+    }
+
+    template <TableId TId>
+    typename TableIdToRowType<TId>::Type Database::GetRow(BaseElementReference const& reference) const
+    {
+        typedef typename TableIdToRowType<TId>::Type ReturnType;
+
+        AssertInitialized();
+        Detail::Assert([&]{ return reference.AsRowReference().GetTable() == TId; });
+
+        return CreateRow<ReturnType>(this, _tables.GetTable(TId).At(reference.AsRowReference().GetIndex()));
+    }
+
+    StringReference Database::GetString(SizeType const index) const
+    {
+        AssertInitialized();
+
+        return StringReference(_strings.At(index));
+    }
+
+    TableCollection const& Database::GetTables() const
+    {
+        AssertInitialized();
+
+        return _tables;
+    }
+
+    StringCollection const& Database::GetStrings() const
+    {
+        AssertInitialized();
+
+        return _strings;
+    }
+
+    Stream const& Database::GetBlobs() const
+    {
+        AssertInitialized();
+
+        return _blobStream;
+    }
+
+    bool Database::IsInitialized() const
+    {
+        return _blobStream.IsInitialized()
+            && _guidStream.IsInitialized()
+            && _strings.IsInitialized()
+            && _tables.IsInitialized();
+    }
+
+    void Database::AssertInitialized() const
+    {
+        Detail::Assert([&]{ return IsInitialized(); });
+    }
+
+    bool operator==(Database const& lhs, Database const& rhs)
+    {
+        return &lhs == &rhs;
+    }
+
+    bool operator<(Database const& lhs, Database const& rhs)
+    {
+        return std::less<Database const*>()(&lhs, &rhs);
+    }
+
+    // Generate explicit instantiations of the Database class's member functions:
+    #define CXXREFLECT_GENERATE(t)                                                         \
+        template RowIterator<TableId::t> Database::Begin<TableId::t>() const;              \
+        template RowIterator<TableId::t> Database::End<TableId::t>()   const;              \
+        template t ## Row Database::GetRow<TableId::t>(SizeType                   ) const; \
+        template t ## Row Database::GetRow<TableId::t>(RowReference         const&) const; \
+        template t ## Row Database::GetRow<TableId::t>(BaseElementReference const&) const;
+
+    CXXREFLECT_GENERATE(Assembly              );
+    CXXREFLECT_GENERATE(AssemblyOs            );
+    CXXREFLECT_GENERATE(AssemblyProcessor     );
+    CXXREFLECT_GENERATE(AssemblyRef           );
+    CXXREFLECT_GENERATE(AssemblyRefOs         );
+    CXXREFLECT_GENERATE(AssemblyRefProcessor  );
+    CXXREFLECT_GENERATE(ClassLayout           );
+    CXXREFLECT_GENERATE(Constant              );
+    CXXREFLECT_GENERATE(CustomAttribute       );
+    CXXREFLECT_GENERATE(DeclSecurity          );
+    CXXREFLECT_GENERATE(EventMap              );
+    CXXREFLECT_GENERATE(Event                 );
+    CXXREFLECT_GENERATE(ExportedType          );
+    CXXREFLECT_GENERATE(Field                 );
+    CXXREFLECT_GENERATE(FieldLayout           );
+    CXXREFLECT_GENERATE(FieldMarshal          );
+    CXXREFLECT_GENERATE(FieldRva              );
+    CXXREFLECT_GENERATE(File                  );
+    CXXREFLECT_GENERATE(GenericParam          );
+    CXXREFLECT_GENERATE(GenericParamConstraint);
+    CXXREFLECT_GENERATE(ImplMap               );
+    CXXREFLECT_GENERATE(InterfaceImpl         );
+    CXXREFLECT_GENERATE(ManifestResource      );
+    CXXREFLECT_GENERATE(MemberRef             );
+    CXXREFLECT_GENERATE(MethodDef             );
+    CXXREFLECT_GENERATE(MethodImpl            );
+    CXXREFLECT_GENERATE(MethodSemantics       );
+    CXXREFLECT_GENERATE(MethodSpec            );
+    CXXREFLECT_GENERATE(Module                );
+    CXXREFLECT_GENERATE(ModuleRef             );
+    CXXREFLECT_GENERATE(NestedClass           );
+    CXXREFLECT_GENERATE(Param                 );
+    CXXREFLECT_GENERATE(Property              );
+    CXXREFLECT_GENERATE(PropertyMap           );
+    CXXREFLECT_GENERATE(StandaloneSig         );
+    CXXREFLECT_GENERATE(TypeDef               );
+    CXXREFLECT_GENERATE(TypeRef               );
+    CXXREFLECT_GENERATE(TypeSpec              );
+
+    #undef CXXREFLECT_GENERATE
+
+    
 
 
 
