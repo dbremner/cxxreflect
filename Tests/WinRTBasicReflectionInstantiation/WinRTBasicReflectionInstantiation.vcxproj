@@ -21,7 +21,7 @@
     <AppxManifest Include="Package.appxmanifest">
       <SubType>Designer</SubType>
     </AppxManifest>
-    <None Include="..\..\Build\Output\Win32\Release\CxxReflect\CxxReflectPlatform.dat">
+    <None Include="..\..\Build\Output\$(Platform)\$(Configuration)\CxxReflect\CxxReflectPlatform.dat">
       <DeploymentContent>true</DeploymentContent>
     </None>
     <None Include="WinRTBasicReflectionInstantiation_TemporaryKey.pfx" />

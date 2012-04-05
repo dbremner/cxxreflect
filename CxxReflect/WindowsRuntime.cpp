@@ -1039,7 +1039,7 @@ namespace CxxReflect { namespace Detail {
 
     SizeType VariantArgumentPack::Arity() const
     {
-        return _arguments.size();
+        return static_cast<SizeType>(_arguments.size());
     }
 
     void VariantArgumentPack::Push(bool const value)
@@ -1111,10 +1111,10 @@ namespace CxxReflect { namespace Detail {
                                    ConstByteIterator     const first,
                                    ConstByteIterator     const last)
     {
-        SizeType const index(_data.size());
+        SizeType const index(static_cast<SizeType>(_data.size()));
 
         std::copy(first, last, std::back_inserter(_data));
-        _arguments.push_back(Argument(type, index, index + std::distance(first, last)));
+        _arguments.push_back(Argument(type, index, index + Distance(first, last)));
     }
 
     WindowsRuntime::UniqueInspectable CreateInspectableInstance(Type                const  type,

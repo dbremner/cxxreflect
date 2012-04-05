@@ -72,7 +72,7 @@ namespace CxxReflect { namespace Detail {
     {
         ValueInitialized<std::array<wchar_t, 2048>> buffer;
 
-        DWORD length(buffer.Get().size());
+        DWORD length(static_cast<DWORD>(buffer.Get().size()));
         Detail::VerifySuccess(UrlCanonicalize(pathOrUri, buffer.Get().data(), &length, 0));
 
         return String(buffer.Get().data());

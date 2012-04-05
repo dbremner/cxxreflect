@@ -11,29 +11,11 @@
 
 namespace CxxReflect { namespace Detail {
 
-    /*Sha1Hash WinRTExternalFunctions::ComputeSha1Hash(ConstByteIterator first, ConstByteIterator last) const;
-
-    String WinRTExternalFunctions::ConvertNarrowStringToWideString(char const* narrowString) const;
-    NarrowString WinRTExternalFunctions::ConvertWideStringToNarrowString(wchar_t const* wideString) const;
-
-    unsigned WinRTExternalFunctions::ComputeUtf16LengthOfUtf8String(char const* source) const;
-    bool WinRTExternalFunctions::ConvertUtf8ToUtf16(char const* source, wchar_t* target, unsigned targetLength) const;
-
-    String WinRTExternalFunctions::ComputeCanonicalUri(ConstCharacterIterator pathOrUri) const;
-
-    FILE* WinRTExternalFunctions::OpenFile(ConstCharacterIterator fileName, ConstCharacterIterator mode) const
-    {
-
-    }
-
-    bool WinRTExternalFunctions::FileExists(ConstCharacterIterator filePath) const
-    {
-
-    }
+    // TODO Implement WinRTExternalFunctions with WACK-approved APIs.
 
     WinRTExternalFunctions::~WinRTExternalFunctions()
     {
-    }*/
+    }
 
 } }
 

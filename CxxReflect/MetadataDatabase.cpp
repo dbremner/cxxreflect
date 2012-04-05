@@ -1461,6 +1461,21 @@ namespace CxxReflect { namespace Metadata {
         std::swap(_tables,     other._tables    );
     }
 
+    Blob Database::GetBlob(BlobReference const blobReference) const
+    {
+        AssertInitialized();
+
+        auto const first(blobReference.Begin());
+
+        auto const last(blobReference.End() != nullptr ? blobReference.End() : _blobStream.End());
+
+        auto const size(blobReference.End() != nullptr
+            ? Detail::Distance(blobReference.Begin(), blobReference.End())
+            : 0);
+
+        return Blob(first, last, size);
+    }
+
 
 
 

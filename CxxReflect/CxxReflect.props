@@ -64,6 +64,7 @@
   </PropertyGroup>
 
   <PropertyGroup Label="Configuration" Condition="'$(Configuration)' == 'Debug'">
+    <LinkIncremental>true</LinkIncremental>
     <UseDebugLibraries>true</UseDebugLibraries>
   </PropertyGroup>
 
@@ -71,6 +72,17 @@
     <UseDebugLibraries>false</UseDebugLibraries>
     <WholeProgramOptimization>true</WholeProgramOptimization>
   </PropertyGroup>
+
+  <ItemDefinitionGroup>
+    <!--
+    The BuildLog Path must be set after importing Microsoft.Cpp.Default.props but after importing
+    Microsoft.Cpp.props.  If we include it too early, the Default.props will reset it back to its
+    default.  If we include it too late, the build will already have created the log.
+    -->
+    <BuildLog>
+      <Path>$(SolutionDir)Build\Intermediate\$(Platform)\$(Configuration)\$(MSBuildProjectName)\$(MsBuildProjectName).log</Path>
+    </BuildLog>
+  </ItemDefinitionGroup>
 
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
 
@@ -83,10 +95,11 @@
 
   <ItemDefinitionGroup>
     <BuildLog>
-      <Path>$(IntDir)$(MsBuildProjectName).log</Path>
+      <Path>$(SolutionDir)Build\Intermediate\$(Platform)\$(Configuration)\$(MSBuildProjectName)\$(MsBuildProjectName).log</Path>
     </BuildLog>
     <ClCompile>
       <AdditionalIncludeDirectories>..\;$(IncludePath);$(SolutionDir);$(VCInstallDir)Include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <DisableSpecificWarnings>4702</DisableSpecificWarnings>
       <ErrorReporting>None</ErrorReporting>
       <MinimalRebuild>false</MinimalRebuild>
@@ -121,11 +134,10 @@
     <Link>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
-      <Profile>true</Profile>
     </Link>
   </ItemDefinitionGroup>
     
-  <ItemDefinitionGroup Condition="$(CxxReflectIsProfilingEnabled) == 'true'">
+  <ItemDefinitionGroup Condition="'$(CxxReflectIsProfilingEnabled)' == 'true'">
     <Link>
       <Profile>true</Profile>
     </Link>

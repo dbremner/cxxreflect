@@ -855,13 +855,7 @@ namespace CxxReflect { namespace Metadata {
             return CreateRow<ReturnType>(this, _tables.GetTable(TId).At(reference.AsRowReference().GetIndex()));
         }
 
-        Blob GetBlob(BlobReference const blobReference) const
-        {
-            return Blob(
-                blobReference.Begin(),
-                blobReference.End() != nullptr ? blobReference.End() : _blobStream.End(),
-                blobReference.End() != nullptr ? (blobReference.End() - blobReference.Begin()) : 0);
-        }
+        Blob GetBlob(BlobReference const blobReference) const;
 
         StringReference GetString(SizeType const index) const
         {
