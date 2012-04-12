@@ -25,6 +25,6 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="WinRTBasicReflectionInstantiation_TemporaryKey.pfx" />
-    <None Include="..\..\Build\Output\Win32\Release\CxxReflect\CxxReflectPlatform.dat" />
+    <None Include="..\..\Build\Output\$(Platform)\$(Configuration)\CxxReflect\CxxReflectPlatform.dat" />
   </ItemGroup>
 </Project>
