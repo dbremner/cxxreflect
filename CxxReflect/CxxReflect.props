@@ -65,7 +65,8 @@
     <CxxReflectIsZwEnabled Condition="'$(CxxReflectIsZwEnabled)' == ''">false</CxxReflectIsZwEnabled>
   </PropertyGroup>
 
-  <PropertyGroup Label="Globals"> 
+  <PropertyGroup Label="Globals">
+    <CodeAnalysisRuleSet>NativeRecommendedRules.ruleset</CodeAnalysisRuleSet>
     <MinimumVisualStudioVersion>11.0</MinimumVisualStudioVersion>
     <RootNamespace>$(MSBuildProjectName)</RootNamespace>
     <VCTargetsPath Condition="'$(VCTargetsPath11)' != '' and '$(VSVersion)' == '' and '$(VisualStudioVersion)' == ''">$(VCTargetsPath11)</VCTargetsPath>
@@ -168,9 +169,5 @@
       <Project>{64dc7dff-d2e4-4086-be24-02f0b9d71128}</Project>
     </ProjectReference>
   </ItemGroup>
-
-  <Target Name="CxxReflectPrintConfigurations">
-    <Message Text="@(ProjectConfiguration)" />
-  </Target>
 
 </Project>
