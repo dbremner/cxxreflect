@@ -364,6 +364,20 @@ namespace CxxReflect {
 
 
 
+    // This interface allows configuration of the type universe owned by the Loader.
+    class ILoaderConfiguration
+    {
+    public:
+
+        virtual String TransformNamespace(String const& namespaceName) = 0;
+
+        virtual ~ILoaderConfiguration();
+    };
+
+
+
+
+
     // There are many functions that should not be part of the public interface of the library, but
     // which we need to be able to access from other parts of the CxxReflect library.  To do this,
     // all "internal" member functions have a parameter of this "InternalKey" class type, which can

@@ -9,6 +9,7 @@
 
 #ifdef CXXREFLECT_ENABLE_WINDOWS_RUNTIME_INTEGRATION
 
+#include "CxxReflect/Guid.hpp"
 #include "CxxReflect/Type.hpp"
 
 // To avoid including any non-standard headers in our header files, we forward declare all COM types
@@ -21,7 +22,7 @@ struct IUnknown;
 // only compile these when C++/CX is enabled.  These functions are entirely header-only, which means
 // we can compile the whole library without C++/CX support, but still use the C++/CX-specific
 // functions in C++/CX projects.
-#ifdef __cplusplus_winrt
+#ifdef CXXREFLECT_ENABLE_WINDOWS_RUNTIME_CPPCX
 
 #include <ppl.h>
 #include <ppltasks.h>
@@ -49,7 +50,7 @@ namespace CxxReflect { namespace Detail {
 
 } }
 
-#endif // __cplusplus_winrt
+#endif
 
 namespace CxxReflect { namespace WindowsRuntime {
 
@@ -72,6 +73,17 @@ namespace CxxReflect { namespace WindowsRuntime {
     };
 
     typedef std::unique_ptr<IInspectable, InspectableDeleter> UniqueInspectable;
+
+
+
+
+
+    // We encapsulate most of the Windows Runtime-specific functionality into this LoaderContext
+    // class.  It is befriended by InternalKey so that it has access to the library internals, and
+    // its functionality is exposed via the set of nonmember functions in the WindowsRuntime
+    // namespace, which utilize a global instance of LoaderContext.  The global instance is
+    // initialized by BeginInitialization().
+    class LoaderContext;
 
 
 
@@ -111,6 +123,21 @@ namespace CxxReflect { namespace WindowsRuntime {
 
 
 
+    // WINDOWS RUNTIME LOADER CONFIGURATION
+    //
+    // TODO Documentation
+    class LoaderConfiguration : public ILoaderConfiguration
+    {
+    public:
+
+        virtual String TransformNamespace(String const& namespaceName);
+    };
+
+
+
+
+
+
     // PACKAGE INITIALIZATION
     //
     // Before you can use the use the WindowsRuntime reflection API defined here you must initialize
@@ -125,7 +152,7 @@ namespace CxxReflect { namespace WindowsRuntime {
     bool HasInitializationBegun();
     bool IsInitialized();
 
-    #ifdef __cplusplus_winrt
+    #ifdef CXXREFLECT_ENABLE_WINDOWS_RUNTIME_CPPCX
     inline void BeginPackageInitialization()
     {
         // TODO Once we implement the WACK-friendly CxxReflect::Platform::WinRT, we need to change
@@ -157,7 +184,7 @@ namespace CxxReflect { namespace WindowsRuntime {
     std::vector<Type> GetImplementersOf(StringReference interfaceFullName, bool caseSensitive = true);
     std::vector<Type> GetImplementersOf(StringReference namespaceName, StringReference interfaceSimpleName, bool caseSensitive = true);
 
-    #ifdef __cplusplus_winrt
+    #ifdef CXXREFLECT_ENABLE_WINDOWS_RUNTIME_CPPCX
     template<typename TInterface>
     std::vector<Type> GetImplementersOf()
     {
@@ -184,7 +211,7 @@ namespace CxxReflect { namespace WindowsRuntime {
     Type GetType(StringReference namespaceName, StringReference typeSimpleName, bool caseSensitive = true);
     Type GetTypeOf(IInspectable* object);
     
-    #ifdef __cplusplus_winrt
+    #ifdef CXXREFLECT_ENABLE_WINDOWS_RUNTIME_CPPCX
     template <typename T>
     Type GetTypeOf(T^ object)
     {
@@ -196,14 +223,24 @@ namespace CxxReflect { namespace WindowsRuntime {
 
 
 
+    // TYPE PROPERTIES
+    //
+    // TODO Documentation
+
+    bool IsDefaultConstructible(Type const& type);
+    Guid GetGuid(Type const& type);
+
+
+
+
     // TYPE INSTANTIATION
     //
     // TODO Documentation
 
     UniqueInspectable CreateInspectableInstance(Type type);
 
-    #ifdef __cplusplus_winrt
-    ::Platform::Object^ CreateObjectInstance(Type type)
+    #ifdef CXXREFLECT_ENABLE_WINDOWS_RUNTIME_CPPCX
+    inline ::Platform::Object^ CreateObjectInstance(Type type)
     {
         return reinterpret_cast<::Platform::Object^>(CreateInspectableInstance(type).release());
     }
@@ -235,37 +272,67 @@ namespace CxxReflect { namespace Detail {
         {
         public:
 
-            Argument(Metadata::ElementType const type, SizeType const index, SizeType const size)
-                : _type(type), _valueIndex(index), _valueSize(size)
-            {
-            }
+            Argument(Metadata::ElementType type,
+                     SizeType              valueIndex,
+                     SizeType              valueSize,
+                     SizeType              nameIndex = 0, 
+                     SizeType              nameSize  = 0);
+
+            Type              GetType   (VariantArgumentPack const& owner) const;
+            ConstByteIterator BeginValue(VariantArgumentPack const& owner) const;
+            ConstByteIterator EndValue  (VariantArgumentPack const& owner) const;
+            StringReference   GetName   (VariantArgumentPack const& owner) const;
 
         private:
 
             Detail::ValueInitialized<Metadata::ElementType> _type;
             Detail::ValueInitialized<SizeType>              _valueIndex;
             Detail::ValueInitialized<SizeType>              _valueSize;
+            Detail::ValueInitialized<SizeType>              _nameIndex;
+            Detail::ValueInitialized<SizeType>              _nameSize;
+        };
+
+        typedef std::vector<Argument>            ArgumentSequence;
+        typedef ArgumentSequence::const_iterator ArgumentIterator;
+
+        struct InspectableArgument
+        {
+        public:
+
+            InspectableArgument();
+            InspectableArgument(IInspectable* value, StringReference name);
+
+            IInspectable*   GetValue() const;
+            StringReference GetName() const;
+
+        private:
+
+            Detail::ValueInitialized<IInspectable*> _value;
+            String                                  _name;
         };
 
         SizeType Arity() const;
+
+        ArgumentIterator Begin() const;
+        ArgumentIterator End()   const;
 
         void Push(bool);
 
         void Push(wchar_t);
 
-        void Push(std::int8_t);
-        void Push(std::uint8_t);
-        void Push(std::int16_t);
+        void Push(std::int8_t  );
+        void Push(std::uint8_t );
+        void Push(std::int16_t );
         void Push(std::uint16_t);
-        void Push(std::int32_t);
+        void Push(std::int32_t );
         void Push(std::uint32_t);
-        void Push(std::int64_t);
+        void Push(std::int64_t );
         void Push(std::uint64_t);
         
-        void Push(float);
+        void Push(float );
         void Push(double);
 
-        void Push(IInspectable*);
+        void Push(InspectableArgument);
 
         // TODO Add support for strings (std::string, wchar_t const*, HSTRING, etc.)
         // TODO Add support for arbitrary value types
@@ -284,11 +351,15 @@ namespace CxxReflect { namespace Detail {
         return value;
     }
 
-    #ifdef __cplusplus_winrt
+    
+
+    #ifdef CXXREFLECT_ENABLE_WINDOWS_RUNTIME_CPPCX
     template <typename T>
-    T PreprocessArgument(T^ value)
+    VariantArgumentPack::InspectableArgument PreprocessArgument(T^ value)
     {
-        return reinterpret_cast<IInspectable*>(value);
+        return VariantArgumentPack::InspectableArgument(
+            reinterpret_cast<IInspectable*>(value),
+            T::typeid->FullName->Data());
     }
     #endif
 
@@ -344,8 +415,8 @@ namespace CxxReflect { namespace Detail {
 
     WindowsRuntime::UniqueInspectable CreateInspectableInstance(Type const type, VariantArgumentPack const& arguments);
 
-    #ifdef __cplusplus_winrt
-    ::Platform::Object^ CreateObjectInstance(Type const type, VariantArgumentPack const& arguments)
+    #ifdef CXXREFLECT_ENABLE_WINDOWS_RUNTIME_CPPCX
+    inline ::Platform::Object^ CreateObjectInstance(Type const type, VariantArgumentPack const& arguments)
     {
         return reinterpret_cast<::Platform::Object^>(CreateInspectableInstance(type, arguments).release());
     }
@@ -406,7 +477,7 @@ namespace CxxReflect { namespace WindowsRuntime {
             std::forward<P4>(a4)));
     }
 
-    #ifdef __cplusplus_winrt
+    #ifdef CXXREFLECT_ENABLE_WINDOWS_RUNTIME_CPPCX
     template <typename P0>
     ::Platform::Object^ CreateObjectInstance(Type const type, P0&& a0)
     {
@@ -500,5 +571,5 @@ namespace CxxReflect { namespace WindowsRuntime {
 
 } }
 
-#endif // CXXREFLECT_ENABLE_FEATURE_WINRT
+#endif // CXXREFLECT_ENABLE_WINDOWS_RUNTIME_INTEGRATION
 #endif

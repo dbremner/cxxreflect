@@ -61,4 +61,18 @@
 #    error Compiling for an unknown platform
 #endif
 
+#if defined(CXXREFLECT_ENABLE_WINDOWS_RUNTIME_INTEGRATION) && defined(__cplusplus_winrt)
+#    define CXXREFLECT_ENABLE_WINDOWS_RUNTIME_CPPCX
+#endif
+
+// The CxxReflect library is /ZW-sensitive.  This is most unfortunate, but we rely on the Visual
+// C++ Standard Library's <future>, which relies on ConcRT, which is /ZW-sensitive.
+#if defined(_MSC_VER)
+#    if defined(__cplusplus_winrt)
+#        pragma detect_mismatch("CxxReflectIsZwEnabled", "1")
+#    else
+#        pragma detect_mismatch("CxxReflectIsZwEnabled", "0")
+#    endif
+#endif
+
 #endif

@@ -810,6 +810,20 @@ namespace CxxReflect { namespace Detail {
         return os;
     }
 
+    inline bool StartsWith(ConstCharacterIterator targetIt, ConstCharacterIterator prefixIt)
+    {
+        if (targetIt == nullptr || prefixIt == nullptr)
+            return false;
+
+        for (; *targetIt != L'\0' && *prefixIt != L'\0'; ++targetIt, ++prefixIt)
+        {
+            if (*targetIt != *prefixIt)
+                return false;
+        }
+
+        return true;
+    }
+
 } }
 
 

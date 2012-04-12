@@ -12,6 +12,22 @@
 
 #include <mutex>
 
+namespace CxxReflect { namespace Private {
+
+    // A default implementation of ILoaderConfiguration, used if the user does not provide a loader
+    // configuration when she contructs the Loader.
+    class DefaultLoaderConfiguration : public ILoaderConfiguration
+    {
+    public:
+
+        virtual String TransformNamespace(String const& namespaceName)
+        {
+            return namespaceName;
+        }
+    };
+
+} }
+
 namespace CxxReflect { namespace Detail {
 
     // Note:  In order to prevent deadlocks, please be sure to mind the lock hierarchy.  There are
@@ -73,30 +89,38 @@ namespace CxxReflect {
 
     #pragma warning(push)
     #pragma warning(disable: 4355) // Disables "don't use 'this' in initializer list" warning; I know what I'm doing.
-    Loader::Loader(std::auto_ptr<IAssemblyLocator> assemblyLocator)
-        : _assemblyLocator(assemblyLocator.release()),
-          _contextStorage (Detail::CreateElementContextTableStorage()),
-          _events         (this, _contextStorage.get()),
-          _fields         (this, _contextStorage.get()),
-          _interfaces     (this, _contextStorage.get()),
-          _methods        (this, _contextStorage.get()),
-          _properties     (this, _contextStorage.get()),
-          _sync           (new Detail::LoaderSynchronizationContext())
+    Loader::Loader(std::auto_ptr<IAssemblyLocator>     assemblyLocator,
+                   std::auto_ptr<ILoaderConfiguration> loaderConfiguration)
+        : _assemblyLocator    (assemblyLocator.release()),
+          _loaderConfiguration(loaderConfiguration.release()),
+          _contextStorage     (Detail::CreateElementContextTableStorage()),
+          _events             (this, _contextStorage.get()),
+          _fields             (this, _contextStorage.get()),
+          _interfaces         (this, _contextStorage.get()),
+          _methods            (this, _contextStorage.get()),
+          _properties         (this, _contextStorage.get()),
+          _sync               (new Detail::LoaderSynchronizationContext())
     {
         Detail::AssertNotNull(_assemblyLocator.get());
+        if (_loaderConfiguration == nullptr)
+            _loaderConfiguration.reset(new Private::DefaultLoaderConfiguration());
     }
 
-    Loader::Loader(std::unique_ptr<IAssemblyLocator> assemblyLocator)
-        : _assemblyLocator(std::move(assemblyLocator)),
-          _contextStorage (Detail::CreateElementContextTableStorage()),
-          _events         (this, _contextStorage.get()),
-          _fields         (this, _contextStorage.get()),
-          _interfaces     (this, _contextStorage.get()),
-          _methods        (this, _contextStorage.get()),
-          _properties     (this, _contextStorage.get()),
-          _sync           (new Detail::LoaderSynchronizationContext())
+    Loader::Loader(std::unique_ptr<IAssemblyLocator>     assemblyLocator,
+                   std::unique_ptr<ILoaderConfiguration> loaderConfiguration)
+        : _assemblyLocator    (std::move(assemblyLocator)),
+          _loaderConfiguration(std::move(loaderConfiguration)),
+          _contextStorage     (Detail::CreateElementContextTableStorage()),
+          _events             (this, _contextStorage.get()),
+          _fields             (this, _contextStorage.get()),
+          _interfaces         (this, _contextStorage.get()),
+          _methods            (this, _contextStorage.get()),
+          _properties         (this, _contextStorage.get()),
+          _sync               (new Detail::LoaderSynchronizationContext())
     {
         Detail::AssertNotNull(_assemblyLocator.get());
+        if (_loaderConfiguration == nullptr)
+            _loaderConfiguration.reset(new Private::DefaultLoaderConfiguration());
     }
     #pragma warning(pop)
 
@@ -178,16 +202,18 @@ namespace CxxReflect {
                 resolutionScope,
                 InternalKey());
 
+            String const namespaceName(_loaderConfiguration->TransformNamespace(typeRef.GetNamespace().c_str()));
+
             // TODO Add a LocateAssembly overload that takes a namespace and simple type name.
             String const& path(_assemblyLocator->LocateAssembly(
                 definingAssemblyName,
-                String(typeRef.GetNamespace().c_str()) + L"." + typeRef.GetName().c_str()));
+                String(namespaceName) + L"." + typeRef.GetName().c_str()));
 
             Assembly const definingAssembly(LoadAssembly(path));
             if (!definingAssembly.IsInitialized())
                 throw RuntimeError(L"Failed to resolve assembly reference");
 
-            Type const resolvedType(definingAssembly.GetType(typeRef.GetNamespace(), typeRef.GetName()));
+            Type const resolvedType(definingAssembly.GetType(namespaceName.c_str(), typeRef.GetName()));
             if (!resolvedType.IsInitialized())
                 throw RuntimeError(L"Failed to resolve type in assembly");
 
@@ -209,7 +235,7 @@ namespace CxxReflect {
         }
     }
 
-    Assembly Loader::LoadAssembly(String path) const
+    Assembly Loader::LoadAssembly(String const& path) const
     {
         auto const lock(_sync->Lock());
 
@@ -272,7 +298,9 @@ namespace CxxReflect {
         Assembly const systemAssembly(Utility::GetSystemAssembly(referenceAssembly));
         Detail::Assert([&]{ return systemAssembly.IsInitialized(); });
 
-        Type const primitiveType(systemAssembly.GetType(L"System", primitiveTypeName));
+        String const namespaceName(_loaderConfiguration->TransformNamespace(L"System"));
+
+        Type const primitiveType(systemAssembly.GetType(namespaceName.c_str(), primitiveTypeName));
         Detail::Assert([&]{ return primitiveType.IsInitialized(); });
 
         _fundamentalTypes[Detail::AsInteger(elementType)] = Detail::TypeHandle(primitiveType);

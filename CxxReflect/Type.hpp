@@ -250,7 +250,6 @@ namespace CxxReflect {
         bool IsValueType()               const;
         bool IsVisible()                 const;
 
-        bool           IsDefaultConstructible(BindingFlags flags = BindingAttribute::Default) const;
         MethodIterator BeginConstructors(BindingFlags flags = BindingAttribute::Default) const;
         MethodIterator EndConstructors() const;
 

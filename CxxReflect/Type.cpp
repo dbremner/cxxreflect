@@ -540,16 +540,6 @@ namespace CxxReflect {
         return _type.AsBlobReference().As<Metadata::TypeSignature>();
     }
 
-    bool Type::IsDefaultConstructible(BindingFlags const flags) const
-    {
-        auto const it(std::find_if(BeginConstructors(flags), EndConstructors(), [&](Method const& constructor)
-        {
-            return Detail::Distance(constructor.BeginParameters(), constructor.EndParameters()) == 0;
-        }));
-
-        return BeginConstructors(flags) == EndConstructors() || it != EndConstructors();
-    }
-
     Type::MethodIterator Type::BeginConstructors(BindingFlags flags) const
     {
         AssertInitialized();

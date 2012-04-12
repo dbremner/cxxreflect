@@ -13,6 +13,7 @@
 #include "CxxReflect/CustomAttribute.hpp"
 #include "CxxReflect/Loader.hpp"
 #include "CxxReflect/Method.hpp"
+#include "CxxReflect/Parameter.hpp"
 #include "CxxReflect/Type.hpp"
 
 // Note:  We cannot include any of the concurrency headers in our headers because they cannot be
@@ -38,114 +39,284 @@
 
 //
 //
+// WINDOWS RUNTIME LOADER CONTEXT
+//
+//
+
+namespace CxxReflect { namespace WindowsRuntime {
+
+    class LoaderContext
+    {
+    public:
+
+        typedef PackageAssemblyLocator  Locator;
+
+        typedef std::recursive_mutex    Mutex;
+        typedef std::unique_lock<Mutex> Lock;
+
+        LoaderContext(std::unique_ptr<Loader>&& loader)
+            : _loader(std::move(loader))
+        {
+            Detail::Verify([&]{ return _loader != nullptr; });
+        }
+
+        Loader const& GetLoader() const
+        {
+            return *_loader;
+        }
+
+        Locator const& GetLocator() const
+        {
+            Loader const& loader(GetLoader());
+
+            IAssemblyLocator const& locator(loader.GetAssemblyLocator(InternalKey()));
+
+            Detail::Assert([&]{ return dynamic_cast<Locator const*>(&locator) != nullptr; });
+            return *static_cast<Locator const*>(&locator);
+        }
+
+        Type GetActivationFactoryTypeFor(Type const& type)
+        {
+            Method const activatableConstructor(GetActivatableAttributeFactoryConstructor());
+
+            auto const activatableAttributeIt(std::find_if(type.BeginCustomAttributes(), type.EndCustomAttributes(),
+            [&](CustomAttribute const& a)
+            {
+                return a.GetConstructor() == activatableConstructor;
+            }));
+
+            Detail::Verify([&]{ return activatableAttributeIt != type.EndCustomAttributes(); });
+
+            String const factoryTypeName(activatableAttributeIt->GetSingleStringArgument());
+
+            return GetType(factoryTypeName.c_str(), true);
+        }
+
+        Guid GetGuid(Type const& type)
+        {
+            Detail::Verify([&]{ return type.IsInitialized(); }, L"Uninitialized type provided as argument");
+
+            Type const guidAttributeType(GetGuidAttributeType());
+
+            // TODO We can cache the GUID Type and compare using its identity instead, for performance.
+            auto const it(std::find_if(type.BeginCustomAttributes(),
+                                       type.EndCustomAttributes(),
+                                       [&](CustomAttribute const& attribute)
+            {
+                return attribute.GetConstructor().GetDeclaringType() == guidAttributeType;
+            }));
+
+            return it != type.EndCustomAttributes() ? it->GetSingleGuidArgument() : Guid();
+        }
+
+        std::vector<Type> GetImplementersOf(Type const& interfaceType)
+        {
+            Detail::Verify([&]{ return interfaceType.IsInitialized(); }, L"Uninitialized argument");
+
+            // We only need to test Windows types if the target interface is from Windows:
+            // TODO Is this really correct?
+            bool const includeWindowsTypes(Detail::StartsWith(interfaceType.GetNamespace().c_str(), L"Windows"));
+
+            Loader  const& loader (GetLoader() );
+            Locator const& locator(GetLocator());
+
+            std::vector<Type> implementers;
+
+            typedef PackageAssemblyLocator::PathMap::value_type Element;
+            std::for_each(locator.BeginMetadataFiles(), locator.EndMetadataFiles(), [&](Element const& f)
+            {
+                // TODO We need to add some StartsWith function that tests StringReference directly
+                if (!includeWindowsTypes && Detail::StartsWith(f.first.c_str(), L"windows"))
+                    return;
+
+                // TODO We can do better filtering than this by checking assembly references.
+                // TODO Add caching of the obtained data.
+                Assembly const a(loader.LoadAssembly(f.second));
+                std::for_each(a.BeginTypes(), a.EndTypes(), [&](Type const& t)
+                {
+                    if (std::find(t.BeginInterfaces(), t.EndInterfaces(), interfaceType) != t.EndInterfaces())
+                        implementers.push_back(t);
+                });
+            });
+
+            return implementers;
+        }
+
+        std::vector<Type> GetImplementersOf(StringReference const interfaceFullName, bool caseSensitive)
+        {
+            Type const interfaceType(GetType(interfaceFullName, caseSensitive));
+            if (!interfaceType.IsInitialized())
+                throw RuntimeError(L"Failed to locate named interface type");
+
+            return GetImplementersOf(interfaceType);
+        }
+
+        std::vector<Type> GetImplementersOf(StringReference const namespaceName,
+                                            StringReference const interfaceSimpleName,
+                                            bool            const caseSensitive)
+        {
+            Type const interfaceType(GetType(namespaceName, interfaceSimpleName, caseSensitive));
+            if (!interfaceType.IsInitialized())
+                throw RuntimeError(L"Failed to locate named interface type");
+
+            return GetImplementersOf(interfaceType);
+        }
+
+        Type GetType(StringReference const typeFullName, bool const caseSensitive)
+        {
+            auto const endOfNamespaceIt(std::find(typeFullName.rbegin(), typeFullName.rend(), '.').base());
+            Detail::Assert([&]{ return endOfNamespaceIt != typeFullName.rend().base(); });
+
+            String const namespaceName(typeFullName.begin(), std::prev(endOfNamespaceIt));
+            String const typeSimpleName(endOfNamespaceIt, typeFullName.end());
+
+            return GetType(namespaceName.c_str(), typeSimpleName.c_str(), caseSensitive);
+        }
+
+        // A non-throwing GetType().  Attempts to get the named type, and returns a null type if the
+        // named type cannot be found.
+        Type GetType(StringReference const namespaceName,
+                     StringReference const typeSimpleName,
+                     bool            const caseSensitive) const
+        {
+            Loader  const& loader (GetLoader() );
+            Locator const& locator(GetLocator());
+
+            String const metadataFileName(locator.FindMetadataFileForNamespace(namespaceName.c_str()));
+            if (metadataFileName.empty())
+                return Type();
+
+            // TODO We need a non-throwing LoadAssembly.
+            Assembly const assembly(loader.LoadAssembly(metadataFileName));
+            if (!assembly.IsInitialized())
+                return Type();
+
+            return assembly.GetType(namespaceName.c_str(), typeSimpleName.c_str(), !caseSensitive);
+        }
+
+
+        #define CXXREFLECT_DEFINE_PROPERTY(XTYPE, XNAME, ...)                                   \
+            private:                                                                            \
+                mutable Detail::ValueInitialized<bool> _delayInit ## XNAME ## Initialized;      \
+                mutable XTYPE                          _delayInit ## XNAME;                     \
+                                                                                                \
+            public:                                                                             \
+                                                                                                \
+                XTYPE Get ## XNAME() const                                                      \
+                {                                                                               \
+                    Lock const lock(_sync);                                                     \
+                                                                                                \
+                    if (!_delayInit ## XNAME ## Initialized.Get())                              \
+                    {                                                                           \
+                        _delayInit ## XNAME = (__VA_ARGS__)();                                  \
+                        _delayInit ## XNAME ## Initialized.Get() = true;                        \
+                    }                                                                           \
+                                                                                                \
+                    return _delayInit ## XNAME;                                                 \
+                }
+
+        #define CXXREFLECT_DEFINE_TYPE_PROPERTY(XNAME, XNAMESPACE, XTYPENAME)                   \
+            CXXREFLECT_DEFINE_PROPERTY(Type, XNAME, [&]() -> Type                               \
+            {                                                                                   \
+                Type const type(GetType(XNAMESPACE, XTYPENAME, true));                          \
+                                                                                                \
+                Detail::Verify([&]{ return type.IsInitialized(); }, L"Failed to find type");    \
+                                                                                                \
+                return type;                                                                    \
+            })
+
+        CXXREFLECT_DEFINE_TYPE_PROPERTY(ActivatableAttributeType, L"Windows.Foundation.Metadata", L"ActivatableAttribute");
+        CXXREFLECT_DEFINE_TYPE_PROPERTY(GuidAttributeType,        L"Windows.Foundation.Metadata", L"GuidAttribute");
+
+        CXXREFLECT_DEFINE_PROPERTY(Method, ActivatableAttributeFactoryConstructor, [&]() -> Method
+        {
+            Type const attributeType(GetActivatableAttributeType());
+
+            BindingFlags const bindingFlags(BindingAttribute::Public | BindingAttribute::Instance);
+            auto const firstConstructor(attributeType.BeginConstructors(bindingFlags));
+            auto const lastConstructor(attributeType.EndConstructors());
+
+            auto const constructorIt(std::find_if(firstConstructor, lastConstructor, [&](Method const& constructor)
+            {
+                // TODO We should also check parameter types.
+                return Detail::Distance(constructor.BeginParameters(), constructor.EndParameters()) == 2;
+            }));
+
+            Detail::Verify([&]{ return constructorIt != attributeType.EndConstructors(); });
+
+            return *constructorIt;
+
+        });
+
+        #undef CXXREFLECT_DEFINE_TYPE_PROPERTY
+        #undef CXXREFLECT_DEFINE_PROPERTY
+
+    private:
+
+        LoaderContext(LoaderContext const&);
+        LoaderContext& operator=(LoaderContext const&);
+   
+        std::unique_ptr<Loader>         _loader;
+        Mutex                   mutable _sync;
+    };
+
+} }
+
+
+
+
+
+//
+//
 // GLOBAL WINDOWS RUNTIME METADATA LOADER
 //
 //
 
 namespace CxxReflect { namespace { namespace Private {
 
-    typedef std::atomic<bool>                           InitializedFlag;
-    typedef std::shared_future<std::unique_ptr<Loader>> LoaderFuture;
-    typedef std::mutex                                  LoaderMutex;
-    typedef std::unique_lock<LoaderMutex>               LoaderLock;
+    typedef std::atomic<bool>                              LoaderInitializedFlag;
+    typedef std::unique_ptr<WindowsRuntime::LoaderContext> LoaderContextPointer;
+    typedef std::shared_future<LoaderContextPointer>       LoaderContextFuture;
 
-    // To help us to avoid silly mistakes, we encapsulate the synchronized Loader using this
-    // LoaderLease class.  It is only possible to get the Loader instance through a lease (the
-    // GlobalWindowsRuntimeLoader class, below, ensures this).  This doesn't prevent obviously
-    // stupid code, e.g., storing a pointer to the loader, then using that pointer after the
-    // lease is released (i.e., destroyed), but it helps to prevent subtle issues.  Perhaps.
-    class LoaderLease
+    class GlobalLoaderContext
     {
     public:
 
-        LoaderLease(Loader& loader, LoaderMutex& mutex)
-            : _loader(&loader), _lock(mutex)
-        {
-        }
-
-        LoaderLease(LoaderLease&& other)
-            : _loader(other._loader), _lock(std::move(other._lock))
-        {
-            other._loader.Reset();
-        }
-
-        LoaderLease& operator=(LoaderLease&& other)
-        {
-            _loader = other._loader;
-            _lock = std::move(other._lock);
-
-            other._loader.Reset();
-
-            return *this;
-        }
-
-        Loader& Get() const
-        {
-            return *_loader.Get();
-        }
-
-        WindowsRuntime::PackageAssemblyLocator const& GetLocator() const
-        {
-            IAssemblyLocator const& locator(_loader.Get()->GetAssemblyLocator(InternalKey()));
-
-            Detail::Assert([&]
-            {
-                return dynamic_cast<WindowsRuntime::PackageAssemblyLocator const*>(&locator) != nullptr;
-            });
-
-            return static_cast<WindowsRuntime::PackageAssemblyLocator const&>(locator);
-        }
-
-    private:
-
-        LoaderLease(LoaderLease const&);
-        LoaderLease& operator=(LoaderLease const&);
-
-        Detail::ValueInitialized<Loader*> _loader;
-        LoaderLock                        _lock;
-    };
-
-    class GlobalWindowsRuntimeLoader
-    {
-    public:
-
-        static void Initialize(LoaderFuture&& loader)
+        static void Initialize(LoaderContextFuture&& context)
         {
             bool expected(false);
             if (!_initialized.compare_exchange_strong(expected, true))
                 throw LogicError(L"Global Windows Runtime Loader was already initialized");
 
-            _loader = std::move(loader);
+            _context = std::move(context);
         }
 
-        static LoaderLease Lease()
+        static WindowsRuntime::LoaderContext& Get()
         {
             Detail::Assert([&]{ return _initialized.load(); });
 
-            Loader* const loader(_loader.get().get());
-            Detail::Verify([&]{ return loader != nullptr; }, L"Global Windows Runtime Loader is not valid");
+            WindowsRuntime::LoaderContext* const context(_context.get().get());
+            Detail::Verify([&]{ return context != nullptr; }, L"Global Windows Runtime Loader is not valid");
 
-            return LoaderLease(*loader, _mutex);
+            return *context;
         }
 
         static bool IsInitialized() { return _initialized.load(); }
-        static bool IsReady()       { return _loader.valid();     }
+        static bool IsReady()       { return _context.valid();    }
 
     private:
 
         // This type is not constructible.  It exists solely to prevent direct access to _loader.
-        GlobalWindowsRuntimeLoader();
-        GlobalWindowsRuntimeLoader(GlobalWindowsRuntimeLoader const&);
-        GlobalWindowsRuntimeLoader& operator=(GlobalWindowsRuntimeLoader const&);
+        GlobalLoaderContext();
+        GlobalLoaderContext(GlobalLoaderContext const&);
+        GlobalLoaderContext& operator=(GlobalLoaderContext const&);
 
-        static InitializedFlag _initialized;
-        static LoaderFuture    _loader;
-        static LoaderMutex     _mutex;
+        static LoaderInitializedFlag _initialized;
+        static LoaderContextFuture   _context;
     };
 
-    InitializedFlag GlobalWindowsRuntimeLoader::_initialized;
-    LoaderFuture    GlobalWindowsRuntimeLoader::_loader;
-    LoaderMutex     GlobalWindowsRuntimeLoader::_mutex;
+    LoaderInitializedFlag GlobalLoaderContext::_initialized;
+    LoaderContextFuture   GlobalLoaderContext::_context;
 
 } } }
 
@@ -616,21 +787,6 @@ namespace CxxReflect { namespace { namespace Private {
 
 
 
-    Guid GetGuidFromType(Type const& type)
-    {
-        StringReference const guidAttributeName(L"Windows.Foundation.Metadata.GuidAttribute");
-
-        // TODO We can cache the GUID Type and compare using its identity instead, for performance.
-        auto const it(std::find_if(type.BeginCustomAttributes(),
-                                   type.EndCustomAttributes(),
-                                   [&](CustomAttribute const& attribute)
-        {
-            return attribute.GetConstructor().GetDeclaringType().GetFullName() == guidAttributeName.c_str();
-        }));
-
-        return it != type.EndCustomAttributes() ? it->GetSingleGuidArgument() : Guid();
-    }
-
 
     // TODO Performance:  We do a linear search of the entire type system for every query, which is,
     // it suffices to say, ridiculously slow.  :-|
@@ -640,7 +796,7 @@ namespace CxxReflect { namespace { namespace Private {
         
         for (auto typeIt(assembly.BeginTypes()); typeIt != assembly.EndTypes(); ++typeIt)
         {
-            Guid const typeGuid(GetGuidFromType(*typeIt));
+            Guid const typeGuid(WindowsRuntime::GetGuid(*typeIt));
             if (typeGuid == cxxGuid)
                 return*typeIt;
         }
@@ -789,18 +945,32 @@ namespace CxxReflect { namespace WindowsRuntime {
 
 
 
+    String LoaderConfiguration::TransformNamespace(String const& namespaceName)
+    {
+        if (namespaceName == L"System")
+            return L"Platform";
+
+        return namespaceName;
+    }
+
+
+
+
+
     void BeginInitialization(String const& platformMetadataPath)
     {
-        if (Private::GlobalWindowsRuntimeLoader::IsInitialized())
+        if (Private::GlobalLoaderContext::IsInitialized())
             return;
 
-        Private::GlobalWindowsRuntimeLoader::Initialize(std::async(std::launch::async,
-        [=]() -> std::unique_ptr<Loader>
+        Private::GlobalLoaderContext::Initialize(std::async(std::launch::async,
+        [=]() -> std::unique_ptr<LoaderContext>
         {
             std::unique_ptr<PackageAssemblyLocator> resolver(new PackageAssemblyLocator(platformMetadataPath));
             PackageAssemblyLocator const& rawResolver(*resolver.get());
 
-            std::unique_ptr<Loader> loader(new Loader(std::move(resolver)));
+            std::unique_ptr<ILoaderConfiguration> configuration(new LoaderConfiguration());
+
+            std::unique_ptr<Loader> loader(new Loader(std::move(resolver), std::move(configuration)));
 
             typedef PackageAssemblyLocator::PathMap::value_type Element;
             std::for_each(rawResolver.BeginMetadataFiles(), rawResolver.EndMetadataFiles(), [&](Element const& e)
@@ -808,18 +978,21 @@ namespace CxxReflect { namespace WindowsRuntime {
                 loader->LoadAssembly(e.second);
             });
 
-            return loader;
+            std::unique_ptr<LoaderContext> context(new LoaderContext(std::move(loader)));
+            return context;
         }));
+
+        return;
     }
 
     bool HasInitializationBegun()
     {
-        return Private::GlobalWindowsRuntimeLoader::IsInitialized();
+        return Private::GlobalLoaderContext::IsInitialized();
     }
 
     bool IsInitialized()
     {
-        return Private::GlobalWindowsRuntimeLoader::IsReady();
+        return Private::GlobalLoaderContext::IsReady();
     }
 
 
@@ -828,48 +1001,19 @@ namespace CxxReflect { namespace WindowsRuntime {
 
     std::vector<Type> GetImplementersOf(Type const interfaceType)
     {
-        Detail::Assert([&]{ return interfaceType.IsInitialized(); });
-
-        // We only need to test Windows types if the target interface is from Windows:
-        // TODO Is this really correct?
-        bool const includeWindowsTypes(String(interfaceType.GetNamespace().c_str()).substr(0, 7) == L"Windows");
-
-        Private::LoaderLease const lease(Private::GlobalWindowsRuntimeLoader::Lease());
-        PackageAssemblyLocator const& locator(lease.GetLocator());
-
-        std::vector<Type> implementers;
-
-        // TODO Fix the type of the lambda parameter:
-        typedef PackageAssemblyLocator::PathMap::value_type Element;
-        std::for_each(locator.BeginMetadataFiles(), locator.EndMetadataFiles(), [&](Element const& f)
-        {
-            // TODO We need to add some StartsWith function that tests StringReference directly
-            if (!includeWindowsTypes && f.first.substr(0, 7) == L"windows")
-                return;
-
-            // TODO We can do better filtering than this by checking assembly references.
-            // TODO Add caching of the obtained data.
-            Assembly const a(lease.Get().LoadAssembly(f.second));
-            std::for_each(a.BeginTypes(), a.EndTypes(), [&](Type const& t)
-            {
-                if (std::find(t.BeginInterfaces(), t.EndInterfaces(), interfaceType) != t.EndInterfaces())
-                    implementers.push_back(t);
-            });
-        });
-
-        return implementers;
+        return Private::GlobalLoaderContext::Get().GetImplementersOf(interfaceType);
     }
 
     std::vector<Type> GetImplementersOf(GUID const& guid)
     {
-        Private::LoaderLease lease(Private::GlobalWindowsRuntimeLoader::Lease());
+        Loader const& loader(Private::GlobalLoaderContext::Get().GetLoader());
 
-        PackageAssemblyLocator const& locator(lease.GetLocator());
+        PackageAssemblyLocator const& locator(Private::GlobalLoaderContext::Get().GetLocator());
 
         Type targetType;
         for (auto it(locator.BeginMetadataFiles()); it != locator.EndMetadataFiles(); ++it)
         {
-            Assembly a(lease.Get().LoadAssembly(it->second));
+            Assembly a(loader.LoadAssembly(it->second));
 
             targetType = Private::GetTypeFromGuid(a, guid);
             if (targetType.IsInitialized())
@@ -884,22 +1028,17 @@ namespace CxxReflect { namespace WindowsRuntime {
 
     std::vector<Type> GetImplementersOf(StringReference const interfaceFullName, bool caseSensitive)
     {
-        Type const interfaceType(GetType(interfaceFullName, caseSensitive));
-        if (!interfaceType.IsInitialized())
-            throw RuntimeError(L"Failed to locate named interface type");
-
-        return GetImplementersOf(interfaceType);
+        return Private::GlobalLoaderContext::Get().GetImplementersOf(interfaceFullName, caseSensitive);
     }
 
     std::vector<Type> GetImplementersOf(StringReference const namespaceName,
                                         StringReference const interfaceSimpleName,
                                         bool            const caseSensitive)
     {
-        Type const interfaceType(GetType(namespaceName, interfaceSimpleName, caseSensitive));
-        if (!interfaceType.IsInitialized())
-            throw RuntimeError(L"Failed to locate named interface type");
-
-        return GetImplementersOf(interfaceType);
+        return Private::GlobalLoaderContext::Get().GetImplementersOf(
+            namespaceName,
+            interfaceSimpleName,
+            caseSensitive);
     }
 
 
@@ -909,32 +1048,14 @@ namespace CxxReflect { namespace WindowsRuntime {
 
     Type GetType(StringReference const typeFullName, bool const caseSensitive)
     {
-        auto const endOfNamespaceIt(std::find(typeFullName.rbegin(), typeFullName.rend(), '.').base());
-        Detail::Assert([&]{ return endOfNamespaceIt != typeFullName.rend().base(); });
-
-        String const namespaceName(typeFullName.begin(), std::prev(endOfNamespaceIt));
-        String const typeSimpleName(endOfNamespaceIt, typeFullName.end());
-
-        return GetType(namespaceName.c_str(), typeSimpleName.c_str(), caseSensitive);
+        return Private::GlobalLoaderContext::Get().GetType(typeFullName, caseSensitive);
     }
 
     Type GetType(StringReference const namespaceName,
                  StringReference const typeSimpleName,
                  bool            const caseSensitive)
     {
-        Private::LoaderLease loader(Private::GlobalWindowsRuntimeLoader::Lease());
-        
-        PackageAssemblyLocator const& assemblyLocator(loader.GetLocator());
-
-        String metadataFileName(assemblyLocator.FindMetadataFileForNamespace(namespaceName.c_str()));
-        if (metadataFileName.empty())
-            return Type();
-
-        Assembly assembly(loader.Get().LoadAssembly(metadataFileName));
-        if (!assembly.IsInitialized())
-            return Type();
-
-        return assembly.GetType(namespaceName.c_str(), typeSimpleName.c_str(), !caseSensitive);
+        return Private::GlobalLoaderContext::Get().GetType(namespaceName, typeSimpleName, caseSensitive);
     }
 
     Type GetTypeOf(IInspectable* const object)
@@ -946,6 +1067,26 @@ namespace CxxReflect { namespace WindowsRuntime {
         Detail::AssertNotNull(typeNameHString.value());
 
         return GetType(typeNameHString.c_str());
+    }
+
+
+
+
+
+    bool IsDefaultConstructible(Type const& type)
+    {
+        BindingFlags const flags(BindingAttribute::Instance | BindingAttribute::Public);
+        auto const it(std::find_if(type.BeginConstructors(flags), type.EndConstructors(), [&](Method const& c)
+        {
+            return Detail::Distance(c.BeginParameters(), c.EndParameters()) == 0;
+        }));
+
+        return type.BeginConstructors(flags) == type.EndConstructors() || it != type.EndConstructors();
+    }
+
+    Guid GetGuid(Type const& type)
+    {
+        return Private::GlobalLoaderContext::Get().GetGuid(type);
     }
 
 
@@ -977,31 +1118,9 @@ namespace CxxReflect { namespace WindowsRuntime {
 
 namespace CxxReflect { namespace { namespace Private {
 
-    Method GetActivatableAttributeFactoryConstructor()
-    {
-        Type const activatableType(WindowsRuntime::GetType(
-            L"Windows.Foundation.Metadata",
-            L"ActivatableAttribute"));
-
-        Detail::Verify([&]{ return activatableType.IsInitialized(); });
-
-        auto const activatableConstructorIt(std::find_if(
-            activatableType.BeginConstructors(BindingAttribute::Public | BindingAttribute::Instance), 
-            activatableType.EndConstructors(),
-            [&](Method const& constructor)
-        {
-            // TODO We should also check the parameter types.
-            return std::distance(constructor.BeginParameters(), constructor.EndParameters()) == 2;
-        }));
-
-        Detail::Verify([&]{ return activatableConstructorIt != activatableType.EndConstructors(); });
-
-        return *activatableConstructorIt;
-    }
-
     Type GetActivationFactoryType(Type const type)
     {
-        Method const activatableConstructor(GetActivatableAttributeFactoryConstructor());
+        Method const activatableConstructor(GlobalLoaderContext::Get().GetActivatableAttributeFactoryConstructor());
 
         auto const activatableAttributeIt(std::find_if(type.BeginCustomAttributes(), type.EndCustomAttributes(),
         [&](CustomAttribute const& a)
@@ -1015,6 +1134,94 @@ namespace CxxReflect { namespace { namespace Private {
 
         return WindowsRuntime::GetType(factoryTypeName.c_str());
     }
+
+    // An overload resolution implementation that requires the arguments to exactly match the
+    // parameters of a method.
+    class ExactMatchOverloadResolver
+    {
+    public:
+
+        ExactMatchOverloadResolver(Type::MethodIterator        const  first,
+                                   Type::MethodIterator        const  last,
+                                   Detail::VariantArgumentPack const& arguments)
+            : _first(first), _last(last), _arguments(arguments)
+        {
+        }
+
+        bool Succeeded() const
+        {
+            EnsureEvaluated();
+            return _state.Get() == State::MatchFound;
+        }
+
+        Method GetResult() const
+        {
+            EnsureEvaluated();
+            if (_state.Get() != State::MatchFound)
+                throw LogicError(L"Matching method not found.");
+
+            return *_result;
+        }
+
+    private:
+
+        enum class State
+        {
+            NotEvaluated,
+            MatchFound,
+            MatchNotFound
+        };
+
+        typedef Detail::VariantArgumentPack::Argument Argument;
+
+        void EnsureEvaluated() const
+        {
+            if (_state.Get() != State::NotEvaluated)
+                return;
+
+            std::vector<Type> argumentTypes;
+            std::transform(_arguments.Begin(), _arguments.End(), std::back_inserter(argumentTypes),
+                           [&](Detail::VariantArgumentPack::Argument const& a) -> Type
+            {
+                return a.GetType(_arguments);
+            });
+
+            _state.Get() = State::MatchNotFound;
+            _result = std::find_if(_first, _last, [&](Method const& method) -> bool
+            {
+                return Detail::RangeCheckedEqual(method.BeginParameters(), method.EndParameters(),
+                                                 argumentTypes.begin(), argumentTypes.end(),
+                                                 [&](Parameter const& parameter, Type const& argumentType)
+                {
+                    return parameter.GetType() == argumentType;
+                });
+            });
+
+            if (_result != _last)
+                _state.Get() = State::MatchFound;
+        }
+
+        Type::MethodIterator        _first;
+        Type::MethodIterator        _last;
+        Detail::VariantArgumentPack _arguments;
+
+        Detail::ValueInitialized<State> mutable _state;
+        Type::MethodIterator            mutable _result;
+    };
+
+    class ConvertingOverloadResolver
+    {
+    public:
+
+        // TODO Implement
+
+    private:
+
+        Type::MethodIterator        _first;
+        Type::MethodIterator        _last;
+        Detail::VariantArgumentPack _arguments;
+
+    };
 
     // This argument frame accumulates and aligns arguments for a stdcall function call.  Since
     // stdcall arguments are pushed right-to-left, arguments must be added to the frame in reverse
@@ -1036,6 +1243,94 @@ namespace CxxReflect { namespace { namespace Private {
 } } }
 
 namespace CxxReflect { namespace Detail {
+
+    VariantArgumentPack::Argument::Argument(Metadata::ElementType const type,
+                                            SizeType              const valueIndex,
+                                            SizeType              const valueSize,
+                                            SizeType              const nameIndex,
+                                            SizeType              const nameSize)
+        : _type(type), _valueIndex(valueIndex), _valueSize(valueSize), _nameIndex(nameIndex), _nameSize(nameSize)
+    {
+    }
+
+    Type VariantArgumentPack::Argument::GetType(VariantArgumentPack const& owner) const
+    {
+        if (_type.Get() == Metadata::ElementType::Class)
+        {
+            Assert([&]{ return sizeof(IInspectable*) == Distance(BeginValue(owner), EndValue(owner)); });
+
+            IInspectable* value;
+            RangeCheckedCopy(BeginValue(owner), EndValue(owner), BeginBytes(value), EndBytes(value));
+
+            Private::SmartHString typeName;
+            AssertSuccess(value->GetRuntimeClassName(typeName.proxy()));
+
+            Type const type(WindowsRuntime::GetType(typeName.c_str()));
+            if (!type.IsInitialized())
+                throw RuntimeError(L"Failed to determine type of runtime object");
+
+            return type;
+        }
+        else if (_type.Get() == Metadata::ElementType::ValueType)
+        {
+            throw LogicError(L"Not yet implemented");
+        }
+        else
+        {
+            return Private::GlobalLoaderContext::Get()
+                .GetLoader()
+                .GetFundamentalType(_type.Get(), InternalKey());
+        }
+    }
+
+    ConstByteIterator VariantArgumentPack::Argument::BeginValue(VariantArgumentPack const& owner) const
+    {
+        return owner._data.data() + _valueIndex.Get();
+    }
+
+    ConstByteIterator VariantArgumentPack::Argument::EndValue(VariantArgumentPack const& owner) const
+    {
+        return owner._data.data() + _valueIndex.Get() + _valueSize.Get();
+    }
+
+    StringReference VariantArgumentPack::Argument::GetName(VariantArgumentPack const& owner) const
+    {
+        if (_nameIndex.Get() == 0 && _nameSize.Get() == 0)
+            return StringReference();
+
+        return StringReference(
+            reinterpret_cast<Character const*>(owner._data.data() + _nameIndex.Get()),
+            reinterpret_cast<Character const*>(owner._data.data() + _nameIndex.Get() + _nameSize.Get()));
+    }
+
+    VariantArgumentPack::InspectableArgument::InspectableArgument()
+    {
+    }
+
+    VariantArgumentPack::InspectableArgument::InspectableArgument(IInspectable* const value, StringReference const name)
+        : _value(value), _name(name.c_str())
+    {
+    }
+
+    IInspectable* VariantArgumentPack::InspectableArgument::GetValue() const
+    {
+        return _value.Get();
+    }
+
+    StringReference VariantArgumentPack::InspectableArgument::GetName() const
+    {
+        return _name.c_str();
+    }
+
+    VariantArgumentPack::ArgumentIterator VariantArgumentPack::Begin() const
+    {
+        return begin(_arguments);
+    }
+
+    VariantArgumentPack::ArgumentIterator VariantArgumentPack::End() const
+    {
+        return end(_arguments);
+    }
 
     SizeType VariantArgumentPack::Arity() const
     {
@@ -1102,9 +1397,22 @@ namespace CxxReflect { namespace Detail {
         Push(Metadata::ElementType::R8, BeginBytes(value), EndBytes(value));
     }
 
-    void VariantArgumentPack::Push(IInspectable* const value)
+    void VariantArgumentPack::Push(InspectableArgument const argument)
     {
-        Push(Metadata::ElementType::Class, BeginBytes(value), EndBytes(value));
+        IInspectable* const value(argument.GetValue());
+
+        SizeType const valueIndex(static_cast<SizeType>(_data.size()));
+        std::copy(BeginBytes(value), EndBytes(value), std::back_inserter(_data));
+
+        SizeType const nameIndex(static_cast<SizeType>(_data.size()));
+        std::copy(reinterpret_cast<Byte const*>(argument.GetName().begin()),
+                  reinterpret_cast<Byte const*>(argument.GetName().end()),
+                  std::back_inserter(_data));
+
+        _arguments.push_back(Argument(
+            Metadata::ElementType::Class,
+            valueIndex, static_cast<SizeType>(sizeof(value)),
+            nameIndex, static_cast<SizeType>(argument.GetName().size() + 1)));
     }
 
     void VariantArgumentPack::Push(Metadata::ElementType const type,
@@ -1123,7 +1431,7 @@ namespace CxxReflect { namespace Detail {
         Detail::Assert([&]{ return type.IsInitialized(); });
 
         Type const factoryType(Private::GetActivationFactoryType(type));
-        Guid const factoryGuid(Private::GetGuidFromType(factoryType));
+        Guid const factoryGuid(WindowsRuntime::GetGuid(factoryType));
 
         Private::SmartHString const typeFullName(type.GetFullName().c_str());
        
@@ -1139,6 +1447,18 @@ namespace CxxReflect { namespace Detail {
             BindingAttribute::Public    |
             BindingAttribute::NonPublic |
             BindingAttribute::Instance);
+
+        Private::ExactMatchOverloadResolver const overloadResolver(
+            factoryType.BeginMethods(activatorBinding),
+            factoryType.EndMethods(),
+            arguments);
+
+        if (!overloadResolver.Succeeded())
+            throw RuntimeError(L"Failed to find activation method matching provided arguments");
+
+        // TODO We left off here.
+        // If factoryType is not an interface type, we need to perform a depth-first search over the
+        // interfaces it implements to find the interface that defines the matching overload.
 
         SizeType slotIndex(static_cast<SizeType>(-1)); // TODO We should have the method track this itself :-)
         auto const activatorIt(std::find_if(factoryType.BeginMethods(activatorBinding), factoryType.EndMethods(),

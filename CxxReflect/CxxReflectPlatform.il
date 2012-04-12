@@ -2,23 +2,23 @@
 //                   Distributed under the Boost Software License, Version 1.0.                   //
 //     (See accompanying file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)    //
 
-// This file defines a fake system assembly for use with C++ projects targeting the Windows Runtime.
+// This file defines a fake Platform assembly for use with C++ projects targeting the Windows Runtime.
 
-.assembly extern mscorlib
+.assembly CxxReflectPlatform
 {
-    .ver 255:255:255:255
+    .ver 1:0:0:0
 }
 
 .module     CxxReflectPlatform.winmd
 .corflags   0x00000001 // ILONLY
 
-.class  public auto ansi System.Object
+.class  public auto ansi Platform.Object
 {
     .method public hidebysig specialname rtspecialname instance
             void .ctor() runtime managed { }
 
     .method public hidebysig virtual instance
-            class System.Type GetType() runtime managed { }
+            class Platform.Type GetType() runtime managed { }
 
     .method public hidebysig virtual instance
             bool Equals(object obj) runtime managed { }
@@ -39,57 +39,73 @@
             void Finalize() runtime managed { }
 }
 
-.class  public auto ansi System.Type
-        extends System.Object
+.class  public auto ansi Platform.Type
+        extends class Platform.Object
         // TODO IMPLEMENTS
 {
 }
 
-.class public auto ansi System.ValueType extends System.Object
+.class public auto ansi Platform.ValueType extends Platform.Object
 {
     .method public hidebysig specialname rtspecialname instance
             void .ctor() runtime managed { }
 }
 
-.class public auto ansi System.Attribute extends System.Object
+.class public auto ansi Platform.Attribute extends Platform.Object
 {
     .method public hidebysig specialname rtspecialname instance
             void .ctor() runtime managed { }
 }
 
-.class public auto ansi System.FlagsAttribute extends System.Object
+.class public auto ansi Platform.FlagsAttribute extends Platform.Object
 {
     .method public hidebysig specialname rtspecialname instance
             void .ctor() runtime managed { }
 }
 
-.class public auto ansi System.AccessDeniedException extends System.Object { }
-.class public auto ansi System.Boolean extends System.Object { }
-.class public auto ansi System.COMException extends System.Object { }
-.class public auto ansi System.CallbackContext extends System.Object { }
-.class public auto ansi System.ChangedStateException extends System.Object { }
-.class public auto ansi System.ClassNotRegisteredException extends System.Object { }
-.class public auto ansi System.Delegate extends System.Object { }
-.class public auto ansi System.DisconnectedException extends System.Object { }
-.class public auto ansi System.Enum extends System.Object { }
-.class public auto ansi System.Exception extends System.Object { }
-.class public auto ansi System.FailureException extends System.Object { }
-.class public auto ansi System.Guid extends System.Object { }
-.class public auto ansi System.IBoxArray`1<T> extends System.Object { }
-.class public auto ansi System.IBox`1<T> extends System.Object { }
-.class public auto ansi System.IDisposable extends System.Object { }
-.class public auto ansi System.IValueType extends System.Object { }
-.class public auto ansi System.IntPtr extends System.Object { }
-.class public auto ansi System.InvalidArgumentException extends System.Object { }
-.class public auto ansi System.InvalidCastException extends System.Object { }
-.class public auto ansi System.MTAThreadAttribute extends System.Object { }
-.class public auto ansi System.MulticastDelegate extends System.Object { }
-.class public auto ansi System.NotImplementedException extends System.Object { }
-.class public auto ansi System.NullReferenceException extends System.Object { }
-.class public auto ansi System.OperationCancelledException extends System.Object { }
-.class public auto ansi System.OutOfBoundsException extends System.Object { }
-.class public auto ansi System.OutOfMemoryException extends System.Object { }
-.class public auto ansi System.STAThreadAttribute extends System.Object { }
-.class public auto ansi System.SizeT extends System.Object { }
-.class public auto ansi System.TypeCode extends System.Object { }
-.class public auto ansi System.UIntPtr extends System.Object { }
+// The value type fundamental types
+.class public auto ansi Platform.Boolean        extends Platform.ValueType { }
+.class public auto ansi Platform.Char           extends Platform.ValueType { }
+.class public auto ansi Platform.SByte          extends Platform.ValueType { }
+.class public auto ansi Platform.Byte           extends Platform.ValueType { }
+.class public auto ansi Platform.Int16          extends Platform.ValueType { }
+.class public auto ansi Platform.UInt16         extends Platform.ValueType { }
+.class public auto ansi Platform.Int32          extends Platform.ValueType { }
+.class public auto ansi Platform.UInt32         extends Platform.ValueType { }
+.class public auto ansi Platform.Int64          extends Platform.ValueType { }
+.class public auto ansi Platform.UInt64         extends Platform.ValueType { }
+.class public auto ansi Platform.Single         extends Platform.ValueType { }
+.class public auto ansi Platform.Double         extends Platform.ValueType { }
+.class public auto ansi Platform.IntPtr         extends Platform.ValueType { }
+.class public auto ansi Platform.UIntPtr        extends Platform.ValueType { }
+.class public auto ansi Platform.Void           extends Platform.ValueType { }
+.class public auto ansi Platform.TypedReference extends Platform.ValueType { }
+
+.class public auto ansi Platform.AccessDeniedException extends Platform.Object { }
+.class public auto ansi Platform.Boolean extends Platform.Object { }
+.class public auto ansi Platform.COMException extends Platform.Object { }
+.class public auto ansi Platform.CallbackContext extends Platform.Object { }
+.class public auto ansi Platform.ChangedStateException extends Platform.Object { }
+.class public auto ansi Platform.ClassNotRegisteredException extends Platform.Object { }
+.class public auto ansi Platform.Delegate extends Platform.Object { }
+.class public auto ansi Platform.DisconnectedException extends Platform.Object { }
+.class public auto ansi Platform.Enum extends Platform.Object { }
+.class public auto ansi Platform.Exception extends Platform.Object { }
+.class public auto ansi Platform.FailureException extends Platform.Object { }
+.class public auto ansi Platform.Guid extends Platform.Object { }
+.class public auto ansi Platform.IBoxArray`1<T> extends Platform.Object { }
+.class public auto ansi Platform.IBox`1<T> extends Platform.Object { }
+.class public auto ansi Platform.IDisposable extends Platform.Object { }
+.class public auto ansi Platform.IValueType extends Platform.Object { }
+.class public auto ansi Platform.InvalidArgumentException extends Platform.Object { }
+.class public auto ansi Platform.InvalidCastException extends Platform.Object { }
+.class public auto ansi Platform.MTAThreadAttribute extends Platform.Object { }
+.class public auto ansi Platform.MulticastDelegate extends Platform.Object { }
+.class public auto ansi Platform.NotImplementedException extends Platform.Object { }
+.class public auto ansi Platform.NullReferenceException extends Platform.Object { }
+.class public auto ansi Platform.OperationCancelledException extends Platform.Object { }
+.class public auto ansi Platform.OutOfBoundsException extends Platform.Object { }
+.class public auto ansi Platform.OutOfMemoryException extends Platform.Object { }
+.class public auto ansi Platform.STAThreadAttribute extends Platform.Object { }
+.class public auto ansi Platform.SizeT extends Platform.Object { }
+.class public auto ansi Platform.TypeCode extends Platform.Object { }

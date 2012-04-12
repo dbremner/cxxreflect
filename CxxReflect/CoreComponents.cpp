@@ -413,6 +413,11 @@ namespace CxxReflect {
         // Virtual destructor required for interface class
     }
 
+    ILoaderConfiguration::~ILoaderConfiguration()
+    {
+        // Virtual destructor required for interface class
+    }
+
     bool Utility::IsSystemAssembly(Assembly const& assembly)
     {
         Detail::Assert([&]{ return assembly.IsInitialized(); });
@@ -500,7 +505,7 @@ namespace CxxReflect {
 
         // This error is a hard verification because an ill-formed assembly might have a type not
         // derived from the One True Object.
-        Detail::Verify([&]{ return currentType.GetFullName() == L"System.Object"; });
+        Detail::Verify([&]{ return currentType.GetName() == L"Object"; }); // TODO Namesapace
         Detail::Verify([&]{ return IsSystemAssembly(currentType.GetAssembly());   });
 
         return currentType;

@@ -4,7 +4,7 @@
     <ConfigurationType>StaticLibrary</ConfigurationType>
     <ProjectGuid>{64DC7DFF-D2E4-4086-BE24-02F0B9D71128}</ProjectGuid>
   </PropertyGroup>
-  <Import Project="$(SolutionDir)CxxReflect\CxxReflect.props" />
+  <Import Project="CxxReflect.props" />
   <ItemDefinitionGroup>
     <ClCompile>
       <PrecompiledHeader>Use</PrecompiledHeader>

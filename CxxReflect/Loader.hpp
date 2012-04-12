@@ -48,15 +48,18 @@ namespace CxxReflect {
 
         // Note:  The auto_ptr overload is provided for use from C++/CLI, which does not yet support
         // move-only types.  If you aren't using C++/CLI, use the unique_ptr overload.
-        Loader(std::auto_ptr<IAssemblyLocator>   assemblyLocator);
-        Loader(std::unique_ptr<IAssemblyLocator> assemblyLocator);
+        explicit Loader(std::auto_ptr<IAssemblyLocator>       assemblyLocator,
+                        std::auto_ptr<ILoaderConfiguration>   loaderConfiguration = std::auto_ptr<ILoaderConfiguration>(nullptr));
+
+        explicit Loader(std::unique_ptr<IAssemblyLocator>     assemblyLocator,
+                        std::unique_ptr<ILoaderConfiguration> loaderConfiguration = nullptr);
 
         ~Loader();
 
         Loader(Loader&& other);
         Loader& operator=(Loader&& other);
 
-        Assembly LoadAssembly(String path) const;
+        Assembly LoadAssembly(String const& path) const;
         Assembly LoadAssembly(AssemblyName const& name) const;
 
     public: // Internal Members
@@ -86,6 +89,7 @@ namespace CxxReflect {
         Loader& operator=(Loader const&);
 
         std::unique_ptr<IAssemblyLocator>                 _assemblyLocator;
+        std::unique_ptr<ILoaderConfiguration>             _loaderConfiguration;
         mutable std::map<String, Detail::AssemblyContext> _contexts;
 
         enum { FundamentalTypeCount = static_cast<std::size_t>(Metadata::ElementType::ConcreteElementTypeMax) };

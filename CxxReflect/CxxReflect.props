@@ -5,12 +5,23 @@
 //     (See accompanying file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)    //
 -->
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+
+  <PropertyGroup>
+    <!-- CxxReflectIsCxxReflectLibrary is set only for the CxxReflect library itself. -->
+    <CxxReflectIsCxxReflectLibrary Condition="'$(MSBuildProjectName)' == 'CxxReflect'">true</CxxReflectIsCxxReflectLibrary>
+    <CxxReflectIsCxxReflectLibrary Condition="'$(CxxReflectIsCxxReflectLibrary)' == ''">false</CxxReflectIsCxxReflectLibrary>
+    
+    <!-- Non-/ZW configurations are enabled for the CxxReflect library and all non-AppContainerApplication projects -->
+    <CxxReflectIncludeNonZWConfigurations Condition="'$(CxxReflectIsCxxReflectLibrary)' == 'true' or '$(AppContainerApplication)' != 'true'">true</CxxReflectIncludeNonZWConfigurations>
+    <CxxReflectIncludeNonZWConfigurations Condition="'$(CxxReflectIncludeNonZWConfigurations)' == ''">false</CxxReflectIncludeNonZWConfigurations>
   
-  <ItemGroup Label="ProjectConfigurations">
-    <ProjectConfiguration Include="Debug|ARM">
-      <Configuration>Debug</Configuration>
-      <Platform>ARM</Platform>
-    </ProjectConfiguration>
+    <!-- /ZW configurations are enabled for the CxxReflect library and all AppContainerApplication projects -->
+    <CxxReflectIncludeZWConfigurations Condition="'$(CxxReflectIsCxxReflectLibrary)' == 'true' or '$(AppContainerApplication)' == 'true'">true</CxxReflectIncludeZWConfigurations>
+    <CxxReflectIncludeZWConfigurations Condition="'$(CxxReflectIncludeZWConfigurations)' == ''">false</CxxReflectIncludeZWConfigurations>
+  </PropertyGroup>
+
+  <!-- Non-/ZW Project Configurations -->
+  <ItemGroup Condition="'$(CxxReflectIncludeNonZWConfigurations)' == 'true'">
     <ProjectConfiguration Include="Debug|Win32">
       <Configuration>Debug</Configuration>
       <Platform>Win32</Platform>
@@ -18,10 +29,6 @@
     <ProjectConfiguration Include="Debug|x64">
       <Configuration>Debug</Configuration>
       <Platform>x64</Platform>
-    </ProjectConfiguration>
-    <ProjectConfiguration Include="Release|ARM">
-      <Configuration>Release</Configuration>
-      <Platform>ARM</Platform>
     </ProjectConfiguration>
     <ProjectConfiguration Include="Release|Win32">
       <Configuration>Release</Configuration>
@@ -31,26 +38,34 @@
       <Configuration>Release</Configuration>
       <Platform>x64</Platform>
     </ProjectConfiguration>
-    <ProjectConfiguration Include="Profiling|ARM">
-      <Configuration>Profiling</Configuration>
-      <Platform>ARM</Platform>
-    </ProjectConfiguration>
-    <ProjectConfiguration Include="Profiling|Win32">
-      <Configuration>Profiling</Configuration>
+  </ItemGroup>
+
+  <!-- /ZW Project Configurations -->
+  <ItemGroup Condition="'$(CxxReflectIncludeZWConfigurations)' == 'true'">
+    <ProjectConfiguration Include="Debug(ZW)|Win32">
+      <Configuration>Debug(ZW)</Configuration>
       <Platform>Win32</Platform>
     </ProjectConfiguration>
-    <ProjectConfiguration Include="Profiling|x64">
-      <Configuration>Profiling</Configuration>
+    <ProjectConfiguration Include="Debug(ZW)|x64">
+      <Configuration>Debug(ZW)</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release(ZW)|Win32">
+      <Configuration>Release(ZW)</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release(ZW)|x64">
+      <Configuration>Release(ZW)</Configuration>
       <Platform>x64</Platform>
     </ProjectConfiguration>
   </ItemGroup>
 
-  <PropertyGroup Label="Globals">
-    <!-- If the Profiling configuration is set, flag profiling to be enabled and reset the configuration to Release-->
-    <CxxReflectIsProfilingEnabled>false</CxxReflectIsProfilingEnabled>
-    <CxxReflectIsProfilingEnabled Condition="'$(Configuration)' == 'Profiling'">true</CxxReflectIsProfilingEnabled>
-    <Configuration Condition="'$(Configuration)' == 'Profiling'">Release</Configuration>
-      
+  <PropertyGroup>
+    <CxxReflectIsZwEnabled Condition="$(Configuration.Contains('ZW'))">true</CxxReflectIsZwEnabled>
+    <CxxReflectIsZwEnabled Condition="'$(CxxReflectIsZwEnabled)' == ''">false</CxxReflectIsZwEnabled>
+  </PropertyGroup>
+
+  <PropertyGroup Label="Globals"> 
     <MinimumVisualStudioVersion>11.0</MinimumVisualStudioVersion>
     <RootNamespace>$(MSBuildProjectName)</RootNamespace>
     <VCTargetsPath Condition="'$(VCTargetsPath11)' != '' and '$(VSVersion)' == '' and '$(VisualStudioVersion)' == ''">$(VCTargetsPath11)</VCTargetsPath>
@@ -114,14 +129,14 @@
     </Link>
   </ItemDefinitionGroup>
 
-  <ItemDefinitionGroup Condition="'$(Configuration)' == 'Debug'">
+  <ItemDefinitionGroup Condition="$(Configuration.Contains('Debug'))">
     <ClCompile>
       <BrowseInformation>true</BrowseInformation>
       <Optimization>Disabled</Optimization>
     </ClCompile>
   </ItemDefinitionGroup>
 
-  <ItemDefinitionGroup Condition="'$(Configuration)' == 'Release'">
+  <ItemDefinitionGroup Condition="$(Configuration.Contains('Release'))">
     <ClCompile>
       <BrowseInformation>false</BrowseInformation>
       <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
@@ -136,18 +151,26 @@
       <OptimizeReferences>true</OptimizeReferences>
     </Link>
   </ItemDefinitionGroup>
-    
-  <ItemDefinitionGroup Condition="'$(CxxReflectIsProfilingEnabled)' == 'true'">
-    <Link>
-      <Profile>true</Profile>
-    </Link>
-  </ItemDefinitionGroup>
 
+  <ItemDefinitionGroup Condition="'$(CxxReflectIsZwEnabled)' == 'true' and '$(CxxReflectIsCxxReflectLibrary)' == 'true'">
+    <ClCompile>
+      <AdditionalUsingDirectories>"$(WindowsSdk80Path)Windows Metadata";"$(ProgramFiles)\Microsoft SDKs\Windows\v8.0\ExtensionSDKs\Microsoft.VCLibs\11.0\References\CommonConfiguration\neutral"</AdditionalUsingDirectories>
+      <CompileAsWinRT>true</CompileAsWinRT>
+    </ClCompile>
+    <Lib>
+      <AdditionalOptions>/force:allowzwobj %(AdditionalOptions)</AdditionalOptions>
+    </Lib>
+  </ItemDefinitionGroup>
+  
   <!-- All projects reference the core CxxReflect.lib project -->
-  <ItemGroup Condition="'$(ProjectName)' != 'CxxReflect'">
+  <ItemGroup Condition="'$(MSBuildProjectName)' != 'CxxReflect'">
     <ProjectReference Include="$(SolutionDir)CxxReflect\CxxReflect.vcxproj">
       <Project>{64dc7dff-d2e4-4086-be24-02f0b9d71128}</Project>
     </ProjectReference>
   </ItemGroup>
+
+  <Target Name="CxxReflectPrintConfigurations">
+    <Message Text="@(ProjectConfiguration)" />
+  </Target>
 
 </Project>
