@@ -1,0 +1,29 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup Label="Globals">
+    <AppContainerApplication>true</AppContainerApplication>
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <DefaultLanguage>en-US</DefaultLanguage>
+    <GenerateManifest>false</GenerateManifest>
+    <Keyword>Win32Proj</Keyword>
+    <ProjectGuid>{ce5fdb88-6215-425a-91fa-aeb0c8c5cd1b}</ProjectGuid>
+    <ProjectName>WRLibrary</ProjectName>
+    <RootNamespace>WRLibrary</RootNamespace>
+  </PropertyGroup>
+  <Import Project="$(SolutionDir)CxxReflect\CxxReflect.props"/>
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <PreprocessorDefinitions>_WINRT_DLL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalUsingDirectories>$(WindowsSDK_WindowsMetadata);$(AdditionalUsingDirectories)</AdditionalUsingDirectories>
+    </ClCompile>
+    <Link>
+      <AdditionalDependencies>runtimeobject.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <IgnoreAllDefaultLibraries>false</IgnoreAllDefaultLibraries>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="Library.cpp" />
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+</Project>

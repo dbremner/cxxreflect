@@ -150,6 +150,7 @@ namespace CxxReflect { namespace WindowsRuntime {
 
     void BeginInitialization(String const& platformMetadataPath);
     bool HasInitializationBegun();
+    void CallWhenInitialized(std::function<void()> callable);
     bool IsInitialized();
 
     #ifdef CXXREFLECT_ENABLE_WINDOWS_RUNTIME_CPPCX

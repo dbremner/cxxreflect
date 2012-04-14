@@ -25,8 +25,12 @@
 #include <future>
 #include <thread>
 
+#include <agents.h>
+#include <concrt.h>
 #include <hstring.h>
 #include <inspectable.h>
+#include <ppl.h>
+#include <ppltasks.h>
 #include <roapi.h>
 #include <rometadataresolution.h>
 #include <windows.h>
@@ -521,7 +525,7 @@ namespace CxxReflect { namespace { namespace Private {
 
     String ToString(HSTRING hstring)
     {
-        wchar_t const* const buffer(::WindowsGetStringRawBuffer(hstring, nullptr));
+        ConstCharacterIterator const buffer(::WindowsGetStringRawBuffer(hstring, nullptr));
         return buffer == nullptr ? L"" : buffer;
     }
 
@@ -696,7 +700,7 @@ namespace CxxReflect { namespace { namespace Private {
 
 namespace CxxReflect { namespace { namespace Private {
 
-    void EnumerateUniverseMetadataFilesInto(SmartHString const rootNamespace, std::vector<String>& result)
+    void EnumeratePackageMetadataFilesRecursive(SmartHString const rootNamespace, std::vector<String>& result)
     {
         RaiiHStringArray filePaths;
         RaiiHStringArray nestedNamespaces;
@@ -716,43 +720,37 @@ namespace CxxReflect { namespace { namespace Private {
             return ToString(path);
         });
 
-        String const baseNamespace(String(rootNamespace.c_str()) + (rootNamespace.empty() ? L"" : L"."));
+        String baseNamespace(rootNamespace.c_str());
+        if (!baseNamespace.empty())
+            baseNamespace.push_back(L'.');
+
         std::for_each(nestedNamespaces.begin(), nestedNamespaces.end(), [&](HSTRING nestedNamespace)
         {
-            EnumerateUniverseMetadataFilesInto(baseNamespace + ToString(nestedNamespace), result);
+            EnumeratePackageMetadataFilesRecursive(baseNamespace + ToString(nestedNamespace), result);
         });
     }
 
-    std::vector<String> EnumerateUniverseMetadataFiles(StringReference const packageDirectory)
+    std::vector<String> EnumerateUniverseMetadataFiles(StringReference const /* packageDirectory*/)
     {
         std::vector<String> result;
 
-        EnumerateUniverseMetadataFilesInto(SmartHString(), result);
+        EnumeratePackageMetadataFilesRecursive(SmartHString(), result);
 
-        // TODO This is an ugly workaround:  it appears that RoResolveNamespace doesn't actually
-        // give us non-Windows namespaces when we ask for the root namespaces.
-        for (std::tr2::sys::wdirectory_iterator it(packageDirectory.c_str()), end; it != end; ++it)
-        {
-            if (it->path().extension() != L".winmd")
-                continue;
+        // WORKAROUND:  For some Application Packages, RoResolveNamespace doesn't seem to find all
+        // metadata files in the package.  This is a brute-force workaround that just enumerates
+        // the .winmd files in the package root.
+        // for (std::tr2::sys::wdirectory_iterator it(packageDirectory.c_str()), end; it != end; ++it)
+        // {
+        //     if (it->path().extension() != L".winmd")
+        //         continue;
+        //
+        //     result.push_back(String(packageDirectory.c_str()) + it->path().filename());
+        // }
 
-            result.push_back(String(packageDirectory.c_str()) + it->path().filename());
-        }
-
-
-        std::sort(result.begin(), result.end());
-        result.erase(std::unique(result.begin(), result.end()), result.end());
+        std::sort(begin(result), end(result));
+        result.erase(std::unique(begin(result), end(result)), end(result));
 
         return result;
-    }
-
-    StringReference RemoveRightmostTypeNameComponent(StringReference const typeName)
-    {
-        Detail::Assert([&]{ return !typeName.empty(); });
-
-        return StringReference(
-            typeName.begin(),
-            std::find(typeName.rbegin(), typeName.rend(), L'.').base());
     }
 
     void RemoveRightmostTypeNameComponent(String& typeName)
@@ -988,6 +986,16 @@ namespace CxxReflect { namespace WindowsRuntime {
     bool HasInitializationBegun()
     {
         return Private::GlobalLoaderContext::IsInitialized();
+    }
+
+    void CallWhenInitialized(std::function<void()> const callable)
+    {
+        Concurrency::task<void> t([&]
+        {
+            Private::GlobalLoaderContext::Get();
+        });
+
+        t.then(callable);
     }
 
     bool IsInitialized()
@@ -1462,7 +1470,7 @@ namespace CxxReflect { namespace Detail {
 
         SizeType slotIndex(static_cast<SizeType>(-1)); // TODO We should have the method track this itself :-)
         auto const activatorIt(std::find_if(factoryType.BeginMethods(activatorBinding), factoryType.EndMethods(),
-        [&](Method const& method)
+        [&](Method const& method) -> bool
         {
             ++slotIndex;
 

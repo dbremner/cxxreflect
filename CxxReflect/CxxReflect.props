@@ -5,6 +5,13 @@
 //     (See accompanying file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)    //
 -->
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  
+  <!--
+  Note:  The Visual C++ Standard Library implementation relies on ConcRT for its threading headers.
+  ConcRT, in turn, is layout-dependent on /ZW, so we cannot mix /ZW object files with non-/ZW object
+  files.  Thus, we have two sets of identical project configurations:  one with /ZW, the other
+  without.
+  -->
 
   <PropertyGroup>
     <!-- CxxReflectIsCxxReflectLibrary is set only for the CxxReflect library itself. -->
@@ -65,26 +72,29 @@
     <CxxReflectIsZwEnabled Condition="'$(CxxReflectIsZwEnabled)' == ''">false</CxxReflectIsZwEnabled>
   </PropertyGroup>
 
-  <PropertyGroup Label="Globals">
-    <CodeAnalysisRuleSet>NativeRecommendedRules.ruleset</CodeAnalysisRuleSet>
+  <PropertyGroup>
     <MinimumVisualStudioVersion>11.0</MinimumVisualStudioVersion>
     <RootNamespace>$(MSBuildProjectName)</RootNamespace>
     <VCTargetsPath Condition="'$(VCTargetsPath11)' != '' and '$(VSVersion)' == '' and '$(VisualStudioVersion)' == ''">$(VCTargetsPath11)</VCTargetsPath>
   </PropertyGroup>
 
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  
+  <!--
+  Early Configuration Options
+  -->
 
-  <PropertyGroup Label="Configuration">
+  <PropertyGroup>
     <CodeAnalysisRuleSet>AllRules.ruleset</CodeAnalysisRuleSet>
     <PlatformToolset>v110</PlatformToolset>
   </PropertyGroup>
 
-  <PropertyGroup Label="Configuration" Condition="'$(Configuration)' == 'Debug'">
+  <PropertyGroup Condition="$(Configuration.Contains('Debug'))">
     <LinkIncremental>true</LinkIncremental>
     <UseDebugLibraries>true</UseDebugLibraries>
   </PropertyGroup>
 
-  <PropertyGroup Label="Configuration" Condition="'$(Configuration)' == 'Release'">
+  <PropertyGroup Condition="$(Configuration.Contains('Release'))">
     <UseDebugLibraries>false</UseDebugLibraries>
     <WholeProgramOptimization>true</WholeProgramOptimization>
   </PropertyGroup>
@@ -101,6 +111,10 @@
   </ItemDefinitionGroup>
 
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  
+  <!--
+  Late Configuration Options
+  -->
 
   <PropertyGroup>
     <OutDir>$(SolutionDir)Build\Output\$(Platform)\$(Configuration)\$(MSBuildProjectName)\</OutDir>
@@ -152,11 +166,17 @@
       <OptimizeReferences>true</OptimizeReferences>
     </Link>
   </ItemDefinitionGroup>
+  
+  <!--
+  For /ZW, we need to add the paths to Windows.winmd and Platform.winmd to the Using directories. We
+  also need to actually set the /ZW compiler flag, and for the Visual Studio 11 Beta we need to set
+  the /force:allowzwobj flag on the Librarian (otherwise, it won't archive /ZW object files).
+  -->
 
   <ItemDefinitionGroup Condition="'$(CxxReflectIsZwEnabled)' == 'true' and '$(CxxReflectIsCxxReflectLibrary)' == 'true'">
     <ClCompile>
+      <AdditionalOptions>/ZW %(AdditionalOptions)</AdditionalOptions>
       <AdditionalUsingDirectories>"$(WindowsSdk80Path)Windows Metadata";"$(ProgramFiles)\Microsoft SDKs\Windows\v8.0\ExtensionSDKs\Microsoft.VCLibs\11.0\References\CommonConfiguration\neutral"</AdditionalUsingDirectories>
-      <CompileAsWinRT>true</CompileAsWinRT>
     </ClCompile>
     <Lib>
       <AdditionalOptions>/force:allowzwobj %(AdditionalOptions)</AdditionalOptions>
