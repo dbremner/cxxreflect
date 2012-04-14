@@ -346,13 +346,70 @@ namespace CxxReflect { namespace Detail {
         std::vector<Byte>     _data;
     };
 
+
+
+
+
+    class ConvertingOverloadResolver
+    {
+    public:
+
+        enum class ConversionRank : std::uint32_t
+        {
+            NoMatch                      = 0xffffffff,
+
+            ExactMatch                   = 0x00000000,
+            IntegralPromotion            = 0x00010000,
+            RealConversion               = 0x00020000,
+            DerivedToBaseConversion      = 0x00040000,
+            DerivedToInterfaceConversion = 0x00080000
+        };
+
+        enum class State
+        {
+            NotEvaluated,
+            MatchFound,
+            MatchNotFound
+        };
+
+        ConvertingOverloadResolver(Type::MethodIterator        first,
+                                   Type::MethodIterator        last,
+                                   VariantArgumentPack  const& arguments);
+
+        bool   Succeeded() const;
+        Method GetResult() const;
+
+    private:
+
+        static Metadata::ElementType ComputeElementType(Type const& type);
+
+        static ConversionRank ComputeConversionRank     (Type const& parameterType, Type const& argumentType);
+        static ConversionRank ComputeClassConversionRank(Type const& parameterType, Type const& argumentType);
+
+        static ConversionRank ComputeNumericConversionRank(Metadata::ElementType parameterType,
+                                                           Metadata::ElementType argumentType);
+
+        void EnsureEvaluated() const;
+
+        Detail::ValueInitialized<State> mutable _state;
+        Type::MethodIterator            mutable _result;
+
+        Type::MethodIterator        _first;
+        Type::MethodIterator        _last;
+        Detail::VariantArgumentPack _arguments;
+    };
+
+    CXXREFLECT_GENERATE_SCOPED_ENUM_OPERATORS(ConvertingOverloadResolver::ConversionRank);
+
+
+
+
+
     template <typename T>
     T PreprocessArgument(T const& value)
     {
         return value;
     }
-
-    
 
     #ifdef CXXREFLECT_ENABLE_WINDOWS_RUNTIME_CPPCX
     template <typename T>
@@ -363,6 +420,10 @@ namespace CxxReflect { namespace Detail {
             T::typeid->FullName->Data());
     }
     #endif
+
+
+
+
 
     template <typename P0>
     VariantArgumentPack PackArguments(P0&& a0)
@@ -413,6 +474,10 @@ namespace CxxReflect { namespace Detail {
         pack.Push(PreprocessArgument(std::forward<P4>(a4)));
         return pack;
     }
+
+
+
+
 
     WindowsRuntime::UniqueInspectable CreateInspectableInstance(Type const type, VariantArgumentPack const& arguments);
 

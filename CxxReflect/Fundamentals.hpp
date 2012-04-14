@@ -281,6 +281,26 @@ namespace CxxReflect { namespace Detail {
 
     #endif
 
+    template <typename TForIt, typename TValue>
+    bool All(TForIt const first, TForIt const last, TValue const& value)
+    {
+        for (TForIt it(first); it != last; ++it)
+            if (*it != value)
+                return false;
+
+        return true;
+    }
+
+    template <typename TForIt, typename TValue>
+    bool Any(TForIt const first, TForIt const last, TValue const& value)
+    {
+        for (TForIt it(first); it != last; ++it)
+            if (*it == value)
+                return true;
+
+        return false;
+    }
+
     // We frequently compute the distance between two iterators and compare with a size; to avoid
     // lots of casts and to avoid unsigned/signed comparison warnings, we cast to unsigned here:
     template <typename TForIt>

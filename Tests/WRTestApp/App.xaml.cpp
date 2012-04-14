@@ -6,8 +6,6 @@
 #include "pch.h"
 #include "BlankPage.xaml.h"
 
-#include "CxxReflect/CxxReflect.hpp"
-
 using namespace WRTestApp;
 
 using namespace Platform;
@@ -32,7 +30,7 @@ using namespace Windows::UI::Xaml::Navigation;
 /// </summary>
 App::App()
 {
-    CxxReflect::WindowsRuntime::BeginPackageInitialization();
+    cxr::BeginPackageInitialization();
 
 	InitializeComponent();
 	Suspending += ref new SuspendingEventHandler(this, &App::OnSuspending);

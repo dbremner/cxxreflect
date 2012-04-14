@@ -55,6 +55,9 @@
     </AppxManifest>
     <None Include="Common\ReadMe.txt" />
     <None Include="WRTestApp_TemporaryKey.pfx" />
+    <None Include="..\..\Build\Output\$(Platform)\$(Configuration)\CxxReflect\CxxReflectPlatform.dat">
+      <DeploymentContent>true</DeploymentContent>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <Image Include="Assets\Logo.png" />

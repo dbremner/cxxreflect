@@ -14,7 +14,7 @@ namespace CxxReflect { namespace { namespace Private {
 
     typedef std::pair<Metadata::RowReference, Metadata::RowReference> RowReferencePair;
 
-    SizeType TableIdToCustomAttributeFlag(Metadata::TableId tableId)
+    SizeType TableIdToCustomAttributeFlag(Metadata::TableId const tableId)
     {
         switch (tableId)
         {

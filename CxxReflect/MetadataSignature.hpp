@@ -88,37 +88,25 @@ namespace CxxReflect { namespace Metadata {
         CustomAttributeProperty    = 0x54,
         CustomAttributeEnum        = 0x55,
 
+        // This is not a real ElementType.  We use this as a sentinel when generating instantiated
+        // generic signatures.  A cross-module type reference is composed of both a TypeDefOrSpec
+        // and a pointer to the database in which it is to be resolved.
         CrossModuleTypeReference   = 0x5f
     };
 
     CXXREFLECT_GENERATE_SCOPED_ENUM_OPERATORS(ElementType);
 
-    inline bool IsValidElementType(Byte const id)
-    {
-        static std::array<Byte, 0x60> const mask =
-        {
-            1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-            1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 0, 1, 1, 1, 1, 1,
-            1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-            1, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-            1, 1, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1
-        };
-
-        return id < mask.size() && mask[id] == 1;
-    }
+    // Tests whether 'id' maps to a valid ElementType enumerator.
+    bool IsValidElementType(Byte const id);
 
     // Tests whether a given element type marks the beginning of a Type signature.
-    inline bool IsTypeElementType(Byte const id)
-    {
-        static std::array<Byte, 0x20> const mask =
-        {
-            0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-            0, 1, 1, 1, 1, 1, 0, 0, 1, 1, 0, 1, 1, 1, 1, 0
-        };
+    bool IsTypeElementType(Byte const id);
 
-        return id < mask.size() && mask[id] == 1;
-    }
+    bool IsIntegralElementType        (ElementType elementType);
+    bool IsSignedIntegralElementType  (ElementType elementType);
+    bool IsUnsignedIntegralElementType(ElementType elementType);
+    bool IsRealElementType            (ElementType elementType);
+    bool IsNumericElementType         (ElementType elementType);
 
 
 

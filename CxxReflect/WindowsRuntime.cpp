@@ -16,10 +16,6 @@
 #include "CxxReflect/Parameter.hpp"
 #include "CxxReflect/Type.hpp"
 
-// Note:  We cannot include any of the concurrency headers in our headers because they cannot be
-// used in a C++/CLI program.  This source file only has functionality usable from a Windows Runtime
-// program.   Windows Runtime and C++/CLI cannot be used together, so usage of these Standard 
-// Library components here is safe.
 #include <atomic>
 #include <filesystem>
 #include <future>
@@ -1124,6 +1120,8 @@ namespace CxxReflect { namespace WindowsRuntime {
 
 
 
+
+
 namespace CxxReflect { namespace { namespace Private {
 
     Type GetActivationFactoryType(Type const type)
@@ -1143,93 +1141,9 @@ namespace CxxReflect { namespace { namespace Private {
         return WindowsRuntime::GetType(factoryTypeName.c_str());
     }
 
-    // An overload resolution implementation that requires the arguments to exactly match the
-    // parameters of a method.
-    class ExactMatchOverloadResolver
-    {
-    public:
+    
 
-        ExactMatchOverloadResolver(Type::MethodIterator        const  first,
-                                   Type::MethodIterator        const  last,
-                                   Detail::VariantArgumentPack const& arguments)
-            : _first(first), _last(last), _arguments(arguments)
-        {
-        }
-
-        bool Succeeded() const
-        {
-            EnsureEvaluated();
-            return _state.Get() == State::MatchFound;
-        }
-
-        Method GetResult() const
-        {
-            EnsureEvaluated();
-            if (_state.Get() != State::MatchFound)
-                throw LogicError(L"Matching method not found.");
-
-            return *_result;
-        }
-
-    private:
-
-        enum class State
-        {
-            NotEvaluated,
-            MatchFound,
-            MatchNotFound
-        };
-
-        typedef Detail::VariantArgumentPack::Argument Argument;
-
-        void EnsureEvaluated() const
-        {
-            if (_state.Get() != State::NotEvaluated)
-                return;
-
-            std::vector<Type> argumentTypes;
-            std::transform(_arguments.Begin(), _arguments.End(), std::back_inserter(argumentTypes),
-                           [&](Detail::VariantArgumentPack::Argument const& a) -> Type
-            {
-                return a.GetType(_arguments);
-            });
-
-            _state.Get() = State::MatchNotFound;
-            _result = std::find_if(_first, _last, [&](Method const& method) -> bool
-            {
-                return Detail::RangeCheckedEqual(method.BeginParameters(), method.EndParameters(),
-                                                 argumentTypes.begin(), argumentTypes.end(),
-                                                 [&](Parameter const& parameter, Type const& argumentType)
-                {
-                    return parameter.GetType() == argumentType;
-                });
-            });
-
-            if (_result != _last)
-                _state.Get() = State::MatchFound;
-        }
-
-        Type::MethodIterator        _first;
-        Type::MethodIterator        _last;
-        Detail::VariantArgumentPack _arguments;
-
-        Detail::ValueInitialized<State> mutable _state;
-        Type::MethodIterator            mutable _result;
-    };
-
-    class ConvertingOverloadResolver
-    {
-    public:
-
-        // TODO Implement
-
-    private:
-
-        Type::MethodIterator        _first;
-        Type::MethodIterator        _last;
-        Detail::VariantArgumentPack _arguments;
-
-    };
+    
 
     // This argument frame accumulates and aligns arguments for a stdcall function call.  Since
     // stdcall arguments are pushed right-to-left, arguments must be added to the frame in reverse
@@ -1249,6 +1163,12 @@ namespace CxxReflect { namespace { namespace Private {
     // TODO Support for X64 and ARM
 
 } } }
+
+//
+//
+// ARGUMENT HANDLING
+//
+//
 
 namespace CxxReflect { namespace Detail {
 
@@ -1315,7 +1235,8 @@ namespace CxxReflect { namespace Detail {
     {
     }
 
-    VariantArgumentPack::InspectableArgument::InspectableArgument(IInspectable* const value, StringReference const name)
+    VariantArgumentPack::InspectableArgument::InspectableArgument(IInspectable*   const value,
+                                                                  StringReference const name)
         : _value(value), _name(name.c_str())
     {
     }
@@ -1433,6 +1354,278 @@ namespace CxxReflect { namespace Detail {
         _arguments.push_back(Argument(type, index, index + Distance(first, last)));
     }
 
+
+
+
+
+    ConvertingOverloadResolver::ConvertingOverloadResolver(Type::MethodIterator const  first,
+                                                           Type::MethodIterator const  last,
+                                                           VariantArgumentPack  const& arguments)
+        : _first(first), _last(last), _arguments(arguments)
+    {
+    }
+
+    bool ConvertingOverloadResolver::Succeeded() const
+    {
+        EnsureEvaluated();
+        return _state.Get() == State::MatchFound;
+    }
+
+    Method ConvertingOverloadResolver::GetResult() const
+    {
+        EnsureEvaluated();
+        if (_state.Get() != State::MatchFound)
+            throw LogicError(L"Matching method not found.  Call Succeeded() first.");
+
+        return *_result;
+    }
+
+    void ConvertingOverloadResolver::EnsureEvaluated() const
+    {
+        if (_state.Get() != State::NotEvaluated)
+            return;
+
+        // Accumulate the argument types once, for performance:
+        std::vector<Type> argumentTypes;
+        std::transform(_arguments.Begin(), _arguments.End(), std::back_inserter(argumentTypes),
+                        [&](Detail::VariantArgumentPack::Argument const& a) -> Type
+        {
+            return a.GetType(_arguments);
+        });
+
+        _state.Get() = State::MatchNotFound;
+
+        Type::MethodIterator        bestMatch(_last);
+        std::vector<ConversionRank> bestMatchRank(argumentTypes.size(), ConversionRank::NoMatch);
+
+        for (auto methodIt(_first); methodIt != _last; ++methodIt)
+        {
+            // First, check to see if the arity matches:
+            if (Distance(methodIt->BeginParameters(), methodIt->EndParameters()) != argumentTypes.size())
+                continue;
+
+            std::vector<ConversionRank> currentRank(argumentTypes.size(), ConversionRank::NoMatch);
+
+            // Compute the conversion rank of this method:
+            unsigned parameterNumber(0);
+            auto parameterIt(methodIt->BeginParameters());
+            for (; parameterIt != methodIt->EndParameters(); ++parameterIt, ++parameterNumber)
+            {
+                currentRank[parameterNumber] = ComputeConversionRank(
+                    parameterIt->GetType(),
+                    argumentTypes[parameterNumber]);
+
+                // If any parameter is not a match, the whole method is not a match:
+                if (currentRank[parameterNumber] == ConversionRank::NoMatch)
+                    break;
+            }
+
+            bool betterMatch(false);
+            bool worseMatch(false);
+            bool noMatch(false);
+            for (unsigned i(0); i < argumentTypes.size(); ++i)
+            {
+                if (currentRank[i] == ConversionRank::NoMatch)
+                    noMatch = true;
+                else if (currentRank[i] < bestMatchRank[i])
+                    betterMatch = true;
+                else if (currentRank[i] > bestMatchRank[i])
+                    worseMatch = true;
+            }
+
+            if (noMatch)
+            {
+                continue;
+            }
+
+            // This is an unambiguously better match than the current best match:
+            if (betterMatch && !worseMatch)
+            {
+                bestMatch            = methodIt;
+                bestMatchRank        = currentRank;
+                continue;
+            }
+
+            // This is an unambiguously worse match than the current best match:
+            if (worseMatch && !betterMatch)
+            {
+                continue;
+            }
+
+            // There is an ambiguity between this match and the current best match:
+            bestMatch = _last;
+            for (unsigned i(0); i < argumentTypes.size(); ++i)
+            {
+                bestMatchRank[i] = bestMatchRank[i] < currentRank[i] ? bestMatchRank[i] : currentRank[i];
+            }
+        }
+
+        _result = bestMatch;
+
+        if (_result != _last)
+            _state.Get() = State::MatchFound;
+    }
+
+    Metadata::ElementType ConvertingOverloadResolver::ComputeElementType(Type const& type)
+    {
+        Assert([&]{ return type.IsInitialized(); });
+
+        // Shortcut:  If 'type' isn't from the system assembly, it isn't one of the system types:
+        if (!Utility::IsSystemAssembly(type.GetAssembly()))
+            return type.IsValueType() ? Metadata::ElementType::ValueType : Metadata::ElementType::Class;
+
+        Loader const& loader(type.GetAssembly().GetContext(InternalKey()).GetLoader());
+
+        #define CXXREFLECT_GENERATE(A)                                                         \
+            if (loader.GetFundamentalType(Metadata::ElementType::A, InternalKey()) == type)    \
+            {                                                                                  \
+                return Metadata::ElementType::A;                                               \
+            }
+
+        CXXREFLECT_GENERATE(Boolean)
+        CXXREFLECT_GENERATE(Char)
+        CXXREFLECT_GENERATE(I1)
+        CXXREFLECT_GENERATE(U1)
+        CXXREFLECT_GENERATE(I2)
+        CXXREFLECT_GENERATE(U2)
+        CXXREFLECT_GENERATE(I4)
+        CXXREFLECT_GENERATE(U4)
+        CXXREFLECT_GENERATE(I8)
+        CXXREFLECT_GENERATE(U8)
+        CXXREFLECT_GENERATE(R4)
+        CXXREFLECT_GENERATE(R8)
+
+        #undef CXXREFLECT_GENERATE
+
+        return type.IsValueType() ? Metadata::ElementType::ValueType : Metadata::ElementType::Class;
+    }
+
+    ConvertingOverloadResolver::ConversionRank
+    ConvertingOverloadResolver::ComputeConversionRank(Type const& parameterType, Type const& argumentType)
+    {
+        Assert([&]{ return parameterType.IsInitialized() && argumentType.IsInitialized(); });
+
+        Metadata::ElementType const pType(ComputeElementType(parameterType));
+        Metadata::ElementType const aType(ComputeElementType(argumentType ));
+
+        // Exact match of any kind.
+        if (parameterType == argumentType)
+        {
+            return ConversionRank::ExactMatch;
+        }
+
+        // Value Types, Boolean, Char, and String only match exactly; there are no conversions.
+        if (pType == Metadata::ElementType::ValueType || aType == Metadata::ElementType::ValueType ||
+            pType == Metadata::ElementType::Boolean   || aType == Metadata::ElementType::Boolean   ||
+            pType == Metadata::ElementType::Char      || aType == Metadata::ElementType::Char      ||
+            pType == Metadata::ElementType::String    || aType == Metadata::ElementType::String)
+        {
+            return ConversionRank::NoMatch;
+        }
+
+        // A Class Type may be converted to another Class Type.
+        if (pType == Metadata::ElementType::Class && aType == Metadata::ElementType::Class)
+        {
+            return ComputeClassConversionRank(parameterType, argumentType);
+        }
+        else if (pType == Metadata::ElementType::Class || aType == Metadata::ElementType::Class)
+        {
+            return ConversionRank::NoMatch;
+        }
+
+        // Numeric conversions:
+        if (IsNumericElementType(pType) && IsNumericElementType(aType))
+        {
+            return ComputeNumericConversionRank(pType, aType);
+        }
+
+        AssertFail(L"Not yet implemented");
+        return ConversionRank::NoMatch;
+    }
+
+    ConvertingOverloadResolver::ConversionRank
+    ConvertingOverloadResolver::ComputeClassConversionRank(Type const& parameterType, Type const& argumentType)
+    {
+        Assert([&]{ return !parameterType.IsValueType() && !argumentType.IsValueType(); });
+        Assert([&]{ return parameterType != argumentType;                               });
+
+        // First check to see if there is a derived-to-base conversion:
+        if (parameterType.IsClass())
+        {
+            unsigned baseDistance(1);
+            Type baseType(argumentType.GetBaseType());
+            while (baseType.IsInitialized())
+            {
+                if (baseType == parameterType)
+                    return ConversionRank::DerivedToBaseConversion | static_cast<ConversionRank>(baseDistance);
+
+                baseType = baseType.GetBaseType();
+                ++baseDistance;
+            }
+        }
+
+        // Next check to see if there is an interface conversion.  Note that all interface
+        // conversions are of equal rank.
+        if (parameterType.IsInterface())
+        {
+            Type currentType(argumentType);
+            while (currentType.IsInitialized())
+            {
+                auto const it(std::find(currentType.BeginInterfaces(), currentType.EndInterfaces(), parameterType));
+                if (it != currentType.EndInterfaces())
+                    return ConversionRank::DerivedToInterfaceConversion;
+            }
+        }
+
+        return ConversionRank::NoMatch;
+    }
+
+    ConvertingOverloadResolver::ConversionRank
+    ConvertingOverloadResolver::ComputeNumericConversionRank(Metadata::ElementType const pType,
+                                                             Metadata::ElementType const aType)
+    {
+        Assert([&]{ return IsNumericElementType(pType) && IsNumericElementType(aType); });
+        Assert([&]{ return pType != aType;                                             });
+
+        if (IsIntegralElementType(pType) && IsIntegralElementType(aType))
+        {
+            // Signed -> Unsigned and Unsigned -> Signed conversions are not permitted.
+            if (IsSignedIntegralElementType(pType) != IsSignedIntegralElementType(aType))
+                return ConversionRank::NoMatch;
+
+            // Narrowing conversions are not permitted.
+            if (pType < aType)
+                return ConversionRank::NoMatch;
+
+            unsigned const rawConversionDistance(static_cast<unsigned>(pType) - static_cast<unsigned>(aType));
+            Assert([&]{ return rawConversionDistance % 2 == 0; });
+            unsigned const conversionDistance(rawConversionDistance / 2);
+
+            return ConversionRank::IntegralPromotion | static_cast<ConversionRank>(conversionDistance);
+        }
+
+        // Real -> Integral conversions are not permitted.
+        if (IsIntegralElementType(pType))
+            return ConversionRank::NoMatch;
+
+        // Integral -> Real conversion is permitted.
+        if (IsIntegralElementType(aType))
+            return ConversionRank::RealConversion;
+
+        Assert([&]{ return IsRealElementType(pType) && IsRealElementType(aType); });
+
+        // R8 -> R4 narrowing is not permitted.
+        if (pType == Metadata::ElementType::R4 && aType == Metadata::ElementType::R8)
+            return ConversionRank::NoMatch;
+
+        // R4 -> R8 widening is permitted.
+        return ConversionRank::RealConversion;
+    }
+
+
+
+
+
     WindowsRuntime::UniqueInspectable CreateInspectableInstance(Type                const  type,
                                                                 VariantArgumentPack const& arguments)
     {
@@ -1456,7 +1649,7 @@ namespace CxxReflect { namespace Detail {
             BindingAttribute::NonPublic |
             BindingAttribute::Instance);
 
-        Private::ExactMatchOverloadResolver const overloadResolver(
+        ConvertingOverloadResolver const overloadResolver(
             factoryType.BeginMethods(activatorBinding),
             factoryType.EndMethods(),
             arguments);

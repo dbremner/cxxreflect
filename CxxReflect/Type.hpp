@@ -206,7 +206,7 @@ namespace CxxReflect {
         // all match the CLI Reflection API Type's Name, FullName, and AssemblyQualifiedName.  The
         // GetBasicName() returns the same result as GetName() for type definitions, but it only
         // returns the most fundamental element type name for type specifications (e.g., for A.B*,
-        // GetName() would return "A.B*", but GetBasicName() would return "A.B").  GetSimpleName()
+        // GetName() would return "A.B*", but GetBasicName() would return "A.B").  GetBasicName()
         // is provided for performance.
         String          GetAssemblyQualifiedName() const;
         String          GetFullName()              const;

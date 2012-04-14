@@ -84,6 +84,96 @@ namespace CxxReflect { namespace Metadata { namespace { namespace Private {
 
 namespace CxxReflect { namespace Metadata {
 
+    bool IsValidElementType(Byte const id)
+    {
+        static std::array<Byte, 0x60> const mask =
+        {
+            1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+            1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 0, 1, 1, 1, 1, 1,
+            1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            1, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            1, 1, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1
+        };
+
+        return id < mask.size() && mask[id] == 1;
+    }
+
+    // Tests whether a given element type marks the beginning of a Type signature.
+    bool IsTypeElementType(Byte const id)
+    {
+        static std::array<Byte, 0x20> const mask =
+        {
+            0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+            0, 1, 1, 1, 1, 1, 0, 0, 1, 1, 0, 1, 1, 1, 1, 0
+        };
+
+        return id < mask.size() && mask[id] == 1;
+    }
+
+    bool IsIntegralElementType(ElementType const elementType)
+    {
+        switch (elementType)
+        {
+        case ElementType::I1:
+        case ElementType::U1:
+        case ElementType::I2:
+        case ElementType::U2:
+        case ElementType::I4:
+        case ElementType::U4:
+        case ElementType::I8:
+        case ElementType::U8:
+            return true;
+
+        default:
+            return false;
+        }
+    }
+
+    bool IsSignedIntegralElementType(ElementType const elementType)
+    {
+        switch (elementType)
+        {
+        case ElementType::I1:
+        case ElementType::I2:
+        case ElementType::I4:
+        case ElementType::I8:
+            return true;
+
+        default:
+            return false;
+        }
+    }
+
+    bool IsUnsignedIntegralElementType(ElementType const elementType)
+    {
+        switch (elementType)
+        {
+        case ElementType::U1:
+        case ElementType::U2:
+        case ElementType::U4:
+        case ElementType::U8:
+            return true;
+
+        default:
+            return false;
+        }
+    }
+
+    bool IsRealElementType(ElementType const elementType)
+    {
+        return elementType == ElementType::R4 || elementType == ElementType::R8;
+    }
+
+    bool IsNumericElementType(ElementType const elementType)
+    {
+        return IsIntegralElementType(elementType) || IsRealElementType(elementType);
+    }
+
+
+
+
+
     Byte ReadByte(ConstByteIterator& it, ConstByteIterator const last)
     {
         if (it == last)

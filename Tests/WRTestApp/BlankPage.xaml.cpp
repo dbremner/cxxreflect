@@ -26,6 +26,31 @@ using namespace Windows::UI::Xaml::Navigation;
 BlankPage::BlankPage()
 {
 	InitializeComponent();
+
+    cxr::CallWhenInitialized([&]
+    {
+        auto const types(cxr::GetImplementersOf<WRLibrary::IProvideANumber^>());
+
+        std::for_each(begin(types), end(types), [&](cxr::Type const& type)
+        {
+            // If the type is not default constructible; skip it:
+            if (!cxr::IsDefaultConstructible(type))
+                return;
+
+            auto const instance(cxr::CreateInstance<WRLibrary::IProvideANumber>(type));
+        
+            std::wstringstream formatter;
+            formatter << type.GetFullName() << L":  " << instance->GetNumber() << L'\n';
+
+            OutputDebugString(formatter.str().c_str());
+        });
+
+        Platform::String::typeid->FullName->Data();
+
+        cxr::Type const userType(cxr::GetType(L"WRLibrary.UserProvidedNumber"));
+
+        auto const userInstance(cxr::CreateInstance<WRLibrary::IProvideANumber>(userType, 10));
+    });
 }
 
 /// <summary>
