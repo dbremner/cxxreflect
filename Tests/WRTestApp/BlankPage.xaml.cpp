@@ -48,8 +48,15 @@ BlankPage::BlankPage()
         Platform::String::typeid->FullName->Data();
 
         cxr::Type const userType(cxr::GetType(L"WRLibrary.UserProvidedNumber"));
+        for (int i(0); i < 10; ++i)
+        {
+            auto const userInstance(cxr::CreateInstance<WRLibrary::IProvideANumber>(userType, i * 5));
 
-        auto const userInstance(cxr::CreateInstance<WRLibrary::IProvideANumber>(userType, 10));
+            std::wstringstream formatter;
+            formatter << userType.GetFullName() << L":  " << userInstance->GetNumber() << L'\n';
+
+            OutputDebugString(formatter.str().c_str());
+        }
     });
 }
 

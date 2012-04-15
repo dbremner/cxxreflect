@@ -50,8 +50,9 @@ namespace CxxReflect {
         CustomAttributeIterator BeginCustomAttributes() const;
         CustomAttributeIterator EndCustomAttributes()   const;
 
-        ParameterIterator BeginParameters() const;
-        ParameterIterator EndParameters()   const;
+        ParameterIterator BeginParameters()   const;
+        ParameterIterator EndParameters()     const;
+        SizeType          GetParameterCount() const;
 
         Parameter GetReturnParameter() const;
         Type      GetReturnType()      const;

@@ -1758,6 +1758,107 @@ namespace CxxReflect { namespace Detail {
 
 
 
+namespace CxxReflect { namespace Detail {
+
+    template <typename TForIt, typename TFilter>
+    class StaticFilterIterator
+    {
+    public:
+
+        typedef std::forward_iterator_tag                         iterator_category;
+        typedef typename std::iterator_traits<TForIt>::value_type value_type;
+        typedef typename std::iterator_traits<TForIt>::reference  reference;
+        typedef typename std::iterator_traits<TForIt>::pointer    pointer;
+        typedef std::ptrdiff_t                                    difference_type;
+
+        StaticFilterIterator()
+        {
+        }
+
+        StaticFilterIterator(TForIt const current, TForIt const last, TFilter const filter)
+            : _current(current), _last(last), _filter(filter)
+        {
+        }
+
+        reference operator*() const
+        {
+            AssertDereferenceable();
+            return _current.Get().operator*();
+        }
+
+        pointer operator->() const
+        {
+            AssertDereferenceable();
+            return _current.Get().operator->();
+        }
+
+        StaticFilterIterator& operator++()
+        {
+            AssertDereferenceable();
+            ++_current.Get();
+            FilterAdvance();
+            return *this;
+        }
+
+        StaticFilterIterator operator++(int)
+        {
+            StaticFilterIterator const it(*this);
+            ++*this;
+            return it;
+        }
+
+        bool IsDereferenceable() const
+        {
+            return _current.Get() != _last.Get();
+        }
+
+        friend bool operator==(StaticFilterIterator const& lhs, StaticFilterIterator const& rhs)
+        {
+            return !lhs.IsDereferenceable() && !rhs.IsDereferenceable()
+                || lhs._current.Get() == rhs._current.Get();
+        }
+
+        CXXREFLECT_GENERATE_EQUALITY_OPERATORS(StaticFilterIterator)
+
+    private:
+
+        void AssertDereferenceable() const
+        {
+            Assert([&]{ return IsDereferenceable(); });
+        }
+
+        void FilterAdvance()
+        {
+            while (_current.Get() != _last.Get() && !_filter.Get()(*_current.Get()))
+                ++_current.Get();
+        }
+
+        ValueInitialized<TForIt > _current;
+        ValueInitialized<TForIt > _last;
+        ValueInitialized<TFilter> _filter;
+    };
+
+    template <typename TForIt, typename TFilter>
+    StaticFilterIterator<TForIt, TFilter> Filter(TForIt  const current,
+                                                 TForIt  const last,
+                                                 TFilter const filter)
+    {
+        return StaticFilterIterator<TForIt, TFilter>(current, last, filter);
+    }
+
+    template <typename TForIt, typename TFilter>
+    StaticFilterIterator<TForIt, TFilter> Filter(TForIt  const last,
+                                                 TFilter const filter)
+    {
+        return StaticFilterIterator<TForIt, TFilter>(last, last, filter);
+    }
+
+} }
+
+
+
+
+
 //
 //
 // TEMPLATE INSTANTIATIONS FROM 'DETAIL' TEMPLATES INJECTED INTO THE PRIMARY NAMESPACE:

@@ -10,6 +10,7 @@
 #ifdef CXXREFLECT_ENABLE_WINDOWS_RUNTIME_INTEGRATION
 
 #include "CxxReflect/Guid.hpp"
+#include "CxxReflect/Method.hpp"
 #include "CxxReflect/Type.hpp"
 
 // To avoid including any non-standard headers in our header files, we forward declare all COM types
@@ -158,12 +159,12 @@ namespace CxxReflect { namespace WindowsRuntime {
     {
         // TODO Once we implement the WACK-friendly CxxReflect::Platform::WinRT, we need to change
         // this line to initialize the platform externals with that new implementation.
-        CxxReflect::Externals::Initialize<CxxReflect::Platform::Win32>();
+        Externals::Initialize<Platform::Win32>();
 
         String packagePath(Windows::ApplicationModel::Package::Current->InstalledLocation->Path->Data());
         packagePath += L'\\';
 
-        CxxReflect::WindowsRuntime::BeginInitialization(packagePath);
+        BeginInitialization(packagePath);
     }
     #endif
 
@@ -177,8 +178,6 @@ namespace CxxReflect { namespace WindowsRuntime {
     // interface.  They grovel the entire set of loaded metadata files for implementers.  If no
     // types implement the interface, an empty sequence is returned.  If the interface cannot
     // be found, a RuntimeError is thrown.
-    //
-    // TODO Consider adding specific type resolution exceptions.
 
     std::vector<Type> GetImplementersOf(Type interfaceType);
     std::vector<Type> GetImplementersOf(GUID const& interfaceGuid);
@@ -293,8 +292,9 @@ namespace CxxReflect { namespace Detail {
             Detail::ValueInitialized<SizeType>              _nameSize;
         };
 
-        typedef std::vector<Argument>            ArgumentSequence;
-        typedef ArgumentSequence::const_iterator ArgumentIterator;
+        typedef std::vector<Argument>                    ArgumentSequence;
+        typedef ArgumentSequence::const_iterator         ArgumentIterator;
+        typedef ArgumentSequence::const_reverse_iterator ReverseArgumentIterator;
 
         struct InspectableArgument
         {
@@ -316,6 +316,9 @@ namespace CxxReflect { namespace Detail {
 
         ArgumentIterator Begin() const;
         ArgumentIterator End()   const;
+
+        ReverseArgumentIterator ReverseBegin() const;
+        ReverseArgumentIterator ReverseEnd()   const;
 
         void Push(bool);
 
@@ -372,9 +375,11 @@ namespace CxxReflect { namespace Detail {
             MatchNotFound
         };
 
-        ConvertingOverloadResolver(Type::MethodIterator        first,
-                                   Type::MethodIterator        last,
-                                   VariantArgumentPack  const& arguments);
+        template <typename TInputIt>
+        ConvertingOverloadResolver(TInputIt const first, TInputIt last, VariantArgumentPack const& arguments)
+            : _candidates(first, last), _arguments(arguments)
+        {
+        }
 
         bool   Succeeded() const;
         Method GetResult() const;
@@ -392,10 +397,9 @@ namespace CxxReflect { namespace Detail {
         void EnsureEvaluated() const;
 
         Detail::ValueInitialized<State> mutable _state;
-        Type::MethodIterator            mutable _result;
+        Method                          mutable _result;
 
-        Type::MethodIterator        _first;
-        Type::MethodIterator        _last;
+        std::vector<Method>         _candidates;
         Detail::VariantArgumentPack _arguments;
     };
 
@@ -479,7 +483,8 @@ namespace CxxReflect { namespace Detail {
 
 
 
-    WindowsRuntime::UniqueInspectable CreateInspectableInstance(Type const type, VariantArgumentPack const& arguments);
+    WindowsRuntime::UniqueInspectable CreateInspectableInstance(Type                const  type,
+                                                                VariantArgumentPack const& arguments);
 
     #ifdef CXXREFLECT_ENABLE_WINDOWS_RUNTIME_CPPCX
     inline ::Platform::Object^ CreateObjectInstance(Type const type, VariantArgumentPack const& arguments)

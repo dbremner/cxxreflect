@@ -711,7 +711,7 @@ namespace CxxReflect { namespace { namespace Private {
             &nestedNamespaces.GetCount(),
             &nestedNamespaces.GetArray()));
 
-        std::transform(filePaths.begin(), filePaths.end(), std::back_inserter(result), [&](HSTRING path)
+        std::transform(filePaths.begin(), filePaths.end(), std::back_inserter(result), [](HSTRING const path)
         {
             return ToString(path);
         });
@@ -720,7 +720,7 @@ namespace CxxReflect { namespace { namespace Private {
         if (!baseNamespace.empty())
             baseNamespace.push_back(L'.');
 
-        std::for_each(nestedNamespaces.begin(), nestedNamespaces.end(), [&](HSTRING nestedNamespace)
+        std::for_each(nestedNamespaces.begin(), nestedNamespaces.end(), [&](HSTRING const nestedNamespace)
         {
             EnumeratePackageMetadataFilesRecursive(baseNamespace + ToString(nestedNamespace), result);
         });
@@ -754,7 +754,11 @@ namespace CxxReflect { namespace { namespace Private {
         Detail::Assert([&]{ return !typeName.empty(); });
 
         // TODO This does not handle generics.  Does it need to handle generics?
-        typeName.erase(std::find(typeName.rbegin(), typeName.rend(), L'.').base() - 1, typeName.end());
+        auto it(std::find(typeName.rbegin(), typeName.rend(), L'.').base());
+        if (it == typeName.begin())
+            typeName = String();
+
+        typeName.erase(it - 1, typeName.end());
     }
 
 
@@ -925,8 +929,8 @@ namespace CxxReflect { namespace WindowsRuntime {
 
         // If this is the 'Platform' or 'System' namespace, try to use the platform metadata file:
         // TODO This is also suspect:  how do we know to look here?  :'(
-        if (lowercaseNamespaceName.substr(0, 8) == L"platform" ||
-            lowercaseNamespaceName.substr(0, 6) == L"system")
+        if (Detail::StartsWith(lowercaseNamespaceName.c_str(), L"platform") ||
+            Detail::StartsWith(lowercaseNamespaceName.c_str(), L"system"))
         {
             return _packageRoot + PlatformMetadataFileName;
         }
@@ -1080,9 +1084,9 @@ namespace CxxReflect { namespace WindowsRuntime {
     bool IsDefaultConstructible(Type const& type)
     {
         BindingFlags const flags(BindingAttribute::Instance | BindingAttribute::Public);
-        auto const it(std::find_if(type.BeginConstructors(flags), type.EndConstructors(), [&](Method const& c)
+        auto const it(std::find_if(type.BeginConstructors(flags), type.EndConstructors(), [](Method const& c)
         {
-            return Detail::Distance(c.BeginParameters(), c.EndParameters()) == 0;
+            return c.GetParameterCount() == 0;
         }));
 
         return type.BeginConstructors(flags) == type.EndConstructors() || it != type.EndConstructors();
@@ -1141,6 +1145,38 @@ namespace CxxReflect { namespace { namespace Private {
         return WindowsRuntime::GetType(factoryTypeName.c_str());
     }
 
+    Method FindMatchingInterfaceMethod(Method const runtimeTypeMethod)
+    {
+        Detail::Assert([&]{ return runtimeTypeMethod.IsInitialized(); });
+
+        BindingFlags const bindingFlags(BindingAttribute::Public | BindingAttribute::Instance);
+
+        Type const runtimeType(runtimeTypeMethod.GetReflectedType());
+        if (runtimeType.IsInterface())
+            return runtimeTypeMethod;
+
+        for (auto interfaceIt(runtimeType.BeginInterfaces()); interfaceIt != runtimeType.EndInterfaces(); ++interfaceIt)
+        {
+            for (auto methodIt(interfaceIt->BeginMethods(bindingFlags)); methodIt != interfaceIt->EndMethods(); ++methodIt)
+            {
+                if (methodIt->GetName() != runtimeTypeMethod.GetName())
+                    continue;
+
+                if (methodIt->GetReturnType() != runtimeTypeMethod.GetReturnType())
+                    continue;
+
+                if (!Detail::RangeCheckedEqual(
+                        methodIt->BeginParameters(), methodIt->EndParameters(),
+                        runtimeTypeMethod.BeginParameters(), runtimeTypeMethod.EndParameters()))
+                    continue;
+
+                return *methodIt;
+            }
+        }
+
+        return Method();
+    }
+
     
 
     
@@ -1152,15 +1188,103 @@ namespace CxxReflect { namespace { namespace Private {
     {
     public:
 
+        void Push(void const* const pointer)
+        {
+            std::copy(Detail::BeginBytes(pointer), Detail::EndBytes(pointer), std::back_inserter(_frame));
+        }
+
+        void Push(ConstByteIterator const first, ConstByteIterator const last)
+        {
+            std::copy(first, last, std::back_inserter(_frame));
+            //std::copy(ConstReverseByteIterator(last), ConstReverseByteIterator(first), std::inserter(_frame, _frame.begin()));
+        }
+
+        ConstByteIterator Begin() const
+        {
+            return _frame.data();
+        }
+
+        SizeType Size() const
+        {
+            return _frame.size();
+        }
+
     private:
 
         std::vector<Byte> _frame;
     };
 
+
+
+    class X86StdCallInvoker
+    {
+    public:
+
+        static HResult Invoke(Method                      const  method,
+                              SizeType                    const  methodIndex,
+                              IInspectable*               const  instance, 
+                              void*                       const  result,
+                              Detail::VariantArgumentPack const& arguments)
+        {
+            X86StdCallArgumentFrame frame;
+
+            //if (method.GetReturnType() != WindowsRuntime::GetType(L"Platform", L"Void", false))
+                frame.Push(instance);
+
+            for (auto it(arguments.ReverseBegin()); it != arguments.ReverseEnd(); ++it)
+                frame.Push(it->BeginValue(arguments), it->EndValue(arguments));
+
+            frame.Push(result);
+
+            // TODO QI TO THE RIGHT INTERFACE
+            void* fp(ComputeFunctionPointer(methodIndex + 6, instance));
+
+            // TODO We aren't doing any conversions yet :-)
+            switch (frame.Size())
+            {
+            case  4: return InternalInvoke< 4>(fp, frame.Begin());
+            case  8: return InternalInvoke< 8>(fp, frame.Begin());
+            case 12: return InternalInvoke<12>(fp, frame.Begin());
+            case 16: return InternalInvoke<16>(fp, frame.Begin());
+            case 20: return InternalInvoke<20>(fp, frame.Begin());
+            }
+
+            return -1;
+        }
+
+    private:
+
+        template <SizeType FrameSize>
+        static HResult InternalInvoke(void* functionPointer, ConstByteIterator const frameBytes)
+        {
+            typedef std::array<Byte, FrameSize> FrameType;
+            typedef HResult (__stdcall* FunctionPointer)(FrameType);
+
+            FrameType frame;
+            std::copy(frameBytes, frameBytes + FrameSize, begin(frame));
+
+            FunctionPointer fp(reinterpret_cast<FunctionPointer>(functionPointer));
+
+            return fp(frame);
+        }
+
+        static void* ComputeFunctionPointer(unsigned const index, void* const thisptr)
+        {
+            Detail::AssertNotNull(thisptr);
+
+            // There are three levels of indirection:  'this' points to an object, the first element
+            // of which points to a vtable, which contains slots that point to functions:
+            return (*reinterpret_cast<void***>(thisptr))[index];
+        }
+
+    };
+
     #if CXXREFLECT_ARCHITECTURE == CXXREFLECT_ARCHITECTURE_X86
     typedef X86StdCallArgumentFrame ArgumentFrame;
+    typedef X86StdCallInvoker       CallInvoker;
     #endif
     // TODO Support for X64 and ARM
+
 
 } } }
 
@@ -1261,6 +1385,16 @@ namespace CxxReflect { namespace Detail {
         return end(_arguments);
     }
 
+    VariantArgumentPack::ReverseArgumentIterator VariantArgumentPack::ReverseBegin() const
+    {
+        return _arguments.rbegin();
+    }
+
+    VariantArgumentPack::ReverseArgumentIterator VariantArgumentPack::ReverseEnd() const
+    {
+        return _arguments.rend();
+    }
+
     SizeType VariantArgumentPack::Arity() const
     {
         return static_cast<SizeType>(_arguments.size());
@@ -1358,12 +1492,6 @@ namespace CxxReflect { namespace Detail {
 
 
 
-    ConvertingOverloadResolver::ConvertingOverloadResolver(Type::MethodIterator const  first,
-                                                           Type::MethodIterator const  last,
-                                                           VariantArgumentPack  const& arguments)
-        : _first(first), _last(last), _arguments(arguments)
-    {
-    }
 
     bool ConvertingOverloadResolver::Succeeded() const
     {
@@ -1377,7 +1505,7 @@ namespace CxxReflect { namespace Detail {
         if (_state.Get() != State::MatchFound)
             throw LogicError(L"Matching method not found.  Call Succeeded() first.");
 
-        return *_result;
+        return _result;
     }
 
     void ConvertingOverloadResolver::EnsureEvaluated() const
@@ -1395,10 +1523,10 @@ namespace CxxReflect { namespace Detail {
 
         _state.Get() = State::MatchNotFound;
 
-        Type::MethodIterator        bestMatch(_last);
+        auto                        bestMatch(end(_candidates));
         std::vector<ConversionRank> bestMatchRank(argumentTypes.size(), ConversionRank::NoMatch);
 
-        for (auto methodIt(_first); methodIt != _last; ++methodIt)
+        for (auto methodIt(begin(_candidates)); methodIt != end(_candidates); ++methodIt)
         {
             // First, check to see if the arity matches:
             if (Distance(methodIt->BeginParameters(), methodIt->EndParameters()) != argumentTypes.size())
@@ -1441,8 +1569,8 @@ namespace CxxReflect { namespace Detail {
             // This is an unambiguously better match than the current best match:
             if (betterMatch && !worseMatch)
             {
-                bestMatch            = methodIt;
-                bestMatchRank        = currentRank;
+                bestMatch     = methodIt;
+                bestMatchRank = currentRank;
                 continue;
             }
 
@@ -1453,16 +1581,16 @@ namespace CxxReflect { namespace Detail {
             }
 
             // There is an ambiguity between this match and the current best match:
-            bestMatch = _last;
+            bestMatch = end(_candidates);
             for (unsigned i(0); i < argumentTypes.size(); ++i)
             {
                 bestMatchRank[i] = bestMatchRank[i] < currentRank[i] ? bestMatchRank[i] : currentRank[i];
             }
         }
 
-        _result = bestMatch;
+        _result = *bestMatch;
 
-        if (_result != _last)
+        if (_result.IsInitialized())
             _state.Get() = State::MatchFound;
     }
 
@@ -1649,39 +1777,46 @@ namespace CxxReflect { namespace Detail {
             BindingAttribute::NonPublic |
             BindingAttribute::Instance);
 
+        auto const methodFilter([&](Method const& m) { return m.GetName() == L"CreateInstance"; });
+
         ConvertingOverloadResolver const overloadResolver(
-            factoryType.BeginMethods(activatorBinding),
-            factoryType.EndMethods(),
+            Detail::Filter(factoryType.BeginMethods(activatorBinding), factoryType.EndMethods(), methodFilter),
+            Detail::Filter(factoryType.EndMethods(), methodFilter),
             arguments);
 
         if (!overloadResolver.Succeeded())
             throw RuntimeError(L"Failed to find activation method matching provided arguments");
 
-        // TODO We left off here.
-        // If factoryType is not an interface type, we need to perform a depth-first search over the
-        // interfaces it implements to find the interface that defines the matching overload.
+        // Yay, we found an overload!  Now we need to find the interface it comes from.  TODO If we
+        // were smart, we'd map the runtime type method back to the interface internally, then this
+        // check here could be really fast.  Someday we should do that.
 
-        SizeType slotIndex(static_cast<SizeType>(-1)); // TODO We should have the method track this itself :-)
-        auto const activatorIt(std::find_if(factoryType.BeginMethods(activatorBinding), factoryType.EndMethods(),
-        [&](Method const& method) -> bool
+        Method const interfaceMethod(Private::FindMatchingInterfaceMethod(overloadResolver.GetResult()));
+        if (!interfaceMethod.IsInitialized())
+            throw RuntimeError(L"Failed to determine interface from runtime type method");
+
+        // Find the method index (TODO We should add this as a method on Method)
+        Type const declaringType(interfaceMethod.GetDeclaringType());
+        SizeType slotIndex(0);
+        for (auto it(declaringType.BeginMethods(activatorBinding)); it != declaringType.EndMethods(); ++it)
         {
+            if (*it == interfaceMethod)
+                break;
+
             ++slotIndex;
+        }
 
-            if (method.GetName() != L"CreateInstance")
-                return false;
+        Microsoft::WRL::ComPtr<IInspectable> newInstance;
+        HResult result(Private::CallInvoker::Invoke(
+            interfaceMethod,
+            slotIndex,
+            factory.Get(),
+            reinterpret_cast<void**>(newInstance.ReleaseAndGetAddressOf()),
+            arguments));
 
-            if (Detail::Distance(method.BeginParameters(), method.EndParameters()) != arguments.Arity())
-                return false;
+        VerifySuccess(result);
 
-            return true;
-        }));
-
-        if (activatorIt == factoryType.EndMethods())
-            throw RuntimeError(L"Failed to find activation method matching provided arguments");
-
-        Method const activatorMethod(*activatorIt);
-
-        return WindowsRuntime::UniqueInspectable();
+        return WindowsRuntime::UniqueInspectable(newInstance.Detach());
     }
 
 } }

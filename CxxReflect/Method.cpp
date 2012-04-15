@@ -262,6 +262,19 @@ namespace CxxReflect {
             InternalKey()));
     }
 
+    SizeType Method::GetParameterCount() const
+    {
+        AssertInitialized();
+
+        Metadata::ITypeResolver const& typeResolver(_reflectedType
+            .Realize()
+            .GetAssembly()
+            .GetContext(InternalKey())
+            .GetLoader());
+
+        return _context.Get()->GetElementSignature(typeResolver).GetParameterCount();
+    }
+
     Parameter Method::GetReturnParameter() const
     {
         AssertInitialized();
