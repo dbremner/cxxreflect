@@ -43,6 +43,9 @@ namespace CxxReflect {
         NonPublic                   = 0x00000020,
         FlattenHierarchy            = 0x00000040,
 
+        AllInstance                 = Instance | Public | NonPublic,
+        AllStatic                   = Static   | Public | NonPublic,
+
         InternalUseOnlyMask         = 0x10000000,
         InternalUseOnlyConstructor  = 0x10000001
     };

@@ -130,7 +130,12 @@
     <ClCompile>
       <AdditionalIncludeDirectories>..\;$(IncludePath);$(SolutionDir);$(VCInstallDir)Include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
-      <DisableSpecificWarnings>4702</DisableSpecificWarnings>
+      <!--
+      C4100 (unreferenced parameter) is emitted by various XAML-generated files and library headers
+      C4512 (op= could not be generated) is a silly warning that we aren't interested in :-)
+      C4702 (unreachable code) is hit in release builds by debug statements that are unreachable
+      -->
+      <DisableSpecificWarnings>4100;4512;4702</DisableSpecificWarnings>
       <ErrorReporting>None</ErrorReporting>
       <MinimalRebuild>false</MinimalRebuild>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>

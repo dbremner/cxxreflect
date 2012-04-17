@@ -278,10 +278,11 @@ namespace CxxReflect { namespace Detail {
                      SizeType              nameIndex = 0, 
                      SizeType              nameSize  = 0);
 
-            Type              GetType   (VariantArgumentPack const& owner) const;
-            ConstByteIterator BeginValue(VariantArgumentPack const& owner) const;
-            ConstByteIterator EndValue  (VariantArgumentPack const& owner) const;
-            StringReference   GetName   (VariantArgumentPack const& owner) const;
+            Metadata::ElementType GetRawType()                                 const;
+            Type                  GetType   (VariantArgumentPack const& owner) const;
+            ConstByteIterator     BeginValue(VariantArgumentPack const& owner) const;
+            ConstByteIterator     EndValue  (VariantArgumentPack const& owner) const;
+            StringReference       GetName   (VariantArgumentPack const& owner) const;
 
         private:
 
@@ -353,6 +354,31 @@ namespace CxxReflect { namespace Detail {
 
 
 
+    // This ArgumentFrame is used to align argument values in a byte array in order to call a
+    // function.  It does not maintain type information.
+    class ArgumentFrame
+    {
+    public:
+
+        ConstByteIterator Begin()   const;
+        ConstByteIterator End()     const;
+        ConstByteIterator GetData() const;
+        SizeType          GetSize() const;
+
+        // Aligns the end of the frame to an index evenly divisible by 'alignment'.
+        void AlignTo(SizeType const alignment);
+
+        void Push(ConstByteIterator const first, ConstByteIterator const last);
+
+    private:
+
+        std::vector<Byte> _data;
+    };
+
+
+
+
+
     class ConvertingOverloadResolver
     {
     public:
@@ -385,8 +411,6 @@ namespace CxxReflect { namespace Detail {
         Method GetResult() const;
 
     private:
-
-        static Metadata::ElementType ComputeElementType(Type const& type);
 
         static ConversionRank ComputeConversionRank     (Type const& parameterType, Type const& argumentType);
         static ConversionRank ComputeClassConversionRank(Type const& parameterType, Type const& argumentType);

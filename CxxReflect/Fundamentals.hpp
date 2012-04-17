@@ -1031,6 +1031,29 @@ namespace CxxReflect { namespace Detail {
         ValueType _value;
     };
 
+    template <typename T>
+    class Optional
+    {
+    public:
+
+        Optional()
+        {
+        }
+
+        Optional(T const& value)
+            : _value(value), _hasValue(true)
+        {
+        }
+
+        bool     HasValue() const { return _hasValue.Get(); }
+        T const& GetValue() const { return _value.Get();    }
+
+    private:
+
+        ValueInitialized<T>    _value;
+        ValueInitialized<bool> _hasValue;
+    };
+
 } }
 
 
@@ -1822,6 +1845,8 @@ namespace CxxReflect { namespace Detail {
 
     private:
 
+        StaticFilterIterator& operator=(StaticFilterIterator const&);
+
         void AssertDereferenceable() const
         {
             Assert([&]{ return IsDereferenceable(); });
@@ -1839,18 +1864,40 @@ namespace CxxReflect { namespace Detail {
     };
 
     template <typename TForIt, typename TFilter>
-    StaticFilterIterator<TForIt, TFilter> Filter(TForIt  const current,
-                                                 TForIt  const last,
-                                                 TFilter const filter)
+    class StaticFilteredRange
     {
-        return StaticFilterIterator<TForIt, TFilter>(current, last, filter);
-    }
+    public:
+
+        StaticFilteredRange(TForIt const first, TForIt const last, TFilter const filter)
+            : _first(first), _last(last), _filter(filter)
+        {
+        }
+
+        StaticFilterIterator<TForIt, TFilter> Begin() const
+        {
+            return StaticFilterIterator<TForIt, TFilter>(_first.Get(), _last.Get(), _filter.Get());
+        }
+
+        StaticFilterIterator<TForIt, TFilter> End() const
+        {
+            return StaticFilterIterator<TForIt, TFilter>(_last.Get(), _last.Get(), _filter.Get());
+        }
+
+    private:
+
+        StaticFilteredRange& operator=(StaticFilteredRange const&);
+
+        ValueInitialized<TForIt > _first;
+        ValueInitialized<TForIt > _last;
+        ValueInitialized<TFilter> _filter;
+    };
 
     template <typename TForIt, typename TFilter>
-    StaticFilterIterator<TForIt, TFilter> Filter(TForIt  const last,
-                                                 TFilter const filter)
+    StaticFilteredRange<TForIt, TFilter> CreateStaticFilteredRange(TForIt  const first,
+                                                                   TForIt  const last, 
+                                                                   TFilter const filter)
     {
-        return StaticFilterIterator<TForIt, TFilter>(last, last, filter);
+        return StaticFilteredRange<TForIt, TFilter>(first, last, filter);
     }
 
 } }

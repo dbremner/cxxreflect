@@ -33,7 +33,7 @@
 #include <winstring.h>
 #include <wrl/client.h>
 
-
+using Microsoft::WRL::ComPtr;
 
 
 
@@ -181,7 +181,7 @@ namespace CxxReflect { namespace WindowsRuntime {
         {
             Loader  const& loader (GetLoader() );
             Locator const& locator(GetLocator());
-
+             
             String const metadataFileName(locator.FindMetadataFileForNamespace(namespaceName.c_str()));
             if (metadataFileName.empty())
                 return Type();
@@ -1108,7 +1108,7 @@ namespace CxxReflect { namespace WindowsRuntime {
 
         Private::SmartHString const typeFullName(type.GetFullName());
 
-        Microsoft::WRL::ComPtr<IInspectable> instance;
+        ComPtr<IInspectable> instance;
 
         Detail::VerifySuccess(::RoActivateInstance(typeFullName.value(), instance.ReleaseAndGetAddressOf()));
 
@@ -1127,6 +1127,60 @@ namespace CxxReflect { namespace WindowsRuntime {
 
 
 namespace CxxReflect { namespace { namespace Private {
+
+    SizeType ComputeMethodSlotIndex(Method const& method)
+    {
+        Detail::Assert([&]{ return method.IsInitialized(); });
+
+        // TODO We should add this as a member function on 'method'.  We can trivially compute this
+        // by determining the index of the method in its element context table.
+        Type const type(method.GetReflectedType());
+
+        SizeType slotIndex(0);
+        for (auto it(type.BeginMethods(BindingAttribute::AllInstance)); it != type.EndMethods(); ++it)
+        {
+            if (*it == method)
+                break;
+
+            ++slotIndex;
+        }
+
+        return slotIndex;
+    }
+
+    Metadata::ElementType ComputeElementType(Type const& type)
+    {
+        Detail::Assert([&]{ return type.IsInitialized(); });
+
+        // Shortcut:  If 'type' isn't from the system assembly, it isn't one of the system types:
+        if (!Utility::IsSystemAssembly(type.GetAssembly()))
+            return type.IsValueType() ? Metadata::ElementType::ValueType : Metadata::ElementType::Class;
+
+        Loader const& loader(type.GetAssembly().GetContext(InternalKey()).GetLoader());
+
+        #define CXXREFLECT_GENERATE(A)                                                         \
+            if (loader.GetFundamentalType(Metadata::ElementType::A, InternalKey()) == type)    \
+            {                                                                                  \
+                return Metadata::ElementType::A;                                               \
+            }
+
+        CXXREFLECT_GENERATE(Boolean)
+        CXXREFLECT_GENERATE(Char)
+        CXXREFLECT_GENERATE(I1)
+        CXXREFLECT_GENERATE(U1)
+        CXXREFLECT_GENERATE(I2)
+        CXXREFLECT_GENERATE(U2)
+        CXXREFLECT_GENERATE(I4)
+        CXXREFLECT_GENERATE(U4)
+        CXXREFLECT_GENERATE(I8)
+        CXXREFLECT_GENERATE(U8)
+        CXXREFLECT_GENERATE(R4)
+        CXXREFLECT_GENERATE(R8)
+
+        #undef CXXREFLECT_GENERATE
+
+        return type.IsValueType() ? Metadata::ElementType::ValueType : Metadata::ElementType::Class;
+    }
 
     Type GetActivationFactoryType(Type const type)
     {
@@ -1177,42 +1231,254 @@ namespace CxxReflect { namespace { namespace Private {
         return Method();
     }
 
-    
+    WindowsRuntime::UniqueInspectable GetActivationFactory(String const& typeFullName, Guid const& interfaceGuid)
+    {
+        SmartHString const typeFullNameHString(typeFullName.c_str());
+
+        ComPtr<IInspectable> factory;
+        HResult const hr(::RoGetActivationFactory(
+            typeFullNameHString.value(),
+            Private::ToComGuid(interfaceGuid),
+            reinterpret_cast<void**>(factory.ReleaseAndGetAddressOf())));
+
+        Detail::VerifySuccess(hr, L"Failed to get activation factory");
+
+        return WindowsRuntime::UniqueInspectable(factory.Detach());
+    }
+
+    WindowsRuntime::UniqueInspectable QueryInterface(IInspectable* const instance, Type const& interfaceType)
+    {
+        Detail::Verify([&]{ return instance != nullptr && interfaceType.IsInterface(); });
+
+        Guid const interfaceGuid(WindowsRuntime::GetGuid(interfaceType));
+        
+        ComPtr<IInspectable> interfacePointer;
+        Detail::VerifySuccess(instance->QueryInterface(
+            Private::ToComGuid(interfaceGuid),
+            reinterpret_cast<void**>(interfacePointer.ReleaseAndGetAddressOf())));
+
+        return WindowsRuntime::UniqueInspectable(interfacePointer.Detach());
+    }
 
     
 
-    // This argument frame accumulates and aligns arguments for a stdcall function call.  Since
-    // stdcall arguments are pushed right-to-left, arguments must be added to the frame in reverse
-    // order (that is, right-to-left).
-    class X86StdCallArgumentFrame
+
+
+    class ArgumentConverter
     {
     public:
 
-        void Push(void const* const pointer)
-        {
-            std::copy(Detail::BeginBytes(pointer), Detail::EndBytes(pointer), std::back_inserter(_frame));
-        }
+        typedef Detail::VariantArgumentPack           ArgumentPack;
+        typedef Detail::ArgumentFrame                 ArgumentFrame;
+        typedef Detail::VariantArgumentPack::Argument Argument;
 
-        void Push(ConstByteIterator const first, ConstByteIterator const last)
-        {
-            std::copy(first, last, std::back_inserter(_frame));
-            //std::copy(ConstReverseByteIterator(last), ConstReverseByteIterator(first), std::inserter(_frame, _frame.begin()));
-        }
+        typedef std::int8_t   I1;
+        typedef std::uint8_t  U1;
+        typedef std::int16_t  I2;
+        typedef std::uint16_t U2;
+        typedef std::int32_t  I4;
+        typedef std::uint32_t U4;
+        typedef std::int64_t  I8;
+        typedef std::uint64_t U8;
+        typedef float         R4;
+        typedef double        R8;
 
-        ConstByteIterator Begin() const
+        static void ConvertAndInsert(Type          const& parameterType,
+                                     Argument      const& argument,
+                                     ArgumentPack  const& pack,
+                                     ArgumentFrame      & frame)
         {
-            return _frame.data();
-        }
+            switch (ComputeElementType(parameterType))
+            {
+            case Metadata::ElementType::Boolean:
+            {
+                throw LogicError(L"NYI");
+                break;
+            }
 
-        SizeType Size() const
-        {
-            return _frame.size();
+            case Metadata::ElementType::Char:
+            {
+                throw LogicError(L"NYI");
+                break;
+            }
+
+            case Metadata::ElementType::I1:
+            case Metadata::ElementType::I2:
+            case Metadata::ElementType::I4:
+            {
+                I4 const value(ConvertToI4(argument, pack));
+                frame.Push(Detail::BeginBytes(value), Detail::BeginBytes(value));
+                break;
+            }
+
+            case Metadata::ElementType::I8:
+            {
+                I8 const value(ConvertToI8(argument, pack));
+                frame.Push(Detail::BeginBytes(value), Detail::BeginBytes(value));
+                break;
+            }
+
+            case Metadata::ElementType::U1:
+            case Metadata::ElementType::U2:
+            case Metadata::ElementType::U4:
+            {
+                U4 const value(ConvertToU4(argument, pack));
+                frame.Push(Detail::BeginBytes(value), Detail::BeginBytes(value));
+                break;
+            }
+
+            case Metadata::ElementType::U8:
+            {
+                U8 const value(ConvertToU8(argument, pack));
+                frame.Push(Detail::BeginBytes(value), Detail::BeginBytes(value));
+                break;
+            }
+
+            case Metadata::ElementType::R4:
+            {
+                R4 const value(ConvertToR4(argument, pack));
+                frame.Push(Detail::BeginBytes(value), Detail::BeginBytes(value));
+                break;
+            }
+
+            case Metadata::ElementType::R8:
+            {
+                R8 const value(ConvertToR8(argument, pack));
+                frame.Push(Detail::BeginBytes(value), Detail::BeginBytes(value));
+                break;
+            }
+
+            case Metadata::ElementType::Class:
+            {
+                IInspectable* const value(ConvertToInterface(
+                    argument,
+                    pack,
+                    WindowsRuntime::GetGuid(parameterType)));
+                frame.Push(Detail::BeginBytes(value), Detail::BeginBytes(value));
+                break;
+            }
+
+            case Metadata::ElementType::ValueType:
+            {
+                throw LogicError(L"NYI");
+                break;
+            }
+
+            default:
+            {
+                throw LogicError(L"Element type not supported");
+            }
+            }
         }
 
     private:
 
-        std::vector<Byte> _frame;
+        static I4 ConvertToI4(Argument const& argument, ArgumentPack const& pack)
+        {
+            return VerifyInRangeAndConvertTo<I4>(ConvertToI8(argument, pack));
+        }
+
+        static I8 ConvertToI8(Argument const& argument, ArgumentPack const& pack)
+        {
+            switch (argument.GetRawType())
+            {
+            case Metadata::ElementType::I1: return ReinterpretAs<I1>(argument, pack);
+            case Metadata::ElementType::I2: return ReinterpretAs<I2>(argument, pack);
+            case Metadata::ElementType::I4: return ReinterpretAs<I4>(argument, pack);
+            case Metadata::ElementType::I8: return ReinterpretAs<I8>(argument, pack);
+            default: throw LogicError(L"Unsupported conversion requested");
+            }
+        }
+
+        static U4 ConvertToU4(Argument const& argument, ArgumentPack const& pack)
+        {
+            return VerifyInRangeAndConvertTo<U4>(ConvertToU8(argument, pack));
+        }
+
+        static U8 ConvertToU8(Argument const& argument, ArgumentPack const& pack)
+        {
+            switch (argument.GetRawType())
+            {
+            case Metadata::ElementType::U1: return ReinterpretAs<U1>(argument, pack);
+            case Metadata::ElementType::U2: return ReinterpretAs<U2>(argument, pack);
+            case Metadata::ElementType::U4: return ReinterpretAs<U4>(argument, pack);
+            case Metadata::ElementType::U8: return ReinterpretAs<U8>(argument, pack);
+            default: throw LogicError(L"Unsupported conversion requested");
+            }
+        }
+
+        static R4 ConvertToR4(Argument const& argument, ArgumentPack const& pack)
+        {
+            return VerifyInRangeAndConvertTo<R4>(ConvertToR8(argument, pack));
+        }
+
+        static R8 ConvertToR8(Argument const& argument, ArgumentPack const& pack)
+        {
+            switch (argument.GetRawType())
+            {
+            case Metadata::ElementType::R4: return ReinterpretAs<R4>(argument, pack);
+            case Metadata::ElementType::R8: return ReinterpretAs<R8>(argument, pack);
+            default: throw LogicError(L"Unsupported conversion requested");
+            }
+        }
+
+        static IInspectable* ConvertToInterface(Argument     const& argument,
+                                                ArgumentPack const& pack,
+                                                Guid         const& interfaceGuid)
+        {
+            Detail::Verify([&]{ return argument.GetRawType() == Metadata::ElementType::Class; });
+
+            IInspectable* const inspectableObject(ReinterpretAs<IInspectable*>(argument, pack));
+
+            // A nullptr argument is valid:
+            if (inspectableObject == nullptr)
+                return nullptr;
+
+            ComPtr<IInspectable> inspectableInterface;
+            HResult const queryResult(inspectableObject->QueryInterface(
+                ToComGuid(interfaceGuid),
+                reinterpret_cast<void**>(inspectableInterface.ReleaseAndGetAddressOf())));
+
+            if (queryResult != 0)
+                throw LogicError(L"Unsupported conversion requested:  interface not implemented");
+
+            // Reference counting note:  our reference to the QI'ed interface pointer will be
+            // released when this function returns.  In order for this to work, we rely on there
+            // being One True IUnknown for the runtime object.  We are relying on the upstream
+            // caller to keep a reference to the inspectable runtime object so that it is not
+            // destroyed prematurely.
+            return inspectableInterface.Get();
+        }
+
+        template <typename T>
+        static T ReinterpretAs(Argument const& argument, ArgumentPack const& pack)
+        {
+            if (Detail::Distance(argument.BeginValue(pack), argument.EndValue(pack)) != sizeof(T))
+                throw LogicError(L"Invalid reinterpretation target:  size does not match");
+
+            // We pack arguments into the range without respecting alignment, so when we read them
+            // back out here we must copy bytes individually to ensure we aren't accessing an
+            // insufficiently aligned object.  (Strictly speaking this may not be required on our
+            // target platforms, but better safe than sorry. :-D)
+            T value;
+            Detail::RangeCheckedCopy(argument.BeginValue(pack), argument.EndValue(pack),
+                                     Detail::BeginBytes(value), Detail::EndBytes(value));
+            return value;
+        }
+
+        template <typename TTarget, typename TSource>
+        static TTarget VerifyInRangeAndConvertTo(TSource const& value)
+        {
+            // Only widening conversions are permitted, so this check should never fail:
+            if (value < static_cast<TTarget>(std::numeric_limits<TSource>::min()) ||
+                value > static_cast<TTarget>(std::numeric_limits<TSource>::max()))
+                throw LogicError(L"Unsupported conversion requested:  argument out of range");
+
+            return static_cast<TTarget>(value);
+        }
     };
+
+    
 
 
 
@@ -1221,76 +1487,114 @@ namespace CxxReflect { namespace { namespace Private {
     public:
 
         static HResult Invoke(Method                      const  method,
-                              SizeType                    const  methodIndex,
                               IInspectable*               const  instance, 
                               void*                       const  result,
                               Detail::VariantArgumentPack const& arguments)
         {
-            X86StdCallArgumentFrame frame;
+            // We can only call a method defined by an interface implemented by the runtime type, so
+            // we re-resolve the method against the interfaces of its declaring type.  If it has
+            // already been resolved to an interface method, this is a no-op transformation.
+            Method const interfaceMethod(Private::FindMatchingInterfaceMethod(method));
+            if (!interfaceMethod.IsInitialized())
+                throw RuntimeError(L"Failed to find interface that defines method.");
 
-            //if (method.GetReturnType() != WindowsRuntime::GetType(L"Platform", L"Void", false))
-                frame.Push(instance);
+            // Next, we need to compute the vtable slot of the method and QI to get the correct
+            // interface pointer in order to obtain the function pointer.
+            SizeType const methodSlot(Private::ComputeMethodSlotIndex(interfaceMethod));
+            auto const interfacePointer(Private::QueryInterface(instance, interfaceMethod.GetDeclaringType()));
+            
+            // We compute the function pointer from the vtable.  '6' is the well-known offset of all
+            // Windows Runtime interface methods (IUnknown has three functions, and IInspectable has
+            // an additional three functions).
+            void const* functionPointer(ComputeFunctionPointer(interfacePointer.get(), methodSlot + 6));
+
+            // We construct the argument frame:  TODO We also need to perform the conversions here.
+            X86StdCallArgumentFrame frame;
+            frame.Push(interfacePointer.get());
 
             for (auto it(arguments.ReverseBegin()); it != arguments.ReverseEnd(); ++it)
                 frame.Push(it->BeginValue(arguments), it->EndValue(arguments));
 
             frame.Push(result);
-
-            // TODO QI TO THE RIGHT INTERFACE
-            void* fp(ComputeFunctionPointer(methodIndex + 6, instance));
-
-            // TODO We aren't doing any conversions yet :-)
+            
+            // Due to promotion and padding, all argument frames should have a size divisible by 4.
+            // In order to avoid writing inline assembly to move the arguments frame onto the stack
+            // and issue the call instruction, we have a set of function template instantiations
+            // that handle invocation for us.
             switch (frame.Size())
             {
-            case  4: return InternalInvoke< 4>(fp, frame.Begin());
-            case  8: return InternalInvoke< 8>(fp, frame.Begin());
-            case 12: return InternalInvoke<12>(fp, frame.Begin());
-            case 16: return InternalInvoke<16>(fp, frame.Begin());
-            case 20: return InternalInvoke<20>(fp, frame.Begin());
+            case  4: return InvokeWithFrame< 4>(functionPointer, frame.Begin());
+            case  8: return InvokeWithFrame< 8>(functionPointer, frame.Begin());
+            case 12: return InvokeWithFrame<12>(functionPointer, frame.Begin());
+            case 16: return InvokeWithFrame<16>(functionPointer, frame.Begin());
+            case 20: return InvokeWithFrame<20>(functionPointer, frame.Begin());
+            case 24: return InvokeWithFrame<24>(functionPointer, frame.Begin());
+            case 28: return InvokeWithFrame<28>(functionPointer, frame.Begin());
+            case 32: return InvokeWithFrame<32>(functionPointer, frame.Begin());
+            case 36: return InvokeWithFrame<36>(functionPointer, frame.Begin());
+            case 40: return InvokeWithFrame<40>(functionPointer, frame.Begin());
+            case 44: return InvokeWithFrame<44>(functionPointer, frame.Begin());
+            case 48: return InvokeWithFrame<48>(functionPointer, frame.Begin());
+            case 52: return InvokeWithFrame<52>(functionPointer, frame.Begin());
+            case 56: return InvokeWithFrame<56>(functionPointer, frame.Begin());
+            case 60: return InvokeWithFrame<60>(functionPointer, frame.Begin());
+            case 64: return InvokeWithFrame<64>(functionPointer, frame.Begin());
             }
 
-            return -1;
+            // If we hit this, we just need to add additional cases above.
+            throw LogicError(L"Size of requested frame is out of range.");
         }
 
     private:
 
         template <SizeType FrameSize>
-        static HResult InternalInvoke(void* functionPointer, ConstByteIterator const frameBytes)
+        static HResult InvokeWithFrame(void const* const functionPointer, ConstByteIterator const frameBytes)
         {
-            typedef std::array<Byte, FrameSize> FrameType;
+            struct FrameType { Byte _value[FrameSize]; };
             typedef HResult (__stdcall* FunctionPointer)(FrameType);
 
-            FrameType frame;
-            std::copy(frameBytes, frameBytes + FrameSize, begin(frame));
+            FrameType const* const frame(reinterpret_cast<FrameType const*>(frameBytes));
 
-            FunctionPointer fp(reinterpret_cast<FunctionPointer>(functionPointer));
+            FunctionPointer typedFunctionPointer(reinterpret_cast<FunctionPointer>(functionPointer));
 
-            return fp(frame);
+            return typedFunctionPointer(*frame);
         }
 
-        static void* ComputeFunctionPointer(unsigned const index, void* const thisptr)
+        // Computes the pointer to the function at 'slot' in the vtable pointed to by 'instance'.
+        static void const* ComputeFunctionPointer(void const* const instance, unsigned const slot)
         {
-            Detail::AssertNotNull(thisptr);
+            Detail::AssertNotNull(instance);
 
-            // There are three levels of indirection:  'this' points to an object, the first element
-            // of which points to a vtable, which contains slots that point to functions:
-            return (*reinterpret_cast<void***>(thisptr))[index];
+            // There are two levels of indirection to get to the function pointer:
+            //
+            //                  object            vtable
+            //               +----------+      +----------+
+            // instance ---> | vptr     | ---> | slot 0   |
+            //               |~~~~~~~~~~|      | slot 1   |
+            //                                 | slot 2   |
+            //                                 |~~~~~~~~~~|
+            //
+            // This is fundamentally unsafe, so be very careful when calling. :-)
+            return (*reinterpret_cast<void const* const* const*>(instance))[slot];
         }
 
     };
 
     #if CXXREFLECT_ARCHITECTURE == CXXREFLECT_ARCHITECTURE_X86
-    typedef X86StdCallArgumentFrame ArgumentFrame;
-    typedef X86StdCallInvoker       CallInvoker;
+    typedef X86StdCallInvoker CallInvoker;
     #endif
     // TODO Support for X64 and ARM
 
 
 } } }
 
+
+
+
+
 //
 //
-// ARGUMENT HANDLING
+// VARIANT ARGUMENT PACK
 //
 //
 
@@ -1303,6 +1607,11 @@ namespace CxxReflect { namespace Detail {
                                             SizeType              const nameSize)
         : _type(type), _valueIndex(valueIndex), _valueSize(valueSize), _nameIndex(nameIndex), _nameSize(nameSize)
     {
+    }
+
+    Metadata::ElementType VariantArgumentPack::Argument::GetRawType() const
+    {
+        return _type.Get();
     }
 
     Type VariantArgumentPack::Argument::GetType(VariantArgumentPack const& owner) const
@@ -1488,10 +1797,66 @@ namespace CxxReflect { namespace Detail {
         _arguments.push_back(Argument(type, index, index + Distance(first, last)));
     }
 
+} }
 
 
 
 
+
+//
+//
+// ARGUMENT FRAME
+//
+//
+namespace CxxReflect { namespace Detail {
+
+    ConstByteIterator ArgumentFrame::Begin() const
+    {
+        return _data.data();
+    }
+
+    ConstByteIterator ArgumentFrame::End() const
+    {
+        return _data.data() + _data.size();
+    }
+
+    ConstByteIterator ArgumentFrame::GetData() const
+    {
+        return _data.data(); 
+    }
+
+    SizeType ArgumentFrame::GetSize() const
+    {
+        return _data.size();
+    }
+
+    // Aligns the end of the frame to an index evenly divisible by 'alignment'.
+    void ArgumentFrame::AlignTo(SizeType const alignment)
+    {
+        if (_data.empty())
+            return;
+
+        SizeType const bytesToInsert(alignment - (_data.size() % alignment));
+        _data.resize(_data.size() + bytesToInsert);
+    }
+
+    void ArgumentFrame::Push(ConstByteIterator const first, ConstByteIterator const last)
+    {
+        _data.insert(_data.end(), first, last);
+    }
+
+} }
+
+
+
+
+
+//
+//
+// CONVERTING OVERLOAD RESOLVER
+//
+//
+namespace CxxReflect { namespace Detail {
 
     bool ConvertingOverloadResolver::Succeeded() const
     {
@@ -1594,47 +1959,13 @@ namespace CxxReflect { namespace Detail {
             _state.Get() = State::MatchFound;
     }
 
-    Metadata::ElementType ConvertingOverloadResolver::ComputeElementType(Type const& type)
-    {
-        Assert([&]{ return type.IsInitialized(); });
-
-        // Shortcut:  If 'type' isn't from the system assembly, it isn't one of the system types:
-        if (!Utility::IsSystemAssembly(type.GetAssembly()))
-            return type.IsValueType() ? Metadata::ElementType::ValueType : Metadata::ElementType::Class;
-
-        Loader const& loader(type.GetAssembly().GetContext(InternalKey()).GetLoader());
-
-        #define CXXREFLECT_GENERATE(A)                                                         \
-            if (loader.GetFundamentalType(Metadata::ElementType::A, InternalKey()) == type)    \
-            {                                                                                  \
-                return Metadata::ElementType::A;                                               \
-            }
-
-        CXXREFLECT_GENERATE(Boolean)
-        CXXREFLECT_GENERATE(Char)
-        CXXREFLECT_GENERATE(I1)
-        CXXREFLECT_GENERATE(U1)
-        CXXREFLECT_GENERATE(I2)
-        CXXREFLECT_GENERATE(U2)
-        CXXREFLECT_GENERATE(I4)
-        CXXREFLECT_GENERATE(U4)
-        CXXREFLECT_GENERATE(I8)
-        CXXREFLECT_GENERATE(U8)
-        CXXREFLECT_GENERATE(R4)
-        CXXREFLECT_GENERATE(R8)
-
-        #undef CXXREFLECT_GENERATE
-
-        return type.IsValueType() ? Metadata::ElementType::ValueType : Metadata::ElementType::Class;
-    }
-
     ConvertingOverloadResolver::ConversionRank
     ConvertingOverloadResolver::ComputeConversionRank(Type const& parameterType, Type const& argumentType)
     {
         Assert([&]{ return parameterType.IsInitialized() && argumentType.IsInitialized(); });
 
-        Metadata::ElementType const pType(ComputeElementType(parameterType));
-        Metadata::ElementType const aType(ComputeElementType(argumentType ));
+        Metadata::ElementType const pType(Private::ComputeElementType(parameterType));
+        Metadata::ElementType const aType(Private::ComputeElementType(argumentType ));
 
         // Exact match of any kind.
         if (parameterType == argumentType)
@@ -1750,71 +2081,53 @@ namespace CxxReflect { namespace Detail {
         return ConversionRank::RealConversion;
     }
 
+} }
 
 
 
+
+
+//
+//
+// INSTANCE CREATION WITH ARGUMENTS
+//
+//
+namespace CxxReflect { namespace Detail {
 
     WindowsRuntime::UniqueInspectable CreateInspectableInstance(Type                const  type,
                                                                 VariantArgumentPack const& arguments)
     {
-        Detail::Assert([&]{ return type.IsInitialized(); });
+        Verify([&]{ return type.IsInitialized() && arguments.Arity() > 0; });
 
+        // Get the activation factory for the type:
         Type const factoryType(Private::GetActivationFactoryType(type));
         Guid const factoryGuid(WindowsRuntime::GetGuid(factoryType));
 
-        Private::SmartHString const typeFullName(type.GetFullName().c_str());
-       
-        Microsoft::WRL::ComPtr<IInspectable> factory;
-        Detail::VerifySuccess(::RoGetActivationFactory(
-            typeFullName.value(),
-            Private::ToComGuid(factoryGuid),
-            reinterpret_cast<void**>(factory.ReleaseAndGetAddressOf())));
+        auto const factory(Private::GetActivationFactory(type.GetFullName(), factoryGuid));
 
-        // Find the best matching constructor. Right now we just look for the constructor with the
-        // same number of arguments.  TODO Add full runtime overload resolution support
-        BindingFlags const activatorBinding(
-            BindingAttribute::Public    |
-            BindingAttribute::NonPublic |
-            BindingAttribute::Instance);
+        if (factory == nullptr)
+            throw RuntimeError(L"Failed to obtain activation factory for type");
 
-        auto const methodFilter([&](Method const& m) { return m.GetName() == L"CreateInstance"; });
+        // Enumerate the candidate activation methods and perform overload resolution:
+        auto const candidates(CreateStaticFilteredRange(
+            factoryType.BeginMethods(BindingAttribute::AllInstance),
+            factoryType.EndMethods(),
+            [&](Method const& m) { return m.GetName() == L"CreateInstance" && m.GetReturnType() == type; }));
 
-        ConvertingOverloadResolver const overloadResolver(
-            Detail::Filter(factoryType.BeginMethods(activatorBinding), factoryType.EndMethods(), methodFilter),
-            Detail::Filter(factoryType.EndMethods(), methodFilter),
-            arguments);
+        ConvertingOverloadResolver const overloadResolver(candidates.Begin(), candidates.End(), arguments);
 
         if (!overloadResolver.Succeeded())
             throw RuntimeError(L"Failed to find activation method matching provided arguments");
 
-        // Yay, we found an overload!  Now we need to find the interface it comes from.  TODO If we
-        // were smart, we'd map the runtime type method back to the interface internally, then this
-        // check here could be really fast.  Someday we should do that.
-
-        Method const interfaceMethod(Private::FindMatchingInterfaceMethod(overloadResolver.GetResult()));
-        if (!interfaceMethod.IsInitialized())
-            throw RuntimeError(L"Failed to determine interface from runtime type method");
-
-        // Find the method index (TODO We should add this as a method on Method)
-        Type const declaringType(interfaceMethod.GetDeclaringType());
-        SizeType slotIndex(0);
-        for (auto it(declaringType.BeginMethods(activatorBinding)); it != declaringType.EndMethods(); ++it)
-        {
-            if (*it == interfaceMethod)
-                break;
-
-            ++slotIndex;
-        }
-
-        Microsoft::WRL::ComPtr<IInspectable> newInstance;
+        // Invoke the activation method to create the instance:
+        ComPtr<IInspectable> newInstance;
         HResult result(Private::CallInvoker::Invoke(
-            interfaceMethod,
-            slotIndex,
-            factory.Get(),
+            overloadResolver.GetResult(),
+            factory.get(),
             reinterpret_cast<void**>(newInstance.ReleaseAndGetAddressOf()),
             arguments));
 
-        VerifySuccess(result);
+        VerifySuccess(result, L"Failed to create instance of type");
 
         return WindowsRuntime::UniqueInspectable(newInstance.Detach());
     }
