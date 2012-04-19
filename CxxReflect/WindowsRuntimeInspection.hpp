@@ -1,7 +1,7 @@
 #ifndef CXXREFLECT_WINDOWSRUNTIMEINSPECTION_HPP_
 #define CXXREFLECT_WINDOWSRUNTIMEINSPECTION_HPP_
 
-//               Copyright James P. McNellis (james@jamesmcnellis.com) 2011 - 2012.               //
+//                            Copyright James P. McNellis 2011 - 2012.                            //
 //                   Distributed under the Boost Software License, Version 1.0.                   //
 //     (See accompanying file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)    //
 
@@ -20,7 +20,7 @@ namespace CxxReflect { namespace WindowsRuntime {
     // types implement the interface, an empty sequence is returned.  If the interface cannot
     // be found, a RuntimeError is thrown.
 
-    std::vector<Type> GetImplementers(Type interfaceType);
+    std::vector<Type> GetImplementers(Type const& interfaceType);
     std::vector<Type> GetImplementers(StringReference interfaceFullName);
     std::vector<Type> GetImplementers(StringReference namespaceName, StringReference interfaceSimpleName);
 
