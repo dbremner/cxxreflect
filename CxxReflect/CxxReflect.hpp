@@ -19,9 +19,12 @@
 #include "CxxReflect/Parameter.hpp"
 #include "CxxReflect/Property.hpp"
 #include "CxxReflect/Type.hpp"
-#include "CxxReflect/WindowsRuntimeCommon.hpp"
-#include "CxxReflect/WindowsRuntimeInspection.hpp"
-#include "CxxReflect/WindowsRuntimeInvocation.hpp"
-#include "CxxReflect/WindowsRuntimeLoader.hpp"
+
+#ifdef CXXREFLECT_ENABLE_WINDOWS_RUNTIME_INTEGRATION
+#    include "CxxReflect/WindowsRuntimeCommon.hpp"
+#    include "CxxReflect/WindowsRuntimeInspection.hpp"
+#    include "CxxReflect/WindowsRuntimeInvocation.hpp"
+#    include "CxxReflect/WindowsRuntimeLoader.hpp"
+#endif
 
 #endif

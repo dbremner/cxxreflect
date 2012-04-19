@@ -5,11 +5,6 @@
 
 #include "CxxReflect/PrecompiledHeaders.hpp"
 
-#include "CxxReflect/Assembly.hpp"
-#include "CxxReflect/AssemblyName.hpp"
-#include "CxxReflect/CustomAttribute.hpp"
-#include "CxxReflect/Loader.hpp"
-#include "CxxReflect/Type.hpp"
 #include "CxxReflect/WindowsRuntimeLoader.hpp"
 #include "CxxReflect/WindowsRuntimeUtility.hpp"
 

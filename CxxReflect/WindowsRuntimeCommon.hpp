@@ -15,7 +15,6 @@
 #include "CxxReflect/Event.hpp"
 #include "CxxReflect/Field.hpp"
 #include "CxxReflect/File.hpp"
-#include "CxxReflect/Guid.hpp"
 #include "CxxReflect/Loader.hpp"
 #include "CxxReflect/Method.hpp"
 #include "CxxReflect/Parameter.hpp"

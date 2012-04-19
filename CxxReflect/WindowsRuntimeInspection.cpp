@@ -5,8 +5,6 @@
 
 #include "CxxReflect/PrecompiledHeaders.hpp"
 
-#include "CxxReflect/Method.hpp"
-#include "CxxReflect/Type.hpp"
 #include "CxxReflect/WindowsRuntimeInspection.hpp"
 #include "CxxReflect/WindowsRuntimeLoader.hpp"
 #include "CxxReflect/WindowsRuntimeUtility.hpp"
