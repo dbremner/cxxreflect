@@ -1,7 +1,7 @@
 #ifndef CXXREFLECT_CONFIGURATION_HPP_
 #define CXXREFLECT_CONFIGURATION_HPP_
 
-//                 Copyright (c) 2012 James P. McNellis <james@jamesmcnellis.com>                 //
+//               Copyright James P. McNellis (james@jamesmcnellis.com) 2011 - 2012.               //
 //                   Distributed under the Boost Software License, Version 1.0.                   //
 //     (See accompanying file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)    //
 
@@ -59,6 +59,11 @@
 #    define CXXREFLECT_ARCHITECTURE_ARM
 #else
 #    error Compiling for an unknown platform
+#endif
+
+// The Windows Runtime support is not compatible with C++/CLI.
+#if defined (__cplusplus_cli)
+#   undef CXXREFLECT_ENABLE_WINDOWS_RUNTIME_INTEGRATION
 #endif
 
 #if defined(CXXREFLECT_ENABLE_WINDOWS_RUNTIME_INTEGRATION) && defined(__cplusplus_winrt)

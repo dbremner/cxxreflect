@@ -13,22 +13,10 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
-    <Filter Include="Windows Runtime">
-      <UniqueIdentifier>{8a5f1692-3060-4887-95ed-ac2b07dca566}</UniqueIdentifier>
-    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Main.cpp">
       <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="Guid.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="SignatureBuilder.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="ConvertingOverloadResolver.cpp">
-      <Filter>Windows Runtime</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

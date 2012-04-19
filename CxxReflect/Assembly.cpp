@@ -1,4 +1,5 @@
-//                 Copyright (c) 2012 James P. McNellis <james@jamesmcnellis.com>                 //
+
+//               Copyright James P. McNellis (james@jamesmcnellis.com) 2011 - 2012.               //
 //                   Distributed under the Boost Software License, Version 1.0.                   //
 //     (See accompanying file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)    //
 
@@ -9,18 +10,6 @@
 #include "CxxReflect/Loader.hpp"
 #include "CxxReflect/Module.hpp"
 #include "CxxReflect/Type.hpp"
-
-namespace CxxReflect { namespace { namespace Private {
-
-    typedef int (*StringComparer)(wchar_t const*, wchar_t const*);
-
-    StringComparer GetStringComparer(bool const caseInsensitive)
-    {
-        // TODO PORTABILITY _wcsicmp is nonstandard
-        return caseInsensitive ? _wcsicmp : wcscmp;
-    }
-
-} } }
 
 namespace CxxReflect {
 
@@ -127,26 +116,22 @@ namespace CxxReflect {
         return TypeSequence(BeginTypes(), EndTypes());
     }
 
-    Type Assembly::GetType(StringReference const namespaceQualifiedTypeName, bool const caseInsensitive) const
+    Type Assembly::GetType(StringReference const namespaceQualifiedTypeName) const
     {
-        Private::StringComparer const compare(Private::GetStringComparer(caseInsensitive));
         auto const it(std::find_if(BeginTypes(), EndTypes(), [&](Type const& t)
         {
-            return compare(t.GetFullName().c_str(), namespaceQualifiedTypeName.c_str()) == 0;
+            return StringReference(t.GetFullName().c_str()) == namespaceQualifiedTypeName;
         }));
 
         return it != EndTypes() ? *it : Type();
     }
 
-    Type Assembly::GetType(StringReference const namespaceName,
-                           StringReference const unqualifiedTypeName,
-                           bool            const caseInsensitive) const
+    Type Assembly::GetType(StringReference const namespaceName, StringReference const unqualifiedTypeName) const
     {
-        Private::StringComparer const compare(Private::GetStringComparer(caseInsensitive));
         auto const it(std::find_if(BeginTypes(), EndTypes(), [&](Type const& t)
         {
-            return compare(t.GetNamespace().c_str(), namespaceName.c_str()) == 0
-                && compare(t.GetName().c_str(), unqualifiedTypeName.c_str()) == 0;
+            return t.GetNamespace() == namespaceName
+                && t.GetName()      == unqualifiedTypeName;
         }));
 
         return it != EndTypes() ? *it : Type();

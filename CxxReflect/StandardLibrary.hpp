@@ -1,7 +1,7 @@
 #ifndef CXXREFLECT_STANDARDLIBRARY_HPP_
 #define CXXREFLECT_STANDARDLIBRARY_HPP_
 
-//                 Copyright (c) 2012 James P. McNellis <james@jamesmcnellis.com>                 //
+//               Copyright James P. McNellis (james@jamesmcnellis.com) 2011 - 2012.               //
 //                   Distributed under the Boost Software License, Version 1.0.                   //
 //     (See accompanying file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)    //
 
@@ -29,6 +29,16 @@
 #include <type_traits>
 #include <utility>
 #include <vector>
+
+// The C++ Standard Library thread and atomic headers are not supported by C++/CLI
+#ifndef __cplusplus_cli
+
+#include <atomic>
+#include <future>
+#include <mutex>
+#include <thread>
+
+#endif
 
 namespace CxxReflect {
 

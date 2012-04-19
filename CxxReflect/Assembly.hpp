@@ -1,7 +1,7 @@
 #ifndef CXXREFLECT_ASSEMBLY_HPP_
 #define CXXREFLECT_ASSEMBLY_HPP_
 
-//                 Copyright (c) 2012 James P. McNellis <james@jamesmcnellis.com>                 //
+//               Copyright James P. McNellis (james@jamesmcnellis.com) 2011 - 2012.               //
 //                   Distributed under the Boost Software License, Version 1.0.                   //
 //     (See accompanying file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)    //
 
@@ -43,13 +43,11 @@ namespace CxxReflect {
         TypeIterator EndTypes()   const;
         TypeSequence GetTypes()   const;
 
-        Type GetType(StringReference namespaceQualifiedTypeName, bool caseInsensitive = false) const;
+        Type GetType(StringReference namespaceQualifiedTypeName) const;
 
         // The namespace and name of a type are stored separately; this function is far more
         // efficient than the GetType() that takes a namespace-qualified type name.
-        Type GetType(StringReference namespaceName,
-                     StringReference unqualifiedTypeName,
-                     bool            caseInsensitive = false) const;
+        Type GetType(StringReference namespaceName, StringReference unqualifiedTypeName) const;
 
         // EntryPoint
         // ImageRuntimeVersion

@@ -77,5 +77,6 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="WRTestApp_TemporaryKey.pfx" />
+    <None Include="..\..\Build\Output\$(Platform)\$(Configuration)\CxxReflect\CxxReflectPlatform.dat" />
   </ItemGroup>
 </Project>

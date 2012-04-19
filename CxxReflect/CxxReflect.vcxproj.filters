@@ -1,12 +1,6 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
-    <ClCompile Include="Guid.cpp">
-      <Filter>Sources</Filter>
-    </ClCompile>
-    <ClCompile Include="PrecompiledHeaders.cpp">
-      <Filter>Sources</Filter>
-    </ClCompile>
     <ClCompile Include="MetadataDatabase.cpp">
       <Filter>Sources\Metadata</Filter>
     </ClCompile>
@@ -64,18 +58,30 @@
     <ClCompile Include="ElementContexts.cpp">
       <Filter>Sources\Core</Filter>
     </ClCompile>
-    <ClCompile Include="WindowsRuntime.cpp">
+    <ClCompile Include="WindowsRuntimeInvocation.cpp">
+      <Filter>Sources\WindowsRuntime</Filter>
+    </ClCompile>
+    <ClCompile Include="WindowsRuntimeUtility.cpp">
+      <Filter>Sources\WindowsRuntime</Filter>
+    </ClCompile>
+    <ClCompile Include="WindowsRuntimeCommon.cpp">
+      <Filter>Sources\WindowsRuntime</Filter>
+    </ClCompile>
+    <ClCompile Include="WindowsRuntimeLoader.cpp">
+      <Filter>Sources\WindowsRuntime</Filter>
+    </ClCompile>
+    <ClCompile Include="Guid.cpp">
       <Filter>Sources\Interface</Filter>
+    </ClCompile>
+    <ClCompile Include="PrecompiledHeaders.cpp">
+      <Filter>Sources\Core</Filter>
+    </ClCompile>
+    <ClCompile Include="WindowsRuntimeInspection.cpp">
+      <Filter>Sources\WindowsRuntime</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="CxxReflect.hpp">
-      <Filter>Headers</Filter>
-    </ClInclude>
-    <ClInclude Include="Guid.hpp">
-      <Filter>Headers</Filter>
-    </ClInclude>
-    <ClInclude Include="PrecompiledHeaders.hpp">
       <Filter>Headers</Filter>
     </ClInclude>
     <ClInclude Include="Event.hpp">
@@ -147,8 +153,26 @@
     <ClInclude Include="ElementContexts.hpp">
       <Filter>Headers\Core</Filter>
     </ClInclude>
-    <ClInclude Include="WindowsRuntime.hpp">
+    <ClInclude Include="WindowsRuntimeInvocation.hpp">
+      <Filter>Headers\WindowsRuntime</Filter>
+    </ClInclude>
+    <ClInclude Include="WindowsRuntimeCommon.hpp">
+      <Filter>Headers\WindowsRuntime</Filter>
+    </ClInclude>
+    <ClInclude Include="WindowsRuntimeUtility.hpp">
+      <Filter>Headers\WindowsRuntime</Filter>
+    </ClInclude>
+    <ClInclude Include="WindowsRuntimeInspection.hpp">
+      <Filter>Headers\WindowsRuntime</Filter>
+    </ClInclude>
+    <ClInclude Include="WindowsRuntimeLoader.hpp">
+      <Filter>Headers\WindowsRuntime</Filter>
+    </ClInclude>
+    <ClInclude Include="Guid.hpp">
       <Filter>Headers\Interface</Filter>
+    </ClInclude>
+    <ClInclude Include="PrecompiledHeaders.hpp">
+      <Filter>Headers\Core</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -175,6 +199,12 @@
     </Filter>
     <Filter Include="Sources\Core">
       <UniqueIdentifier>{a732485e-fad7-44dd-889c-a5313e86850e}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Headers\WindowsRuntime">
+      <UniqueIdentifier>{66486382-93c7-49de-b4d4-db03780ca104}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Sources\WindowsRuntime">
+      <UniqueIdentifier>{01b34011-4058-473e-ad3b-4a1c0fb9b84b}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>

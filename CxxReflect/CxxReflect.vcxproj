@@ -1,4 +1,11 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
+<!--
+
+//               Copyright James P. McNellis (james@jamesmcnellis.com) 2011 - 2012.               //
+//                   Distributed under the Boost Software License, Version 1.0.                   //
+//     (See accompanying file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)    //
+
+-->
 <Project DefaultTargets="Build" ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <PropertyGroup>
     <ConfigurationType>StaticLibrary</ConfigurationType>
@@ -39,7 +46,11 @@
     <ClInclude Include="Property.hpp" />
     <ClInclude Include="StandardLibrary.hpp" />
     <ClInclude Include="Type.hpp" />
-    <ClInclude Include="WindowsRuntime.hpp" />
+    <ClInclude Include="WindowsRuntimeCommon.hpp" />
+    <ClInclude Include="WindowsRuntimeInspection.hpp" />
+    <ClInclude Include="WindowsRuntimeInvocation.hpp" />
+    <ClInclude Include="WindowsRuntimeLoader.hpp" />
+    <ClInclude Include="WindowsRuntimeUtility.hpp" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Assembly.cpp" />
@@ -65,7 +76,11 @@
     </ClCompile>
     <ClCompile Include="Property.cpp" />
     <ClCompile Include="Type.cpp" />
-    <ClCompile Include="WindowsRuntime.cpp" />
+    <ClCompile Include="WindowsRuntimeCommon.cpp" />
+    <ClCompile Include="WindowsRuntimeInspection.cpp" />
+    <ClCompile Include="WindowsRuntimeInvocation.cpp" />
+    <ClCompile Include="WindowsRuntimeLoader.cpp" />
+    <ClCompile Include="WindowsRuntimeUtility.cpp" />
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="CxxReflectPlatform.il">

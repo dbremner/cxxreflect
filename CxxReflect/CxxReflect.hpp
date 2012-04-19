@@ -1,7 +1,7 @@
 #ifndef CXXREFLECT_CXXREFLECT_HPP_
 #define CXXREFLECT_CXXREFLECT_HPP_
 
-//                 Copyright (c) 2012 James P. McNellis <james@jamesmcnellis.com>                 //
+//               Copyright James P. McNellis (james@jamesmcnellis.com) 2011 - 2012.               //
 //                   Distributed under the Boost Software License, Version 1.0.                   //
 //     (See accompanying file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)    //
 
@@ -19,6 +19,9 @@
 #include "CxxReflect/Parameter.hpp"
 #include "CxxReflect/Property.hpp"
 #include "CxxReflect/Type.hpp"
-#include "CxxReflect/WindowsRuntime.hpp"
+#include "CxxReflect/WindowsRuntimeCommon.hpp"
+#include "CxxReflect/WindowsRuntimeInspection.hpp"
+#include "CxxReflect/WindowsRuntimeInvocation.hpp"
+#include "CxxReflect/WindowsRuntimeLoader.hpp"
 
 #endif

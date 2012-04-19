@@ -1,4 +1,5 @@
-//                 Copyright (c) 2012 James P. McNellis <james@jamesmcnellis.com>                 //
+
+//               Copyright James P. McNellis (james@jamesmcnellis.com) 2011 - 2012.               //
 //                   Distributed under the Boost Software License, Version 1.0.                   //
 //     (See accompanying file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)    //
 
@@ -695,7 +696,7 @@ namespace CxxReflect {
             // All arrays are derived directly from System.Array:
             case Metadata::TypeSignature::Kind::Array:
             case Metadata::TypeSignature::Kind::SzArray:
-                return Utility::GetSystemAssembly(GetAssembly()).GetType(L"System", L"Array", false);
+                return Utility::GetSystemAssembly(GetAssembly()).GetType(L"System", L"Array");
 
             case Metadata::TypeSignature::Kind::Ptr:
                 return Type();
