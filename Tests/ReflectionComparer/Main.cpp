@@ -34,16 +34,21 @@ namespace R
 
 namespace
 {
+    // TODO The CLR does weird things with many non-public entities.  E.g., it does not report them
+    // in reflection, or it manipulates them so they appear differently.  (In all observed cases,
+    // this has occurred in mscorlib.dll types, so it's not like user types are affected, except
+    // that all types derive from System.Object.)  We need to find an effective and straightforward
+    // way to verify private elements.
     R::BindingFlags RAllBindingFlags = 
         R::BindingFlags::Public |
-        R::BindingFlags::NonPublic |
+        // R::BindingFlags::NonPublic |
         R::BindingFlags::Static |
         R::BindingFlags::Instance |
         R::BindingFlags::FlattenHierarchy;
 
     C::BindingAttribute const CAllBindingFlags =
         C::BindingAttribute::Public |
-        C::BindingAttribute::NonPublic |
+        // C::BindingAttribute::NonPublic |
         C::BindingAttribute::Static |
         C::BindingAttribute::Instance |
         C::BindingAttribute::FlattenHierarchy;
@@ -97,7 +102,31 @@ namespace
             _isSet = false;
         }
 
-        void Report(System::String^ name, System::String^ expected, System::String^ actual)
+        void ReportDifference(System::String^ name, System::String^ expected, System::String^ actual)
+        {
+            System::String^ pad(WriteMissingFrameHeadersAndGetPad());
+
+            _message->AppendLine(System::String::Format(L"{0} * Incorrect Value for [{1}]:", pad, name));
+
+            _message->AppendLine(System::String::Format(L"{0}   Expected [{1}]", pad, expected));
+            _message->AppendLine(System::String::Format(L"{0}   Actual   [{1}]", pad, actual));
+        }
+
+        void ReportMessage(System::String^ message)
+        {
+            System::String^ pad(WriteMissingFrameHeadersAndGetPad());
+
+            _message->AppendLine(System::String::Format(L"{0} {1}", pad, message));
+        }
+
+        System::String^ GetMessages()
+        {
+            return _message->ToString();
+        }
+
+    private:
+
+        System::String^ WriteMissingFrameHeadersAndGetPad()
         {
             if (!_isSet)
             {
@@ -116,18 +145,8 @@ namespace
 
             System::String^ pad(gcnew System::String(L' ', 2 * _stack.size()));
 
-            _message->AppendLine(System::String::Format(L"{0} * Incorrect Value for [{1}]:", pad, name));
-
-            _message->AppendLine(System::String::Format(L"{0}   Expected [{1}]", pad, expected));
-            _message->AppendLine(System::String::Format(L"{0}   Actual   [{1}]", pad, actual));
+            return pad;
         }
-
-        System::String^ GetMessages()
-        {
-            return _message->ToString();
-        }
-
-    private:
 
         System::String^ AsString(System::Object^ o)
         {
@@ -141,6 +160,10 @@ namespace
             {
                 R::Type^ t(safe_cast<R::Type^>(o));
                 return System::String::Format(L"Type [{0}] [${1:x8}]", t->FullName, t->MetadataToken);
+            }
+            else if (System::String::typeid->IsAssignableFrom(oType))
+            {
+                return (System::String^)o;
             }
             else
             {
@@ -207,7 +230,7 @@ namespace
         if (StringEquals(expected, actual))
             return;
 
-        state.Report(name, AsSystemString(expected), AsSystemString(actual));
+        state.ReportDifference(name, AsSystemString(expected), AsSystemString(actual));
     }
 
     template <typename T, typename U>
@@ -216,7 +239,7 @@ namespace
         if ((unsigned)expected == (unsigned)actual)
             return;
 
-        state.Report(
+        state.ReportDifference(
             name,
             System::String::Format("{0:x8}", (unsigned)expected),
             System::String::Format("{0:x8}", (unsigned)actual));
@@ -227,7 +250,7 @@ namespace
         if (expected == actual)
             return;
 
-        state.Report(name, System::String::Format("{0}", expected), System::String::Format("{0}", actual));
+        state.ReportDifference(name, System::String::Format("{0}", expected), System::String::Format("{0}", actual));
     }
 
     void Compare(StateStack%, R::Assembly^,  C::Assembly  const&);
@@ -321,12 +344,36 @@ namespace
         std::sort(cMethods.begin(), cMethods.end(), MetadataTokenStrictWeakOrdering());
 
         VerifyIntegerEquals(state, L"Method Count", rMethods.size(), cMethods.size());
-        auto rMethodIt(rMethods.begin());
-        auto cMethodIt(cMethods.begin());
-        for (; rMethodIt != rMethods.end() && cMethodIt != cMethods.end(); ++rMethodIt, ++cMethodIt)
+        if ((unsigned)rMethods.size() == cMethods.size())
         {
-            // TODO DO METHOD COMPARISON
-            VerifyStringEquals(state, L"Method Name", (*rMethodIt)->Name, cMethodIt->GetName());
+            auto rMethodIt(rMethods.begin());
+            auto cMethodIt(cMethods.begin());
+            for (; rMethodIt != rMethods.end() && cMethodIt != cMethods.end(); ++rMethodIt, ++cMethodIt)
+            {
+                // TODO DO METHOD COMPARISON
+                VerifyStringEquals(state, L"Method Name", (*rMethodIt)->Name, cMethodIt->GetName());
+            }
+        }
+        else
+        {
+            {
+                StatePopper frame(state.Push(L"Expected Methods"));
+
+                for (auto it(rMethods.begin()); it != rMethods.end(); ++it)
+                {
+                    state.ReportMessage(System::String::Format(L"{0} [{1:x8}]", (*it)->Name, (*it)->MetadataToken));
+                }
+            }
+            {
+                StatePopper frame(state.Push(L"Actual Methods"));
+
+                for (auto it(cMethods.begin()); it != cMethods.end(); ++it)
+                {
+                    state.ReportMessage(System::String::Format(L"{0} [{1:x8}]",
+                        gcnew System::String(it->GetName().c_str()),
+                        it->GetMetadataToken()));
+                }
+            }
         }
 
         // GetNestedType

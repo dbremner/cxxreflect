@@ -215,7 +215,7 @@ namespace CxxReflect { namespace WindowsRuntime { namespace Internal {
         return ResolvedVariantArgument(
             argument.GetElementType(),
             _data.data() + argument.GetValueIndex(),
-            _data.data() + argument.GetValueSize(),
+            _data.data() + argument.GetValueIndex() + argument.GetValueSize(),
             typeNameFirst,
             typeNameLast);
     }
@@ -602,14 +602,14 @@ namespace CxxReflect { namespace WindowsRuntime { namespace Internal {
         case Metadata::ElementType::I4:
         {
             I4 const value(ConvertToI4(argument));
-            frame.Push(Detail::BeginBytes(value), Detail::BeginBytes(value));
+            frame.Push(Detail::BeginBytes(value), Detail::EndBytes(value));
             break;
         }
 
         case Metadata::ElementType::I8:
         {
             I8 const value(ConvertToI8(argument));
-            frame.Push(Detail::BeginBytes(value), Detail::BeginBytes(value));
+            frame.Push(Detail::BeginBytes(value), Detail::EndBytes(value));
             break;
         }
 
@@ -618,35 +618,35 @@ namespace CxxReflect { namespace WindowsRuntime { namespace Internal {
         case Metadata::ElementType::U4:
         {
             U4 const value(ConvertToU4(argument));
-            frame.Push(Detail::BeginBytes(value), Detail::BeginBytes(value));
+            frame.Push(Detail::BeginBytes(value), Detail::EndBytes(value));
             break;
         }
 
         case Metadata::ElementType::U8:
         {
             U8 const value(ConvertToU8(argument));
-            frame.Push(Detail::BeginBytes(value), Detail::BeginBytes(value));
+            frame.Push(Detail::BeginBytes(value), Detail::EndBytes(value));
             break;
         }
 
         case Metadata::ElementType::R4:
         {
             R4 const value(ConvertToR4(argument));
-            frame.Push(Detail::BeginBytes(value), Detail::BeginBytes(value));
+            frame.Push(Detail::BeginBytes(value), Detail::EndBytes(value));
             break;
         }
 
         case Metadata::ElementType::R8:
         {
             R8 const value(ConvertToR8(argument));
-            frame.Push(Detail::BeginBytes(value), Detail::BeginBytes(value));
+            frame.Push(Detail::BeginBytes(value), Detail::EndBytes(value));
             break;
         }
 
         case Metadata::ElementType::Class:
         {
             IInspectable* const value(ConvertToInterface(argument, GetGuid(parameterType)));
-            frame.Push(Detail::BeginBytes(value), Detail::BeginBytes(value));
+            frame.Push(Detail::BeginBytes(value), Detail::EndBytes(value));
             break;
         }
 
@@ -760,8 +760,8 @@ namespace CxxReflect { namespace WindowsRuntime { namespace Internal {
     TTarget ArgumentConverter::VerifyInRangeAndConvertTo(TSource const& value)
     {
         // Only widening conversions are permitted, so this check should never fail:
-        if (value < static_cast<TTarget>(std::numeric_limits<TSource>::min()) ||
-            value > static_cast<TTarget>(std::numeric_limits<TSource>::max()))
+        if (value < static_cast<TSource>(std::numeric_limits<TTarget>::min()) ||
+            value > static_cast<TSource>(std::numeric_limits<TTarget>::max()))
             throw LogicError(L"Unsupported conversion requested:  argument out of range");
 
         return static_cast<TTarget>(value);
@@ -836,11 +836,16 @@ namespace CxxReflect { namespace WindowsRuntime { namespace Internal {
         void const* rawInterfacePointer(interfacePointer.get());
         frame.Push(Detail::BeginBytes(rawInterfacePointer), Detail::EndBytes(rawInterfacePointer));
 
-        for (auto it(arguments.ReverseBegin()); it != arguments.ReverseEnd(); ++it)
+        auto pIt(method.BeginParameters());
+        auto aIt(arguments.Begin());
+
+        for (; pIt != method.EndParameters() && aIt != arguments.End(); ++pIt, ++aIt)
         {
-            ResolvedVariantArgument const resolvedArgument(arguments.Resolve(*it));
-            frame.Push(resolvedArgument.BeginValue(), resolvedArgument.EndValue());
+            ArgumentConverter::ConvertAndInsert(pIt->GetType(), arguments.Resolve(*aIt), frame);
         }
+
+        if (pIt != method.EndParameters() || aIt != arguments.End())
+            throw RuntimeError(L"Method arity does not match argument count");
 
         frame.Push(Detail::BeginBytes(result), Detail::EndBytes(result));
             

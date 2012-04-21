@@ -8,63 +8,76 @@
 
 #include "CxxReflect/CxxReflect.hpp"
 
-using namespace WRTestApp;
+namespace WRTestApp { namespace {
 
-using namespace Platform;
-using namespace Windows::Foundation;
-using namespace Windows::Foundation::Collections;
-using namespace Windows::UI::Xaml;
-using namespace Windows::UI::Xaml::Controls;
-using namespace Windows::UI::Xaml::Controls::Primitives;
-using namespace Windows::UI::Xaml::Data;
-using namespace Windows::UI::Xaml::Input;
-using namespace Windows::UI::Xaml::Media;
-using namespace Windows::UI::Xaml::Navigation;
-
-// The Blank Page item template is documented at http://go.microsoft.com/fwlink/?LinkId=234238
-
-BlankPage::BlankPage()
-{
-	InitializeComponent();
-
-    cxr::WhenInitializedCall([&]
+    void PrintTypeAndNumber(WRLibrary::IProvideANumber^ const provider)
     {
-        auto const types(cxr::GetImplementersOf<WRLibrary::IProvideANumber^>());
+        std::wstringstream formatter;
+        formatter << cxr::GetTypeOf(provider).GetFullName() << L":  " << provider->GetNumber() << L'\n';
+        OutputDebugString(formatter.str().c_str());
+    }
 
-        std::for_each(begin(types), end(types), [&](cxr::Type const& type)
+} }
+
+namespace WRTestApp {
+
+    BlankPage::BlankPage()
+    {
+	    InitializeComponent();
+
+        cxr::WhenInitializedCall([&]
         {
-            // If the type is not default constructible; skip it:
-            if (!cxr::IsDefaultConstructible(type))
-                return;
+            auto const dispatcherObjectTypes(cxr::GetImplementersOf<Windows::UI::Xaml::IDependencyObject>());
 
-            auto const instance(cxr::CreateInstance<WRLibrary::IProvideANumber>(type));
+            auto const types(cxr::GetImplementersOf<WRLibrary::IProvideANumber>());
+            
+            std::for_each(begin(types), end(types), [&](cxr::Type const& type)
+            {
+                if (!cxr::IsDefaultConstructible(type))
+                    return;
+
+                auto const instance(cxr::CreateInstance<WRLibrary::IProvideANumber>(type));
         
+                PrintTypeAndNumber(instance);
+            });
+            
+            Platform::String::typeid->FullName->Data();
+
+            WRLibrary::ProviderOfTheAnswer^ provider = ref new WRLibrary::ProviderOfTheAnswer();
+            cxr::Type const wrapperType = cxr::GetType(L"WRLibrary.ProviderOfAWrappedNumber");
+            auto const wrapperInstance = cxr::CreateInstance<WRLibrary::IProvideANumber>(wrapperType, provider);
+            PrintTypeAndNumber(wrapperInstance);
+
+            cxr::Type const userType(cxr::GetType(L"WRLibrary.UserProvidedNumber"));
+            for (int i(0); i < 10; ++i)
+            {
+                auto const userInstance(cxr::CreateInstance<WRLibrary::IProvideANumber>(userType, i * 5));
+
+                std::wstringstream formatter;
+                formatter << userType.GetFullName() << L":  " << userInstance->GetNumber() << L'\n';
+
+                OutputDebugString(formatter.str().c_str());
+            }
+
+            cxr::Type const userMultipliedType(cxr::GetType(L"WRLibrary.UserProvidedMultipliedNumber"));
+
+            auto const userMultipliedInstance(cxr::CreateInstance<WRLibrary::IProvideANumber>(userMultipliedType, 2, 4));
+
             std::wstringstream formatter;
-            formatter << type.GetFullName() << L":  " << instance->GetNumber() << L'\n';
+            formatter << userMultipliedType.GetFullName() << L":  " << userMultipliedInstance->GetNumber() << L'\n';
 
             OutputDebugString(formatter.str().c_str());
+
         });
+    }
 
-        Platform::String::typeid->FullName->Data();
+    /// <summary>
+    /// Invoked when this page is about to be displayed in a Frame.
+    /// </summary>
+    /// <param name="e">Event data that describes how this page was reached.  The Parameter
+    /// property is typically used to configure the page.</param>
+    void BlankPage::OnNavigatedTo(Windows::UI::Xaml::Navigation::NavigationEventArgs^ e)
+    {
+    }
 
-        cxr::Type const userType(cxr::GetType(L"WRLibrary.UserProvidedNumber"));
-        for (int i(0); i < 10; ++i)
-        {
-            auto const userInstance(cxr::CreateInstance<WRLibrary::IProvideANumber>(userType, i * 5));
-
-            std::wstringstream formatter;
-            formatter << userType.GetFullName() << L":  " << userInstance->GetNumber() << L'\n';
-
-            OutputDebugString(formatter.str().c_str());
-        }
-    });
-}
-
-/// <summary>
-/// Invoked when this page is about to be displayed in a Frame.
-/// </summary>
-/// <param name="e">Event data that describes how this page was reached.  The Parameter
-/// property is typically used to configure the page.</param>
-void BlankPage::OnNavigatedTo(NavigationEventArgs^ e)
-{
 }

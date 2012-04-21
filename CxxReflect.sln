@@ -1,11 +1,6 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 11
-
-# //               Copyright James P. McNellis (james@jamesmcnellis.com) 2011 - 2012.               //
-# //                   Distributed under the Boost Software License, Version 1.0.                   //
-# //     (See accompanying file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)    //
-
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "CxxReflect", "CxxReflect\CxxReflect.vcxproj", "{64DC7DFF-D2E4-4086-BE24-02F0B9D71128}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{FF0B4992-AB90-42A3-AA05-74BF7EEA91F4}"
@@ -125,7 +120,6 @@ Global
 		{CE5FDB88-6215-425A-91FA-AEB0C8C5CD1B}.Debug(ZW)|x64.ActiveCfg = Debug(ZW)|x64
 		{CE5FDB88-6215-425A-91FA-AEB0C8C5CD1B}.Debug(ZW)|x64.Build.0 = Debug(ZW)|x64
 		{CE5FDB88-6215-425A-91FA-AEB0C8C5CD1B}.Debug|Win32.ActiveCfg = Debug(ZW)|Win32
-		{CE5FDB88-6215-425A-91FA-AEB0C8C5CD1B}.Debug|Win32.Build.0 = Debug(ZW)|Win32
 		{CE5FDB88-6215-425A-91FA-AEB0C8C5CD1B}.Debug|x64.ActiveCfg = Debug(ZW)|x64
 		{CE5FDB88-6215-425A-91FA-AEB0C8C5CD1B}.Debug|x64.Build.0 = Debug(ZW)|x64
 		{CE5FDB88-6215-425A-91FA-AEB0C8C5CD1B}.Release(ZW)|Win32.ActiveCfg = Release(ZW)|Win32
@@ -133,7 +127,6 @@ Global
 		{CE5FDB88-6215-425A-91FA-AEB0C8C5CD1B}.Release(ZW)|x64.ActiveCfg = Release(ZW)|x64
 		{CE5FDB88-6215-425A-91FA-AEB0C8C5CD1B}.Release(ZW)|x64.Build.0 = Release(ZW)|x64
 		{CE5FDB88-6215-425A-91FA-AEB0C8C5CD1B}.Release|Win32.ActiveCfg = Release(ZW)|Win32
-		{CE5FDB88-6215-425A-91FA-AEB0C8C5CD1B}.Release|Win32.Build.0 = Release(ZW)|Win32
 		{CE5FDB88-6215-425A-91FA-AEB0C8C5CD1B}.Release|x64.ActiveCfg = Release(ZW)|x64
 		{CE5FDB88-6215-425A-91FA-AEB0C8C5CD1B}.Release|x64.Build.0 = Release(ZW)|x64
 		{FB736C37-13CC-4F3C-A3F3-EB620C0EC136}.Debug(ZW)|Win32.ActiveCfg = Debug(ZW)|Win32
@@ -143,8 +136,6 @@ Global
 		{FB736C37-13CC-4F3C-A3F3-EB620C0EC136}.Debug(ZW)|x64.Build.0 = Debug(ZW)|x64
 		{FB736C37-13CC-4F3C-A3F3-EB620C0EC136}.Debug(ZW)|x64.Deploy.0 = Debug(ZW)|x64
 		{FB736C37-13CC-4F3C-A3F3-EB620C0EC136}.Debug|Win32.ActiveCfg = Debug(ZW)|Win32
-		{FB736C37-13CC-4F3C-A3F3-EB620C0EC136}.Debug|Win32.Build.0 = Debug(ZW)|Win32
-		{FB736C37-13CC-4F3C-A3F3-EB620C0EC136}.Debug|Win32.Deploy.0 = Debug(ZW)|Win32
 		{FB736C37-13CC-4F3C-A3F3-EB620C0EC136}.Debug|x64.ActiveCfg = Debug(ZW)|x64
 		{FB736C37-13CC-4F3C-A3F3-EB620C0EC136}.Debug|x64.Build.0 = Debug(ZW)|x64
 		{FB736C37-13CC-4F3C-A3F3-EB620C0EC136}.Debug|x64.Deploy.0 = Debug(ZW)|x64
@@ -155,8 +146,6 @@ Global
 		{FB736C37-13CC-4F3C-A3F3-EB620C0EC136}.Release(ZW)|x64.Build.0 = Release(ZW)|x64
 		{FB736C37-13CC-4F3C-A3F3-EB620C0EC136}.Release(ZW)|x64.Deploy.0 = Release(ZW)|x64
 		{FB736C37-13CC-4F3C-A3F3-EB620C0EC136}.Release|Win32.ActiveCfg = Release(ZW)|Win32
-		{FB736C37-13CC-4F3C-A3F3-EB620C0EC136}.Release|Win32.Build.0 = Release(ZW)|Win32
-		{FB736C37-13CC-4F3C-A3F3-EB620C0EC136}.Release|Win32.Deploy.0 = Release(ZW)|Win32
 		{FB736C37-13CC-4F3C-A3F3-EB620C0EC136}.Release|x64.ActiveCfg = Release(ZW)|x64
 		{FB736C37-13CC-4F3C-A3F3-EB620C0EC136}.Release|x64.Build.0 = Release(ZW)|x64
 		{FB736C37-13CC-4F3C-A3F3-EB620C0EC136}.Release|x64.Deploy.0 = Release(ZW)|x64

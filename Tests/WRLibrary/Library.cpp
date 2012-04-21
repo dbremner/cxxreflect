@@ -46,4 +46,36 @@ namespace WRLibrary
 
         default::int32 _value;
     };
+
+    public ref class UserProvidedMultipliedNumber sealed : IProvideANumber
+    {
+    public:
+
+        UserProvidedMultipliedNumber(default::int32 x, default::int32 y)
+            : _value(x * 10 + y)
+        {
+        }
+
+        default::int32 GetNumber() { return _value; }
+
+    private:
+
+        default::int32 _value;
+    };
+
+    public ref class ProviderOfAWrappedNumber sealed : public IProvideANumber
+    {
+    public:
+
+        ProviderOfAWrappedNumber(IProvideANumber^ inner)
+            : _inner(inner)
+        {
+        }
+
+        default::int32 GetNumber() { return _inner->GetNumber(); }
+
+    private:
+
+        IProvideANumber^ _inner;
+    };
 }

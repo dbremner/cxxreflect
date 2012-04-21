@@ -1074,7 +1074,7 @@ namespace CxxReflect { namespace Detail {
                 *_typeResolver.Get(), 
                 elementDef));
 
-            Metadata::FullReference const elementDefReference(&database, elementDef.GetSelfReference());
+            Metadata::FullReference const elementDefReference(&elementDef.GetDatabase(), elementDef.GetSelfReference());
 
             if (!signatureRef.IsInitialized())
                 return ContextType(typeDefReference, elementDefReference);

@@ -578,8 +578,7 @@ namespace CxxReflect { namespace Metadata {
         {
             AssertInitialized();
 
-            // Row identifiers are one-based, not zero-based, so <= is correct here.
-            Detail::Assert([&] { return index <= _rowCount.Get(); }, L"Index out of range");
+            Detail::Assert([&] { return index < _rowCount.Get(); }, L"Index out of range");
             return _data.Get() + _rowSize.Get() * index;
         }
 

@@ -56,7 +56,10 @@ namespace CxxReflect { namespace WindowsRuntime {
             throw LogicError(L"Cannot get type of null inspectable object");
 
         Internal::SmartHString typeNameHString;
-        if (Detail::Failed(object->GetRuntimeClassName(typeNameHString.proxy())) || typeNameHString.empty())
+        if (Detail::Failed(object->GetRuntimeClassName(typeNameHString.proxy())))
+            throw RuntimeError(L"Failed to get runtime class name from inspectable object");
+
+        if (typeNameHString.empty())
             throw RuntimeError(L"Failed to get runtime class name from inspectable object");
 
         return GetType(typeNameHString.c_str());

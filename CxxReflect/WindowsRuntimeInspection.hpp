@@ -28,8 +28,7 @@ namespace CxxReflect { namespace WindowsRuntime {
     template<typename TInterface>
     std::vector<Type> GetImplementersOf()
     {
-        typedef typename Internal::RemoveHat<TInterface>::Type BareHeadedInterfaceType;
-        String const interfaceFullName(BareHeadedInterfaceType::typeid->FullName->Data());
+        String const interfaceFullName(TInterface::typeid->FullName->Data());
         return WindowsRuntime::GetImplementers(StringReference(interfaceFullName.c_str()));
     }
     #endif
