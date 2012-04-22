@@ -375,9 +375,7 @@ namespace CxxReflect { namespace WindowsRuntime {
         if (GlobalLoaderContext::HasInitializationBegun())
             throw LogicError(L"Initialization has already begun");
 
-        // TODO Once we implement a WACK-friendly CxxReflect::Platform::WinRT, we need to change
-        // this to use that new implementation.
-        Externals::Initialize<Platform::Win32>();
+        Externals::Initialize<Platform::WinRT>();
 
         // Start initialization in the background.  Note:  we explicitly want to specify an async
         // launch here.  This cannot run on an STA thread when /ZW is used.

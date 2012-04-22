@@ -15,6 +15,7 @@
 #include <WRL/Client.h>
 
 #include <Windows.ApplicationModel.h>
+#include <Windows.Foundation.h>
 #include <Windows.Storage.h>
 
 using Microsoft::WRL::ComPtr;
@@ -320,7 +321,10 @@ namespace CxxReflect { namespace WindowsRuntime { namespace Internal {
             return String();
 
         SmartHString path;
-        if (Detail::Failed(packageFolderItem->get_Path(path.proxy())) || path.empty())
+        if (Detail::Failed(packageFolderItem->get_Path(path.proxy())))
+            return String();
+
+        if (path.empty())
             return String();
 
         String pathString(path.c_str());
@@ -462,6 +466,33 @@ namespace CxxReflect { namespace WindowsRuntime { namespace Internal {
             reinterpret_cast<void**>(interfacePointer.GetAddressOf())));
 
         return WindowsRuntime::UniqueInspectable(interfacePointer.Detach());
+    }
+
+    String ComputeCanonicalUri(String path)
+    {
+        using namespace ABI::Windows::Foundation;
+
+        if (path.empty())
+            return path;
+
+        ComPtr<IUriRuntimeClassFactory> uriFactory;
+        HResult const hr0(RoGetActivationFactory(
+            SmartHString(RuntimeClass_Windows_Foundation_Uri).value(),
+            IID_IUriRuntimeClassFactory,
+            reinterpret_cast<void**>(uriFactory.GetAddressOf())));
+
+        if (Detail::Failed(hr0) || uriFactory.Get() == nullptr)
+            throw RuntimeError(L"Failed to get URI Activation Factory");
+
+        ComPtr<IUriRuntimeClass> uri;   
+        if (Detail::Failed(uriFactory->CreateUri(SmartHString(path).value(), uri.GetAddressOf())))
+            throw RuntimeError(L"Failed to create URI");
+
+        SmartHString absoluteUri;
+        if (Detail::Failed(uri->get_AbsoluteUri(absoluteUri.proxy())))
+            throw RuntimeError(L"Failed to get absolute URI");
+
+        return absoluteUri.c_str();
     }
 
 } } }

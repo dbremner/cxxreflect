@@ -91,7 +91,7 @@ namespace CxxReflect { namespace Detail {
         virtual ~Win32ExternalFunctions();
     };
 
-    class WinRTExternalFunctions : IExternalFunctions
+    class WinRTExternalFunctions : public IExternalFunctions
     {
     public:
 

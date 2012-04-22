@@ -198,6 +198,12 @@ namespace CxxReflect { namespace WindowsRuntime { namespace Internal {
     UniqueInspectable GetActivationFactoryInterface(String const& typeFullName, Guid const& interfaceGuid);
     UniqueInspectable QueryInterface(IInspectable* instance, Type const& interfaceType);
 
+
+
+
+
+    String ComputeCanonicalUri(String path);
+
 } } }
 
 #endif

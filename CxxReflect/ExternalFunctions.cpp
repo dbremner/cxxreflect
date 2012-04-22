@@ -6,6 +6,7 @@
 #include "CxxReflect/PrecompiledHeaders.hpp"
 
 #include "CxxReflect/FundamentalUtilities.hpp"
+#include "CxxReflect/WindowsRuntimeUtility.hpp"
 
 #include <io.h>
 #include <shlwapi.h>
@@ -354,15 +355,7 @@ namespace CxxReflect { namespace Detail {
 
     String WinRTExternalFunctions::ComputeCanonicalUri(ConstCharacterIterator const pathOrUri) const
     {
-        // Note:  UrlCanonicalize is listed as a Desktop-only on MSDN, but WACK does not (yet?)
-        // complain about its use.  If WACK does decide to complain at some point, we'll need to
-        // reimplement this using the corresponding WinRT API.
-        ValueInitialized<std::array<wchar_t, 2048>> buffer;
-
-        DWORD length(static_cast<DWORD>(buffer.Get().size()));
-        Detail::VerifySuccess(UrlCanonicalize(pathOrUri, buffer.Get().data(), &length, 0));
-
-        return String(buffer.Get().data());
+        return WindowsRuntime::Internal::ComputeCanonicalUri(pathOrUri);
     }
 
     FILE* WinRTExternalFunctions::OpenFile(ConstCharacterIterator const fileName,
@@ -380,10 +373,18 @@ namespace CxxReflect { namespace Detail {
 
     bool WinRTExternalFunctions::FileExists(ConstCharacterIterator const filePath) const
     {
-        // Note:  GetFileAttributes is listed as a Desktop-only on MSDN, but WACK does not (yet?)
-        // complain about its use.  If WACK does decide to complain at some point, we'll need to
-        // reimplement this using the corresponding WinRT API.
-        return GetFileAttributes(filePath) != INVALID_FILE_ATTRIBUTES;
+        FILE* handle(nullptr);
+
+        errno_t const error(_wfopen_s(&handle, filePath, L"rb"));
+        if (error == 0)
+        {
+            std::fclose(handle);
+            return true;
+        }
+        else
+        {
+            return false;
+        }
     }
 
     WinRTExternalFunctions::~WinRTExternalFunctions()
