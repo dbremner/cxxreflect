@@ -85,7 +85,7 @@ namespace CxxReflect {
 
     SizeType Parameter::GetPosition() const
     {
-        return GetParamRow().GetSequence();
+        return GetParamRow().GetSequence() - 1;
     }
 
     Metadata::RowReference  const& Parameter::GetSelfReference(InternalKey) const

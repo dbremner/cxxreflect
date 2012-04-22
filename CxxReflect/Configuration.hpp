@@ -6,47 +6,60 @@
 //     (See accompanying file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)    //
 
 // Hi there!  This header allows you to define or undefine various macros to configure which library
-// features are available and which are not.  Note that you can also comment out the definitions in
-// this header and define them globally for the build (e.g. using /DMACRO_NAME with Visual C++).
+// features are available and which are not.
 
 #include "CxxReflect/StandardLibrary.hpp"
 
+// This macro controls whether assertions throw exceptions or not.  If it is set to true, all debug
+// assertions will throw LogicError exceptions.  If it is set to false, debug assertions are no-ops.
 #define CXXREFLECT_ENABLE_DEBUG_ASSERTIONS
 
-// This macro enables or disables internal usage of the C++ Standard Library algorithms in debug
-// builds (i.e., when _DEBUG defined).  When this macro is defined, CxxReflect will use its own
-// algorithm implementations that do not perform the extensive debug checks that the Visual C++
-// Standard Library uses.  If this macro is not defined, CxxReflect will use the C++ Standard
-// Library.
+// This macro controls whether CxxReflect subverts the Visual C++ Standard Library's iterator
+// debugging facilities when compiled in Debug mode.  Iterator debugging is extremely useful for
+// finding misuse of iterators or algorithms, but it can be extraordinarily expensive.  For example,
+// equal_range will scan the entire range to verify that it is ordered according to the specified
+// predicate.  Useful?  Very.  But also very expensive:  the O(lg N) operation becomes O(N).
 //
-// The Visual C++ Standard Library iterator debugging is extremely useful for finding misuse of
-// iterators, but for the CxxReflect library, it slows down execution by about 100x [yay O(N) :'(].
+// CxxReflect makes heavy use of the C++ Standard Library algorithms and often uses them over large
+// ranges of data, so the performance impact of iterator debugging is substantial.  It defines its
+// own algorithms that work around iterator debugging so that you can leave iterator debugging
+// enabled and use it to verify your own code, but effectively disable it for CxxReflect library
+// code.
 //
-// Warning: the unchecked algorithms rely on undocumented Visual C++ Standard Library implementation
-// details. The implementation can change at any time, and if it changes, it may break this setting.
-// If the build fails in the compilation of the unchecked algorithms, investigate by looking at the
-// new Visual C++ headers and updating Fundamentals.hpp, or disable this setting and suffer abysmal
-// debug build performance.
-//
+// Warning:  The unchecked algorithms rely on undocumented Visual C++ Standard Library implementation
+// details.  The implementation may change at any time.  If it changes, our unchecked algorithms may
+// break.
 #define CXXREFLECT_ENABLE_UNCHECKED_DEBUG_ALGORITHMS
 
-// This macro controls whether Windows Runtime integration is enabled.  Define this macro if you are
-// compiling CxxReflect for use in a Metro style application AppContainer.  Otherwise, do not define
-// this macro.  Note that this macro does not require the usage of the C++/CX language extensions
-// (i.e., /ZW).  CxxReflect works fine with both "low-level" and "high-level" C++ code.
-// TODO Make sure the WinRT integration actually works without the /ZW language projections.
+// This macro controls whether the Windows Runtime integration features are compiled.  Define this
+// macro if you are compiling CxxReflect for use in a Metro style application.  If you are building
+// on Windows 7 or an older version of Windows, do not define this macro (if you do, the library
+// will not compile).  If you are building on Windows 8 and do not require Windows Runtime features,
+// it is harmless to define this macro.
 //
+// Note that CxxReflect works fine with both "low-level" (ISO C++) code and "high-level" (C++/CX)
+// code.
 #define CXXREFLECT_ENABLE_WINDOWS_RUNTIME_INTEGRATION
 
+
+
+
+
 //
-// Modify the lines below this point at your own peril.
+// MODIFY THE LINES BELOW AT YOUR OWN PERIL
 //
 
-// The unchecked algorithms are only used when crazy-expensive iterator debugging is enabled.
+
+
+
+
+// If iterator debugging is disabled, we do not need to use our own unchecked debug operations:
 #if _ITERATOR_DEBUG_LEVEL != 2
 #undef CXXREFLECT_ENABLE_UNCHECKED_DEBUG_ALGORITHMS
 #endif
 
+// Determine the target architecture for which we are being built.  This is primarily used in the
+// Windows Runtime integration to select the correct calling convention for function invocations.
 #define CXXREFLECT_ARCHITECTURE_X86 1
 #define CXXREFLECT_ARCHITECTURE_X64 2
 #define CXXREFLECT_ARCHITECTURE_ARM 3
@@ -61,17 +74,23 @@
 #    error Compiling for an unknown platform
 #endif
 
-// The Windows Runtime support is not compatible with C++/CLI.
+// Windows Runtime and C++/CLI are mutually exclusive, so if we are being built in a C++/CLI
+// translation unit, we disable support for Windows Runtime:
 #if defined (__cplusplus_cli)
 #   undef CXXREFLECT_ENABLE_WINDOWS_RUNTIME_INTEGRATION
 #endif
 
+// If support for Windows Runtime is enabled and we are being built in a C++/CX translation unit,
+// we enable the C++/CX integration, which adds additional overloads and functions that support
+// hat types (T^).
 #if defined(CXXREFLECT_ENABLE_WINDOWS_RUNTIME_INTEGRATION) && defined(__cplusplus_winrt)
 #    define CXXREFLECT_ENABLE_WINDOWS_RUNTIME_CPPCX
 #endif
 
-// The CxxReflect library is /ZW-sensitive.  This is most unfortunate, but we rely on the Visual
-// C++ Standard Library's <future>, which relies on ConcRT, which is /ZW-sensitive.
+// Ensure that we do not mix object files built with /ZW (i.e., C++/CX turned on) and without /ZW.
+// The layout of many classes in the Visual C++ threading and synchronization headers depends on
+// the /ZW flag, so if we mix object files, we'll get ugly, horrible, silent ODR violations that
+// lead to crashes.
 #if defined(_MSC_VER)
 #    if defined(__cplusplus_winrt)
 #        pragma detect_mismatch("CxxReflectIsZwEnabled", "1")

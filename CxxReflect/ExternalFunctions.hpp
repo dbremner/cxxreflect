@@ -11,6 +11,12 @@
 
 #include "CxxReflect/Configuration.hpp"
 
+namespace CxxReflect { namespace Detail {
+
+    class FileRange;
+
+} }
+
 namespace CxxReflect {
 
     enum class Platform : SizeType
@@ -37,9 +43,6 @@ namespace CxxReflect {
         // STRING MANIPULATION AND CONVERSION
         //
 
-        virtual std::wstring ConvertNarrowStringToWideString(char const* narrowString) const = 0;
-        virtual std::string ConvertWideStringToNarrowString(wchar_t const* wideString) const = 0;
-
         virtual unsigned ComputeUtf16LengthOfUtf8String(char const* source) const = 0;
         virtual bool ConvertUtf8ToUtf16(char const* source, wchar_t* target, unsigned targetLength) const = 0;
 
@@ -49,6 +52,7 @@ namespace CxxReflect {
 
         virtual std::wstring ComputeCanonicalUri(wchar_t const* pathOrUri) const = 0;
         virtual FILE* OpenFile(wchar_t const* fileName, wchar_t const* mode) const = 0;
+        virtual Detail::FileRange MapFileRange(FILE* file, SizeType index, SizeType size) const = 0;
         virtual bool FileExists(wchar_t const* filePath) const = 0;
 
         virtual ~IExternalFunctions();
@@ -58,8 +62,63 @@ namespace CxxReflect {
 
 namespace CxxReflect { namespace Detail {
 
-    class Win32ExternalFunctions;
-    class WinRTExternalFunctions;
+    class Win32ExternalFunctions : public IExternalFunctions
+    {
+    public:
+
+        //
+        // CRYPTOGRAPHIC SERVICES
+        //
+
+        virtual Sha1Hash ComputeSha1Hash(ConstByteIterator first, ConstByteIterator last) const;
+
+        //
+        // STRING MANIPULATION AND CONVERSION
+        //
+
+        virtual unsigned ComputeUtf16LengthOfUtf8String(char const* source) const;
+        virtual bool ConvertUtf8ToUtf16(char const* source, wchar_t* target, unsigned targetLength) const;
+
+        //
+        // FILESYSTEM AND LIGHTWEGHT PATH MANIPULATION SERVICES
+        //
+
+        virtual String ComputeCanonicalUri(ConstCharacterIterator pathOrUri) const;
+        virtual FILE* OpenFile(ConstCharacterIterator fileName, ConstCharacterIterator mode) const;
+        virtual Detail::FileRange MapFileRange(FILE* file, SizeType index, SizeType size) const;
+        virtual bool FileExists(ConstCharacterIterator filePath) const;
+
+        virtual ~Win32ExternalFunctions();
+    };
+
+    class WinRTExternalFunctions : IExternalFunctions
+    {
+    public:
+
+        //
+        // CRYPTOGRAPHIC SERVICES
+        //
+
+        virtual Sha1Hash ComputeSha1Hash(ConstByteIterator first, ConstByteIterator last) const;
+
+        //
+        // STRING MANIPULATION AND CONVERSION
+        //
+
+        virtual unsigned ComputeUtf16LengthOfUtf8String(char const* source) const;
+        virtual bool ConvertUtf8ToUtf16(char const* source, wchar_t* target, unsigned targetLength) const;
+
+        //
+        // FILESYSTEM AND LIGHTWEGHT PATH MANIPULATION SERVICES
+        //
+
+        virtual String ComputeCanonicalUri(ConstCharacterIterator pathOrUri) const;
+        virtual FILE* OpenFile(ConstCharacterIterator fileName, ConstCharacterIterator mode) const;
+        virtual Detail::FileRange MapFileRange(FILE* file, SizeType index, SizeType size) const;
+        virtual bool FileExists(ConstCharacterIterator filePath) const;
+
+        virtual ~WinRTExternalFunctions();
+    };
 
     template <Platform> struct PlatformToExternalFunctions;
     template <> struct PlatformToExternalFunctions<Platform::Win32> { typedef Win32ExternalFunctions Type; };
@@ -84,14 +143,14 @@ namespace CxxReflect {
 
         static Sha1Hash ComputeSha1Hash(ConstByteIterator first, ConstByteIterator last);
 
-        static String ConvertNarrowStringToWideString(char const* narrowString);
-        static NarrowString ConvertWideStringToNarrowString(wchar_t const* wideString);
         static unsigned ComputeUtf16LengthOfUtf8String(char const* source);
         static bool ConvertUtf8ToUtf16(char const* source, wchar_t* target, unsigned targetLength);
 
         static String ComputeCanonicalUri(ConstCharacterIterator pathOrUri);
 
         static FILE* OpenFile(ConstCharacterIterator fileName, ConstCharacterIterator mode);
+        
+        static Detail::FileRange MapFileRange(FILE* file, SizeType index, SizeType size);
         static bool FileExists(ConstCharacterIterator filePath);
 
     private:

@@ -7,7 +7,7 @@
 
 // Common Metadata library definitions, used in both MetadataDatabase and MetadataSignature.
 
-#include "CxxReflect/Fundamentals.hpp"
+#include "CxxReflect/FundamentalUtilities.hpp"
 
 namespace CxxReflect {
 

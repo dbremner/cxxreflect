@@ -11,8 +11,6 @@
 #include "CxxReflect/Method.hpp"
 #include "CxxReflect/Type.hpp"
 
-#include <mutex>
-
 namespace CxxReflect { namespace Private {
 
     // A default implementation of ILoaderConfiguration, used if the user does not provide a loader

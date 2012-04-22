@@ -68,7 +68,7 @@ namespace CxxReflect {
         return GetContext(InternalKey()).GetElementRow().GetFlags();
     }
 
-    Type Field::GetFieldType() const
+    Type Field::GetType() const
     {
         return Type(
             GetDeclaringType().GetAssembly(),
@@ -149,6 +149,9 @@ namespace CxxReflect {
 
     bool operator==(Field const& lhs, Field const& rhs)
     {
+        // Two Field objects are equal if and only if they name the same field and were obtained via
+        // reflection on the same type (i.e., given classes B and D, with D derived from B, and B
+        // having field f, B::f == B::f and D::f == D::f, but B::f != D::f).
         return lhs._context.Get() == rhs._context.Get();
     }
 

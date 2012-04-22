@@ -5,7 +5,9 @@
 //                   Distributed under the Boost Software License, Version 1.0.                   //
 //     (See accompanying file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)    //
 
-// The Standard Library headers that are used by the library.
+// These are all of the C++ Standard Library headers that are used in the library.  We include them
+// all here to avoid repeating them everywhere (most of them are used in a few core headers anyway,
+// so we wouldn't really help compilation time by including Standard Library headers more locally.
 
 #include <algorithm>
 #include <array>
@@ -30,7 +32,10 @@
 #include <utility>
 #include <vector>
 
-// The C++ Standard Library thread and atomic headers are not supported by C++/CLI
+// The C++ Standard Library threading and synchronization headers cannot be included in C++/CLI
+// translation units.  We can use these headers in CxxReflect translation units and in the Windows
+// Runtime integration headers, but we cannot include them in the CxxReflect library's public
+// interface headers.
 #ifndef __cplusplus_cli
 
 #include <atomic>

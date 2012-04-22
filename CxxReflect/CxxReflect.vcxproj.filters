@@ -43,12 +43,6 @@
     <ClCompile Include="ExternalFunctions.cpp">
       <Filter>Sources\Core</Filter>
     </ClCompile>
-    <ClCompile Include="ExternalFunctionsWin32.cpp">
-      <Filter>Sources\Core</Filter>
-    </ClCompile>
-    <ClCompile Include="ExternalFunctionsWinRT.cpp">
-      <Filter>Sources\Core</Filter>
-    </ClCompile>
     <ClCompile Include="MetadataCommon.cpp">
       <Filter>Sources\Metadata</Filter>
     </ClCompile>
@@ -78,6 +72,9 @@
     </ClCompile>
     <ClCompile Include="WindowsRuntimeInspection.cpp">
       <Filter>Sources\WindowsRuntime</Filter>
+    </ClCompile>
+    <ClCompile Include="FundamentalUtilities.cpp">
+      <Filter>Sources\Core</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -126,9 +123,6 @@
     <ClInclude Include="Configuration.hpp">
       <Filter>Headers\Core</Filter>
     </ClInclude>
-    <ClInclude Include="Fundamentals.hpp">
-      <Filter>Headers\Core</Filter>
-    </ClInclude>
     <ClInclude Include="MetadataCommon.hpp">
       <Filter>Headers\Metadata</Filter>
     </ClInclude>
@@ -136,12 +130,6 @@
       <Filter>Headers\Interface</Filter>
     </ClInclude>
     <ClInclude Include="ExternalFunctions.hpp">
-      <Filter>Headers\Core</Filter>
-    </ClInclude>
-    <ClInclude Include="ExternalFunctionsWin32.hpp">
-      <Filter>Headers\Core</Filter>
-    </ClInclude>
-    <ClInclude Include="ExternalFunctionsWinRT.hpp">
       <Filter>Headers\Core</Filter>
     </ClInclude>
     <ClInclude Include="CoreComponents.hpp">
@@ -172,6 +160,9 @@
       <Filter>Headers\Interface</Filter>
     </ClInclude>
     <ClInclude Include="PrecompiledHeaders.hpp">
+      <Filter>Headers\Core</Filter>
+    </ClInclude>
+    <ClInclude Include="FundamentalUtilities.hpp">
       <Filter>Headers\Core</Filter>
     </ClInclude>
   </ItemGroup>

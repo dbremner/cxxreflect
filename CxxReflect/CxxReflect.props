@@ -98,7 +98,13 @@
 
   <PropertyGroup Condition="$(Configuration.Contains('Release'))">
     <UseDebugLibraries>false</UseDebugLibraries>
-    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <!--
+    We should enable WholeProgramOptimization (/GL) for release builds.  Unfortunately, therer is a
+    linker bug where it incorrectly emits LNK1237 during generation of the .winmd file for a C++/CX
+    project if WholeProgramOptimization is enabled.  That should be fixed in a future release of
+    Visual Studio 11.
+    -->
+    <WholeProgramOptimization>false</WholeProgramOptimization>
   </PropertyGroup>
 
   <ItemDefinitionGroup>

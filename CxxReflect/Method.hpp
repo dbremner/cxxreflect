@@ -69,13 +69,13 @@ namespace CxxReflect {
         // MakeGenericMethod          -- Non-constructor only
 
         // -- The following members of System.Reflection.MethodInfo are not implemented --
-        // IsSecurityCritical        }
-        // IsSecuritySafeCritical    } Security properties do not apply for reflection
-        // IsSecurityTransparent     }
-        // MemberType                N/A with nonvirtual hierarchy
-        // MethodHandle              N/A in reflection-only
+        // IsSecurityCritical
+        // IsSecuritySafeCritical
+        // IsSecurityTransparent
+        // MemberType
+        // MethodHandle
         //
-        // Invoke                    N/A in reflection-only
+        // Invoke()
 
         friend bool operator==(Method const& lhs, Method const& rhs);
         friend bool operator< (Method const& lhs, Method const& rhs);

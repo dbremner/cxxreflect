@@ -19,7 +19,8 @@ namespace CxxReflect {
         Type       GetReflectedType()    const;
 
         FieldFlags GetAttributes()       const;
-        Type       GetFieldType()        const;
+        Type       GetType()             const;
+
         bool       IsAssembly()          const;
         bool       IsFamily()            const;
         bool       IsFamilyAndAssembly() const;
@@ -33,7 +34,7 @@ namespace CxxReflect {
         bool       IsSpecialName()       const;
         bool       IsStatic()            const;
 
-        SizeType GetMetadataToken() const;
+        SizeType   GetMetadataToken()    const;
 
         StringReference GetName() const;
 
@@ -46,16 +47,22 @@ namespace CxxReflect {
         // GetOptionalCustomModifiers
         // GetRawConstantValue
         // GetRequiredCustomModifiers
-        // GetValue
-        // GetValueDirect
-        // IsDefined
-        // SetValue
-        // SetValueDirect
+        
+        
 
-        // UNIMPLEMENTED:
+        // -- The following members of System.Reflection.FieldInfo are not implemented --
+        // FieldHandle
+        // GetValue()             N/A in reflection only
+        // GetValueDirect()       N/A in reflection only
+        // IsDefined()
         // IsSecurityCritical
         // IsSecuritySafeCritical
         // IsSecurityTransparent
+        // MemberType
+        // SetValue()             N/A in reflection only
+        // SetValueDirect()       N/A in reflection only
+        //
+        // The 'FieldType' property has been named 'Type'
 
         friend bool operator==(Field const& lhs, Field const& rhs);
         friend bool operator< (Field const& lhs, Field const& rhs);
@@ -77,7 +84,6 @@ namespace CxxReflect {
 
         Detail::TypeHandle                                    _reflectedType;
         Detail::ValueInitialized<Detail::FieldContext const*> _context;
-
     };
 
 }

@@ -7,8 +7,6 @@
 
 #include "CxxReflect/CoreComponents.hpp"
 
-#include <mutex>
-
 namespace CxxReflect { namespace Metadata { namespace { namespace Private {
 
     // The PE headers and related structures are naturally aligned, so we shouldn't need any custom
@@ -715,6 +713,7 @@ namespace CxxReflect { namespace Metadata { namespace { namespace Private {
         std::uint32_t const value(ReadCompositeIndex(database, data, index, offset));
         if (value == 0)
             return RowReference();
+
         switch (index)
         {
         case CompositeIndex::CustomAttributeType: return DecodeCustomAttributeTypeIndex(value);
@@ -730,7 +729,7 @@ namespace CxxReflect { namespace Metadata { namespace { namespace Private {
         case CompositeIndex::ResolutionScope:     return DecodeResolutionScopeIndex(value);
         case CompositeIndex::TypeDefOrRef:        return DecodeTypeDefOrRefIndex(value);
         case CompositeIndex::TypeOrMethodDef:     return DecodeTypeOrMethodDefIndex(value);
-        default:  Detail::AssertFail(L"Invalid index"); return RowReference();
+        default:                                  throw MetadataReadError(L"Invalid composite index value");
         }
     }
 
@@ -851,6 +850,61 @@ namespace CxxReflect { namespace Metadata { namespace { namespace Private {
 } } } }
 
 namespace CxxReflect { namespace Metadata {
+
+    RowReference::RowReference()
+        : _value(InvalidValue)
+    {
+    }
+
+    RowReference::RowReference(TableId const tableId, SizeType const index)
+        : _value(ComposeValue(tableId, index))
+    {
+    }
+
+    TableId RowReference::GetTable() const
+    {
+        return static_cast<TableId>((_value.Get() & ValueTableIdMask) >> ValueIndexBits);
+    }
+
+    SizeType RowReference::GetIndex() const
+    {
+        return _value.Get() & ValueIndexMask;
+    }
+
+    RowReference::ValueType RowReference::GetValue() const
+    {
+        return _value.Get();
+    }
+
+    RowReference::TokenType RowReference::GetToken() const
+    {
+        return _value.Get() + 1;
+    }
+
+    bool RowReference::IsValid() const
+    {
+        return _value.Get() != InvalidValue;
+    }
+
+    bool RowReference::IsInitialized() const
+    {
+        return _value.Get() != InvalidValue;
+    }
+
+    void RowReference::AssertInitialized() const
+    {
+        Detail::Assert([&]{ return IsInitialized(); });
+    }
+
+    bool operator==(RowReference const& lhs, RowReference const& rhs)
+    {
+        return lhs._value.Get() == rhs._value.Get();
+    }
+
+    bool operator<(RowReference const& lhs, RowReference const& rhs)
+    {
+        return lhs._value.Get() < rhs._value.Get();
+    }
 
     RowReference::ValueType RowReference::ComposeValue(TableId const tableId, SizeType const index)
     {
@@ -973,6 +1027,141 @@ namespace CxxReflect { namespace Metadata {
 
 
 
+    BaseElementReference::BaseElementReference()
+        : _first(nullptr),
+          _size(InvalidElementSentinel)
+    {
+    }
+
+    BaseElementReference::BaseElementReference(RowReference const& reference)
+        : _index(reference.GetToken()),
+          _size(TableKindBit)
+    {
+        AssertInitialized();
+    }
+
+    BaseElementReference::BaseElementReference(BlobReference const& reference)
+        : _first(reference.Begin()),
+          _size((reference.End() ? 0 : (reference.End() - reference.Begin()) & ~KindMask) | BlobKindBit)
+    {
+        AssertInitialized();
+    }
+
+    bool BaseElementReference::IsRowReference() const
+    {
+        return IsValid() && (_size.Get() & KindMask) == TableKindBit;
+    }
+
+    bool BaseElementReference::IsBlobReference() const
+    {
+        return IsValid() && (_size.Get() & KindMask) == BlobKindBit;
+    }
+
+    bool BaseElementReference::IsValid() const
+    {
+        return _size.Get() != InvalidElementSentinel;
+    }
+
+    bool BaseElementReference::IsInitialized() const
+    {
+        return _size.Get() != InvalidElementSentinel;
+    }
+
+    void BaseElementReference::AssertInitialized() const
+    {
+        Detail::Assert([&]{ return IsInitialized(); });
+    }
+
+    RowReference BaseElementReference::AsRowReference() const
+    {
+        Detail::Assert([&]{ return IsRowReference(); });
+        return RowReference::FromToken(_index);
+    }
+
+    BlobReference BaseElementReference::AsBlobReference() const
+    {
+        Detail::Assert([&]{ return IsBlobReference(); });
+        return BlobReference(_first, _size.Get() ? (_first + _size.Get()) : nullptr);
+    }
+
+    bool operator==(BaseElementReference const& lhs, BaseElementReference const& rhs)
+    {
+        if (lhs.IsBlobReference() != rhs.IsBlobReference())
+            return false;
+
+        return lhs.IsBlobReference()
+            ? (lhs._first == rhs._first)
+            : (lhs._index == rhs._index);
+    }
+
+    bool operator<(BaseElementReference const& lhs, BaseElementReference const& rhs)
+    {
+        // Arbitrarily order all blob references before row references for sorting purposes:
+        if (lhs.IsBlobReference() != rhs.IsBlobReference())
+            return lhs.IsBlobReference();
+
+        return lhs.IsBlobReference()
+            ? (lhs._first < rhs._first)
+            : (lhs._index < rhs._index);
+    }
+
+
+
+
+
+    ElementReference::ElementReference()
+    {
+    }
+
+    ElementReference::ElementReference(RowReference const& reference)
+        : BaseElementReference(reference)
+    {
+    }
+
+    ElementReference::ElementReference(BlobReference const& reference)
+        : BaseElementReference(reference)
+    {
+    }
+
+
+
+
+
+    FullReference::FullReference()
+    {
+    }
+
+    FullReference::FullReference(Database const* const database, RowReference const& r)
+        : BaseElementReference(r),
+          _database(database)
+    {
+        Detail::AssertNotNull(database);
+        AssertInitialized();
+    }
+
+    FullReference::FullReference(Database const* const database, BlobReference const& r)
+        : BaseElementReference(r),
+          _database(database)
+    {
+        Detail::AssertNotNull(database);
+        AssertInitialized();
+    }
+
+    FullReference::FullReference(Database const* const database, ElementReference const& r)
+        : BaseElementReference(r.IsRowReference()
+              ? BaseElementReference(r.AsRowReference())
+              : BaseElementReference(r.AsBlobReference())),
+          _database(database)
+    {
+        Detail::AssertNotNull(database);
+        AssertInitialized();
+    }
+
+    Database const& FullReference::GetDatabase() const
+    {
+        return *_database.Get();
+    }
+
     bool operator==(FullReference const& lhs, FullReference const& rhs)
     {
         if (lhs.GetDatabase() != rhs.GetDatabase())
@@ -996,6 +1185,42 @@ namespace CxxReflect { namespace Metadata {
         BaseElementReference const& rhsBase(rhs);
 
         return lhsBase < rhsBase;
+    }
+
+
+
+
+
+    FourComponentVersion::FourComponentVersion()
+    {
+    }
+
+    FourComponentVersion::FourComponentVersion(Component const major,
+                                               Component const minor,
+                                               Component const build,
+                                               Component const revision)
+        : _major(major), _minor(minor), _build(build), _revision(revision)
+    {
+    }
+
+    FourComponentVersion::Component FourComponentVersion::GetMajor() const
+    {
+        return _major.Get();
+    }
+
+    FourComponentVersion::Component FourComponentVersion::GetMinor() const
+    {
+        return _minor.Get();
+    }
+
+    FourComponentVersion::Component FourComponentVersion::GetBuild() const
+    {
+        return _build.Get();
+    }
+
+    FourComponentVersion::Component FourComponentVersion::GetRevision() const
+    {
+        return _revision.Get();
     }
 
 
@@ -1117,32 +1342,117 @@ namespace CxxReflect { namespace Metadata {
                    SizeType const metadataOffset,
                    SizeType const streamOffset,
                    SizeType const streamSize)
-        : _size(streamSize)
     {
-        _data.reset(new Byte[streamSize]);
         file.Seek(metadataOffset + streamOffset, Detail::FileHandle::Begin);
-        file.Read(_data.get(), streamSize, 1);
+        _data = std::move(file.ReadRange(streamSize));
     }
 
     Stream::Stream(Stream&& other)
-        : _data(std::move(other._data)),
-          _size(std::move(other._size))
+        : _data(std::move(other._data))
     {
-        other._size.Reset();
     }
 
     Stream& Stream::operator=(Stream&& other)
     {
-        Swap(other);
+        _data = std::move(other._data);
         return *this;
     }
 
-    void Stream::Swap(Stream& other)
+    ConstByteIterator Stream::Begin() const
     {
-        using std::swap;
+        AssertInitialized();
+        return _data.Begin();
+    }
 
-        swap(other._data, _data);
-        swap(other._size, _size);
+    ConstByteIterator Stream::End() const
+    {
+        AssertInitialized();
+        return _data.End();
+    }
+
+    SizeType Stream::Size() const
+    {
+        AssertInitialized();
+        return Detail::Distance(_data.Begin(), _data.End());
+    }
+
+    bool Stream::IsInitialized() const
+    {
+        return _data.IsInitialized();
+    }
+
+    void Stream::AssertInitialized() const
+    {
+        Detail::Assert([&] { return IsInitialized(); }, L"Stream is not initialized");
+    }
+
+    ConstByteIterator Stream::At(SizeType const index) const
+    {
+        AssertInitialized();
+        Detail::Assert([&] { return index <= Size(); });
+        return _data.Begin() + index;
+    }
+
+
+
+
+
+    Table::Table()
+    {
+    }
+
+    Table::Table(ConstByteIterator const data, SizeType const rowSize, SizeType const rowCount, bool const isSorted)
+        : _data(data), _rowSize(rowSize), _rowCount(rowCount), _isSorted(isSorted)
+    {
+        Detail::AssertNotNull(data);
+        Detail::Assert([&]{ return rowSize != 0 && rowCount != 0; });
+    }
+
+    ConstByteIterator Table::Begin() const
+    {
+        // Note:  it's okay if _data is nullptr; if it is, then Begin() == End(), so the table is
+        // considered to be empty.  Thus, we don't AssertInitialized() here.
+        return _data.Get();
+    }
+
+    ConstByteIterator Table::End() const
+    {
+        // Note:  it's okay if _data is nullptr; if it is, then Begin() == End(), so the table is
+        // considered to be empty.  Thus, we don't AssertInitialized() here.
+        return _data.Get() + _rowCount.Get() * _rowSize.Get();
+    }
+
+    bool Table::IsSorted() const
+    {
+        return _isSorted.Get();
+    }
+
+    SizeType Table::GetRowCount() const
+    {
+        return _rowCount.Get();
+    }
+
+    SizeType Table::GetRowSize()  const
+    {
+        return _rowSize.Get();
+    }
+
+    ConstByteIterator Table::At(SizeType const index) const
+    {
+        AssertInitialized();
+
+        Detail::Assert([&] { return index < _rowCount.Get(); }, L"Index out of range");
+        return _data.Get() + _rowSize.Get() * index;
+    }
+
+    bool Table::IsInitialized() const
+    {
+        return _data.Get() != nullptr;
+    }
+
+    void Table::AssertInitialized() const
+    {
+        Detail::Assert([&]{ return IsInitialized(); });
     }
 
 

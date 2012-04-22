@@ -21,6 +21,8 @@ namespace CxxReflect { namespace Detail {
 
 namespace CxxReflect {
 
+    // An assembly locator that searches for an assembly in a set of directories.  It requires that
+    // the file name of the assembly matches its simple name (with an added .dll or .exe extension).
     class DirectoryBasedAssemblyLocator : public IAssemblyLocator
     {
     public:
@@ -41,7 +43,10 @@ namespace CxxReflect {
 
 
 
-    // Loader is the entry point for the library.  It is used to resolve and load assemblies.
+    // Loader is the entry point for the library.  It is used to resolve and load assemblies.  Note
+    // that all of its member functions are const-qualified.  Many of them do modify internal state
+    // of the Loader, but none of them mutate observable state.  A type system, rooted in a Loader,
+    // is immutable.  Assemblies, types, methods, and all other objects do not change.
     class Loader : public Metadata::ITypeResolver
     {
     public:
@@ -100,7 +105,7 @@ namespace CxxReflect {
         // the set of fundamental type definitions for the type universe once, here, in the loader:
         mutable std::array<Detail::TypeHandle, FundamentalTypeCount> _fundamentalTypes;
 
-        Detail::ElementContextTableStorageInstance mutable _contextStorage;
+        Detail::ElementContextTableStorageInstance    mutable _contextStorage;
 
         Detail::EventContextTableCollection           mutable _events;
         Detail::FieldContextTableCollection           mutable _fields;

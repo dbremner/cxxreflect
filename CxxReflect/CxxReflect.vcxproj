@@ -24,9 +24,7 @@
     <ClInclude Include="AssemblyName.hpp" />
     <ClInclude Include="Configuration.hpp" />
     <ClInclude Include="ExternalFunctions.hpp" />
-    <ClInclude Include="ExternalFunctionsWin32.hpp" />
-    <ClInclude Include="ExternalFunctionsWinRT.hpp" />
-    <ClInclude Include="Fundamentals.hpp" />
+    <ClInclude Include="FundamentalUtilities.hpp" />
     <ClInclude Include="CustomAttribute.hpp" />
     <ClInclude Include="Event.hpp" />
     <ClInclude Include="Field.hpp" />
@@ -58,10 +56,9 @@
     <ClCompile Include="CustomAttribute.cpp" />
     <ClCompile Include="Event.cpp" />
     <ClCompile Include="ExternalFunctions.cpp" />
-    <ClCompile Include="ExternalFunctionsWin32.cpp" />
-    <ClCompile Include="ExternalFunctionsWinRT.cpp" />
     <ClCompile Include="Field.cpp" />
     <ClCompile Include="File.cpp" />
+    <ClCompile Include="FundamentalUtilities.cpp" />
     <ClCompile Include="Guid.cpp" />
     <ClCompile Include="CoreComponents.cpp" />
     <ClCompile Include="MetadataCommon.cpp" />

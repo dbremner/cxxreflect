@@ -420,9 +420,13 @@ namespace CxxReflect { namespace WindowsRuntime { namespace Internal {
         // TODO This does not handle generics.  Does it need to handle generics?
         auto it(std::find(typeName.rbegin(), typeName.rend(), L'.').base());
         if (it == typeName.begin())
+        {
             typeName = String();
-
-        typeName.erase(it - 1, typeName.end());
+        }
+        else
+        {
+            typeName.erase(it - 1, typeName.end());
+        }
     }
 
 

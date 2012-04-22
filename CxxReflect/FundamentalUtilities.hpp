@@ -1,5 +1,5 @@
-#ifndef CXXREFLECT_FUNDAMENTALS_HPP_
-#define CXXREFLECT_FUNDAMENTALS_HPP_
+#ifndef CXXREFLECT_FUNDAMENTALUTILITIES_HPP_
+#define CXXREFLECT_FUNDAMENTALUTILITIES_HPP_
 
 //                            Copyright James P. McNellis 2011 - 2012.                            //
 //                   Distributed under the Boost Software License, Version 1.0.                   //
@@ -9,8 +9,6 @@
 
 #include "CxxReflect/Configuration.hpp"
 #include "CxxReflect/ExternalFunctions.hpp"
-#include "CxxReflect/ExternalFunctionsWin32.hpp"
-#include "CxxReflect/ExternalFunctionsWinRT.hpp"
 
 
 
@@ -25,15 +23,14 @@
 namespace CxxReflect {
 
     // We have our own exception hierarchy because everything in this library uses wide strings, but
-    // the C++ Standard Library exceptions use narrow strings.  We still derive from std::exception
-    // though, and we override what() to return a narrow string.
+    // the C++ Standard Library exceptions use narrow strings.  We still derive from std::exception.
 
     class Exception : public std::exception
     {
     public:
 
         explicit Exception(String message = L"")
-            : std::exception(Externals::ConvertWideStringToNarrowString(message.c_str()).c_str()),
+            : std::exception("Use CxxReflect::Exception::GetMessage() to get the exception text."),
               _message(std::move(message))
         {
         }
@@ -102,8 +99,7 @@ namespace CxxReflect {
         }
 
         explicit FileIOError(int const error = errno)
-            : RuntimeError(Externals::ConvertNarrowStringToWideString(std::strerror(error))),
-              _error(error)
+            : _error(error)
         {
         }
 
@@ -869,6 +865,7 @@ namespace CxxReflect { namespace Detail {
 
 namespace CxxReflect { namespace Detail {
 
+    // A class that is implicitly convertible to a value-initialized "default" value of any type.
     class Default
     {
     public:
@@ -879,6 +876,25 @@ namespace CxxReflect { namespace Detail {
             return T();
         }
     };
+
+
+
+
+
+    // An interface for virtually-destructible objects.
+    class IDestructible
+    {
+    public:
+
+        virtual ~IDestructible() = 0;
+    };
+
+    typedef std::unique_ptr<IDestructible> UniqueDestructible;
+
+
+
+
+
 
     // A scope-guard class that performs an operation on destruction.  The implementation is "good
     // enough" for most uses, though its use of std::function, which may itself perform dynamic
@@ -1129,6 +1145,27 @@ namespace CxxReflect { namespace Detail {
         End     = SEEK_END
     };
 
+    class FileRange
+    {
+    public:
+
+        FileRange();
+        FileRange(ConstByteIterator first, ConstByteIterator last, UniqueDestructible release);
+        FileRange(FileRange&&);
+        FileRange& operator=(FileRange&&);
+
+        ConstByteIterator Begin() const;
+        ConstByteIterator End()   const;
+
+        bool IsInitialized() const;
+
+    private:
+
+        Detail::ValueInitialized<ConstByteIterator> _first;
+        Detail::ValueInitialized<ConstByteIterator> _last;
+        UniqueDestructible                          _release;
+    };
+
     class FileHandle
     {
     public:
@@ -1268,6 +1305,14 @@ namespace CxxReflect { namespace Detail {
             return this->Read(buffer, sizeof *buffer, count);
         }
 
+        // Reads a range of 'size' bytes from the file, starting at the current position.  This
+        // function may use memory-mapped I/O, and may perform better than other Read functions
+        // for large blocks of memory.
+        FileRange ReadRange(SizeType const size)
+        {
+            return Externals::MapFileRange(_handle, static_cast<SizeType>(GetPosition()), size);
+        }
+
         void Seek(PositionType const position, OriginType const origin)
         {
             AssertInitialized();
@@ -1388,6 +1433,10 @@ namespace CxxReflect { namespace Detail {
         FileModeFlags _mode;
         FILE*         _handle;
     };
+
+
+
+
 
 } }
 

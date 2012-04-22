@@ -97,10 +97,10 @@ namespace CxxReflect { namespace Metadata {
     CXXREFLECT_GENERATE_SCOPED_ENUM_OPERATORS(ElementType);
 
     // Tests whether 'id' maps to a valid ElementType enumerator.
-    bool IsValidElementType(Byte const id);
+    bool IsValidElementType(Byte id);
 
     // Tests whether a given element type marks the beginning of a Type signature.
-    bool IsTypeElementType(Byte const id);
+    bool IsTypeElementType(Byte id);
 
     bool IsIntegralElementType        (ElementType elementType);
     bool IsSignedIntegralElementType  (ElementType elementType);

@@ -831,23 +831,39 @@ namespace CxxReflect { namespace WindowsRuntime { namespace Internal {
         // an additional three functions).
         void const* functionPointer(ComputeFunctionPointer(interfacePointer.get(), methodSlot + 6));
 
-        // We construct the argument frame:  TODO We also need to perform the conversions here.
+        // We construct the argument frame, by converting each argument to the correct type and
+        // appending it to an array.  In stdcall, arguments are pushed onto the stack left-to-right.
+        // Because the stack is upside-down (i.e., it grows top-to-bottom), we push the arguments
+        // into our argument frame right-to-left.
         ArgumentFrame frame;
-        void const* rawInterfacePointer(interfacePointer.get());
+
+        // Every function is called via an interface pointer.  That is always the first argument:
+        void const* const rawInterfacePointer(interfacePointer.get());
         frame.Push(Detail::BeginBytes(rawInterfacePointer), Detail::EndBytes(rawInterfacePointer));
 
+        // Next, we iterate over the arguments and parameters, convert each argument to the correct
+        // parameter type, and push the argument into the frame:
         auto pIt(method.BeginParameters());
         auto aIt(arguments.Begin());
-
         for (; pIt != method.EndParameters() && aIt != arguments.End(); ++pIt, ++aIt)
         {
             ArgumentConverter::ConvertAndInsert(pIt->GetType(), arguments.Resolve(*aIt), frame);
         }
 
         if (pIt != method.EndParameters() || aIt != arguments.End())
+        {
             throw RuntimeError(L"Method arity does not match argument count");
+        }
 
-        frame.Push(Detail::BeginBytes(result), Detail::EndBytes(result));
+        // TODO We need to check the return type, but GetReturnType() is not yet implemented.
+        // if (method.GetReturnType() != GetType(L"Platform", L"Void"))
+        {
+            frame.Push(Detail::BeginBytes(result), Detail::EndBytes(result));
+        }
+        // else if (result != nullptr)
+        // {
+        //     throw RuntimeError(L"Attempted to call a void-returning function with a result pointer");
+        // }
             
         // Due to promotion and padding, all argument frames should have a size divisible by 4.
         // In order to avoid writing inline assembly to move the arguments frame onto the stack
@@ -905,6 +921,30 @@ namespace CxxReflect { namespace WindowsRuntime { namespace Internal {
         //
         // This is fundamentally unsafe, so be very careful when calling. :-)
         return (*reinterpret_cast<void const* const* const*>(instance))[slot];
+    }
+
+
+
+
+
+    HResult X64FastCallInvoker::Invoke(Method              const& method,
+                                       IInspectable             * instance,
+                                       void                     * result,
+                                       VariantArgumentPack const& arguments)
+    {
+        throw LogicError(L"Not yet implemented");
+    }
+
+
+
+
+
+    HResult ArmApcCallInvoker::Invoke(Method              const& method,
+                                      IInspectable             * instance,
+                                      void                     * result,
+                                      VariantArgumentPack const& arguments)
+    {
+        throw LogicError(L"Not yet implemented");
     }
 
 
@@ -993,7 +1033,7 @@ namespace CxxReflect { namespace WindowsRuntime { namespace Internal {
 
         // Invoke the activation method to create the instance:
         ComPtr<IInspectable> newInstance;
-        HResult result(X86StdCallInvoker::Invoke(
+        HResult result(CallInvoker::Invoke(
             overloadResolver.GetResult(),
             factory.get(),
             reinterpret_cast<void**>(newInstance.ReleaseAndGetAddressOf()),

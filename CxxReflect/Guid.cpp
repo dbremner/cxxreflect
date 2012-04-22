@@ -14,13 +14,11 @@ namespace CxxReflect {
     {
     }
 
-    Guid::Guid(String const&)
+    Guid::Guid(String const& guid)
     {
-        Detail::AssertFail(L"Not Yet Implemented due to linker bug with WinMD generation.");
-
-        // std::wistringstream iss(guid.c_str());
-        // if (!(iss >> *this >> std::ws) || !iss.eof())
-        //     throw std::logic_error("wtf");
+        std::wistringstream iss(guid.c_str());
+        if (!(iss >> *this >> std::ws) || !iss.eof())
+            throw RuntimeError(L"Failed to parse GUID from string.");
     }
 
     Guid::Guid(Element0 m0, Element1 m1, Element2 m2)

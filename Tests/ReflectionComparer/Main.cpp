@@ -5,8 +5,7 @@
 
 // This is a C++/CLI program that loads an assembly into the reflection-only context and loads the
 // same assembly using the CxxReflect library.  We can then do a direct comparison of the results
-// returned by each of the APIs.  Currently we do a fully-recursive comparison, which is time
-// consuming and expensive, but also gives full coverage of the APIs.
+// returned by each of the APIs.
 
 // TODO This is nowhere near complete.
 
@@ -17,19 +16,20 @@
 #include <cliext/vector>
 
 // For convenience, map everything from CxxReflect into the C namespace, then map the corresponding
-// types in the CLI Reflection API into the R namespace.
+// types in the CLR Reflection API into the R namespace.
 
 namespace C = CxxReflect;
 
 namespace R
 {
-    typedef System::Reflection::Assembly      Assembly;
-    typedef System::Reflection::BindingFlags  BindingFlags;
-    typedef System::Reflection::FieldInfo     Field;
-    typedef System::Reflection::MethodInfo    Method;
-    typedef System::Reflection::ParameterInfo Parameter;
-    typedef System::Reflection::PropertyInfo  Property;
-    typedef System::Type                      Type;
+    typedef System::Reflection::Assembly            Assembly;
+    typedef System::Reflection::BindingFlags        BindingFlags;
+    typedef System::Reflection::CustomAttributeData CustomAttribute;
+    typedef System::Reflection::FieldInfo           Field;
+    typedef System::Reflection::MethodInfo          Method;
+    typedef System::Reflection::ParameterInfo       Parameter;
+    typedef System::Reflection::PropertyInfo        Property;
+    typedef System::Type                            Type;
 }
 
 namespace
@@ -84,14 +84,15 @@ namespace
     public:
 
         StateStack()
-            : _message(gcnew System::Text::StringBuilder())
+            : _message(gcnew System::Text::StringBuilder()),
+              _seenTypes(gcnew System::Collections::Generic::HashSet<R::Type^>()),
+              _reportedFrames(0)
         {
         }
 
         StatePopper% Push(System::Object^ frame)
         {
             _stack.push_back(frame);
-            _isSet = false;
 
             return *gcnew StatePopper(*this);
         }
@@ -99,7 +100,8 @@ namespace
         void Pop()
         {
             _stack.pop_back();
-            _isSet = false;
+            if (_reportedFrames > (unsigned)_stack.size())
+                _reportedFrames = (unsigned)_stack.size();
         }
 
         void ReportDifference(System::String^ name, System::String^ expected, System::String^ actual)
@@ -124,14 +126,19 @@ namespace
             return _message->ToString();
         }
 
+        bool ReportTypeAndReturnTrueIfKnown(R::Type^ type)
+        {
+            return !_seenTypes->Add(type);
+        }
+
     private:
 
         System::String^ WriteMissingFrameHeadersAndGetPad()
         {
-            if (!_isSet)
+            if (_reportedFrames != (unsigned)_stack.size())
             {
-                int depth(0);
-                for (auto it(_stack.begin()); it != _stack.end(); ++it)
+                int depth(0 + 2 * _reportedFrames);
+                for (auto it(_stack.begin() + _reportedFrames); it != _stack.end(); ++it)
                 {
                     _message->AppendLine(System::String::Format(L"{0} * {1}",
                         gcnew System::String(L' ', depth),
@@ -140,7 +147,7 @@ namespace
                     depth += 2;
                 }
 
-                _isSet = true;
+                _reportedFrames = _stack.size();
             }
 
             System::String^ pad(gcnew System::String(L' ', 2 * _stack.size()));
@@ -156,6 +163,26 @@ namespace
                 R::Assembly^ a(safe_cast<R::Assembly^>(o));
                 return System::String::Format(L"Assembly [{0}] [{1}]", a->FullName, a->CodeBase);
             }
+            else if (R::CustomAttribute::typeid->IsAssignableFrom(oType))
+            {
+                R::CustomAttribute^ c(safe_cast<R::CustomAttribute^>(o));
+                return System::String::Format(L"Custom attribute [{0}]", c->Constructor->DeclaringType->FullName);
+            }
+            else if (R::Field::typeid->IsAssignableFrom(oType))
+            {
+                R::Field^ f(safe_cast<R::Field^>(o));
+                return System::String::Format(L"Field [{0}] [${1:x8}]", f->Name, f->MetadataToken);
+            }
+            else if (R::Method::typeid->IsAssignableFrom(oType))
+            {
+                R::Method^ m(safe_cast<R::Method^>(o));
+                return System::String::Format(L"Method [{0}] [${1:x8}]", m->Name, m->MetadataToken);
+            }
+            else if (R::Parameter::typeid->IsAssignableFrom(oType))
+            {
+                R::Parameter^ p(safe_cast<R::Parameter^>(o));
+                return System::String::Format(L"Parameter [{0}]", p->Name);
+            }
             else if (R::Type::typeid->IsAssignableFrom(oType))
             {
                 R::Type^ t(safe_cast<R::Type^>(o));
@@ -169,13 +196,12 @@ namespace
             {
                 return L"[UNKNOWN]";
             }
-
-            // TODO
         }
 
-        cliext::vector<System::Object^> _stack;
-        bool                            _isSet;
-        System::Text::StringBuilder^    _message;
+        cliext::vector<System::Object^>               _stack;
+        unsigned                                      _reportedFrames;
+        System::Text::StringBuilder^                  _message;
+        System::Collections::Generic::ISet<R::Type^>^ _seenTypes;
     };
 
     StatePopper::~StatePopper()
@@ -200,12 +226,30 @@ namespace
 
         return System::String::Equals(tString, uString, mode);
     }
-
-    std::uint32_t GetMetadataToken(C::Method const& x) { return x.GetMetadataToken(); }
-    std::uint32_t GetMetadataToken(C::Type   const& x) { return x.GetMetadataToken(); }
     
-    std::uint32_t GetMetadataToken(R::Method^       x) { return x->MetadataToken;     }
-    std::uint32_t GetMetadataToken(R::Type^         x) { return x->MetadataToken;     }
+    std::uint32_t GetMetadataToken(C::CustomAttribute const& x) { return x.GetConstructor().GetMetadataToken(); }
+    std::uint32_t GetMetadataToken(C::Field           const& x) { return x.GetMetadataToken();                  }
+    std::uint32_t GetMetadataToken(C::Method          const& x) { return x.GetMetadataToken();                  }
+    std::uint32_t GetMetadataToken(C::Parameter       const& x) { return x.GetMetadataToken();                  }
+    std::uint32_t GetMetadataToken(C::Type            const& x) { return x.GetMetadataToken();                  }
+    
+    std::uint32_t GetMetadataToken(R::CustomAttribute^ x) { return x->Constructor->MetadataToken; }
+    std::uint32_t GetMetadataToken(R::Field^           x) { return x->MetadataToken;              }
+    std::uint32_t GetMetadataToken(R::Method^          x) { return x->MetadataToken;              }
+    std::uint32_t GetMetadataToken(R::Parameter^       x) { return x->MetadataToken;              }
+    std::uint32_t GetMetadataToken(R::Type^            x) { return x->MetadataToken;              }
+
+    System::String^ GetBriefString(C::CustomAttribute const& x) { return gcnew System::String(x.GetConstructor().GetDeclaringType().GetAssemblyQualifiedName().c_str()); }
+    System::String^ GetBriefString(C::Field           const& x) { return gcnew System::String(x.GetName().c_str());                                                      }
+    System::String^ GetBriefString(C::Method          const& x) { return gcnew System::String(x.GetName().c_str());                                                      }
+    System::String^ GetBriefString(C::Parameter       const& x) { return gcnew System::String(x.GetName().c_str());                                                      }
+    System::String^ GetBriefString(C::Type            const& x) { return gcnew System::String(x.GetAssemblyQualifiedName().c_str());                                     }
+
+    System::String^ GetBriefString(R::CustomAttribute^ x) { return x->Constructor->DeclaringType->AssemblyQualifiedName; }
+    System::String^ GetBriefString(R::Field^           x) { return x->Name;                                              }
+    System::String^ GetBriefString(R::Method^          x) { return x->Name;                                              }
+    System::String^ GetBriefString(R::Parameter^       x) { return x->Name;                                              }
+    System::String^ GetBriefString(R::Type^            x) { return x->AssemblyQualifiedName;                             }
 
     class MetadataTokenStrictWeakOrdering
     {
@@ -253,10 +297,69 @@ namespace
         state.ReportDifference(name, System::String::Format("{0}", expected), System::String::Format("{0}", actual));
     }
 
-    void Compare(StateStack%, R::Assembly^,  C::Assembly  const&);
-    void Compare(StateStack%, R::Type^,      C::Type      const&);
-    void Compare(StateStack%, R::Method^,    C::Method    const&);
-    void Compare(StateStack%, R::Parameter^, C::Parameter const&);
+    void Compare(StateStack%, R::Assembly^,        C::Assembly        const&);
+    void Compare(StateStack%, R::CustomAttribute^, C::CustomAttribute const&);
+    void Compare(StateStack%, R::Field^,           C::Field           const&);
+    void Compare(StateStack%, R::Method^,          C::Method          const&);
+    void Compare(StateStack%, R::Parameter^,       C::Parameter       const&);
+    void Compare(StateStack%, R::Type^,            C::Type            const&);
+
+    template <typename TRElement, typename TCElement>
+    void CompareRanges(StateStack                % state,
+                       System::String            ^ name,
+                       cliext::vector<TRElement^>  rElements,
+                       std::vector<TCElement>      cElements)
+    {
+        VerifyIntegerEquals(state, System::String::Format(L"{0} Count", name), rElements.size(), cElements.size());
+        if ((unsigned)rElements.size() == cElements.size())
+        {
+            auto rIt(rElements.begin());
+            auto cIt(cElements.begin());
+            for (; rIt != rElements.end() && cIt != cElements.end(); ++rIt, ++cIt)
+            {
+                Compare(state, *rIt, *cIt);
+            }
+        }
+        else
+        {
+            {
+                auto frame(state.Push(System::String::Format(L"Expected {0}s", name)));
+                for (auto it(rElements.begin()); it != rElements.end(); ++it)
+                {
+                    state.ReportMessage(GetBriefString(*it));
+                }
+            }
+            {
+                auto frame(state.Push(System::String::Format(L"Actual {0}s", name)));
+                for (auto it(cElements.begin()); it != cElements.end(); ++it)
+                {
+                    state.ReportMessage(GetBriefString(*it));
+                }
+            }
+        }
+    }
+
+    template <typename TRElement, typename TCElement>
+    void CompareCustomAttributesOf(StateStack% state, TRElement^ rElement, TCElement const& cElement)
+    {
+        auto frame(state.Push(L"Custom Attributes"));
+            
+        cliext::vector<R::CustomAttribute^> rAttributes(rElement->GetCustomAttributesData());
+        std::vector<C::CustomAttribute>     cAttributes(cElement.BeginCustomAttributes(), cElement.EndCustomAttributes());
+
+        // TODO We do not correctly handle SerializableAttribute.  It isn't actually a custom
+        // attribute, but the Reflection API reports it as if it is.  To determine whether a
+        // type is serializable using CxxReflect, you can use the IsSerializable property.
+        rAttributes.erase(cliext::remove_if(rAttributes.begin(), rAttributes.end(), [](R::CustomAttribute^ a)
+        {
+            return a->Constructor->DeclaringType->Name == L"SerializableAttribute";
+        }), rAttributes.end());
+
+        sort(rAttributes.begin(), rAttributes.end(), MetadataTokenStrictWeakOrdering());
+        sort(cAttributes.begin(), cAttributes.end(), MetadataTokenStrictWeakOrdering());
+
+        CompareRanges(state, L"Attribute", rAttributes, cAttributes);
+    }
     
     void Compare(StateStack% state, R::Assembly^ rAssembly, C::Assembly const& cAssembly)
     {
@@ -265,8 +368,8 @@ namespace
         cliext::vector<R::Type^>  rTypes(rAssembly->GetTypes());
         C::Assembly::TypeSequence cTypes(cAssembly.GetTypes());
 
-        cliext::sort(rTypes.begin(), rTypes.end(), MetadataTokenStrictWeakOrdering());
-        std::sort(cTypes.begin(), cTypes.end(), MetadataTokenStrictWeakOrdering());
+        sort(rTypes.begin(), rTypes.end(), MetadataTokenStrictWeakOrdering());
+        sort(cTypes.begin(), cTypes.end(), MetadataTokenStrictWeakOrdering());
 
         auto rIt(rTypes.begin());
         auto cIt(cTypes.begin());
@@ -276,11 +379,237 @@ namespace
         }
     }
 
+    void Compare(StateStack% state, R::CustomAttribute^ rAttribute, C::CustomAttribute const& cAttribute)
+    {
+        auto frame(state.Push(rAttribute));
+    }
+
+    void Compare(StateStack% state, R::Field^ rField, C::Field const& cField)
+    {
+        auto frame(state.Push(rField));
+
+        // TODO Support for generic fields
+        if (rField->FieldType->IsGenericType)
+            return;
+
+        //
+        // Properties
+        //
+
+        VerifyIntegerEquals(state, L"Attributes", rField->Attributes, cField.GetAttributes().GetIntegral());
+
+        VerifyStringEquals(state, L"DeclaringType(Name)",
+            rField->DeclaringType->AssemblyQualifiedName,
+            cField.GetDeclaringType().GetAssemblyQualifiedName());
+
+        {
+            auto frame(state.Push(L"DeclaringType"));
+            Compare(state, rField->DeclaringType, cField.GetDeclaringType());
+        }
+
+        // FieldHandle -- Not implemented in CxxReflect
+
+        VerifyStringEquals(state, L"FieldType(Name)",
+            rField->FieldType->AssemblyQualifiedName,
+            cField.GetType().GetAssemblyQualifiedName());
+
+        {
+            auto frame(state.Push(L"FieldType"));
+            Compare(state, rField->FieldType, cField.GetType());
+        }
+
+        VerifyBooleanEquals(state, L"IsAssembly",          rField->IsAssembly,          cField.IsAssembly());
+        VerifyBooleanEquals(state, L"IsFamily",            rField->IsFamily,            cField.IsFamily());
+        VerifyBooleanEquals(state, L"IsFamilyAndAssembly", rField->IsFamilyAndAssembly, cField.IsFamilyAndAssembly());
+        VerifyBooleanEquals(state, L"IsFamilyOrAssembly",  rField->IsFamilyOrAssembly,  cField.IsFamilyOrAssembly());
+        VerifyBooleanEquals(state, L"IsInitOnly",          rField->IsInitOnly,          cField.IsInitOnly());
+        VerifyBooleanEquals(state, L"IsLiteral",           rField->IsLiteral,           cField.IsLiteral());
+        VerifyBooleanEquals(state, L"IsNotSerialized",     rField->IsNotSerialized,     cField.IsNotSerialized());
+        VerifyBooleanEquals(state, L"IsPinvokeImpl",       rField->IsPinvokeImpl,       cField.IsPinvokeImpl());
+        VerifyBooleanEquals(state, L"IsPrivate",           rField->IsPrivate,           cField.IsPrivate());
+        VerifyBooleanEquals(state, L"IsPublic",            rField->IsPublic,            cField.IsPublic());
+        // IsSecurityCritical     -- Not implemented in CxxReflect
+        // IsSecuritySafeCritical -- Not implemented in CxxReflect
+        // IsSecurityTransparent  -- Not implemented in CxxReflect
+        VerifyBooleanEquals(state, L"IsSpecialName",       rField->IsSpecialName,       cField.IsSpecialName());
+        VerifyBooleanEquals(state, L"IsStatic",            rField->IsStatic,            cField.IsStatic());
+
+        // MemberType -- Not implemented in CxxReflect
+
+        VerifyIntegerEquals(state, L"MetadataToken", rField->MetadataToken, cField.GetMetadataToken());
+
+        // TODO Module
+
+        VerifyStringEquals(state, L"Name", rField->Name, cField.GetName());
+
+        VerifyStringEquals(state, L"ReflectedType(Name)",
+            rField->ReflectedType->AssemblyQualifiedName,
+            cField.GetReflectedType().GetAssemblyQualifiedName());
+
+        {
+            auto frame(state.Push(L"ReflectedType"));
+            Compare(state, rField->ReflectedType, cField.GetReflectedType());
+        }
+
+        //
+        // Methods
+        //
+
+        // TODO GetCustomAttributes()
+        // TODO GetOptionalCustomModifiers()
+        // TODO GetRawConstantValue()
+        // TODO GetRequiredCustomModifiers()
+    }
+    
+    void Compare(StateStack% state, R::Method^ rMethod, C::Method const& cMethod)
+    {
+        auto frame(state.Push(rMethod));
+
+        // TODO Support for generic methods
+        if (rMethod->IsGenericMethod)
+            return;
+
+        //
+        // Properties
+        //
+
+        VerifyIntegerEquals(state, L"Attributes", rMethod->Attributes, cMethod.GetAttributes().GetIntegral());
+        // TODO VerifyIntegerEquals(state, L"CallingConvention", rMethod->CallingConvention, cMethod.GetCallingConvention());
+
+        // TODO ContainsGenericParameters
+
+        {
+            auto frame(state.Push(L"DeclaringType"));
+            Compare(state, rMethod->DeclaringType, cMethod.GetDeclaringType());
+        }
+
+        VerifyBooleanEquals(state, L"IsAbstract",                rMethod->IsAbstract,                cMethod.IsAbstract());
+        VerifyBooleanEquals(state, L"IsAssembly",                rMethod->IsAssembly,                cMethod.IsAssembly());
+        VerifyBooleanEquals(state, L"IsConstructor",             rMethod->IsConstructor,             cMethod.IsConstructor());
+        VerifyBooleanEquals(state, L"IsFamily",                  rMethod->IsFamily,                  cMethod.IsFamily());
+        VerifyBooleanEquals(state, L"IsFamilyAndAssembly",       rMethod->IsFamilyAndAssembly,       cMethod.IsFamilyAndAssembly());
+        VerifyBooleanEquals(state, L"IsFamilyOrAssembly",        rMethod->IsFamilyOrAssembly,        cMethod.IsFamilyOrAssembly());
+        VerifyBooleanEquals(state, L"IsFinal",                   rMethod->IsFinal,                   cMethod.IsFinal());
+        VerifyBooleanEquals(state, L"IsGenericMethod",           rMethod->IsGenericMethod,           cMethod.IsGenericMethod());
+        VerifyBooleanEquals(state, L"IsGenericMethodDefinition", rMethod->IsGenericMethodDefinition, cMethod.IsGenericMethodDefinition());
+        VerifyBooleanEquals(state, L"IsHideBySig",               rMethod->IsHideBySig,               cMethod.IsHideBySig());
+        VerifyBooleanEquals(state, L"IsPrivate",                 rMethod->IsPrivate,                 cMethod.IsPrivate());
+        VerifyBooleanEquals(state, L"IsPublic",                  rMethod->IsPublic,                  cMethod.IsPublic());
+        // IsSecurityCritical     -- Not implemented in CxxReflect
+        // IsSecuritySafeCritical -- Not implemented in CxxReflect
+        // IsSecurityTransparent  -- Not implemented in CxxReflect
+        VerifyBooleanEquals(state, L"IsSpecialName",             rMethod->IsSpecialName,             cMethod.IsSpecialName());
+        VerifyBooleanEquals(state, L"IsStatic",                  rMethod->IsStatic,                  cMethod.IsStatic());
+        VerifyBooleanEquals(state, L"IsVirtual",                 rMethod->IsVirtual,                 cMethod.IsVirtual());
+
+        // MemberType -- Not implemented in CxxReflect
+
+        VerifyIntegerEquals(state, L"MetadataToken", rMethod->MetadataToken, cMethod.GetMetadataToken());
+
+        // TODO Module
+
+        VerifyStringEquals(state, L"Name", rMethod->Name, cMethod.GetName());
+
+        {
+            auto frame(state.Push(L"ReflectedType"));
+            Compare(state, rMethod->ReflectedType, cMethod.GetReflectedType());
+        }
+
+        // TODO if (rMethod->ReturnParameter != nullptr)
+        // {
+        //     auto frame(state.Push(L"ReturnParameter"));
+        //     Compare(state, rMethod->ReturnParameter, cMethod.GetReturnParameter());
+        // }
+
+        // TODO {
+        //     auto frame(state.Push(L"ReturnType"));
+        //     Compare(state, rMethod->ReturnType, cMethod.GetReturnType());
+        // }
+
+        // TODO ReturnTypeCustomAttributes
+
+        // TODO GetBaseDefinition()
+        // TODO GetCustomAttributes()
+        // TODO GetGenericArguments()
+        // TODO GetGenericMethodDefinition()
+        // GetMethodBody() -- NotImplemented in CxxReflect
+        // TODO GetMethodImplementationFlags()
+
+        cliext::vector<R::Parameter^> rParameters(rMethod->GetParameters());
+        std::vector<C::Parameter>     cParameters(cMethod.BeginParameters(), cMethod.EndParameters());
+
+        sort(rParameters.begin(), rParameters.end(), MetadataTokenStrictWeakOrdering());
+        sort(cParameters.begin(), cParameters.end(), MetadataTokenStrictWeakOrdering());
+
+        CompareRanges(state, L"Parameter", rParameters, cParameters);
+    }
+
+    void Compare(StateStack% state, R::Parameter^ rParameter, C::Parameter const& cParameter)
+    {
+        auto frame(state.Push(rParameter));
+
+        //
+        // Properties
+        //
+
+        VerifyIntegerEquals(state, L"Attributes", rParameter->Attributes, cParameter.GetAttributes().GetIntegral());
+
+        // TODO DefaultValue
+
+        VerifyBooleanEquals(state, L"IsIn",       rParameter->IsIn,       cParameter.IsIn());
+        // TODO VerifyBooleanEquals(state, L"IsLcid",     rParameter->IsLcid,     cParameter.IsLcid());
+        VerifyBooleanEquals(state, L"IsOptional", rParameter->IsOptional, cParameter.IsOptional());
+        VerifyBooleanEquals(state, L"IsOut",      rParameter->IsOut,      cParameter.IsOut());
+        // TODO VerifyBooleanEquals(state, L"IsRetval",   rParameter->IsRetval,   cParameter.IsRetVal());
+
+        // TODO Member
+
+        VerifyIntegerEquals(state, L"MetadataToken", rParameter->MetadataToken, cParameter.GetMetadataToken());
+
+        VerifyStringEquals(state, L"Name", rParameter->Name, cParameter.GetName());
+        
+        
+        if (rParameter->ParameterType->HasElementType)
+        {
+            Compare(state, rParameter->ParameterType, cParameter.GetType());
+        }
+        else
+        {
+            VerifyStringEquals(state, L"ParameterType(Name)",
+                rParameter->ParameterType->AssemblyQualifiedName, 
+                cParameter.GetType().GetAssemblyQualifiedName());
+        }
+
+        VerifyIntegerEquals(state, L"Position", rParameter->Position, cParameter.GetPosition());
+
+        // TODO RawDefaultValue
+
+        //
+        // Methods
+        //
+
+        // TODO GetCustomAttributes()
+        // CompareCustomAttributesOf(state, rParameter, cParameter); // GetCustomAttributes and friends
+
+        // TODO GetOptionalCustomModifiers()
+        // TODO GetRequiredCustomModifiers()
+    }
+
     void Compare(StateStack% state, R::Type^ rType, C::Type const& cType)
     {
+        // Prevent infinite recursion by ensuring we only visit each type once (this also prevents
+        // us from doing more work than we need to do, since types are immutable, we only need to
+        // compare them once).
+        if (state.ReportTypeAndReturnTrueIfKnown(rType))
+            return;
+
+        // TODO Support for generic types
+        if (rType->IsGenericType)
+            return;
+
         auto frame(state.Push(rType));
 
-        // Assembly
+        // TODO Assembly
         VerifyStringEquals(state, L"AssemblyQualifiedName", rType->AssemblyQualifiedName, cType.GetAssemblyQualifiedName());
         VerifyIntegerEquals(state, L"Attributes", rType->Attributes, cType.GetAttributes().GetIntegral());
 
@@ -291,97 +620,61 @@ namespace
                 Compare(state, rType->BaseType, cType.GetBaseType());
             }
         }
-        // BaseType
 
-        // VerifyBooleanEquals(state, L"ContainsGenericParameters", rType->ContainsGenericParameters, cType.ContainsGenericParameters());
-        // CustomAttributes
-        // DeclaringMethods
+        // TODO VerifyBooleanEquals(state, L"ContainsGenericParameters", rType->ContainsGenericParameters, cType.ContainsGenericParameters());
+        
+        CompareCustomAttributesOf(state, rType, cType); // GetCustomAttributes() and friends
+
+        // TODO DeclaringMethods
         VerifyStringEquals(state, L"FullName", rType->FullName, cType.GetFullName());
-        // GenericParameterAttributes
-        // GenericParameterPosition
-        // GenericTypeArguments
-        // GetArrayRank
-        // GetConstructor
-        // GetConstructors
-        // GetDefaultMembers
-        // GetElementType
-        // GetEnumName
-        // GetEnumNames
-        // GetEnumUnderlyingType
-        // GetEnumValues
-        // GetEvent
-        // GetEvents
-        // GetField
-        // GetFields
-        // GetGenericArguments
-        // GetGenericParameterConstraints
-        // GetGenericTypeDefinition
-        // GetInterface
+        // TODO GenericParameterAttributes
+        // TODO GenericParameterPosition
+        // TODO GenericTypeArguments
+        // TODO GetArrayRank
+        // TODO GetConstructor
+        // TODO GetConstructors
+        // TODO GetDefaultMembers
+        // TODO GetElementType
+        // TODO GetEnumName
+        // TODO GetEnumNames
+        // TODO GetEnumUnderlyingType
+        // TODO GetEnumValues
+        // TODO GetEvent
+        // TODO GetEvents
+        // TODO GetField
+        // TODO GetFields
+        // TODO GetGenericArguments
+        // TODO GetGenericParameterConstraints
+        // TODO GetGenericTypeDefinition
+        // TODO GetInterface
         
         cliext::vector<R::Type^> rInterfaces(rType->GetInterfaces());
         std::vector<C::Type>     cInterfaces(cType.BeginInterfaces(), cType.EndInterfaces());
 
-        cliext::sort(rInterfaces.begin(), rInterfaces.end(), MetadataTokenStrictWeakOrdering());
-        std::sort(cInterfaces.begin(), cInterfaces.end(), MetadataTokenStrictWeakOrdering());
+        sort(rInterfaces.begin(), rInterfaces.end(), MetadataTokenStrictWeakOrdering());
+        sort(cInterfaces.begin(), cInterfaces.end(), MetadataTokenStrictWeakOrdering());
 
-        VerifyIntegerEquals(state, L"Interface Count", rInterfaces.size(), cInterfaces.size());
-        auto rInterfaceIt(rInterfaces.begin());
-        auto cInterfaceIt(cInterfaces.begin());
-        for (; rInterfaceIt != rInterfaces.end() && cInterfaceIt != cInterfaces.end(); ++rInterfaceIt, ++cInterfaceIt)
-        {
-            VerifyStringEquals(state, L"Interface Name", (*rInterfaceIt)->FullName, cInterfaceIt->GetFullName());
-        }
+        CompareRanges(state, L"Interfaces", rInterfaces, cInterfaces);
 
-        // GetMember
-        // GetMembers
-        // GetMethod
-        // GetMethods
+        // TODO GetMember
+        // TODO GetMembers
+        // TODO GetMethod
+        // TODO GetMethods
 
         cliext::vector<R::Method^> rMethods(rType->GetMethods(RAllBindingFlags));
         std::vector<C::Method>     cMethods(cType.BeginMethods(CAllBindingFlags), cType.EndMethods());
 
-        cliext::sort(rMethods.begin(), rMethods.end(), MetadataTokenStrictWeakOrdering());
-        std::sort(cMethods.begin(), cMethods.end(), MetadataTokenStrictWeakOrdering());
+        sort(rMethods.begin(), rMethods.end(), MetadataTokenStrictWeakOrdering());
+        sort(cMethods.begin(), cMethods.end(), MetadataTokenStrictWeakOrdering());
 
-        VerifyIntegerEquals(state, L"Method Count", rMethods.size(), cMethods.size());
-        if ((unsigned)rMethods.size() == cMethods.size())
-        {
-            auto rMethodIt(rMethods.begin());
-            auto cMethodIt(cMethods.begin());
-            for (; rMethodIt != rMethods.end() && cMethodIt != cMethods.end(); ++rMethodIt, ++cMethodIt)
-            {
-                // TODO DO METHOD COMPARISON
-                VerifyStringEquals(state, L"Method Name", (*rMethodIt)->Name, cMethodIt->GetName());
-            }
-        }
-        else
-        {
-            {
-                StatePopper frame(state.Push(L"Expected Methods"));
+        CompareRanges(state, L"Methods", rMethods, cMethods);
 
-                for (auto it(rMethods.begin()); it != rMethods.end(); ++it)
-                {
-                    state.ReportMessage(System::String::Format(L"{0} [{1:x8}]", (*it)->Name, (*it)->MetadataToken));
-                }
-            }
-            {
-                StatePopper frame(state.Push(L"Actual Methods"));
-
-                for (auto it(cMethods.begin()); it != cMethods.end(); ++it)
-                {
-                    state.ReportMessage(System::String::Format(L"{0} [{1:x8}]",
-                        gcnew System::String(it->GetName().c_str()),
-                        it->GetMetadataToken()));
-                }
-            }
-        }
-
-        // GetNestedType
-        // GetNestedTypes
-        // GetProperties
-        // GetProperty
-        // GUID
-        // HasElementType
+        // TODO GetNestedType
+        // TODO GetNestedTypes
+        // TODO GetProperties
+        // TODO GetProperty
+        // TODO GUID
+        // TODO HasElementType
 
         #define VERIFY_IS(r, c) VerifyBooleanEquals(state, # r, rType->r, cType.c());
 
@@ -415,9 +708,9 @@ namespace
         VERIFY_IS(IsPrimitive,             IsPrimitive              );
         VERIFY_IS(IsPublic,                IsPublic                 );
         VERIFY_IS(IsSealed,                IsSealed                 );
-        //        IsSecurityCritical
-        //        IsSecuritySafeCritical
-        //        IsSecurityTransparent
+        //        IsSecurityCritical     -- Not implemented in CxxReflect
+        //        IsSecuritySafeCritical -- Not implemented in CxxReflect
+        //        IsSecurityTransparent  -- Not implemented in CxxReflect
         VERIFY_IS(IsSerializable,          IsSerializable           );
         VERIFY_IS(IsSpecialName,           IsSpecialName            );
         VERIFY_IS(IsUnicodeClass,          IsUnicodeClass           );
@@ -426,26 +719,28 @@ namespace
 
         #undef VERIFY_IS
 
-        // MemberType
-        // Module
+        // MemberType -- Not implemented in CxxReflect
+        // TODO Module
 
         VerifyStringEquals(state, L"Name", rType->Name, cType.GetName());
         VerifyStringEquals(state, L"Namespace", rType->Namespace, cType.GetNamespace());
 
-        // ReflectedType
-        // StructLayoutAttribute
-        // TypeHandle
-        // TypeInitializer
+        // TODO ReflectedType
+        // TODO StructLayoutAttribute
+        // TODO TypeHandle
+        // TODO TypeInitializer
     }
+
+    
 }
 
 int main()
 {
     wchar_t const* const assemblyPath(L"C:\\jm\\CxxReflect\\Build\\Output\\Win32\\Debug\\TestAssemblies\\A0.dat");
 
-    // Load the assembly using CxxReflect:
     C::Externals::Initialize<CxxReflect::Platform::Win32>();
 
+    // Load the assembly using CxxReflect:
     C::DirectoryBasedAssemblyLocator::DirectorySet directories;
     directories.insert(L"C:\\Windows\\Microsoft.NET\\Framework\\v4.0.30319");
     directories.insert(L"C:\\Windows\\Microsoft.NET\\Framework\\v4.0.30319\\wpf");
@@ -457,7 +752,6 @@ int main()
     R::Assembly^ rAssembly(R::Assembly::LoadFrom(gcnew System::String(assemblyPath)));
 
     StateStack state;
-
     Compare(state, rAssembly, cAssembly);
 
     System::IO::StreamWriter^ resultFile(gcnew System::IO::StreamWriter(L"c:\\jm\\reflectresult.txt"));
