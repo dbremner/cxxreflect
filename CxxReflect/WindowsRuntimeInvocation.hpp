@@ -246,34 +246,6 @@ namespace CxxReflect { namespace WindowsRuntime { namespace Internal {
 
 
 
-    // The ArgumentFrame is used to align arguments for a call.  It does not maintain any type
-    // information, it just keeps an array of bytes that can be aligned and padded sufficiently to
-    // mock a function call.
-    class ArgumentFrame
-    {
-    public:
-
-        ConstByteIterator Begin()   const;
-        ConstByteIterator End()     const;
-        ConstByteIterator GetData() const;
-        SizeType          GetSize() const;
-
-        // Aligns the end of the frame to an index evenly divisible by 'alignment'.
-        void AlignTo(SizeType alignment);
-
-        // Pushes the provided range of bytes into the frame, at the end, after any existing data.
-        // This function does not perform any alignment.
-        void Push(ConstByteIterator first, ConstByteIterator last);
-
-    private:
-
-        std::vector<Byte> _data;
-    };
-
-
-
-
-
     // A basic converting overload resolver. 
     //
     // TODO Document overload resolution behavior.
@@ -331,57 +303,6 @@ namespace CxxReflect { namespace WindowsRuntime { namespace Internal {
 
 
 
-    // ArgumentConverter
-    //
-    // TODO Document behavior
-    class ArgumentConverter
-    {
-    public:
-
-        static void ConvertAndInsert(Type                    const& parameterType,
-                                     ResolvedVariantArgument const& argument,
-                                     ArgumentFrame                & frame);
-
-    private:
-
-        typedef std::int8_t   I1;
-        typedef std::uint8_t  U1;
-        typedef std::int16_t  I2;
-        typedef std::uint16_t U2;
-        typedef std::int32_t  I4;
-        typedef std::uint32_t U4;
-        typedef std::int64_t  I8;
-        typedef std::uint64_t U8;
-        typedef float         R4;
-        typedef double        R8;
-
-        // This class is not constructable.
-        ArgumentConverter();
-        ArgumentConverter(ArgumentConverter const&);
-        ArgumentConverter& operator=(ArgumentConverter const&);
-
-        static I4 ConvertToI4(ResolvedVariantArgument const& argument); 
-        static I8 ConvertToI8(ResolvedVariantArgument const& argument);
-
-        static U4 ConvertToU4(ResolvedVariantArgument const& argument); 
-        static U8 ConvertToU8(ResolvedVariantArgument const& argument);
-
-        static R4 ConvertToR4(ResolvedVariantArgument const& argument); 
-        static R8 ConvertToR8(ResolvedVariantArgument const& argument);
-
-        static IInspectable* ConvertToInterface(ResolvedVariantArgument const& argument, Guid const& interfaceGuid);
-
-        template <typename T>
-        static T ReinterpretAs(ResolvedVariantArgument const& argument);
-
-        template <typename TTarget, typename TSource>
-        static TTarget VerifyInRangeAndConvertTo(TSource const& value);
-    };
-
-
-
-
-
     // Computes the ElementType of 'type' for use in overload resolution.  This is not necessarily
     // the actual ElementType that best fits 'type'.  For example, Object^ has its own ElementType,
     // but this will still return Class for Object^, because that is how it is considered during
@@ -392,9 +313,87 @@ namespace CxxReflect { namespace WindowsRuntime { namespace Internal {
 
 
 
-    // Invocation logic for x86 stdcall functions, which are--by far--the easiest calling convention
-    // for us to deal with, because _all_ arguments are passed on the stack, so we can use function
-    // pointer trickery to avoid having to use any inline assembly.
+    typedef std::int8_t   I1;
+    typedef std::uint8_t  U1;
+    typedef std::int16_t  I2;
+    typedef std::uint16_t U2;
+    typedef std::int32_t  I4;
+    typedef std::uint32_t U4;
+    typedef std::int64_t  I8;
+    typedef std::uint64_t U8;
+    typedef float         R4;
+    typedef double        R8;
+
+
+
+
+
+    I4 ConvertToI4(ResolvedVariantArgument const& argument); 
+    I8 ConvertToI8(ResolvedVariantArgument const& argument);
+
+    U4 ConvertToU4(ResolvedVariantArgument const& argument); 
+    U8 ConvertToU8(ResolvedVariantArgument const& argument);
+
+    R4 ConvertToR4(ResolvedVariantArgument const& argument); 
+    R8 ConvertToR8(ResolvedVariantArgument const& argument);
+
+    IInspectable* ConvertToInterface(ResolvedVariantArgument const& argument, Guid const& interfaceGuid);
+
+    template <typename T>
+    T ReinterpretAs(ResolvedVariantArgument const& argument);
+
+    template <typename TTarget, typename TSource>
+    TTarget VerifyInRangeAndConvertTo(TSource const& value);
+
+
+
+
+
+    // Computes the pointer to the function at 'slot' in the vtable pointed to by 'instance'.
+    static void const* ComputeFunctionPointer(void const* instance, unsigned slot);
+
+
+
+
+
+    #if CXXREFLECT_ARCHITECTURE == CXXREFLECT_ARCHITECTURE_X86 
+    // The ArgumentFrame is used to align arguments for a call.  It does not maintain any type
+    // information, it just keeps an array of bytes that can be aligned and padded sufficiently to
+    // mock a function call.
+    class X86ArgumentFrame
+    {
+    public:
+
+        ConstByteIterator Begin()   const;
+        ConstByteIterator End()     const;
+        ConstByteIterator GetData() const;
+        SizeType          GetSize() const;
+
+        // Aligns the end of the frame to an index evenly divisible by 'alignment'.
+        void AlignTo(SizeType alignment);
+
+        // Pushes the provided range of bytes into the frame, at the end, after any existing data.
+        // This function does not perform any alignment.
+        void Push(ConstByteIterator first, ConstByteIterator last);
+
+    private:
+
+        std::vector<Byte> _data;
+    };
+
+    // ArgumentConverter
+    //
+    // TODO Document behavior
+    class X86ArgumentConverter
+    {
+    public:
+
+        static void ConvertAndInsert(Type                    const& parameterType,
+                                     ResolvedVariantArgument const& argument,
+                                     X86ArgumentFrame             & frame);
+    };
+
+    // Invocation logic for x86 stdcall functions.
     class X86StdCallInvoker
     {
     public:
@@ -408,16 +407,62 @@ namespace CxxReflect { namespace WindowsRuntime { namespace Internal {
 
         template <SizeType FrameSize>
         static HResult InvokeWithFrame(void const* functionPointer, ConstByteIterator frameBytes);
+    };
+    #endif
 
-        // Computes the pointer to the function at 'slot' in the vtable pointed to by 'instance'.
-        static void const* ComputeFunctionPointer(void const* instance, unsigned slot);
+
+
+
+    
+    #if CXXREFLECT_ARCHITECTURE == CXXREFLECT_ARCHITECTURE_X64
+    extern "C"
+    {
+        // The x64 __fastcall thunk.  See its documentation in X64FastCallThunk.asm.
+        int CxxReflectX64FastCallThunk(void const* fp, void const* arguments, void const* types, std::uint64_t count);
+    }
+
+    enum class X64ArgumentType : std::uint64_t
+    {
+        Integer             = 0,
+        DoublePrecisionReal = 1,
+        SinglePrecisionReal = 2
     };
 
-    // Invocation logic for x64 fastcall functions.  TODO Not yet implemented.  This exists only so
-    // we have something to typedef below.  If you call Invoke(), it will throw.  This calling
-    // convention is going to be a pain to implement because it requires arguments to be passed in
-    // registers and Visual C++ doesn't support inline assembly for x64.  Time to get reacquainted
-    // with MASM...
+    class X64ArgumentFrame
+    {
+    public:
+
+        void Push(float  x);
+        void Push(double x);
+
+        void const*   GetArguments() const;
+        void const*   GetTypes()     const;
+        std::uint64_t GetCount()     const;
+
+        template <typename T>
+        void Push(T const& x)
+        {
+            static_assert(sizeof(T) == 8, "Attempted to push unaligned argument");
+            _arguments.insert(_arguments.end(), Detail::BeginBytes(x), Detail::EndBytes(x));
+            _types.push_back(X64ArgumentType::Integer);
+        }
+
+    private:
+
+        std::vector<Byte>            _arguments;
+        std::vector<X64ArgumentType> _types;
+    };
+
+    class X64ArgumentConverter
+    {
+    public:
+
+        static void ConvertAndInsert(Type                    const& parameterType,
+                                     ResolvedVariantArgument const& argument,
+                                     X64ArgumentFrame             & frame);
+    };
+
+    // Invocation logic for x64 fastcall functions.
     class X64FastCallInvoker
     {
     public:
@@ -426,7 +471,10 @@ namespace CxxReflect { namespace WindowsRuntime { namespace Internal {
                               IInspectable             * instance,
                               void                     * result,
                               VariantArgumentPack const& arguments);
+
+    private:
     };
+    #endif
 
     // Invocation logic for ARM Procedure Call functions.  TODO Not yet implemented.  This exists
     // only so we have something to typedef below.  If you call Invoke(), it will throw.  This

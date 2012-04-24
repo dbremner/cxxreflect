@@ -1310,7 +1310,7 @@ namespace CxxReflect { namespace Detail {
         // for large blocks of memory.
         FileRange ReadRange(std::uint32_t const size)
         {
-            if (GetPosition() > static_cast<std::fpos_t>(size))
+            if (GetPosition() > static_cast<std::fpos_t>(std::numeric_limits<std::uint32_t>::max()))
                 throw RuntimeError(L"File is too large for use with this function");
 
             return Externals::MapFileRange(_handle, static_cast<std::uint32_t>(GetPosition()), size);
