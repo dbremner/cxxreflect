@@ -203,5 +203,8 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="CxxReflect.props" />
+    <None Include="X64FastCallThunk.asm">
+      <Filter>Sources\WindowsRuntime</Filter>
+    </None>
   </ItemGroup>
 </Project>

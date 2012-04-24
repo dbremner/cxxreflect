@@ -182,13 +182,8 @@ namespace CxxReflect {
         typedef Detail::MemberIterator<Type, Property, Detail::PropertyContext,  &Type::FilterProperty > PropertyIterator;
 
         Type();
-        Type(Assembly const& assembly, Metadata::RowReference  const& type, InternalKey);
-        Type(Assembly const& assembly, Metadata::BlobReference const& type, InternalKey);
-        Type(Type const& reflectedType, Detail::InterfaceContext const* context, InternalKey);
 
         Assembly GetAssembly() const;
-
-        Metadata::ElementReference GetSelfReference(InternalKey) const { return _type; }
 
         SizeType  GetMetadataToken() const;
         TypeFlags GetAttributes()    const;
@@ -272,12 +267,8 @@ namespace CxxReflect {
 
         // TODO This interface is very incomplete
 
-        bool IsInitialized() const
-        {
-            return _assembly.IsInitialized() && _type.IsValid();
-        }
-
-        bool operator!() const { return !IsInitialized(); }
+        bool IsInitialized() const;
+        bool operator!()     const;
 
         // ContainsGenericParameters
         // DeclaringMethod
@@ -302,17 +293,23 @@ namespace CxxReflect {
         CXXREFLECT_GENERATE_COMPARISON_OPERATORS(Type)
         CXXREFLECT_GENERATE_SAFE_BOOL_CONVERSION(Type)
 
+    public: // Internal Members
+
+        Type(Assembly const& assembly, Metadata::RowReference  const& type, InternalKey);
+        Type(Assembly const& assembly, Metadata::BlobReference const& type, InternalKey);
+
+        Type(Type const& reflectedType, Detail::InterfaceContext const* context, InternalKey);
+
+        Metadata::ElementReference GetSelfReference(InternalKey) const;
+
     private:
 
         friend Detail::TypeNameBuilder;
 
-        void AssertInitialized() const
-        {
-            Detail::Assert([&] { return IsInitialized(); }, L"Type is not initialized");
-        }
+        void AssertInitialized() const;
 
-        bool IsTypeDef()  const { AssertInitialized(); return _type.IsRowReference();  }
-        bool IsTypeSpec() const { AssertInitialized(); return _type.IsBlobReference(); }
+        bool IsTypeDef()  const;
+        bool IsTypeSpec() const;
 
         Metadata::TypeDefRow    GetTypeDefRow()        const;
         Metadata::TypeSignature GetTypeSpecSignature() const;

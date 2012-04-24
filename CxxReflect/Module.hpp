@@ -9,12 +9,9 @@
 
 namespace CxxReflect {
 
-    class Module // TODO MAJOR TODO
+    class Module
     {
-    public:
-
-    private:
-
+        // TODO Implement Module class
     };
 
 }

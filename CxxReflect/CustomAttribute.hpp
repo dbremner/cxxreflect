@@ -17,7 +17,6 @@ namespace CxxReflect {
         typedef void /* TODO */ NamedArgumentIterator;
 
         CustomAttribute();
-        CustomAttribute(Assembly const& assembly, Metadata::RowReference const& customAttribute, InternalKey);
 
         SizeType GetMetadataToken() const;
 
@@ -49,7 +48,9 @@ namespace CxxReflect {
         CXXREFLECT_GENERATE_COMPARISON_OPERATORS(CustomAttribute)
         CXXREFLECT_GENERATE_SAFE_BOOL_CONVERSION(CustomAttribute)
 
-    public: // Internals
+    public: // Internal Members
+
+        CustomAttribute(Assembly const& assembly, Metadata::RowReference const& customAttribute, InternalKey);
 
         static CustomAttributeIterator BeginFor(Assembly const& assembly, Metadata::RowReference const& parent, InternalKey);
         static CustomAttributeIterator EndFor  (Assembly const& assembly, Metadata::RowReference const& parent, InternalKey);

@@ -201,6 +201,9 @@ namespace CxxReflect { namespace Detail {
     public:
 
         ParameterData();
+
+        // Note:  This constructor takes an InternalKey only so that it matches other constructors
+        // of types with which the parameter iterator is instantiated.
         ParameterData(Metadata::RowReference                       const& parameter,
                       Metadata::MethodSignature::ParameterIterator const& signature,
                       InternalKey);
@@ -378,66 +381,12 @@ namespace CxxReflect {
 
 
 
-    // There are many functions that should not be part of the public interface of the library, but
-    // which we need to be able to access from other parts of the CxxReflect library.  To do this,
-    // all "internal" member functions have a parameter of this "InternalKey" class type, which can
-    // only be constructed by a subset of the CxxReflect library types.  This is better than direct
-    // befriending, both because it is centralized and because it protects class invariants from
-    // bugs elsewhere in the library.
+    // This class is used to identify member functions (or functions) that are considered "internal"
+    // and are not really part of the public interface of the library.  A user of the library should
+    // not call internal methods.  However, other libraries or utilities built atop CxxReflect might
+    // want to use these internal members, e.g. as we have done in the Windows Runtime integrations.
     class InternalKey
     {
-    public: // TODO MAKE PRIVATE AGAIN!
-
-        InternalKey() { }
-
-        template
-        <
-            typename TType,
-            typename TMember,
-            typename TMemberContext,
-            bool (*FFilter)(BindingFlags, TType const&, TMemberContext const&)
-        >
-        friend class Detail::MemberIterator;
-
-        template
-        <
-            typename TCurrent,
-            typename TResult,
-            typename TParameter,
-            typename TTransformer,
-            typename TCategory
-        >
-        friend class Detail::InstantiatingIterator;
-
-        friend Assembly;
-        friend AssemblyName;
-        friend CustomAttribute;
-        friend Event;
-        friend Field;
-        friend File;
-        friend Loader;
-        friend Method;
-        friend Module;
-        friend Parameter;
-        friend Property;
-        friend Type;
-        friend Utility;
-        friend Version;
-
-        friend Detail::AssemblyContext;
-
-        friend Detail::AssemblyHandle;
-        friend Detail::MethodHandle;
-        friend Detail::ParameterHandle;
-        friend Detail::TypeHandle;
-
-        friend Metadata::ArrayShape;
-        friend Metadata::CustomModifier;
-        friend Metadata::FieldSignature;
-        friend Metadata::MethodSignature;
-        friend Metadata::PropertySignature;
-        friend Metadata::TypeSignature;
-        friend Metadata::SignatureComparer;
     };
 }
 

@@ -179,7 +179,7 @@ namespace CxxReflect { namespace WindowsRuntime { namespace Internal {
 
     SizeType VariantArgumentPack::GetArity() const
     {
-        return _arguments.size();
+        return static_cast<SizeType>(_arguments.size());
     }
 
     VariantArgumentPack::UnresolvedArgumentIterator VariantArgumentPack::Begin() const
@@ -331,7 +331,7 @@ namespace CxxReflect { namespace WindowsRuntime { namespace Internal {
 
     SizeType ArgumentFrame::GetSize() const
     {
-        return _data.size();
+        return static_cast<SizeType>(_data.size());
     }
 
     // Aligns the end of the frame to an index evenly divisible by 'alignment'.
@@ -460,7 +460,7 @@ namespace CxxReflect { namespace WindowsRuntime { namespace Internal {
         Detail::Assert([&]{ return parameterType.IsInitialized() && argumentType.IsInitialized(); });
 
         Metadata::ElementType const pType(ComputeOverloadElementType(parameterType));
-        Metadata::ElementType const aType(ComputeOverloadElementType(argumentType ));
+        Metadata::ElementType const aType(ComputeOverloadElementType(argumentType));
 
         // Exact match of any kind.
         if (parameterType == argumentType)

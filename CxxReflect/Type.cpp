@@ -97,7 +97,7 @@ namespace CxxReflect { namespace { namespace Private {
         case Metadata::TableId::TypeSpec:
         {
             // Get the signature for the TypeSpec token and use that instead:
-            Metadata::Database const& database(assembly.GetContext(InternalKey()).GetDatabase());
+            Metadata::Database const& database(assembly.GetContext(key).GetDatabase());
             Metadata::TypeSpecRow const typeSpec(database.GetRow<Metadata::TableId::TypeSpec>(type.GetIndex()));
             return Metadata::FullReference(&database, typeSpec.GetSignature());
         }
@@ -516,6 +516,40 @@ namespace CxxReflect {
         }
 
         AssertInitialized();
+    }
+
+    bool Type::IsInitialized() const
+    {
+        return _assembly.IsInitialized() && _type.IsValid();
+    }
+
+    bool Type::operator!() const
+    {
+        return !IsInitialized();
+    }
+
+    void Type::AssertInitialized() const
+    {
+        Detail::Assert([&] { return IsInitialized(); }, L"Type is not initialized");
+    }
+
+    Metadata::ElementReference Type::GetSelfReference(InternalKey) const
+    {
+        return _type;
+    }
+
+    bool Type::IsTypeDef() const
+    {
+        AssertInitialized();
+        
+        return _type.IsRowReference();
+    }
+
+    bool Type::IsTypeSpec() const
+    {
+        AssertInitialized();
+        
+        return _type.IsBlobReference();
     }
 
     Assembly Type::GetAssembly() const

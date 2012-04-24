@@ -93,6 +93,12 @@
     <None Include="CxxReflect.props">
       <SubType>Designer</SubType>
     </None>
+    <CustomBuild Include="X64FastCallThunk.asm">
+      <FileType>Document</FileType>
+      <Command Condition="'$(Platform)'=='x64'">ml64 /Fo $(IntDir)\%(Filename).obj /c %(Identity)</Command>
+      <Message Condition="'$(Platform)'=='x64'">Assembling %(Identity)...</Message>
+      <Outputs Condition="'$(Platform)'=='x64'">$(IntDir)\%(Filename).obj</Outputs>
+    </CustomBuild>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
 </Project>

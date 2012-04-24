@@ -1308,9 +1308,12 @@ namespace CxxReflect { namespace Detail {
         // Reads a range of 'size' bytes from the file, starting at the current position.  This
         // function may use memory-mapped I/O, and may perform better than other Read functions
         // for large blocks of memory.
-        FileRange ReadRange(SizeType const size)
+        FileRange ReadRange(std::uint32_t const size)
         {
-            return Externals::MapFileRange(_handle, static_cast<SizeType>(GetPosition()), size);
+            if (GetPosition() > static_cast<std::fpos_t>(size))
+                throw RuntimeError(L"File is too large for use with this function");
+
+            return Externals::MapFileRange(_handle, static_cast<std::uint32_t>(GetPosition()), size);
         }
 
         void Seek(PositionType const position, OriginType const origin)

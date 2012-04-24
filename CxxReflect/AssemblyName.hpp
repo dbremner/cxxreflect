@@ -76,10 +76,6 @@ namespace CxxReflect {
         {
         }
 
-        // This constructor facilitates transformation from an Assembly or AssemblyRef table row
-        // into its corresponding AssemblyName representation.  This is an infrastructure member.
-        AssemblyName(class Assembly const& assembly, class Metadata::RowReference const& row, InternalKey);
-
         AssemblyName(String const& fullName);
 
         AssemblyName(String const& simpleName, Version const& version, String const& path = L"")
@@ -133,6 +129,12 @@ namespace CxxReflect {
         }
 
         CXXREFLECT_GENERATE_COMPARISON_OPERATORS(AssemblyName)
+
+    public: // Internal Members
+
+        // This constructor facilitates transformation from an Assembly or AssemblyRef table row
+        // into its corresponding AssemblyName representation.  This is an infrastructure member.
+        AssemblyName(class Assembly const& assembly, class Metadata::RowReference const& row, InternalKey);
 
     private:
 

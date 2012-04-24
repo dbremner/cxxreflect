@@ -368,7 +368,7 @@ namespace CxxReflect { namespace Metadata {
 
         void AssertInitialized() const;
 
-        Detail::FileRange                  _data;
+        Detail::FileRange _data;
     };
 
 

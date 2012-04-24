@@ -26,7 +26,7 @@ namespace CxxReflect { namespace WindowsRuntime { namespace Internal {
                                   SizeType              valueIndex,
                                   SizeType              valueSize,
                                   SizeType              typeNameIndex = 0,
-                                  SizeType              typeNameSize = 0);
+                                  SizeType              typeNameSize  = 0);
 
         Metadata::ElementType GetElementType()   const;
         SizeType              GetValueIndex()    const;
