@@ -1,9 +1,4 @@
-﻿
-//                            Copyright James P. McNellis 2011 - 2012.                            //
-//                   Distributed under the Boost Software License, Version 1.0.                   //
-//     (See accompanying file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)    //
-
-The Common directory contains classes and XAML styles that simplify application development.
+﻿The Common directory contains classes and XAML styles that simplify application development.
 
 These are not merely convenient, but are required by most Visual Studio project and item templates.
 Removing, renaming, or otherwise modifying the content of these files may result in a project that
