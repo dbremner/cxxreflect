@@ -724,13 +724,13 @@ namespace CxxReflect { namespace Metadata {
             }
             else
             {
-                throw std::logic_error("wtf");
+                throw RuntimeError(L"Unknown variable type");
             }
             break;
         }
         default:
         {
-            throw std::logic_error("wtf");
+            throw LogicError(L"Not yet implemented");
         }
         }
     }
@@ -812,7 +812,7 @@ namespace CxxReflect { namespace Metadata {
             return s.IsClassVariableType();
 
         default:
-            throw std::logic_error("wtf");
+            throw LogicError(L"Not yet implemented");
         }
     }
 

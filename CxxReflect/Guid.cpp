@@ -55,7 +55,7 @@ namespace CxxReflect {
                           bytes[0x8], bytes[0x9], bytes[0xa], bytes[0xb],
                           bytes[0xc], bytes[0xd], bytes[0xe], bytes[0xf]) != 36)
         {
-            throw std::logic_error("wtf");
+            throw RuntimeError(L"Failed to parse Guid");
         }
         os << buffer.data();
         return os;
@@ -77,7 +77,7 @@ namespace CxxReflect {
                          L"%8x-%4x-%4x-%2x%2x-%2x%2x%2x%2x%2x%2x",
                          &m0, &m1a, &m1b, &m2a, &m2b, &m2c, &m2d, &m2e, &m2f, &m2g, &m2h) != 11)
         {
-            throw std::logic_error("wtf");
+            throw RuntimeError(L"Failed to parse Guid");
         }
         #pragma warning(pop)
 

@@ -15,7 +15,7 @@
 
 .class  public auto ansi Platform.Object
 {
-    // TODO Platform.Object should probably expose the five IInspectable functions.
+    // TODO Platform.Object should probably expose the six IInspectable functions.
 }
 
 .class  public auto ansi Platform.Type
@@ -60,31 +60,31 @@
 .class public auto ansi Platform.Void           extends Platform.ValueType { }
 .class public auto ansi Platform.TypedReference extends Platform.ValueType { }
 
-.class public auto ansi Platform.AccessDeniedException extends Platform.Object { }
-.class public auto ansi Platform.Boolean extends Platform.Object { }
-.class public auto ansi Platform.COMException extends Platform.Object { }
-.class public auto ansi Platform.CallbackContext extends Platform.Object { }
-.class public auto ansi Platform.ChangedStateException extends Platform.Object { }
+.class public auto ansi Platform.AccessDeniedException       extends Platform.Object { }
+.class public auto ansi Platform.Boolean                     extends Platform.Object { }
+.class public auto ansi Platform.COMException                extends Platform.Object { }
+.class public auto ansi Platform.CallbackContext             extends Platform.Object { }
+.class public auto ansi Platform.ChangedStateException       extends Platform.Object { }
 .class public auto ansi Platform.ClassNotRegisteredException extends Platform.Object { }
-.class public auto ansi Platform.Delegate extends Platform.Object { }
-.class public auto ansi Platform.DisconnectedException extends Platform.Object { }
-.class public auto ansi Platform.Enum extends Platform.Object { }
-.class public auto ansi Platform.Exception extends Platform.Object { }
-.class public auto ansi Platform.FailureException extends Platform.Object { }
-.class public auto ansi Platform.Guid extends Platform.Object { }
-.class public auto ansi Platform.IBoxArray`1<T> extends Platform.Object { }
-.class public auto ansi Platform.IBox`1<T> extends Platform.Object { }
-.class public auto ansi Platform.IDisposable extends Platform.Object { }
-.class public auto ansi Platform.IValueType extends Platform.Object { }
-.class public auto ansi Platform.InvalidArgumentException extends Platform.Object { }
-.class public auto ansi Platform.InvalidCastException extends Platform.Object { }
-.class public auto ansi Platform.MTAThreadAttribute extends Platform.Object { }
-.class public auto ansi Platform.MulticastDelegate extends Platform.Object { }
-.class public auto ansi Platform.NotImplementedException extends Platform.Object { }
-.class public auto ansi Platform.NullReferenceException extends Platform.Object { }
+.class public auto ansi Platform.Delegate                    extends Platform.Object { }
+.class public auto ansi Platform.DisconnectedException       extends Platform.Object { }
+.class public auto ansi Platform.Enum                        extends Platform.Object { }
+.class public auto ansi Platform.Exception                   extends Platform.Object { }
+.class public auto ansi Platform.FailureException            extends Platform.Object { }
+.class public auto ansi Platform.Guid                        extends Platform.Object { }
+.class public auto ansi Platform.IBoxArray`1<T>              extends Platform.Object { }
+.class public auto ansi Platform.IBox`1<T>                   extends Platform.Object { }
+.class public auto ansi Platform.IDisposable                 extends Platform.Object { }
+.class public auto ansi Platform.IValueType                  extends Platform.Object { }
+.class public auto ansi Platform.InvalidArgumentException    extends Platform.Object { }
+.class public auto ansi Platform.InvalidCastException        extends Platform.Object { }
+.class public auto ansi Platform.MTAThreadAttribute          extends Platform.Object { }
+.class public auto ansi Platform.MulticastDelegate           extends Platform.Object { }
+.class public auto ansi Platform.NotImplementedException     extends Platform.Object { }
+.class public auto ansi Platform.NullReferenceException      extends Platform.Object { }
 .class public auto ansi Platform.OperationCancelledException extends Platform.Object { }
-.class public auto ansi Platform.OutOfBoundsException extends Platform.Object { }
-.class public auto ansi Platform.OutOfMemoryException extends Platform.Object { }
-.class public auto ansi Platform.STAThreadAttribute extends Platform.Object { }
-.class public auto ansi Platform.SizeT extends Platform.Object { }
-.class public auto ansi Platform.TypeCode extends Platform.Object { }
+.class public auto ansi Platform.OutOfBoundsException        extends Platform.Object { }
+.class public auto ansi Platform.OutOfMemoryException        extends Platform.Object { }
+.class public auto ansi Platform.STAThreadAttribute          extends Platform.Object { }
+.class public auto ansi Platform.SizeT                       extends Platform.Object { }
+.class public auto ansi Platform.TypeCode                    extends Platform.Object { }

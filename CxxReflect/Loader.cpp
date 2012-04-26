@@ -169,8 +169,7 @@ namespace CxxReflect {
         // If the resolution scope is null, we look in the ExportedType table for this type.
         if (!resolutionScope.IsValid())
         {
-            Detail::AssertFail(L"NYI");
-            return Metadata::FullReference();
+            throw LogicError(L"Not yet implemented");
         }
 
         switch (resolutionScope.GetTable())
@@ -192,7 +191,7 @@ namespace CxxReflect {
         }
         case TableId::ModuleRef:
         {
-            throw std::logic_error("NYI");
+            throw LogicError(L"Not yet implemented");
         }
         case TableId::AssemblyRef:
         {
@@ -222,7 +221,7 @@ namespace CxxReflect {
         }
         case TableId::TypeRef:
         {
-            throw LogicError(L"NYI");
+            throw LogicError(L"Not yet implemented");
         }
         default:
         {

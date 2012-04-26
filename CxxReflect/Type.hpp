@@ -248,8 +248,8 @@ namespace CxxReflect {
         MethodIterator BeginConstructors(BindingFlags flags = BindingAttribute::Default) const;
         MethodIterator EndConstructors() const;
 
-        EventIterator BeginEvents(BindingFlags flags = BindingAttribute::Default) const;
-        EventIterator EndEvents() const;
+        // TODO EventIterator BeginEvents(BindingFlags flags = BindingAttribute::Default) const;
+        // TODO EventIterator EndEvents() const;
 
         FieldIterator BeginFields(BindingFlags flags = BindingAttribute::Default) const;
         FieldIterator EndFields() const;
@@ -258,14 +258,12 @@ namespace CxxReflect {
         MethodIterator EndMethods() const;
         Method         GetMethod(StringReference name, BindingFlags flags = BindingAttribute::Default) const;
 
-        PropertyIterator BeginProperties(BindingFlags flags = BindingAttribute::Default) const;
-        PropertyIterator EndProperties() const;
+        // TODO PropertyIterator BeginProperties(BindingFlags flags = BindingAttribute::Default) const;
+        // TODO PropertyIterator EndProperties() const;
 
         // TODO Provide ability to return inherited attributes
         CustomAttributeIterator BeginCustomAttributes() const;
         CustomAttributeIterator EndCustomAttributes()   const;
-
-        // TODO This interface is very incomplete
 
         bool IsInitialized() const;
         bool operator!()     const;

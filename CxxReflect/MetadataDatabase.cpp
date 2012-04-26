@@ -1255,7 +1255,7 @@ namespace CxxReflect { namespace Metadata {
 
             auto const range(_buffer.Allocate(required));
             if (!Externals::ConvertUtf8ToUtf16(pointer, range.Begin(), required))
-                throw std::logic_error("wtf");
+                throw MetadataReadError(L"Failed to convert UTF8 to UTF16");
 
             return _index.insert(std::make_pair(
                 index,
@@ -1830,7 +1830,7 @@ namespace CxxReflect { namespace Metadata {
                 break;
 
             default:
-                throw std::logic_error("wtf");
+                throw MetadataReadError(L"Unexpected stream kind value");
             }
         }
     }

@@ -604,26 +604,26 @@ namespace CxxReflect {
         return MethodIterator();
     }
 
-    Type::EventIterator Type::BeginEvents(BindingFlags const flags) const
-    {
-        AssertInitialized();
-        Detail::Assert([&]{ return !flags.IsSet(BindingAttribute::InternalUseOnlyMask); });
+    // TODO Type::EventIterator Type::BeginEvents(BindingFlags const flags) const
+    // {
+    //     AssertInitialized();
+    //     Detail::Assert([&]{ return !flags.IsSet(BindingAttribute::InternalUseOnlyMask); });
+    // 
+    //     Detail::EventContextTable const& table(_assembly
+    //         .Realize()
+    //         .GetContext(InternalKey())
+    //         .GetLoader()
+    //         .GetOrCreateEventTable(
+    //             Metadata::FullReference(&_assembly.Realize().GetContext(InternalKey()).GetDatabase(), _type),
+    //             InternalKey()));
+    // 
+    //     return EventIterator(*this, table.Begin(), table.End(), flags);
+    // }
 
-        Detail::EventContextTable const& table(_assembly
-            .Realize()
-            .GetContext(InternalKey())
-            .GetLoader()
-            .GetOrCreateEventTable(
-                Metadata::FullReference(&_assembly.Realize().GetContext(InternalKey()).GetDatabase(), _type),
-                InternalKey()));
-
-        return EventIterator(*this, table.Begin(), table.End(), flags);
-    }
-
-    Type::EventIterator Type::EndEvents() const
-    {
-        return EventIterator();
-    }
+    // TODO Type::EventIterator Type::EndEvents() const
+    // {
+    //     return EventIterator();
+    // }
 
     Type::FieldIterator Type::BeginFields(BindingFlags const flags) const
     {
@@ -670,20 +670,20 @@ namespace CxxReflect {
         return *it;
     }
 
-    Type::PropertyIterator Type::BeginProperties(BindingFlags const flags) const
-    {
-        AssertInitialized();
-        Detail::Assert([&]{ return !flags.IsSet(0x10000000); });
+    // TODO Type::PropertyIterator Type::BeginProperties(BindingFlags const flags) const
+    // {
+    //     AssertInitialized();
+    //     Detail::Assert([&]{ return !flags.IsSet(0x10000000); });
+    // 
+    //     auto const& table(Private::GetOrCreateTable(&Loader::GetOrCreatePropertyTable, _assembly, _type, InternalKey()));
+    // 
+    //     return PropertyIterator(*this, table.Begin(), table.End(), flags);
+    // }
 
-        auto const& table(Private::GetOrCreateTable(&Loader::GetOrCreatePropertyTable, _assembly, _type, InternalKey()));
-
-        return PropertyIterator(*this, table.Begin(), table.End(), flags);
-    }
-
-    Type::PropertyIterator Type::EndProperties() const
-    {
-        return PropertyIterator();
-    }
+    // TODO Type::PropertyIterator Type::EndProperties() const
+    // {
+    //     return PropertyIterator();
+    // }
 
     CustomAttributeIterator Type::BeginCustomAttributes() const
     {

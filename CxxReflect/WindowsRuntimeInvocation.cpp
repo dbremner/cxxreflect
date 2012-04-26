@@ -755,13 +755,13 @@ namespace CxxReflect { namespace WindowsRuntime { namespace Internal {
         {
         case Metadata::ElementType::Boolean:
         {
-            throw LogicError(L"NYI");
+            throw LogicError(L"Not yet implemented");
             break;
         }
 
         case Metadata::ElementType::Char:
         {
-            throw LogicError(L"NYI");
+            throw LogicError(L"Not yet implemented");
             break;
         }
 
@@ -820,7 +820,7 @@ namespace CxxReflect { namespace WindowsRuntime { namespace Internal {
 
         case Metadata::ElementType::ValueType:
         {
-            throw LogicError(L"NYI");
+            throw LogicError(L"Not yet implemented");
             break;
         }
 
@@ -980,13 +980,13 @@ namespace CxxReflect { namespace WindowsRuntime { namespace Internal {
         {
         case Metadata::ElementType::Boolean:
         {
-            throw LogicError(L"NYI");
+            throw LogicError(L"Not yet implemented");
             break;
         }
 
         case Metadata::ElementType::Char:
         {
-            throw LogicError(L"NYI");
+            throw LogicError(L"Not yet implemented");
             break;
         }
 
@@ -1033,7 +1033,7 @@ namespace CxxReflect { namespace WindowsRuntime { namespace Internal {
 
         case Metadata::ElementType::ValueType:
         {
-            throw LogicError(L"NYI");
+            throw LogicError(L"Not yet implemented");
             break;
         }
 

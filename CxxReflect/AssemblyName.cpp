@@ -22,10 +22,10 @@ namespace CxxReflect { namespace { namespace Private {
             Sha1Hash const hash(Externals::ComputeSha1Hash(blob.Begin(), blob.End()));
             std::copy(hash.rbegin(), hash.rbegin() + 8, result.begin());
         }
-        else if (Detail::Distance(blob.Begin(), blob.End()) > 0) // TODO WHY WOULD THIS BE ZERO?
+        else if (Detail::Distance(blob.Begin(), blob.End()) > 0) // TODO Why would this be zero?
         {
             if (Detail::Distance(blob.Begin(), blob.End()) != 8)
-                throw std::runtime_error("wtf");
+                throw RuntimeError(L"Failed to compute public key token");
 
             std::copy(blob.Begin(), blob.End(), result.begin());
         }
@@ -66,7 +66,7 @@ namespace CxxReflect {
     {
         std::wistringstream iss(version.c_str());
         if (!(iss >> *this >> std::ws) || !iss.eof())
-            throw std::logic_error("wtf");
+            throw RuntimeError(L"Failed to parse version");
     }
 
     std::wostream& operator<<(std::wostream& os, Version const& v)
@@ -119,7 +119,7 @@ namespace CxxReflect {
     {
         std::wistringstream iss(fullName.c_str());
         if (!(iss >> *this >> std::ws) || !iss.eof())
-            throw std::logic_error("wtf");
+            throw RuntimeError(L"Failed to parse AssemblyName");
     }
 
     String const& AssemblyName::GetFullName() const
@@ -182,10 +182,10 @@ namespace CxxReflect {
             if (current == L',')
             {
                 if (kind == Kind::Label)
-                    throw std::logic_error("wtf");
+                    throw RuntimeError(L"Failed to parse AssemblyName");
 
                 if (!components.insert(std::make_pair(kind, term)).second)
-                    throw std::logic_error("wtf");
+                    throw RuntimeError(L"Failed to parse AssemblyName");
 
                 term.clear();
                 kind = Kind::Label;
@@ -194,12 +194,12 @@ namespace CxxReflect {
             else if (current == L'=')
             {
                 if (kind != Kind::Label)
-                    throw std::logic_error("wtf");
+                    throw RuntimeError(L"Failed to parse AssemblyName");
 
                 if      (term == L"Version")        { kind = Kind::Version;        }
                 else if (term == L"Culture")        { kind = Kind::Culture;        }
                 else if (term == L"PublicKeyToken") { kind = Kind::PublicKeyToken; }
-                else throw std::logic_error("wtf");
+                else throw RuntimeError(L"Failed to parse AssemblyName");
 
                 continue;
             }

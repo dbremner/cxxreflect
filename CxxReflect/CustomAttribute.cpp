@@ -156,7 +156,7 @@ namespace CxxReflect {
                         BindingAttribute::Instance);
 
                     if (type.BeginConstructors(flags) == type.EndConstructors())
-                        Detail::AssertFail(L"NYI");
+                        Detail::AssertFail(L"Not yet implemented");
 
                     Metadata::ITypeResolver const& typeResolver(assembly.GetContext(InternalKey()).GetLoader());
 
@@ -180,12 +180,12 @@ namespace CxxReflect {
                 }
                 else
                 {
-                    Detail::AssertFail(L"NYI");
+                    Detail::AssertFail(L"Not yet implemented");
                 }
             }
             else
             {
-                Detail::AssertFail(L"NYI");
+                Detail::AssertFail(L"Not yet implemented");
             }
         }
         else

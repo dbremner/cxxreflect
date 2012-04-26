@@ -417,10 +417,17 @@ namespace CxxReflect { namespace WindowsRuntime { namespace Internal {
     #if CXXREFLECT_ARCHITECTURE == CXXREFLECT_ARCHITECTURE_X64
     extern "C"
     {
-        // The x64 __fastcall thunk.  See its documentation in X64FastCallThunk.asm.
-        int CxxReflectX64FastCallThunk(void const* fp, void const* arguments, void const* types, std::uint64_t count);
+        // This is a thunk for dynamically invoking an x64 __fastcall function.  For documentation,
+        // see its implementation in X64FastCallThunk.asm.  Its declaration here must exactly match
+        // the declaration described in the .asm file.  Be very, very carfeul when calling this :-)
+        int CxxReflectX64FastCallThunk(void const*   fp,
+                                       void const*   arguments,
+                                       void const*   types,
+                                       std::uint64_t count);
     }
 
+    // These are the flags used in the 'types' array passed to the CxxReflectX64FastCallThunk.  The
+    // enumerator values must match the values described in the documentation of the thunk procedure.
     enum class X64ArgumentType : std::uint64_t
     {
         Integer             = 0,
@@ -428,16 +435,18 @@ namespace CxxReflect { namespace WindowsRuntime { namespace Internal {
         SinglePrecisionReal = 2
     };
 
+    // This frame is used for accumulating arguments for dynamic invocation on x64.  The arguments,
+    // types, and count are maintained such that they may be passed to the CxxReflectX64FastCallThunk.
     class X64ArgumentFrame
     {
     public:
 
-        void Push(float  x);
-        void Push(double x);
-
         void const*   GetArguments() const;
         void const*   GetTypes()     const;
         std::uint64_t GetCount()     const;
+
+        void Push(float  x);
+        void Push(double x);
 
         template <typename T>
         void Push(T const& x)
@@ -771,34 +780,34 @@ namespace CxxReflect { namespace WindowsRuntime {
     // TODO None of these are implemented yet, and once we do implement them, we probably won't have
     // full support for value type return types.  We'll need to find some way to box them.
 
-    void InvokeStaticWithVoidReturn  (Method const& method);
-    void InvokeInstanceWithVoidReturn(Method const& method, IInspectable* instance);
+    // TODO void InvokeStaticWithVoidReturn  (Method const& method);
+    // TODO void InvokeInstanceWithVoidReturn(Method const& method, IInspectable* instance);
 
-    UniqueInspectable InvokeStaticWithInspectableReturn  (Method const& method);
-    UniqueInspectable InvokeInstanceWithInspectableReturn(Method const& method, IInspectable* instance);
+    // TODO UniqueInspectable InvokeStaticWithInspectableReturn  (Method const& method);
+    // TODO UniqueInspectable InvokeInstanceWithInspectableReturn(Method const& method, IInspectable* instance);
 
     #ifdef CXXREFLECT_ENABLE_WINDOWS_RUNTIME_CPPCX
-    inline ::Platform::Object^ InvokeStaticWithObjectReturn(Method const& method)
-    {
-        return reinterpret_cast<::Platform::Object^>(InvokeStaticWithInspectableReturn(method).release());
-    }
+    // TODO inline ::Platform::Object^ InvokeStaticWithObjectReturn(Method const& method)
+    // {
+    //     return reinterpret_cast<::Platform::Object^>(InvokeStaticWithInspectableReturn(method).release());
+    // }
 
-    inline ::Platform::Object^ InvokeInstanceWithObjectReturn(Method const& method, IInspectable* const instance)
-    {
-        return reinterpret_cast<::Platform::Object^>(InvokeInstanceWithInspectableReturn(method, instance).release());
-    }
+    // TODO inline ::Platform::Object^ InvokeInstanceWithObjectReturn(Method const& method, IInspectable* const instance)
+    // {
+    //     return reinterpret_cast<::Platform::Object^>(InvokeInstanceWithInspectableReturn(method, instance).release());
+    // }
 
-    template <typename TTarget>
-    TTarget^ InvokeStatic(Method const& method)
-    {
-        return dynamic_cast<TTarget^>(InvokeStaticWithObjectReturn(method));
-    }
+    // TODO template <typename TTarget>
+    // TTarget^ InvokeStatic(Method const& method)
+    // {
+    //     return dynamic_cast<TTarget^>(InvokeStaticWithObjectReturn(method));
+    // }
 
-    template <typename TTarget>
-    TTarget^ InvokeInstance(Method const& method, IInspectable* const instance)
-    {
-        return dynamic_cast<TTarget^>(InvokeInstanceWithObjectReturn(method, instance));
-    }
+    // TODO template <typename TTarget>
+    // TTarget^ InvokeInstance(Method const& method, IInspectable* const instance)
+    // {
+    //     return dynamic_cast<TTarget^>(InvokeInstanceWithObjectReturn(method, instance));
+    // }
     #endif
 
 

@@ -78,19 +78,19 @@ namespace CxxReflect {
 
     Assembly::ModuleIterator Assembly::BeginModules() const
     {
-        Detail::AssertFail(L"NYI");
+        Detail::AssertFail(L"Not yet implemented");
         return ModuleIterator();
     }
 
     Assembly::ModuleIterator Assembly::EndModules() const
     {
-        Detail::AssertFail(L"NYI");
+        Detail::AssertFail(L"Not yet implemented");
         return ModuleIterator();
     }
 
     Module Assembly::GetModule(StringReference const /*name*/) const
     {
-        Detail::AssertFail(L"NYI");
+        Detail::AssertFail(L"Not yet implemented");
         return Module();
     }
 
@@ -159,7 +159,7 @@ namespace CxxReflect {
         Metadata::Database const& database(_context.Get()->GetDatabase());
 
         if (database.GetTables().GetTable(Metadata::TableId::Assembly).GetRowCount() == 0)
-            throw std::runtime_error("wtf");
+            throw RuntimeError(L"Metadata for assembly is invalid:  no Assembly record");
 
         return database.GetRow<Metadata::TableId::Assembly>(0);
     }
