@@ -12,6 +12,8 @@
 #include <cor.h>
 #include <metahost.h>
 
+#if CXXREFLECT_ARCHITECTURE == CXXREFLECT_ARCHITECTURE_X86
+
 namespace cxr
 {
     using namespace CxxReflect;
@@ -203,3 +205,5 @@ namespace CxxReflectTest { namespace {
     });
 
 } }
+
+#endif // CXXREFLECT_ARCHITECTURE == CXXREFLECT_ARCHITECTURE_X86

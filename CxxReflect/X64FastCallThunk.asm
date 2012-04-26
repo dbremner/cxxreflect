@@ -10,7 +10,10 @@
 ;
 ; Declared in C as:
 ;
-;     int CxxReflectX64FastCallThunk(void* fp, void* arguments, void* types, unsigned long long count);
+;     int CxxReflectX64FastCallThunk(void const*   fp,
+;                                    void const*   arguments,
+;                                    void const*   types,
+;                                    std::uint64_t count);
 ;
 ; 'fp' is the address of the function to be called.
 ;
@@ -39,19 +42,34 @@ $arguments    =  8    ; copied from rdx
 $types        = 16    ; copied from r8
 $count        = 24    ; copied from r9
 
-CxxReflectX64FastCallThunk PROC
-
-    ; rbp is used as a frame pointer.  It points to the spill space for the initial argument ('fp'):
-    push    rbp
-    mov     rbp, rsp
-    add     rbp, 16
-
-
+CxxReflectX64FastCallThunk PROC FRAME
 
     ; Save nonvolatile registers that are used in this function:
-    push    r12
-    push    r13
-    push    r14
+    push        rbp
+    .pushreg    rbp
+
+    push        r12
+    .pushreg    r12
+
+    push        r13
+    .pushreg    r13
+
+    push        r14
+    .pushreg    r14
+
+    ; We don't actually use r15, but the frame offset must be a multiple of 16.
+    push        r15
+    .pushreg    r15
+
+
+
+    ; Initialize rbp as the frame pointer; it points to the spill space for the initial argument ('fp'):
+    lea         rbp, [rsp + 48]
+    .setframe   rbp, 48
+
+
+
+    .endprolog
 
 
 
@@ -274,6 +292,7 @@ ArgumentLoopEnd:
 
 
     ; Restore nonvolatile registers that are used in this function:
+    pop     r15
     pop     r14
     pop     r13
     pop     r12

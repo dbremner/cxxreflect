@@ -77,6 +77,11 @@ namespace CxxReflectTest {
                 throw TestError(L"");
         }
 
+        void Fail() const
+        {
+            throw TestError(L"Unexpectedly failed");
+        }
+
     private:
 
         std::map<String, String> _properties;
