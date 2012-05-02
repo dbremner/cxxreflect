@@ -9,6 +9,13 @@
 
 #ifdef CXXREFLECT_ENABLE_WINDOWS_RUNTIME_INTEGRATION
 
+namespace CxxReflect { namespace Detail {
+
+    std::uint8_t const* BeginWinRTTypeSystemSupportEmbedded();
+    std::uint8_t const* EndWinRTTypeSystemSupportEmbedded();
+
+} }
+
 namespace CxxReflect { namespace WindowsRuntime {
 
     // An IAssemblyLocator that finds assemblies in the current package.  Assemblies are resolved
@@ -21,15 +28,15 @@ namespace CxxReflect { namespace WindowsRuntime {
 
         PackageAssemblyLocator(String const& packageRoot);
 
-        virtual String LocateAssembly(AssemblyName const& assemblyName) const;
-        virtual String LocateAssembly(AssemblyName const& assemblyName, String const& fullTypeName) const;
+        virtual AssemblyLocation LocateAssembly(AssemblyName const& assemblyName) const;
+        virtual AssemblyLocation LocateAssembly(AssemblyName const& assemblyName, String const& fullTypeName) const;
 
         // TODO We should replace this with something a bit less expensive.  Since we need to sync
         // to access _metadataFiles, direct iterator access is a bit tricky.  This will suffice for
         // the moment.
         PathMap GetMetadataFiles() const;
 
-        String FindMetadataFileForNamespace(String const& namespaceName) const;
+        AssemblyLocation FindMetadataForNamespace(String const& namespaceName) const;
 
     private:
 
@@ -151,21 +158,65 @@ namespace CxxReflect { namespace WindowsRuntime {
 
 
 
-    // This begins initialization of the global Windows Runtime loader.  You must call this function
-    // once before using any of the CxxReflect library functionality.  Do not call this multiple
-    // times.
+    /// \defgroup winrtinit Windows Runtime Integration Initialization
+    /// @{
+
+
+
+    /// Begins initialization of the global Windows Runtime loader for the package.
+    ///
+    /// The CxxReflect Windows Runtime integration utilizes a global `Loader` instance to load the
+    /// type system for the current App Package.  In order to use the Windows Runtime support
+    /// functions, you must initialize this global `Loader` by calling this function.  It is
+    /// asynchronous and will begin initialization and return immediately.  Call this only once.
+    ///
+    /// If you fail to call this initialization function, most of the Windows Runtime support
+    /// functions will throw a `LogicError`.
+    /// 
+    /// \throws LogicError If `BeginInitialization()` has already been called.
     void BeginInitialization();
 
-    // Tests whether BeginInitialization() has been called.
+    /// Tests whether `BeginInitialization()` has been called.
+    ///
+    /// \return `true` if `BeginInitialization()` has been called; `false` otherwise.
+    ///
+    /// \nothrows
     bool HasInitializationBegun();
 
-    // Tests whether BeginInitialization() has been called and initialization has completed.  If
-    // this returns true, then calls to the public CxxReflect API functionality will not block.
+    /// Tests whether `BeginInitialization()` has been called and initialization has completed.
+    ///
+    /// After calling `BeginInitialization()`, any calls to the Windows Runtime support functions
+    /// will block until initialization is complete.  Call this function to test whether such a call
+    /// will block.
+    ///
+    /// Note that if you are using C++/CX, you cannot block on an STA thread, so attempting to use
+    /// the Windows Runtime support functions before initialization is complete will cause an
+    /// exception to be thrown.
+    ///
+    /// \return `true` if initialization has completed; `false` otherwise.
+    ///
+    /// \nothrows
     bool IsInitialized();
 
-    // Calls 'callable' on a worker thread after the global loader has initialized.  This can be
-    // used to avoid blocking on the STA.
+    /// Calls `callable` on a worker thread after initialization completes.
+    ///
+    /// This function should be used when calls are made from an STA thread and initialization has
+    /// not yet completed (or if it is not known whether initialization has completed).  This
+    /// function will enqueue `callable` for execution immediately after initialization completes.
+    /// 
+    /// \warning This function does not marshal `callable` back to the calling thread.  `callable`
+    /// will be executed on an unspecified worker thread.  If initialization has already completed
+    /// when `WhenInitializedCall()` is called, `callable` is still enqueued for execution on a
+    /// worker thread.  `callable` will never be executed on the calling thread.
+    ///
+    /// \param[in] callable An object callable with zero arguments.  
+    ///
+    /// \nothrows
     void WhenInitializedCall(std::function<void()> callable);
+
+
+
+    /// @}
 
     // TODO We should also provide a WhenInitializedMarshal() that marshals back onto the STA before
     // calling the callable object.  This would make for even cleaner usage of this method. Also, we

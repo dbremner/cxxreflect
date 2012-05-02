@@ -221,8 +221,8 @@ namespace
     template <typename T, typename U>
     bool StringEquals(T t, U u, System::StringComparison mode = System::StringComparison::Ordinal)
     {
-        System::String^ tString(AsSystemString(t));
-        System::String^ uString(AsSystemString(u));
+        System::String^ const tString(AsSystemString(t));
+        System::String^ const uString(AsSystemString(u));
 
         return System::String::Equals(tString, uString, mode);
     }
@@ -352,7 +352,11 @@ namespace
         // type is serializable using CxxReflect, you can use the IsSerializable property.
         rAttributes.erase(cliext::remove_if(rAttributes.begin(), rAttributes.end(), [](R::CustomAttribute^ a)
         {
-            return a->Constructor->DeclaringType->Name == L"SerializableAttribute";
+            return a->Constructor->DeclaringType->Name == L"SerializableAttribute"
+                || a->Constructor->DeclaringType->Name == L"ComImportAttribute"
+                || a->Constructor->DeclaringType->Name == L"SecurityPermissionAttribute"
+                || a->Constructor->DeclaringType->Name == L"HostProtectionAttribute"
+                || a->Constructor->DeclaringType->Name == L"PermissionSetAttribute";
         }), rAttributes.end());
 
         sort(rAttributes.begin(), rAttributes.end(), MetadataTokenStrictWeakOrdering());
@@ -360,16 +364,31 @@ namespace
 
         CompareRanges(state, L"Attribute", rAttributes, cAttributes);
     }
-    
+
     void Compare(StateStack% state, R::Assembly^ rAssembly, C::Assembly const& cAssembly)
     {
         auto frame(state.Push(rAssembly));
 
         cliext::vector<R::Type^>  rTypes(rAssembly->GetTypes());
-        C::Assembly::TypeSequence cTypes(cAssembly.GetTypes());
+        std::vector<C::Type>      cTypes(cAssembly.BeginTypes(), cAssembly.EndTypes());
 
         sort(rTypes.begin(), rTypes.end(), MetadataTokenStrictWeakOrdering());
         sort(cTypes.begin(), cTypes.end(), MetadataTokenStrictWeakOrdering());
+
+        rTypes.erase(cliext::remove_if(rTypes.begin(), rTypes.end(), [](R::Type^ const x)
+        {
+            return x->FullName == L"System.__ComObject"
+                || x->FullName == L"System.StubHelpers.HStringMarshaler"
+                || x->FullName == L"System.Runtime.InteropServices.WindowsRuntime.DisposableRuntimeClass";
+        }), rTypes.end());
+
+        cTypes.erase(std::remove_if(begin(cTypes), end(cTypes), [](C::Type const& x)
+        {
+            return (x.GetNamespace() == L"System"                                        && x.GetName() == L"__ComObject")
+                || (x.GetNamespace() == L"System.Runtime.Remoting.Proxies"               && x.GetName() == L"__TransparentProxy")
+                || (x.GetNamespace() == L"System.Runtime.InteropServices.WindowsRuntime" && x.GetName() == L"DisposableRuntimeClass")
+                || (x.GetNamespace() == L"System.StubHelpers"                            && x.GetName() == L"HStringMarshaler");
+        }), end(cTypes));
 
         auto rIt(rTypes.begin());
         auto cIt(cTypes.begin());
@@ -604,7 +623,8 @@ namespace
             return;
 
         // TODO Support for generic types
-        if (rType->IsGenericType)
+        // TODO Support for array types
+        if (rType->IsGenericType || rType->IsArray)
             return;
 
         auto frame(state.Push(rType));
@@ -654,7 +674,7 @@ namespace
         sort(rInterfaces.begin(), rInterfaces.end(), MetadataTokenStrictWeakOrdering());
         sort(cInterfaces.begin(), cInterfaces.end(), MetadataTokenStrictWeakOrdering());
 
-        CompareRanges(state, L"Interfaces", rInterfaces, cInterfaces);
+        CompareRanges(state, L"Interface", rInterfaces, cInterfaces);
 
         // TODO GetMember
         // TODO GetMembers
@@ -667,7 +687,7 @@ namespace
         sort(rMethods.begin(), rMethods.end(), MetadataTokenStrictWeakOrdering());
         sort(cMethods.begin(), cMethods.end(), MetadataTokenStrictWeakOrdering());
 
-        CompareRanges(state, L"Methods", rMethods, cMethods);
+        CompareRanges(state, L"Method", rMethods, cMethods);
 
         // TODO GetNestedType
         // TODO GetNestedTypes
@@ -736,7 +756,8 @@ namespace
 
 int main()
 {
-    wchar_t const* const assemblyPath(L"C:\\jm\\CxxReflect\\Build\\Output\\Win32\\Debug\\TestAssemblies\\A0.dat");
+    // wchar_t const* const assemblyPath(L"C:\\jm\\CxxReflect\\Build\\Output\\Win32\\Debug\\TestAssemblies\\A0.dat");
+    wchar_t const* const assemblyPath(L"C:\\windows\\Microsoft.NET\\Framework\\v4.0.30319\\mscorlib.dll");
 
     C::Externals::Initialize<CxxReflect::Platform::Win32>();
 
@@ -746,7 +767,7 @@ int main()
     directories.insert(L"C:\\Windows\\Microsoft.NET\\Framework\\v4.0.30319\\wpf");
     std::auto_ptr<C::IAssemblyLocator> resolver(new C::DirectoryBasedAssemblyLocator(directories));
     C::Loader loader(resolver);
-    C::Assembly cAssembly(loader.LoadAssembly(assemblyPath));
+    C::Assembly cAssembly(loader.LoadAssembly(C::AssemblyLocation(assemblyPath)));
 
     // Load the assembly using Reflection:
     R::Assembly^ rAssembly(R::Assembly::LoadFrom(gcnew System::String(assemblyPath)));

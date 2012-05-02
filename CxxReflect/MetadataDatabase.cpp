@@ -193,14 +193,14 @@ namespace CxxReflect { namespace Metadata { namespace { namespace Private {
         std::uint32_t _rva;
     };
 
-    PeSectionsAndCliHeader ReadPeSectionsAndCliHeader(Detail::FileHandle& file)
+    PeSectionsAndCliHeader ReadPeSectionsAndCliHeader(Detail::ConstByteCursor file)
     {
         // The index of the PE Header is located at index 0x3c of the DOS header
-        file.Seek(0x3c, Detail::FileHandle::Begin);
+        file.Seek(0x3c, Detail::ConstByteCursor::Begin);
         
         std::uint32_t fileHeaderOffset(0);
         file.Read(&fileHeaderOffset, 1);
-        file.Seek(fileHeaderOffset, Detail::FileHandle::Begin);
+        file.Seek(fileHeaderOffset, Detail::ConstByteCursor::Begin);
 
         PeFileHeader fileHeader = { 0 };
         file.Read(&fileHeader, 1);
@@ -221,7 +221,7 @@ namespace CxxReflect { namespace Metadata { namespace { namespace Private {
             *cliHeaderSectionIt,
             fileHeader._cliHeaderTable));
 
-        file.Seek(cliHeaderTableOffset, Detail::FileHandle::Begin);
+        file.Seek(cliHeaderTableOffset, Detail::ConstByteCursor::Begin);
 
         PeCliHeader cliHeader = { 0 };
         file.Read(&cliHeader, 1);
@@ -232,8 +232,8 @@ namespace CxxReflect { namespace Metadata { namespace { namespace Private {
         return result;
     }
 
-    PeCliStreamHeaderSequence ReadPeCliStreamHeaders(Detail::FileHandle          & file,
-                                                     PeSectionsAndCliHeader const& peHeader)
+    PeCliStreamHeaderSequence ReadPeCliStreamHeaders(Detail::ConstByteCursor        file,
+                                                     PeSectionsAndCliHeader  const& peHeader)
     {
         auto metadataSectionIt(std::find_if(
             peHeader._sections.begin(),
@@ -247,18 +247,18 @@ namespace CxxReflect { namespace Metadata { namespace { namespace Private {
             *metadataSectionIt,
             peHeader._cliHeader._metadata));
 
-        file.Seek(metadataOffset, Detail::FileHandle::Begin);
+        file.Seek(metadataOffset, Detail::ConstByteCursor::Begin);
 
         std::uint32_t magicSignature(0);
         file.Read(&magicSignature, 1);
         if (magicSignature != 0x424a5342)
             throw MetadataReadError(L"Magic signature does not match required value 0x424a5342");
 
-        file.Seek(8, Detail::FileHandle::Current);
+        file.Seek(8, Detail::ConstByteCursor::Current);
 
         std::uint32_t versionLength(0);
         file.Read(&versionLength, 1);
-        file.Seek(versionLength + 2, Detail::FileHandle::Current); // Add 2 to account for unused flags
+        file.Seek(versionLength + 2, Detail::ConstByteCursor::Current); // Add 2 to account for unused flags
 
         std::uint16_t streamCount(0);
         file.Read(&streamCount, 1);
@@ -279,7 +279,7 @@ namespace CxxReflect { namespace Metadata { namespace { namespace Private {
                     streamHeaders[Detail::AsInteger(PeCliStreamKind::id)]._metadataOffset == 0) \
                 {                                                                               \
                     streamHeaders[Detail::AsInteger(PeCliStreamKind::id)] = header;             \
-                    file.Seek(reset, Detail::FileHandle::Current);                              \
+                    file.Seek(reset, Detail::ConstByteCursor::Current);                         \
                     used = true;                                                                \
                 }
 
@@ -1227,6 +1227,10 @@ namespace CxxReflect { namespace Metadata {
 
 
 
+    /// Transforms UTF-8 strings to UTF-16, with string caching.
+    ///
+    /// This class is pimpl'ed because it depends on the C++ <mutex>, which cannot be included in
+    /// the public interface headers.
     class StringCollectionCache
     {
     public:
@@ -1338,24 +1342,15 @@ namespace CxxReflect { namespace Metadata {
     {
     }
 
-    Stream::Stream(Detail::FileHandle& file,
+    Stream::Stream(Detail::ConstByteCursor file,
                    SizeType const metadataOffset,
                    SizeType const streamOffset,
                    SizeType const streamSize)
     {
-        file.Seek(metadataOffset + streamOffset, Detail::FileHandle::Begin);
-        _data = std::move(file.ReadRange(streamSize));
-    }
-
-    Stream::Stream(Stream&& other)
-        : _data(std::move(other._data))
-    {
-    }
-
-    Stream& Stream::operator=(Stream&& other)
-    {
-        _data = std::move(other._data);
-        return *this;
+        file.Seek(metadataOffset + streamOffset, Detail::ConstByteCursor::Begin);
+        file.VerifyAvailable(streamSize);
+        ConstByteIterator const it(file.GetCurrent());
+        _data = ConstByteRange(it, it + streamSize);
     }
 
     ConstByteIterator Stream::Begin() const
@@ -1419,6 +1414,7 @@ namespace CxxReflect { namespace Metadata {
     {
         // Note:  it's okay if _data is nullptr; if it is, then Begin() == End(), so the table is
         // considered to be empty.  Thus, we don't AssertInitialized() here.
+        Detail::Assert([&]{ return _data.Get() != nullptr || _rowCount.Get() * _rowSize.Get() == 0; });
         return _data.Get() + _rowCount.Get() * _rowSize.Get();
     }
 
@@ -1475,7 +1471,7 @@ namespace CxxReflect { namespace Metadata {
         _state.Get()._sortedBits = _stream.ReadAs<std::uint64_t>(16);
 
         SizeType index(24);
-        for (unsigned x(0); x < 64; ++x)
+        for (unsigned x(0); x < TableIdCount; ++x)
         {
             if (!_state.Get()._validBits.test(x))
                 continue;
@@ -1490,7 +1486,7 @@ namespace CxxReflect { namespace Metadata {
         ComputeCompositeIndexSizes();
         ComputeTableRowSizes();
 
-        for (unsigned x(0); x < 64; ++x)
+        for (unsigned x(0); x < TableIdCount; ++x)
         {
             if (!_state.Get()._validBits.test(x) || _state.Get()._rowCounts[x] == 0)
                 continue;
@@ -1787,22 +1783,26 @@ namespace CxxReflect { namespace Metadata {
 
 
 
-
-
-    Database::Database(String fileName)
-        : _fileName(std::move(fileName))
+    Database Database::CreateFromFile(StringReference const path)
     {
-        Detail::FileHandle file(_fileName.c_str(), Detail::FileMode::Read | Detail::FileMode::Binary);
+        Detail::FileHandle const fileHandle(path.c_str(), Detail::FileMode::Read | Detail::FileMode::Binary);
+        return Database(Externals::MapFile(fileHandle.GetHandle()));
+    }
 
-        Private::PeSectionsAndCliHeader const peSectionsAndCliHeader(Private::ReadPeSectionsAndCliHeader(file));
-        Private::PeCliStreamHeaderSequence const streamHeaders(Private::ReadPeCliStreamHeaders(file, peSectionsAndCliHeader));
+    Database::Database(Detail::FileRange&& file)
+        : _file(std::move(file))
+    {
+        Detail::ConstByteCursor const cursor(_file.Begin(), _file.End());
+
+        Private::PeSectionsAndCliHeader const peSectionsAndCliHeader(Private::ReadPeSectionsAndCliHeader(cursor));
+        Private::PeCliStreamHeaderSequence const streamHeaders(Private::ReadPeCliStreamHeaders(cursor, peSectionsAndCliHeader));
         for (std::size_t i(0); i < streamHeaders.size(); ++i)
         {
             if (streamHeaders[i]._metadataOffset == 0)
                 continue;
 
             Stream newStream(
-                file,
+                cursor,
                 streamHeaders[i]._metadataOffset,
                 streamHeaders[i]._streamOffset,
                 streamHeaders[i]._streamSize);
@@ -1836,11 +1836,11 @@ namespace CxxReflect { namespace Metadata {
     }
 
     Database::Database(Database&& other)
-        : _fileName  (std::move(other._fileName  )),
-          _blobStream(std::move(other._blobStream)),
+        : _blobStream(std::move(other._blobStream)),
           _guidStream(std::move(other._guidStream)),
           _strings   (std::move(other._strings   )),
-          _tables    (std::move(other._tables    ))
+          _tables    (std::move(other._tables    )),
+          _file      (std::move(other._file      ))
     {
     }
 
@@ -1852,11 +1852,11 @@ namespace CxxReflect { namespace Metadata {
 
     void Database::Swap(Database& other)
     {
-        std::swap(_fileName,   other._fileName  );
         std::swap(_blobStream, other._blobStream);
         std::swap(_guidStream, other._guidStream);
         std::swap(_strings,    other._strings   );
         std::swap(_tables,     other._tables    );
+        std::swap(_file,       other._file      );
     }
 
     template <TableId TId>

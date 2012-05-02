@@ -76,7 +76,7 @@ namespace CxxReflect {
         {
         }
 
-        AssemblyName(String const& fullName);
+        explicit AssemblyName(String const& fullName);
 
         AssemblyName(String const& simpleName, Version const& version, String const& path = L"")
             : _simpleName(simpleName), _version(version), _path(path)

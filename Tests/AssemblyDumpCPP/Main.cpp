@@ -180,7 +180,7 @@ namespace
 
 int main()
 {
-    CxxReflect::Externals::Initialize<CxxReflect::Platform::Win32>();
+    Externals::Initialize<CxxReflect::Platform::Win32>();
 
     DirectoryBasedAssemblyLocator::DirectorySet directories;
     directories.insert(L"C:\\Windows\\Microsoft.NET\\Framework\\v4.0.30319");
@@ -189,7 +189,7 @@ int main()
 
     Loader loader(std::move(resolver));
 
-    Assembly a(loader.LoadAssembly(L"C:\\Windows\\Microsoft.NET\\Framework\\v4.0.30319\\mscorlib.dll"));
+    Assembly a(loader.LoadAssembly(AssemblyLocation(L"C:\\Windows\\Microsoft.NET\\Framework\\v4.0.30319\\mscorlib.dll")));
     /*
     Database const& db(a.GetContext(InternalKey()).GetDatabase());
     for (auto it(db.Begin<Metadata::TableId::CustomAttribute>());

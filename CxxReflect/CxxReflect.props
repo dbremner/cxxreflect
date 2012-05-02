@@ -15,7 +15,7 @@
   without.
   -->
 
-  <PropertyGroup>
+  <PropertyGroup Condition="'$(MSBuildProjectExtension)' == '.vcxproj'">
     <!-- CxxReflectIsCxxReflectLibrary is set only for the CxxReflect library itself. -->
     <CxxReflectIsCxxReflectLibrary Condition="'$(MSBuildProjectName)' == 'CxxReflect'">true</CxxReflectIsCxxReflectLibrary>
     <CxxReflectIsCxxReflectLibrary Condition="'$(CxxReflectIsCxxReflectLibrary)' == ''">false</CxxReflectIsCxxReflectLibrary>
@@ -27,6 +27,13 @@
     <!-- /ZW configurations are enabled for the CxxReflect library and all AppContainerApplication projects -->
     <CxxReflectIncludeZWConfigurations Condition="'$(CxxReflectIsCxxReflectLibrary)' == 'true' or '$(AppContainerApplication)' == 'true'">true</CxxReflectIncludeZWConfigurations>
     <CxxReflectIncludeZWConfigurations Condition="'$(CxxReflectIncludeZWConfigurations)' == ''">false</CxxReflectIncludeZWConfigurations>
+
+    <CxxReflectIncludeAnyCPUConfigurations>false</CxxReflectIncludeAnyCPUConfigurations>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(MSBuildProjectExtension)' == '.csproj'">
+    <CxxReflectIncludeAnyCPUConfigurations>true</CxxReflectIncludeAnyCPUConfigurations>
+    <CxxReflectIsStandalone>true</CxxReflectIsStandalone>
   </PropertyGroup>
 
   <!-- Non-/ZW Project Configurations -->
@@ -66,6 +73,17 @@
     <ProjectConfiguration Include="Release(ZW)|x64">
       <Configuration>Release(ZW)</Configuration>
       <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  
+  <ItemGroup Condition="'$(CxxReflectIncludeAnyCPUConfigurations)' == 'true'">
+    <ProjectConfiguration Include="Debug|AnyCPU">
+      <Configuration>Debug</Configuration>
+      <Platform>AnyCPU</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|AnyCPU">
+      <Configuration>Release</Configuration>
+      <Platform>AnyCPU</Platform>
     </ProjectConfiguration>
   </ItemGroup>
 
@@ -151,7 +169,7 @@
       <WarningLevel>Level4</WarningLevel>
     </ClCompile>
     <Link>
-      <AdditionalDependencies>CxxReflect.lib;runtimeobject.lib;wintypes.lib;advapi32.lib;shlwapi.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>runtimeobject.lib;wintypes.lib;advapi32.lib;shlwapi.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalLibraryDirectories>$(CxxReflectOutDir);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
@@ -195,12 +213,43 @@
       <AdditionalOptions>/force:allowzwobj %(AdditionalOptions)</AdditionalOptions>
     </Lib>
   </ItemDefinitionGroup>
+
+  <!-- Some extra loving care for C# projects -->
+  <PropertyGroup Condition="'$(MSBuildProjectExtension)' == '.csproj'">
+    <CxxReflectIsStandalone>true</CxxReflectIsStandalone>
+    <FileAlignment>512</FileAlignment>
+    <IntermediateOutputPath>$(IntDir)</IntermediateOutputPath>
+    <OutputPath>$(OutDir)</OutputPath>
+    <Platform>AnyCPU</Platform>
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
+    <WarningLevel>4</WarningLevel>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(MSBuildProjectExtension)' == '.csproj' and '$(Configuration)' == 'Debug'">
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>full</DebugType>
+    <Optimize>false</Optimize>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(MSBuildProjectExtension)' == '.csproj' and '$(Configuration)' == 'Release'">
+    <DebugType>pdbonly</DebugType>
+    <Optimize>true</Optimize>
+    <DefineConstants>TRACE</DefineConstants>
+  </PropertyGroup>
   
   <!-- All projects reference the core CxxReflect.lib project -->
-  <ItemGroup Condition="'$(MSBuildProjectName)' != 'CxxReflect'">
+  <ItemGroup Condition="'$(MSBuildProjectName)' != 'CxxReflect' and '$(CxxReflectIsStandalone)' != 'true'">
     <ProjectReference Include="$(SolutionDir)CxxReflect\CxxReflect.vcxproj">
       <Project>{64dc7dff-d2e4-4086-be24-02f0b9d71128}</Project>
     </ProjectReference>
   </ItemGroup>
+
+  <ItemDefinitionGroup Condition="'$(MSBuildProjectName)' != 'CxxReflect' and '$(CxxReflectIsStandalone)' != 'true'">
+    <Link>
+      <AdditionalDependencies>CxxReflect.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+  </ItemDefinitionGroup>
 
 </Project>

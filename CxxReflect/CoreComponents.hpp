@@ -344,22 +344,84 @@ namespace CxxReflect {
 
 
 
-    // This interface allows different assembly location logic to be plugged into the Loader.
+
+
+    /// Represents an assembly location, as returned by an IAssemblyLocator implementation.
+    class AssemblyLocation
+    {
+    public:
+
+        enum class Kind
+        {
+            Uninitialized,
+            File,
+            Memory
+        };
+
+        AssemblyLocation();
+        explicit AssemblyLocation(ConstByteRange const& memoryRange);
+        explicit AssemblyLocation(String const& filePath);
+
+        Kind GetKind()    const;
+        bool IsInFile()   const;
+        bool IsInMemory() const;
+
+        ConstByteRange const& GetMemoryRange() const;
+        String         const& GetFilePath()    const;
+
+    private:
+
+        ConstByteRange                 _memoryRange;
+        String                         _filePath;
+        Detail::ValueInitialized<Kind> _kind;
+
+    };
+
+
+
+
+    /// Interface for assembly location.
+    ///
+    /// An assembly locator is responsible for locating an assembly given an assembly name or a
+    /// reference type.  This interface allows different assembly resolution logic to be plugged
+    /// into a `Loader`.
     class IAssemblyLocator
     {
     public:
 
-        // When the Loader attempts to read metadata from an assembly it has not yet loaded, it calls
-        // this member function to locate the assembly file on disk.  An implementer should return an
-        // empty string if it cannot find the named assembly.
-        virtual String LocateAssembly(AssemblyName const& assemblyName) const = 0;
+        /// Called to locate an assembly by name.
+        ///
+        /// When a `Loader` attempts to read metadata from an assembly it has not yet loaded, it
+        /// calls this member function to locate the assembly file on disk so it can be loaded.  An
+        /// implementer should return an empty string if it cannot find the named assembly.
+        ///
+        /// \param assemblyName The name of the assembly that needs to be loaded.
+        ///
+        /// \returns The resolved path to the named assembly, or an empty string if the assembly
+        /// could not be located by the assembly locator.
+        ///
+        /// \nothrows
+        virtual AssemblyLocation LocateAssembly(AssemblyName const& assemblyName) const = 0;
         
-        // If the Loader knows the name of a type from the assembly it is trying to load, it will
-        // call this member function instead and pass the full type name (i.e., the namespace-
-        // qualified type name).  This allows type resolution by name, which is used e.g. by Windows
-        // Runtime, which uses metadata files but does not have a concept of "assemblies."
-        virtual String LocateAssembly(AssemblyName const& assemblyName, String const& fullTypeName) const = 0;
+        /// Called to locate an assembly by name, with a known reference type.
+        ///
+        /// If the `Loader` knows the name of a type from an assembly that it needs to load, it
+        /// will call this member function instead of the assembly name-only `LocateAssembly()`.
+        /// This allows type resolution by name, which is used e.g. by the Windows Runtime
+        /// integration, which uses metadata files but does not have logical assemblies.
+        ///
+        /// \param assemblyName The name of the assembly that needs to be loaded.
+        /// \param fullTypeName The full name (namespace-qualified name) of a reference type from
+        /// the assembly that needs to be loaded.  If the assembly locator supports type resolution
+        /// by name, it should use this reference type to resolve the assembly.
+        ///
+        /// \returns The resolved path to the named assembly, or an empty string if the assembly
+        /// could not be located by the assembly locator.
+        ///
+        /// \nothrows
+        virtual AssemblyLocation LocateAssembly(AssemblyName const& assemblyName, String const& fullTypeName) const = 0;
 
+        /// The destructor is virtual, to ensure correct interface semantics.
         virtual ~IAssemblyLocator();
     };
 

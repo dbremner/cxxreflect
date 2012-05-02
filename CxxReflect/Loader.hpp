@@ -13,26 +13,42 @@
 
 namespace CxxReflect { namespace Detail {
 
-    // Provides a synchronization object for the Loader (we must use pimpl because we cannot include
-    // <mutex> in the public interface headers.  (Thanks, C++/CLI!)
+    /// Provides a synchronization object for the `Loader`.
+    ///
+    /// We cannot include <mutex> in the public interface headers because a C++/CLI translation unit
+    /// will fail to compile if <mutex> is included.  Therefore, all usage of <mutex> in the type
+    /// system interface is pimpl'ed, in this case by using this synchronization context.
+    ///
+    /// Thanks, C++/CLI!
     class LoaderSynchronizationContext;
+
+    ConstByteIterator BeginCliTypeSystemSupportEmbedded();
+    ConstByteIterator EndCliTypeSystemSupportEmbedded();
 
 } }
 
 namespace CxxReflect {
 
-    // An assembly locator that searches for an assembly in a set of directories.  It requires that
-    // the file name of the assembly matches its simple name (with an added .dll or .exe extension).
+    /// An assembly locator that searches for an assembly in a set of directories.
+    ///
+    /// This assembly locator is constructed with a set of directories in which it is to search for
+    /// assemblies.  It requires that the file name of an assembly matches its simple name, with an
+    /// added .dll or .exe extension.
     class DirectoryBasedAssemblyLocator : public IAssemblyLocator
     {
     public:
 
         typedef std::set<String> DirectorySet;
 
+        /// Constructs a new `DirectoryBasedAssemblyLocator`.
+        ///
+        /// \param directories The set of directories that are searched when `LocateAssembly` is
+        /// called.  The directories are searched in sorted order.  It is expected that an assembly
+        /// is located in only one of the provided directories.
         DirectoryBasedAssemblyLocator(DirectorySet const& directories);
 
-        String LocateAssembly(AssemblyName const& assemblyName) const;
-        String LocateAssembly(AssemblyName const& assemblyName, String const& fullTypeName) const;
+        virtual AssemblyLocation LocateAssembly(AssemblyName const& assemblyName) const;
+        virtual AssemblyLocation LocateAssembly(AssemblyName const& assemblyName, String const& fullTypeName) const;
 
     private:
 
@@ -43,16 +59,21 @@ namespace CxxReflect {
 
 
 
-    // Loader is the entry point for the library.  It is used to resolve and load assemblies.  Note
-    // that all of its member functions are const-qualified.  Many of them do modify internal state
-    // of the Loader, but none of them mutate observable state.  A type system, rooted in a Loader,
-    // is immutable.  Assemblies, types, methods, and all other objects do not change.
+    /// A `Loader` is responsible for loading assemblies and serves as the root of a type universe.
+    ///
+    /// Note that all of the membr functions of `Loader` are const-qualified.  Many of the member
+    /// functions do modify internal state of the `Loader`, but none of them mutate observable state.
+    /// A type system, rooted in a `Loader`, is immutable.  Assemblies, types, methods, and other
+    /// kinds of entities do not change.
     class Loader : public Metadata::ITypeResolver
     {
     public:
 
-        // Note:  The auto_ptr overload is provided for use from C++/CLI, which does not yet support
-        // move-only types.  If you aren't using C++/CLI, use the unique_ptr overload.
+        /// Constructs a new `Loader` instance.
+        ///
+        /// This overload is identical to the overload that has unique_ptr paramters.  This overload
+        /// is provided for use in C++/CLI only, because C++/CLI does not support move-only types
+        /// like unique_ptr.  If you are not using C++/CLI, do not call this overload.
         explicit Loader(std::auto_ptr<IAssemblyLocator>       assemblyLocator,
                         std::auto_ptr<ILoaderConfiguration>   loaderConfiguration = std::auto_ptr<ILoaderConfiguration>(nullptr));
 
@@ -64,8 +85,8 @@ namespace CxxReflect {
         Loader(Loader&& other);
         Loader& operator=(Loader&& other);
 
-        Assembly LoadAssembly(String const& path) const;
-        Assembly LoadAssembly(AssemblyName const& name) const;
+        Assembly LoadAssembly(AssemblyLocation const& location) const;
+        Assembly LoadAssembly(AssemblyName     const& name)     const;
 
     public: // Internal Members
 
@@ -79,8 +100,10 @@ namespace CxxReflect {
         Detail::AssemblyContext const& GetContextForDatabase(Metadata::Database const& database, InternalKey) const;
 
         Metadata::FullReference ResolveType(Metadata::FullReference const& typeReference) const;
+        Metadata::FullReference ResolveFundamentalType(Metadata::ElementType elementType) const;
+        Metadata::FullReference Loader::ResolveReplacementType(Metadata::FullReference const& type) const;
 
-        Type GetFundamentalType(Metadata::ElementType const elementType, InternalKey) const;
+        Type GetFundamentalType(Metadata::ElementType elementType, InternalKey) const;
 
         Detail::EventContextTable     GetOrCreateEventTable    (Metadata::FullReference const& typeDef, InternalKey) const;
         Detail::FieldContextTable     GetOrCreateFieldTable    (Metadata::FullReference const& typeDef, InternalKey) const;

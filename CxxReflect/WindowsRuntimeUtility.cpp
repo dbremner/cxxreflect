@@ -263,8 +263,10 @@ namespace CxxReflect { namespace WindowsRuntime { namespace Internal {
         Detail::Assert([&]{ return _count.Get() == 0 || _array.Get() != nullptr; });
 
         // Exception-safety note:  if the deletion fails, something has gone horribly wrong
-        for (DWORD i(0); i < _count.Get(); ++i)
-            Detail::AssertSuccess(::WindowsDeleteString(_array.Get()[i]));
+        std::for_each(begin(), end(), [](HSTRING& s)
+        {
+            Detail::AssertSuccess(::WindowsDeleteString(s));
+        });
 
         ::CoTaskMemFree(_array.Get());
     }

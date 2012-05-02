@@ -22,27 +22,45 @@
 
 namespace CxxReflect {
 
-    // We have our own exception hierarchy because everything in this library uses wide strings, but
-    // the C++ Standard Library exceptions use narrow strings.  We still derive from std::exception.
-
+    /// The root of the CxxReflect Exception hierarchy.
+    ///
+    /// All exceptions thrown by CxxReflect are derived from this `Exception` class.  Note that
+    /// it derives from `std::exception` so that code catching `std::exception` will catch our
+    /// exceptions, but calling `std::exception::what()` will not return the exception message.
+    ///
+    /// We use wide strings everywhere in CxxReflect, so `Exception` has its own `what()`-like
+    /// function called `GetMessage()`.
     class Exception : public std::exception
     {
     public:
 
-        explicit Exception(String message = L"")
-            : std::exception("Use CxxReflect::Exception::GetMessage() to get the exception text."),
-              _message(std::move(message))
-        {
-        }
-
-        ~Exception() throw()
+        /// \nothrows
+        virtual ~Exception() throw()
         {
             // Required to override base-class virtual destructor
         }
 
+        /// Gets the exception text.
+        ///
+        /// Call this instead of `std::exception::what()`.
+        ///
+        /// \returns  The exception message text.
+        /// \nothrows
         String const& GetMessage() const
         {
             return _message;
+        }
+
+    protected:
+
+        /// The sole (non-copy/move) constructor is protected because we never want to throw an
+        /// `Exception` directly:  we always want to throw one of the derived exceptions.
+        ///
+        /// \param    message The message to be associated with this exception object.
+        /// \nothrows
+        explicit Exception(String const message = L"")
+            : _message(std::move(message))
+        {
         }
 
     private:
@@ -50,6 +68,10 @@ namespace CxxReflect {
         String _message;
     };
 
+    /// An exception class to represent a logic error.
+    ///
+    /// A logic error is any error that should never occur if the code is written correctly.  Do not
+    /// catch a `LogicError`.  If you encounter a `LogicError` exception, please report a bug.
     class LogicError : public Exception
     {
     public:
@@ -60,6 +82,7 @@ namespace CxxReflect {
         }
     };
 
+    /// An exception class to represent a runtime error.
     class RuntimeError : public Exception
     {
     public:
@@ -70,6 +93,7 @@ namespace CxxReflect {
         }
     };
 
+    /// An exception class to represent a runtime error with an HRESULT.
     class HResultRuntimeError : public RuntimeError
     {
     public:
@@ -89,6 +113,7 @@ namespace CxxReflect {
         HResult _hresult;
     };
 
+    /// An exception class to represent a runtime error due to I/O failure.
     class FileIOError : public RuntimeError
     {
     public:
@@ -113,6 +138,7 @@ namespace CxxReflect {
         int _error;
     };
 
+    /// An exception class to represent a runtime error due to an invalid metadata database.
     class MetadataReadError : public RuntimeError
     {
     public:
@@ -206,18 +232,19 @@ namespace CxxReflect { namespace Detail {
 
     #ifdef CXXREFLECT_ENABLE_UNCHECKED_DEBUG_ALGORITHMS
 
-    // These Assert that a sequence is ordered according to a particular strict weak ordering. These
-    // are useful with the unchecked debug algorithms defined here because they allow us to Assert a
-    // sequence's ordering once, then assume that it is ordered for all future searches.
-    
-    template <typename TForIt>
-    void AssertStrictWeakOrdering(TForIt const first, TForIt const last)
-    {
-        for (TForIt current(first), next(first); current != last && ++next != last; ++current)
-            if (*next < *current)
-                throw LogicError("Sequence is not ordered");
-    }
-
+    /// Checks that a range is ordered correctly and throws a `LogicError` if it is not.
+    ///
+    /// This is useful with the unchecked debug algorithms defined here because they allow us to
+    /// assert an immutable sequence's ordering once, then assume that it is ordered for all future
+    /// searches.
+    ///
+    /// This function is only used when `CXXREFLECT_ENABLE_UNCHECKED_DEBUG_ALGORITHMS` is defined.
+    /// If that macro is not defined, this function is a no-op.  When compiling a release (non-debug)
+    /// build or when iterator debugging is disabled, this macro is expressly not defined.
+    ///
+    /// \param  first, last The presumably-ordered range to be checked.
+    /// \param  predicate   The ordering predicate by which the sequence is expected to be ordered.
+    /// \throws LogicError  If the sequence is not ordered according to the predicate.
     template <typename TForIt, typename TPredicate>
     void AssertStrictWeakOrdering(TForIt const first, TForIt const last, TPredicate predicate)
     {
@@ -226,25 +253,36 @@ namespace CxxReflect { namespace Detail {
                 throw LogicError("Sequence is not ordered");
     }
 
-    // Visual C++ Iterator Debugging verifies that the input range satisfies the strict-weak order
-    // requirement each time that equal_range is called. This is extrodinarily slow for large ranges
-    // (or even for small ranges, if we call equal_range enough times). We have copied here the
-    // implementation of the Visual C++ Standard Library's equal_range but omitted the _DEBUG_ORDER
-    // call from the beginning of reach function.
-    template <typename TForIt, typename TValue>
-    ::std::pair<TForIt, TForIt> EqualRange(TForIt first, TForIt last, const TValue& value)
+    /// \copydoc AssertStrictWeakOrdering(TForIt, TForIt, TPredicate)
+    template <typename TForIt>
+    void AssertStrictWeakOrdering(TForIt const first, TForIt const last)
     {
-        auto const result(::std::_Equal_range(
-            ::std::_Unchecked(first),
-            ::std::_Unchecked(last),
-            value,
-            ::std::_Dist_type(first)));
-
-        return ::std::pair<TForIt, TForIt>(
-            ::std::_Rechecked(first, result.first),
-            ::std::_Rechecked(last, result.second));
+        for (TForIt current(first), next(first); current != last && ++next != last; ++current)
+            if (*next < *current)
+                throw LogicError("Sequence is not ordered");
     }
 
+    /// Replacement for `std::equal_range`.
+    /// 
+    /// Visual C++ Iterator Debugging verifies that the input range satisfies the strict-weak order
+    /// requirement each time that `std::equal_range` is called.  This is extraordinarily time
+    /// consuming for large ranges (or even small ranges, if we call `std::equal_range` frequently
+    /// enough).  We have copied here the implementation of the Visual C++ Standard Library's
+    /// `std::equal_range` but omitted the `_DEBUG_ORDER` call from the beginning of each function.
+    ///
+    /// This function is only used when `CXXREFLECT_ENABLE_UNCHECKED_DEBUG_ALGORITHMS` is defined.
+    /// If that macro is not defined, this function will delegate directly to `std::equal_range`.
+    /// When compiling a release (non-debug) build or when iterator debugging is disabled, this
+    /// macro is expressly not defined.
+    ///
+    /// If you wish to verify that a range is ordered according to a strict-weak predicate, use the
+    /// `AssertStrictWeakOrdering()` function template.
+    ///
+    /// \param    first, last The range to be searched.
+    /// \param    value       The value to search for.
+    /// \param    predicate   The ordering predicate by which the range is ordered.
+    /// \returns  The lower and upper bound results of the equal range search.
+    /// \nothrows
     template <typename TForIt, typename TValue, typename TPredicate>
     ::std::pair<TForIt, TForIt> EqualRange(TForIt first, TForIt last, const TValue& value, TPredicate predicate)
     {
@@ -253,6 +291,21 @@ namespace CxxReflect { namespace Detail {
             ::std::_Unchecked(last),
             value,
             predicate,
+            ::std::_Dist_type(first)));
+
+        return ::std::pair<TForIt, TForIt>(
+            ::std::_Rechecked(first, result.first),
+            ::std::_Rechecked(last, result.second));
+    }
+
+    /// \copydoc EqualRange(TForIt, TForIt, const TValue&, TPredicate)
+    template <typename TForIt, typename TValue>
+    ::std::pair<TForIt, TForIt> EqualRange(TForIt first, TForIt last, const TValue& value)
+    {
+        auto const result(::std::_Equal_range(
+            ::std::_Unchecked(first),
+            ::std::_Unchecked(last),
+            value,
             ::std::_Dist_type(first)));
 
         return ::std::pair<TForIt, TForIt>(
@@ -364,6 +417,12 @@ namespace CxxReflect { namespace Detail {
         return first0 == last0 && first1 == last1;
     }
 
+    /// Converts a wide string to lowercase
+    ///
+    /// \tparam   TString A string type that provides `begin()` and `end()` member functions.
+    /// \param    s       The string to be converted to lowercase.
+    /// \returns  The lowercase string.
+    /// \nothrows
     template <typename TString>
     TString MakeLowercase(TString s)
     {
@@ -372,8 +431,20 @@ namespace CxxReflect { namespace Detail {
     }
 
     template <typename T>
+    String ToString(T const& x)
+    {
+        std::wostringstream oss;
+        if (!(oss << x))
+            throw LogicError(L"Failed to convert object to string");
+
+        return oss.str();
+    }
+
+    /// An Identity template, similar to the proposed-but-excluded `std::identity`.
+    template <typename T>
     struct Identity
     {
+        /// A `typedef` for the template type parameter `T`.
         typedef T Type;
     };
 
@@ -753,10 +824,10 @@ namespace CxxReflect { namespace Detail {
             }
 
             // Finally, set the '_last' pointers for both strings if they don't have them set:
-            if (lhs._last == nullptr && *lhs_it == '\0')
+            if (lhs._last == nullptr && *lhs_it == 0)
                 lhs._last = lhs_it;
 
-            if (rhs._last == nullptr && *rhs_it == '\0')
+            if (rhs._last == nullptr && *rhs_it == 0)
                 rhs._last = rhs_it;
 
             return *lhs_it == 0 && *rhs_it == 0;
@@ -865,7 +936,7 @@ namespace CxxReflect { namespace Detail {
 
 namespace CxxReflect { namespace Detail {
 
-    // A class that is implicitly convertible to a value-initialized "default" value of any type.
+    /// A class that is convertible to a value-initialized instance of any type.
     class Default
     {
     public:
@@ -881,11 +952,12 @@ namespace CxxReflect { namespace Detail {
 
 
 
-    // An interface for virtually-destructible objects.
+    /// An interface for virtually-destructible objects.
     class IDestructible
     {
     public:
 
+        /// Virtual destructor provided for interface class.
         virtual ~IDestructible() = 0;
     };
 
@@ -1025,8 +1097,11 @@ namespace CxxReflect { namespace Detail {
         ValueType _value;
     };
 
-    // A value-initialization wrapper for use with member variables of POD type, to ensure that they
-    // are always initialized.
+    /// Value-initialization wrapper.
+    ///
+    /// This value-initialization wrapper should be used for all member variables of POD type, to
+    /// ensure that they are always initialized without having to explicitly initialize them in the
+    /// constructor of a class.
     template <typename T>
     class ValueInitialized
     {
@@ -1034,19 +1109,43 @@ namespace CxxReflect { namespace Detail {
 
         typedef T ValueType;
 
+        /// Default constructor value-initializes the stored value.
+        ///
+        /// \nothrows
         ValueInitialized()
             : _value()
         {
         }
 
+        /// Explicit constructor constructs the stored value by copying another instance of it.
+        ///
+        /// \param value The value to be copied.
+        /// \nothrows
         explicit ValueInitialized(ValueType const& value)
             : _value(value)
         {
         }
 
-        ValueType      & Get()       { return _value; }
-        ValueType const& Get() const { return _value; }
+        /// \returns  A reference to the stored value.
+        /// \nothrows
+        ValueType& Get()
+        {
+            return _value;
+        }
 
+        /// \returns  A const reference to the stored value.
+        /// \nothrows
+        ValueType const& Get() const
+        {
+            return _value;
+        }
+
+        /// Resets the value by destroying the object then reconstructing it in-place.
+        ///
+        /// (Note:  We assume that the default constructor and the destructor of `T` both do not
+        /// throw.  If they throw, though, you are in for a world of other trouble.)
+        ///
+        /// \nothrows
         void Reset()
         {
             _value.~ValueType();
@@ -1055,7 +1154,7 @@ namespace CxxReflect { namespace Detail {
 
     private:
 
-        ValueType _value;
+        ValueType _value; ///< The stored value.
     };
 
     template <typename T>
@@ -1305,17 +1404,6 @@ namespace CxxReflect { namespace Detail {
             return this->Read(buffer, sizeof *buffer, count);
         }
 
-        // Reads a range of 'size' bytes from the file, starting at the current position.  This
-        // function may use memory-mapped I/O, and may perform better than other Read functions
-        // for large blocks of memory.
-        FileRange ReadRange(std::uint32_t const size)
-        {
-            if (GetPosition() > static_cast<std::fpos_t>(std::numeric_limits<std::uint32_t>::max()))
-                throw RuntimeError(L"File is too large for use with this function");
-
-            return Externals::MapFileRange(_handle, static_cast<std::uint32_t>(GetPosition()), size);
-        }
-
         void Seek(PositionType const position, OriginType const origin)
         {
             AssertInitialized();
@@ -1372,6 +1460,11 @@ namespace CxxReflect { namespace Detail {
         {
             std::fprintf(_handle, "%08x", x.GetValue());
             return *this;
+        }
+
+        FILE* GetHandle() const
+        {
+            return _handle;
         }
 
     private:
@@ -1441,6 +1534,110 @@ namespace CxxReflect { namespace Detail {
 
 
 
+    /// A FileHandle-like interface for use with an array of bytes.
+    ///
+    /// This class is provided as a stopgap for migrating the Metadata Database class to exclusively
+    /// use memory mapped I/O.  This class has a pointer that serves as a current pointer (or cursor)
+    /// and Read and Seek operations advance or retreat the pointer.
+    class ConstByteCursor
+    {
+    public:
+
+        typedef std::int32_t DifferenceType;
+
+        enum OriginType
+        {
+            Begin   = SEEK_SET,
+            Current = SEEK_CUR,
+            End     = SEEK_END
+        };
+
+        ConstByteCursor(ConstByteIterator const first, ConstByteIterator const last)
+            : _first(first), _last(last), _current(first)
+        {
+        }
+
+        ConstByteIterator GetCurrent() const
+        {
+            AssertInitialized();
+            return _current.Get();
+        }
+
+        SizeType GetPosition() const
+        {
+            AssertInitialized();
+            return Distance(_first.Get(), _current.Get());
+        }
+
+        bool IsEof() const
+        {
+            AssertInitialized();
+            return _current.Get() == _last.Get();
+        }
+
+        void Read(void* const buffer, SizeType const size, SizeType const count)
+        {
+            AssertInitialized();
+            VerifyAvailable(size * count);
+            
+            ByteIterator bufferIterator(static_cast<ByteIterator>(buffer));
+            RangeCheckedCopy(_current.Get(), _current.Get() + size * count,
+                             bufferIterator, bufferIterator + size * count);
+
+            _current.Get() += size * count;
+        }
+
+        template <typename T>
+        void Read(T* const buffer, SizeType const count)
+        {
+            Assert([&](){ return count > 0; });
+
+            return this->Read(buffer, sizeof *buffer, count);
+        }
+
+        void Seek(DifferenceType const position, OriginType const origin)
+        {
+            AssertInitialized();
+            if (origin == OriginType::Begin)
+            {
+                _current.Get() = _first.Get();
+            }
+            else if (origin == OriginType::End)
+            {
+                _current.Get() = _last.Get();
+            }
+            
+            VerifyAvailable(position);
+            _current.Get() += position;
+        }
+
+        void VerifyAvailable(DifferenceType const size) const
+        {
+            if (std::distance(_current.Get(), _last.Get()) < size)
+                throw FileIOError(0);
+        }
+
+        bool IsInitialized() const
+        {
+            return _first.Get() != nullptr && _last.Get() != nullptr && _current.Get() != nullptr;
+        }
+
+    private:
+
+        void AssertInitialized() const
+        {
+            Assert([&]{ return IsInitialized(); });
+        }
+
+        ValueInitialized<ConstByteIterator> _first;
+        ValueInitialized<ConstByteIterator> _last;
+        ValueInitialized<ConstByteIterator> _current;
+    };
+
+
+
+
+
 } }
 
 
@@ -1460,14 +1657,13 @@ namespace CxxReflect { namespace Detail {
     // services allocation requests for arrays.  For the canonical example of using this allocator,
     // see its use for storing converted strings from the metadata database.
 
-    // Represents a range of elements in an array.  Begin() and End() point to the first element and
-    // the one-past-the-end elements, respectively, just as they do for the STL containers.
+    /// Represents a range of elements in an array.  `Begin()` and `End()` point to the first element
+    /// and the one-past-the-end "element," respectively, just as they do for the STL containers.
     template <typename T>
     class Range
     {
     public:
 
-        typedef std::size_t SizeType;
         typedef T           ValueType;
         typedef T*          Pointer;
 
@@ -1479,8 +1675,15 @@ namespace CxxReflect { namespace Detail {
             AssertInitialized();
         }
 
+        /// Converting constructor to convert `Range<T>` to `Range<cv T>`.
         template <typename U>
-        Range(Range<U> const& other)
+        Range(Range<U> const& other,
+              typename std::enable_if<
+                  std::is_same<
+                      typename std::remove_cv<T>::type,
+                      typename std::remove_cv<U>::type
+                  >::value
+              >::type* = nullptr)
             : _begin(other.IsInitialized() ? other.Begin() : nullptr),
               _end  (other.IsInitialized() ? other.End()   : nullptr)
         {
@@ -1501,6 +1704,20 @@ namespace CxxReflect { namespace Detail {
         ValueInitialized<Pointer> _end;
     };
 
+    /// A linear allocator for arrays of elements
+    ///
+    /// We do a lot of allocation of arrays, where the lifetimes of the arrays are bound to the
+    /// lifetime of another known object.  This very simple linear allocator allocates blocks of
+    /// memory and services allocation requests for arrays.  For a canonical example of using this
+    /// allocator, see its use for storing UTF-16 converted strings from the metadata database
+    /// (in `CxxReflect::Metadata::StringCollection`).
+    ///
+    /// The arrays are not destroyed until the `LinearArrayAllocator` is destroyed.  No reclamation
+    /// of allocated storage is attempted.
+    ///
+    /// \tparam T The type of element that is allocated.
+    /// \tparam NBlockSize The size of each block of `T` elements to be allocated.  This is also the
+    /// maximum serviceable allocation size.
     template <typename T, std::size_t NBlockSize>
     class LinearArrayAllocator
     {
@@ -1537,6 +1754,17 @@ namespace CxxReflect { namespace Detail {
             std::swap(other._current, _current);
         }
 
+        /// Allocates an array of `n` elements.
+        ///
+        /// \param n The extent of the array to be allocated.
+        ///
+        /// \returns A `Range` representing the newly allocated array.
+        ///
+        /// \throws RuntimeError If `n` is larger than `NBlockSize`.
+        ///
+        /// \todo Rather than throwing `RuntimeError` when `n` is larger than `NBlockSize`, we should
+        /// allocate that array independently.  This will require us to keep a list of independent
+        /// allocations.  This should not happen often, though.
         Range Allocate(SizeType const n)
         {
             EnsureAvailable(n);
@@ -1559,7 +1787,7 @@ namespace CxxReflect { namespace Detail {
         void EnsureAvailable(SizeType const n)
         {
             if (n > BlockSize)
-                throw std::out_of_range("n");
+                throw RuntimeError(L"n");
 
             if (_blocks.size() > 0)
             {

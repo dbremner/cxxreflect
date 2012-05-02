@@ -344,19 +344,133 @@ namespace CxxReflect { namespace Metadata {
     class TypeSignature;
     class SignatureComparer;
 
-    // A type resolver usable for resolving type references (TypeRef tokens).  This interface is
-    // provided because the low-level Metadata library itself is incapable of resolving a TypeRef
-    // to its definition.  The Metadata library classes only have knowledge of a single assembly,
-    // but TypeRef resolution typically requires knowledge of the entire metadata universe.
+    enum class ElementType : std::uint8_t
+    {
+        End                        = 0x00,
+        Void                       = 0x01,
+        Boolean                    = 0x02,
+        Char                       = 0x03,
+        I1                         = 0x04,
+        U1                         = 0x05,
+        I2                         = 0x06,
+        U2                         = 0x07,
+        I4                         = 0x08,
+        U4                         = 0x09,
+        I8                         = 0x0a,
+        U8                         = 0x0b,
+        R4                         = 0x0c,
+        R8                         = 0x0d,
+        String                     = 0x0e,
+        Ptr                        = 0x0f,
+        ByRef                      = 0x10,
+        ValueType                  = 0x11,
+        Class                      = 0x12,
+        Var                        = 0x13,
+        Array                      = 0x14,
+        GenericInst                = 0x15,
+        TypedByRef                 = 0x16,
+
+        I                          = 0x18,
+        U                          = 0x19,
+        FnPtr                      = 0x1b,
+        Object                     = 0x1c,
+
+        ConcreteElementTypeMax     = 0x1d,
+
+        SzArray                    = 0x1d,
+        MVar                       = 0x1e,
+
+        CustomModifierRequired     = 0x1f,
+        CustomModifierOptional     = 0x20,
+
+        Internal                   = 0x21,
+        Modifier                   = 0x40,
+        Sentinel                   = 0x41,
+        Pinned                     = 0x45,
+
+        Type                       = 0x50,
+        CustomAttributeBoxedObject = 0x51,
+        CustomAttributeField       = 0x53,
+        CustomAttributeProperty    = 0x54,
+        CustomAttributeEnum        = 0x55,
+
+        /// For internal use only.
+        ///
+        /// This is not a real ElementType and it will never be found in metadata read from a
+        /// database.  This faux ElementType is used when a signature is instantiated with types
+        /// that are defined in or referenced from a database other than the database in which the
+        /// uninstantiated signature is located.
+        ///
+        /// The cross-module type reference is composed of both a TypeDefOrSpec and a pointer to the
+        /// database in which it is to be resolved.
+        CrossModuleTypeReference   = 0x5f
+    };
+
+    CXXREFLECT_GENERATE_SCOPED_ENUM_OPERATORS(ElementType);
+
+    /// Resolves types.
+    ///
+    /// A Type Resolver is used to resolve type references (TypeRef tokens) and fundamental types.
+    /// This interface is provided because the Metadata library itself is incapable of resolving a
+    /// TypeRef to its definition if it is defined in another database (the Metadata library only
+    /// deals with individual assemblies, not with type universes containing multiple assemblies).
     class ITypeResolver
     {
     public:
 
-        // 'type' must be a TypeDef, TypeRef, or TypeSpec.  If it is a TypeDef or TypeSpec, it is
-        // returned unmodified. If it is a TypeRef, it is resolved to its definition and the TypeDef
-        // is returned with the defining resolution scope.
+        /// Resolves a TypeRef to the TypeDef or TypeSpec to which it refers.
+        ///
+        /// This function should be used to resolve type references, potentially across assembly
+        /// boundaries.  The provided `type` must be a `RowReference` and must refer to a row in
+        /// the TypeDef, TypeRef, or TypeSpec table of a database.  If the row is a TypeDef or a
+        /// TypeSpec, it is returned immediately as no resolution is required.
+        ///
+        /// If the row is a TypeRef, its resolution scope is located and the TypeRef is resolved
+        /// in that scope.  This resolution process may cause a new assembly to be loaded into the
+        /// type universe.
+        ///
+        /// \param type The TypeDef, TypeRef, or TypeSpec `RowReference` to be resolved.
+        ///
+        /// \returns The resolved TypeDef or TypeSpec `RowReference`, with its resolution scope.
+        ///
+        /// \throws LogicError If `type` is not initialized or if `type` is not a RowReference.
+        ///
+        /// \todo Other throws?
         virtual FullReference ResolveType(FullReference const& type) const = 0;
 
+        /// Resolves a fundamental type.
+        ///
+        /// This function should be used to resolve a fundamental ElementType to the TypeDef that
+        /// represents the fundamental type.  The resolved TypeDef must be found in the System
+        /// assembly (that is, the assembly that references no other assemblies).
+        ///
+        /// \param elementType The fundamental type to be resolved.
+        ///
+        /// \returns The TypeDef representing the fundamental type.
+        ///
+        /// \todo Throws?
+        virtual FullReference ResolveFundamentalType(ElementType elementType) const = 0;
+
+        /// Resolves an internal-use-only replacement type.
+        ///
+        /// This interface is for internal support and allows CxxReflect to emulate the behavior of
+        /// different reflection APIs and type systems.  For example, in the CLI type system, a `T[]`
+        /// implements `IEnumerable<T>`, `IList<T>`, and `ICollection<T>`.  To allow us to correctly
+        /// include these (and their related methods and properties) when we are queried about the
+        /// array type, we can use this `ResolveReplacementType()` to transform `T[]` into a faux
+        /// `Array<T>` type (name for exposition only) that implements the interfaces and provides
+        /// the runtime capabilities.
+        ///
+        /// \param type The type for which to get its replacement.
+        ///
+        /// \returns The replacement type.  If there is no replacement type, it returns `type`.
+        ///
+        /// \throws LogicError If `type` is not initialized.
+        ///
+        /// \todo Throws?
+        virtual FullReference ResolveReplacementType(FullReference const& type) const = 0;
+
+        /// Virtual destructor required for interface.
         virtual ~ITypeResolver();
     };
 

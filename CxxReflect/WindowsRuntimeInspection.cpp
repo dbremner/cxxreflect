@@ -71,6 +71,8 @@ namespace CxxReflect { namespace WindowsRuntime {
 
     bool IsDefaultConstructible(Type const& type)
     {
+        Detail::Verify([&]{ return type.IsInitialized(); }, L"Type is not initialized");
+
         // TODO We really should check the activation factory for this.
         BindingFlags const flags(BindingAttribute::Instance | BindingAttribute::Public);
         auto const it(std::find_if(type.BeginConstructors(flags), type.EndConstructors(), [](Method const& c)
@@ -83,6 +85,8 @@ namespace CxxReflect { namespace WindowsRuntime {
 
     Guid GetGuid(Type const& type)
     {
+        Detail::Verify([&]{ return type.IsInitialized(); }, L"Type is not initialized");
+
         return GlobalLoaderContext::Get().GetGuid(type);
     }
 

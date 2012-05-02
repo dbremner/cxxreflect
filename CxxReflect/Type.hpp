@@ -163,6 +163,9 @@ namespace CxxReflect { namespace Detail {
 
 namespace CxxReflect {
 
+    /// Represents a Type in a type universe.
+    ///
+    /// 
     class Type
     {
     private:

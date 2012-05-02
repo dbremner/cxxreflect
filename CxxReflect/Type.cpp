@@ -643,6 +643,13 @@ namespace CxxReflect {
     Type::MethodIterator Type::BeginMethods(BindingFlags const flags) const
     {
         AssertInitialized();
+
+        if (IsTypeSpec())
+        {
+            if (IsByRef())
+                return MethodIterator();
+        }
+        
         Detail::Assert([&]{ return !flags.IsSet(BindingAttribute::InternalUseOnlyMask); });
 
         auto const& table(Private::GetOrCreateTable(&Loader::GetOrCreateMethodTable, _assembly, _type, InternalKey()));
@@ -688,6 +695,18 @@ namespace CxxReflect {
     CustomAttributeIterator Type::BeginCustomAttributes() const
     {
         // TODO In theory, a custom attribute can be applied to a TypeRef or TypeSpec too.
+        if (IsTypeSpec())
+        {
+            if (GetTypeSpecSignature().IsByRef())
+                return CustomAttributeIterator();
+
+            switch (GetTypeSpecSignature().GetKind())
+            {
+            case Metadata::TypeSignature::Kind::Ptr:
+                return CustomAttributeIterator();
+            }
+        }
+
         return ResolveTypeDefTypeAndCall([&](Type const& t)
         {
             return CustomAttribute::BeginFor(t.GetAssembly(), t.GetTypeDefRow().GetSelfReference(), InternalKey());
@@ -697,6 +716,18 @@ namespace CxxReflect {
     CustomAttributeIterator Type::EndCustomAttributes() const
     {
         // TODO In theory, a custom attribute can be applied to a TypeRef or TypeSpec too.
+        if (IsTypeSpec())
+        {
+            if (GetTypeSpecSignature().IsByRef())
+                return CustomAttributeIterator();
+
+            switch (GetTypeSpecSignature().GetKind())
+            {
+            case Metadata::TypeSignature::Kind::Ptr:
+                return CustomAttributeIterator();
+            }
+        }
+
         return ResolveTypeDefTypeAndCall([&](Type const& t)
         {
             return CustomAttribute::EndFor(t.GetAssembly(), t.GetTypeDefRow().GetSelfReference(), InternalKey());
@@ -706,6 +737,12 @@ namespace CxxReflect {
     Type::InterfaceIterator Type::BeginInterfaces() const
     {
         AssertInitialized();
+
+        if (IsTypeSpec())
+        {
+            if (GetTypeSpecSignature().IsByRef())
+                return InterfaceIterator();
+        }
 
         auto const& table(Private::GetOrCreateTable(&Loader::GetOrCreateInterfaceTable, _assembly, _type, InternalKey()));
 
@@ -846,6 +883,18 @@ namespace CxxReflect {
 
     TypeFlags Type::GetAttributes() const
     {
+        if (IsTypeSpec())
+        {
+            if (GetTypeSpecSignature().IsByRef())
+                return TypeFlags();
+
+            switch (GetTypeSpecSignature().GetKind())
+            {
+            case Metadata::TypeSignature::Kind::Ptr:
+                return TypeFlags();
+            }
+        }
+
         return ResolveTypeDefTypeAndCall([](Type const& t)
         {
             return t.GetTypeDefRow().GetFlags();
@@ -1065,6 +1114,12 @@ namespace CxxReflect {
 
     bool Type::IsImport() const
     {
+        if (IsTypeSpec())
+        {
+            if (GetTypeSpecSignature().IsByRef())
+                return false;
+        }
+
         return ResolveTypeDefTypeAndCall([](Type const& t)
         {
             return t.GetTypeDefRow().GetFlags().IsSet(TypeAttribute::Import);

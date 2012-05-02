@@ -1,6 +1,12 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
+    <CustomBuild Include="WinRTTypeSystemSupport.il">
+      <Filter>Assemblies</Filter>
+    </CustomBuild>
+    <CustomBuild Include="*Embedded.il">
+      <Filter>Assemblies\Generated</Filter>
+    </CustomBuild>
     <ClCompile Include="MetadataDatabase.cpp">
       <Filter>Sources\Metadata</Filter>
     </ClCompile>
@@ -76,6 +82,12 @@
     <ClCompile Include="FundamentalUtilities.cpp">
       <Filter>Sources\Core</Filter>
     </ClCompile>
+    <CustomBuild Include="CliTypeSystemSupport.il">
+      <Filter>Assemblies</Filter>
+    </CustomBuild>
+    <CustomBuild Include="WinRTTypeSystemSupport.il">
+      <Filter>Assemblies</Filter>
+    </CustomBuild>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="CxxReflect.hpp">
@@ -197,14 +209,30 @@
     <Filter Include="Sources\WindowsRuntime">
       <UniqueIdentifier>{01b34011-4058-473e-ad3b-4a1c0fb9b84b}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Assemblies">
+      <UniqueIdentifier>{41767ab4-df6d-4e9c-9bcc-c16d777e3df1}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
-    <CustomBuild Include="CxxReflectPlatform.il" />
+    <CustomBuild Include="X64FastCallThunk.asm">
+      <Filter>Headers\WindowsRuntime</Filter>
+    </CustomBuild>
   </ItemGroup>
   <ItemGroup>
     <None Include="CxxReflect.props" />
-    <None Include="X64FastCallThunk.asm">
-      <Filter>Sources\WindowsRuntime</Filter>
-    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="WinRTTypeSystemSupportEmbedded.cpp" />
+    <ClCompile Include="WinRTTypeSystemSupportEmbedded.cpp" />
+    <ClCompile Include="WinRTTypeSystemSupportEmbedded.cpp" />
+    <ClCompile Include="CliTypeSystemSupportEmbedded.cpp">
+      <Filter>Assemblies</Filter>
+    </ClCompile>
+    <ClCompile Include="WinRTTypeSystemSupportEmbedded.cpp" />
+    <ClCompile Include="*Embedded.cpp" />
+    <ClCompile Include="CliTypeSystemSupportEmbedded.cpp">
+      <Filter>Assemblies</Filter>
+    </ClCompile>
+    <ClCompile Include="WinRTTypeSystemSupportEmbedded.cpp" />
   </ItemGroup>
 </Project>

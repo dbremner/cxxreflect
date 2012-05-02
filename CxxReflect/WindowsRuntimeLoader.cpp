@@ -8,11 +8,6 @@
 #include "CxxReflect/WindowsRuntimeLoader.hpp"
 #include "CxxReflect/WindowsRuntimeUtility.hpp"
 
-namespace {
-
-    static const wchar_t* const PlatformMetadataFileName(L"CxxReflectPlatform.dat");
-
-}
 
 namespace CxxReflect { namespace WindowsRuntime {
 
@@ -35,14 +30,16 @@ namespace CxxReflect { namespace WindowsRuntime {
         });
     }
 
-    String PackageAssemblyLocator::LocateAssembly(AssemblyName const& assemblyName) const
+    AssemblyLocation PackageAssemblyLocator::LocateAssembly(AssemblyName const& assemblyName) const
     {
         String const simpleName(Detail::MakeLowercase(assemblyName.GetName()));
 
         // We special-case mscorlib and platform to point to our platform metadata:
         if (simpleName == L"platform" || simpleName == L"mscorlib")
         {
-            return _packageRoot + PlatformMetadataFileName;
+            return AssemblyLocation(ConstByteRange(
+                Detail::BeginWinRTTypeSystemSupportEmbedded(),
+                Detail::EndWinRTTypeSystemSupportEmbedded()));
         }
 
         // TODO We are not expecting to have to locate an assembly without a type name, so we expect
@@ -51,14 +48,17 @@ namespace CxxReflect { namespace WindowsRuntime {
         throw LogicError(L"Not yet implemented");
     }
 
-    String PackageAssemblyLocator::LocateAssembly(AssemblyName const& assemblyName, String const& fullTypeName) const
+    AssemblyLocation PackageAssemblyLocator::LocateAssembly(AssemblyName const& assemblyName,
+                                                            String       const& fullTypeName) const
     {
         String const simpleName(Detail::MakeLowercase(assemblyName.GetName()));
 
         // The platform metadata and system assembly are special-cased to use our platform metadata:
         if (simpleName == L"platform" || simpleName == L"mscorlib")
         {
-            return _packageRoot + PlatformMetadataFileName;
+            return AssemblyLocation(ConstByteRange(
+                Detail::BeginWinRTTypeSystemSupportEmbedded(),
+                Detail::EndWinRTTypeSystemSupportEmbedded()));
         }
 
         // The name of the assembly must be a prefix of the name of the type.  TODO This may not
@@ -73,7 +73,7 @@ namespace CxxReflect { namespace WindowsRuntime {
         if (namespaceName.empty())
             throw RuntimeError(L"Provided type has no namespace to resolve");
 
-        return FindMetadataFileForNamespace(namespaceName);
+        return AssemblyLocation(FindMetadataForNamespace(namespaceName));
     }
 
 
@@ -83,7 +83,7 @@ namespace CxxReflect { namespace WindowsRuntime {
         return _metadataFiles;
     }
 
-    String PackageAssemblyLocator::FindMetadataFileForNamespace(String const& namespaceName) const
+    AssemblyLocation PackageAssemblyLocator::FindMetadataForNamespace(String const& namespaceName) const
     {
         String const lowercaseNamespaceName(Detail::MakeLowercase(namespaceName));
 
@@ -96,7 +96,7 @@ namespace CxxReflect { namespace WindowsRuntime {
             {
                 auto const it(_metadataFiles.find(enclosingNamespaceName));
                 if (it != _metadataFiles.end())
-                    return it->second;
+                    return AssemblyLocation(it->second);
 
                 Internal::RemoveRightmostTypeNameComponent(enclosingNamespaceName);
             }
@@ -125,7 +125,9 @@ namespace CxxReflect { namespace WindowsRuntime {
         // pathological type names.
         if (Detail::StartsWith(lowercaseNamespaceName.c_str(), L"platform") ||
             Detail::StartsWith(lowercaseNamespaceName.c_str(), L"system"))
-            return Detail::MakeLowercase(_packageRoot + PlatformMetadataFileName);
+            return AssemblyLocation(ConstByteRange(
+                Detail::BeginWinRTTypeSystemSupportEmbedded(),
+                Detail::EndWinRTTypeSystemSupportEmbedded()));
 
         // Otherwise, we failed to locate the metadata file.  Rats.
         throw RuntimeError(L"Failed to locate metadata file for provided namespace");
@@ -191,12 +193,12 @@ namespace CxxReflect { namespace WindowsRuntime {
         Loader  const& loader (GetLoader() );
         Locator const& locator(GetLocator());
              
-        String const metadataFileName(locator.FindMetadataFileForNamespace(namespaceName.c_str()));
-        if (metadataFileName.empty())
+        AssemblyLocation const metadataLocation(locator.FindMetadataForNamespace(namespaceName.c_str()));
+        if (metadataLocation.GetKind() == AssemblyLocation::Kind::Uninitialized)
             return Type();
 
         // TODO We need a non-throwing LoadAssembly.
-        Assembly const assembly(loader.LoadAssembly(metadataFileName));
+        Assembly const assembly(loader.LoadAssembly(metadataLocation));
         if (!assembly.IsInitialized())
             return Type();
 
@@ -228,7 +230,7 @@ namespace CxxReflect { namespace WindowsRuntime {
 
             // TODO We can do better filtering than this by checking assembly references.
             // TODO Add caching of the obtained data.
-            Assembly const a(loader.LoadAssembly(f.second));
+            Assembly const a(loader.LoadAssembly(AssemblyLocation(f.second.c_str())));
             std::for_each(a.BeginTypes(), a.EndTypes(), [&](Type const& t)
             {
                 if (std::find(t.BeginInterfaces(), t.EndInterfaces(), interfaceType) != t.EndInterfaces())
@@ -272,6 +274,7 @@ namespace CxxReflect { namespace WindowsRuntime {
             return attribute.GetConstructor().GetDeclaringType() == guidAttributeType;
         }));
 
+        // TODO We need to make sure that a type has only one GuidAttribute.
         return it != type.EndCustomAttributes() ? it->GetSingleGuidArgument() : Guid();
     }
 
@@ -396,7 +399,7 @@ namespace CxxReflect { namespace WindowsRuntime {
             Sequence const metadataFiles(rawResolver.GetMetadataFiles());
             std::for_each(begin(metadataFiles), end(metadataFiles), [&](Element const& e)
             {
-                loader->LoadAssembly(e.second);
+                loader->LoadAssembly(AssemblyLocation(e.second));
             });
 
             std::unique_ptr<LoaderContext> context(new LoaderContext(std::move(loader)));

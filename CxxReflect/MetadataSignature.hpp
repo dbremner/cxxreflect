@@ -38,74 +38,48 @@ namespace CxxReflect { namespace Metadata {
 
     typedef Detail::FlagSet<SignatureAttribute> SignatureFlags;
 
-    enum class ElementType : std::uint8_t
-    {
-        End                        = 0x00,
-        Void                       = 0x01,
-        Boolean                    = 0x02,
-        Char                       = 0x03,
-        I1                         = 0x04,
-        U1                         = 0x05,
-        I2                         = 0x06,
-        U2                         = 0x07,
-        I4                         = 0x08,
-        U4                         = 0x09,
-        I8                         = 0x0a,
-        U8                         = 0x0b,
-        R4                         = 0x0c,
-        R8                         = 0x0d,
-        String                     = 0x0e,
-        Ptr                        = 0x0f,
-        ByRef                      = 0x10,
-        ValueType                  = 0x11,
-        Class                      = 0x12,
-        Var                        = 0x13,
-        Array                      = 0x14,
-        GenericInst                = 0x15,
-        TypedByRef                 = 0x16,
-
-        I                          = 0x18,
-        U                          = 0x19,
-        FnPtr                      = 0x1b,
-        Object                     = 0x1c,
-
-        ConcreteElementTypeMax     = 0x1d,
-
-        SzArray                    = 0x1d,
-        MVar                       = 0x1e,
-
-        CustomModifierRequired     = 0x1f,
-        CustomModifierOptional     = 0x20,
-
-        Internal                   = 0x21,
-        Modifier                   = 0x40,
-        Sentinel                   = 0x41,
-        Pinned                     = 0x45,
-
-        Type                       = 0x50,
-        CustomAttributeBoxedObject = 0x51,
-        CustomAttributeField       = 0x53,
-        CustomAttributeProperty    = 0x54,
-        CustomAttributeEnum        = 0x55,
-
-        // This is not a real ElementType.  We use this as a sentinel when generating instantiated
-        // generic signatures.  A cross-module type reference is composed of both a TypeDefOrSpec
-        // and a pointer to the database in which it is to be resolved.
-        CrossModuleTypeReference   = 0x5f
-    };
-
-    CXXREFLECT_GENERATE_SCOPED_ENUM_OPERATORS(ElementType);
-
-    // Tests whether 'id' maps to a valid ElementType enumerator.
+    /// Tests whether `id` maps to a valid `ElementType` enumerator.
+    ///
+    /// \param    id The integer to test.
+    /// \returns  `true` if `id` maps to an `ElementType` enumerator; `false` otherwise.
+    /// \nothrows
     bool IsValidElementType(Byte id);
 
     // Tests whether a given element type marks the beginning of a Type signature.
+
+    /// Tests whether `id` maps to a valid `ElementType` that can begin a type signature.
+    ///
+    /// \param    id The integer to test.
+    /// \returns  `true` if `id` maps to an `ElementType` enumerator that can begin a type
+    ///           signature; `false` otherwise.
+    /// \nothrows
     bool IsTypeElementType(Byte id);
 
+    /// Tests whether the `elementType` is a signed or unsigned integral element type (e.g. I1, U1).
+    ///
+    /// \copydetails IsNumericElementType
     bool IsIntegralElementType        (ElementType elementType);
+
+    /// Tests whether the `elementType` is a signed integral element type (e.g. I1, I2, I4, I8).
+    ///
+    /// \copydetails IsNumericElementType
     bool IsSignedIntegralElementType  (ElementType elementType);
+
+    /// Tests whether the `elementType` is an unsigned integral element type (e.g. U1, U2, U4, U8).
+    ///
+    /// \copydetails IsNumericElementType
     bool IsUnsignedIntegralElementType(ElementType elementType);
+
+    /// Tests whether the `elementType` is a real numeric element type (e.g. R4, R8).
+    ///
+    /// \copydetails IsNumericElementType
     bool IsRealElementType            (ElementType elementType);
+
+    /// Tests whether the `elementType` is a numeric element type (real or integral).
+    ///
+    /// \param    elementType The `ElementType` to test.
+    /// \returns  `true` if `elementType` meets the criteria; `false` otherwise.
+    /// \nothrows
     bool IsNumericElementType         (ElementType elementType);
 
 
@@ -117,7 +91,11 @@ namespace CxxReflect { namespace Metadata {
     // that Read an element take the iterator by reference and advance it past the element that is
     // read.  The elements that Peek can be used to peek at the next element.  A MetadataReadError
     // is thrown if an attempt is made to read past the end of the range.
+
+    /// Reads the next byte in a signature and advances the iterator.
     Byte ReadByte(ConstByteIterator& it, ConstByteIterator last);
+
+    /// Peeks at the next byte in a signature (the iterator is not advanced).
     Byte PeekByte(ConstByteIterator  it, ConstByteIterator last);
 
     std::int32_t ReadCompressedInt32(ConstByteIterator& it, ConstByteIterator last);
@@ -724,13 +702,15 @@ namespace CxxReflect { namespace Metadata {
 
 
 
-    // A function object that compares signatures using the compatibility and equivalence rules as
-    // specified by ECMA-355 section 8.6.1.6, "Signature Matching."
+    /// An equality comparer for metadata signatures.
+    ///
+    /// This function object type compares metadata signatures using the compatibility and
+    /// equivalence rules as specified by ECMA-335 section 8.6.1.6, "Signature Matching."
     class SignatureComparer
     {
     public:
 
-        SignatureComparer(ITypeResolver const* loader, Database const* lhsDatabase, Database const* rhsDatabase);
+        SignatureComparer(ITypeResolver const* typeResolver, Database const* lhsDatabase, Database const* rhsDatabase);
 
         bool operator()(ArrayShape        const& lhs, ArrayShape        const& rhs) const;
         bool operator()(CustomModifier    const& lhs, CustomModifier    const& rhs) const;
@@ -743,7 +723,7 @@ namespace CxxReflect { namespace Metadata {
 
         bool operator()(RowReference      const& lhs, RowReference      const& rhs) const;
 
-        Detail::ValueInitialized<ITypeResolver const*> _loader;
+        Detail::ValueInitialized<ITypeResolver const*> _typeResolver;
         Detail::ValueInitialized<Database const*>      _lhsDatabase;
         Detail::ValueInitialized<Database const*>      _rhsDatabase;
     };

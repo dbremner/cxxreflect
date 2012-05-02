@@ -79,7 +79,7 @@ namespace CxxReflectTest { namespace {
         CComPtr<IMetaDataDispenser> const mdDispenser(GetMetaDataDispenser());
         CComPtr<IMetaDataTables>    const mdTables(GetMetaDataTables(mdDispenser, assemblyPath));
 
-        cxr::Database const cxrDatabase(assemblyPath);
+        cxr::Database const cxrDatabase(cxr::Database::CreateFromFile(assemblyPath.c_str()));
 
         callable(mdTables, cxrDatabase, c);
     }

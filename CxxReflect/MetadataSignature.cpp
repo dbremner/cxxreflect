@@ -301,12 +301,12 @@ namespace CxxReflect { namespace Metadata {
 
 
 
-    SignatureComparer::SignatureComparer(ITypeResolver const* loader,
+    SignatureComparer::SignatureComparer(ITypeResolver const* typeResolver,
                                          Database      const* lhsDatabase,
                                          Database      const* rhsDatabase)
-        : _loader(loader), _lhsDatabase(lhsDatabase), _rhsDatabase(rhsDatabase)
+        : _typeResolver(typeResolver), _lhsDatabase(lhsDatabase), _rhsDatabase(rhsDatabase)
     {
-        Detail::AssertNotNull(loader);
+        Detail::AssertNotNull(typeResolver);
         Detail::AssertNotNull(lhsDatabase);
         Detail::AssertNotNull(rhsDatabase);
     }
@@ -507,8 +507,8 @@ namespace CxxReflect { namespace Metadata {
         FullReference const rhsFullReference(_rhsDatabase.Get(), rhs);
 
         // TODO Do we need to handle generic type argument instantiation here?
-        FullReference const lhsResolved(_loader.Get()->ResolveType(lhsFullReference));
-        FullReference const rhsResolved(_loader.Get()->ResolveType(rhsFullReference));
+        FullReference const lhsResolved(_typeResolver.Get()->ResolveType(lhsFullReference));
+        FullReference const rhsResolved(_typeResolver.Get()->ResolveType(rhsFullReference));
 
         // If the types are from different tables, they cannot be equal:
         if (lhsResolved.AsRowReference().GetTable() != rhsResolved.AsRowReference().GetTable())
@@ -540,7 +540,7 @@ namespace CxxReflect { namespace Metadata {
 
         // Note that we use a new signature comparer because the LHS and RHS signatures may have come
         // from new and/or different databases.
-        if (SignatureComparer(_loader.Get(), &lhsDatabase, &rhsDatabase)(
+        if (SignatureComparer(_typeResolver.Get(), &lhsDatabase, &rhsDatabase)(
                 TypeSignature(lhsSignature.Begin(), lhsSignature.End()),
                 TypeSignature(rhsSignature.Begin(), rhsSignature.End())))
             return true;

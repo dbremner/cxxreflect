@@ -74,9 +74,9 @@ namespace CxxReflect {
         return Get().OpenFile(fileName, mode);
     }
 
-    Detail::FileRange Externals::MapFileRange(FILE* const file, SizeType const index, SizeType const size)
+    Detail::FileRange Externals::MapFile(FILE* const file)
     {
-        return Get().MapFileRange(file, index, size);
+        return Get().MapFile(file);
     }
 
     bool Externals::FileExists(ConstCharacterIterator const filePath)
@@ -196,41 +196,35 @@ namespace CxxReflect { namespace Detail { namespace { namespace Private {
 
     private:
 
-        Detail::ValueInitialized<HANDLE> _handle;
+        ValueInitialized<HANDLE> _handle;
     };
+
+    SizeType ComputeFileSize(FILE* const file)
+    {
+        if (std::fseek(file, 0, SEEK_END) != 0)
+            return 0;
+
+        return std::ftell(file);
+    }
 
     FileRange MapFileRange(FILE* const file, SizeType const index, SizeType const size)
     {
         if (file == nullptr)
-            throw RuntimeError(L"Specified file is not valid");
+            return FileRange();
 
         ValueInitialized<SYSTEM_INFO> systemInfo;
         GetNativeSystemInfo(&systemInfo.Get());
 
-        // If the requested size is less than half of our memory mapped I/O allocation granularity,
-        // just read the bytes into a byte array.
-        if (size < systemInfo.Get().dwAllocationGranularity / 2)
-        {
-            std::unique_ptr<Byte[]> data(new Byte[size]());
-            if (std::fread(data.get(), size, 1, file) != 1)
-                throw FileIOError(L"Failed to read from file");
-
-            ConstByteIterator const rawData(data.get());
-
-            UniqueDestructible release(new UniqueByteArrayDestructible(std::move(data)));
-            return FileRange(rawData, rawData + size, std::move(release));
-        }
-
         // Note:  We do not close this handle.  When 'file' is closed, it will close this handle.
         HANDLE const fileHandle(reinterpret_cast<HANDLE>(_get_osfhandle(_fileno(file))));
         if (fileHandle == INVALID_HANDLE_VALUE)
-            throw RuntimeError(L"Failed to get handle for file");
+            return FileRange();
 
         // Note:  We do want to close this handle; it does not need to be kept open once we map
         // the view of the file.
         SmartHandle const mappingHandle(CreateFileMapping(fileHandle, nullptr, PAGE_READONLY, 0, 0, nullptr));
         if (mappingHandle.Get() == INVALID_HANDLE_VALUE)
-            throw RuntimeError(L"Failed to create file mapping");  
+            return FileRange();
 
         std::unique_ptr<UnmapViewOfFileDestructible> release(new UnmapViewOfFileDestructible());
 
@@ -247,7 +241,7 @@ namespace CxxReflect { namespace Detail { namespace { namespace Private {
             nullptr));
 
         if (viewOfFile == nullptr)
-            throw RuntimeError(L"Failed to map view of file");
+            return FileRange();
 
         release->Set(viewOfFile);
 
@@ -269,20 +263,20 @@ namespace CxxReflect { namespace Detail {
         HCRYPTPROV provider(0);
         Detail::ScopeGuard cleanupProvider([&](){ if (provider) { CryptReleaseContext(provider, 0); } });
         if (!CryptAcquireContext(&provider, nullptr, nullptr, PROV_RSA_FULL, CRYPT_VERIFYCONTEXT))
-            throw RuntimeError(L"Failed to acquire cryptographic context");
+            return Sha1Hash();
 
         HCRYPTHASH hash(0);
         Detail::ScopeGuard cleanupHash([&](){ if (hash) { CryptDestroyHash(hash); } });
         if (!CryptCreateHash(provider, CALG_SHA1, 0, 0, &hash))
-            throw RuntimeError(L"Failed to create cryptographic hash");
+            return Sha1Hash();
 
         if (!CryptHashData(hash, first, static_cast<DWORD>(last - first), 0))
-            throw RuntimeError(L"Failed to hash data");
+            return Sha1Hash();
 
         Sha1Hash result = { 0 };
         DWORD resultLength(static_cast<DWORD>(result.size()));
         if (!CryptGetHashParam(hash, HP_HASHVAL, result.data(), &resultLength, 0) || resultLength != 20)
-            throw RuntimeError(L"Failed to obtain hash value");
+            return Sha1Hash();
 
         return result;
     }
@@ -315,11 +309,9 @@ namespace CxxReflect { namespace Detail {
         return Private::OpenFile(fileName, mode);
     }
 
-    Detail::FileRange Win32ExternalFunctions::MapFileRange(FILE*    const file,
-                                                           SizeType const index,
-                                                           SizeType const size) const
+    Detail::FileRange Win32ExternalFunctions::MapFile(FILE* const file) const
     {
-        return Private::MapFileRange(file, index, size);
+        return Private::MapFileRange(file, 0, Private::ComputeFileSize(file));
     }
 
     bool Win32ExternalFunctions::FileExists(ConstCharacterIterator const filePath) const
@@ -364,11 +356,9 @@ namespace CxxReflect { namespace Detail {
         return Private::OpenFile(fileName, mode);
     }
 
-    Detail::FileRange WinRTExternalFunctions::MapFileRange(FILE*    const file,
-                                                           SizeType const index,
-                                                           SizeType const size) const
+    Detail::FileRange WinRTExternalFunctions::MapFile(FILE* const file) const
     {
-        return Private::MapFileRange(file, index, size);
+        return Private::MapFileRange(file, 0, Private::ComputeFileSize(file));
     }
 
     bool WinRTExternalFunctions::FileExists(ConstCharacterIterator const filePath) const

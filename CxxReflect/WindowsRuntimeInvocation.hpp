@@ -13,11 +13,13 @@
 
 namespace CxxReflect { namespace WindowsRuntime { namespace Internal {
 
-    // Represents an unresolved argument in the VariantArgumentPack.  We store arguments unresolved,
-    // which basically means that they have no pointers, only indices into the temporary storage.
-    // This ensures that we don't muck up the arguments when we add new data to the buffers.  When
-    // we need to use an argument, we resolve it into a ResolvedVariantArgument, which has pointers
-    // to the data that it owns.
+    /// Represents an unresolved argument in a `VariantArgumentPack`.
+    ///
+    /// We store arguments unresolved, which basically means that they have no pointers, only indices
+    /// into the temproary storage.  This ensures that we don't much up the arguments when we add new
+    /// data to the buffers (since adding new data may cause a vector reallocation, invalidating any
+    /// existing pointers).  When we need to use an argument, we resolve it, yielding a
+    /// `ResolvedVariantArgument`, which has pointers to the data that it owns.
     class UnresolvedVariantArgument
     {
     public:
@@ -550,27 +552,31 @@ namespace CxxReflect { namespace WindowsRuntime { namespace Internal {
 
 namespace CxxReflect { namespace WindowsRuntime {
 
-    // INVOCATION ERROR
-    //
-    // This exception is thrown when an invocation fails.
-
+    /// An exception that is thrown when dynamic invocation or instantiation fails.
+    ///
+    /// This `RuntimeError` is thrown by any of the dynamic invocation and instantiation functions
+    /// if invocation fails for any reason, other than logic errors (the notable logic error is if
+    /// an invocation function is called on a null instance, or if an instantiation function is
+    /// called with an uninitialized type; in these cases, a `LogicError` is thrown instead).
     class InvocationError : public RuntimeError
     {
     public:
 
-        explicit InvocationError(StringReference message);
+        explicit InvocationError(StringReference message = L"");
     };
 
 
 
 
 
-    // TYPE INSTANTIATION VIA DEFAULT CONSTRUCTOR
-    //
-    // These functions create an instance of the requested 'type' using its default constructor (or,
-    // to be more precise, using the RoActivateInstance Windows Runtime function).  If the creation
-    // fails, an InvocationError is thrown.
-
+    /// Creates an instance of a type by invoking the type's default constructor.
+    ///
+    /// \param type The type to be instantiated.
+    ///
+    /// \returns The newly-created instance of the type.
+    ///
+    /// \throws LogicError      If `type` is not initialized.
+    /// \throws InvocationError If instantiation fails for any reason.
     UniqueInspectable CreateInspectableInstance(Type const& type);
 
     #ifdef CXXREFLECT_ENABLE_WINDOWS_RUNTIME_CPPCX
@@ -628,6 +634,14 @@ namespace CxxReflect { namespace WindowsRuntime {
     // not even be viable, since we can only QueryInterface an interface pointer, not a runtime
     // class pointer).
 
+    /// Instantiates a `type` by calling its best-matching constructor.
+    ///
+    /// \param type The type to be instantiated.
+    /// \param a0 The initial argument to be passed to the best-matching constructor.
+    ///
+    /// \returns The newly-created instance of `type`.
+    ///
+    /// \throws InvocationError if instantiation fails for any reason.
     template <typename P0>
     UniqueInspectable CreateInspectableInstance(Type const& type, P0&& a0)
     {
@@ -635,6 +649,9 @@ namespace CxxReflect { namespace WindowsRuntime {
             std::forward<P0>(a0)));
     }
 
+    /// \copydoc CreateInspectableInstance(Type const&, P0&&)
+    ///
+    /// \param a1 The second argument to be passed to the best-matching constructor.
     template <typename P0, typename P1>
     UniqueInspectable CreateInspectableInstance(Type const& type, P0&& a0, P1&& a1)
     {
@@ -643,6 +660,9 @@ namespace CxxReflect { namespace WindowsRuntime {
             std::forward<P1>(a1)));
     }
 
+    /// \copydoc CreateInspectableInstance(Type const&, P0&&, P1&&)
+    ///
+    /// \param a2 The third argument to be passed to the best-matching constructor.
     template <typename P0, typename P1, typename P2>
     UniqueInspectable CreateInspectableInstance(Type const& type, P0&& a0, P1&& a1, P2&& a2)
     {
@@ -652,6 +672,9 @@ namespace CxxReflect { namespace WindowsRuntime {
             std::forward<P2>(a2)));
     }
 
+    /// \copydoc CreateInspectableInstance(Type const&, P0&&, P1&&, P2&&)
+    ///
+    /// \param a3 The fourth argument to be passed to the best-matching constructor.
     template <typename P0, typename P1, typename P2, typename P3>
     UniqueInspectable CreateInspectableInstance(Type const& type, P0&& a0, P1&& a1, P2&& a2, P3&& a3)
     {
@@ -662,6 +685,9 @@ namespace CxxReflect { namespace WindowsRuntime {
             std::forward<P3>(a3)));
     }
 
+    /// \copydoc CreateInspectableInstance(Type const&, P0&&, P1&&, P2&&, P3&&)
+    ///
+    /// \param a4 The fifth argument to be passed to the best-matching constructor.
     template <typename P0, typename P1, typename P2, typename P3, typename P4>
     UniqueInspectable CreateInspectableInstance(Type const& type, P0&& a0, P1&& a1, P2&& a2, P3&& a3, P4&& a4)
     {

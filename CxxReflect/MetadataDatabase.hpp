@@ -14,7 +14,8 @@
 
 namespace CxxReflect { namespace Metadata {
 
-    enum class TableId : std::uint8_t
+    /// Identifiers for each of the tables in a metadata database.
+    enum class TableId : Byte
     {
         Module                 = 0x00,
         TypeRef                = 0x01,
@@ -56,11 +57,26 @@ namespace CxxReflect { namespace Metadata {
         GenericParamConstraint = 0x2c
     };
 
-    enum { TableIdCount = 0x2d };
+    enum
+    {
+        /// One larger than the largest `TableId` enumerator value.
+        ///
+        /// This is not exactly the count of the `TableId` enumerators because there are unassigned
+        /// values that are not used for any `TableId`.  However, this is a number that is large
+        /// enough that it may be used to define an array such that a[TableId::{Enumerator}] is
+        /// always a valid indexing expression.
+        TableIdCount = 0x2d
+    };
 
     typedef std::array<SizeType, TableIdCount> TableIdSizeArray;
 
-    inline bool IsValidTableId(std::uint32_t const id)
+
+    /// Tests whether the integer `id` maps to a valid `TableId` enumerator.
+    ///
+    /// \param    id The identifier to test.
+    /// \returns  `true` if `id` is a valid enumerator value; `false` otherwise.
+    /// \nothrows
+    inline bool IsValidTableId(SizeType const id)
     {
         static std::array<Byte, 0x40> const mask =
         {
@@ -73,6 +89,7 @@ namespace CxxReflect { namespace Metadata {
         return id < mask.size() && mask[id] == 1;
     }
 
+    /// Identifiers for each of the composite indices used in a metadata database.
     enum class CompositeIndex
     {
         TypeDefOrRef        = 0x00,
@@ -90,7 +107,11 @@ namespace CxxReflect { namespace Metadata {
         TypeOrMethodDef     = 0x0c
     };
 
-    enum { CompositeIndexCount = 0x0d };
+    enum
+    {
+        /// The number of composite indices.
+        CompositeIndexCount = 0x0d
+    };
 
     typedef std::array<SizeType, CompositeIndexCount> CompositeIndexSizeArray;
 
@@ -98,17 +119,19 @@ namespace CxxReflect { namespace Metadata {
 
 
 
-    // Represents a reference to a row in a table.  This is effectively a metadata token, except we
-    // adjust the index so that it is zero-based instead of one-based.  The invalid token value uses
-    // all bits one instead of all bits zero.
+    /// Represents a reference to a row in a metadata table.
+    ///
+    /// This is effectively a metadata token, except that we adjust the index so that it is zero-
+    /// based instead of one-based.  The invalid token value uses all bits set to one instead of all
+    /// bits set to zero (i.e., -1 converted to unsigned instead of 0).
     class RowReference
     {
     public:
 
-        enum : std::uint32_t
+        enum : SizeType
         {
-            InvalidValue     = static_cast<std::uint32_t>(-1),
-            InvalidIndex     = static_cast<std::uint32_t>(-1),
+            InvalidValue     = static_cast<SizeType>(-1),
+            InvalidIndex     = static_cast<SizeType>(-1),
 
             ValueTableIdMask = 0xff000000,
             ValueIndexMask   = 0x00ffffff,
@@ -117,8 +140,8 @@ namespace CxxReflect { namespace Metadata {
             ValueIndexBits   = 24
         };
 
-        typedef std::uint32_t ValueType;
-        typedef std::uint32_t TokenType;
+        typedef SizeType ValueType;
+        typedef SizeType TokenType;
 
         RowReference();
         RowReference(TableId tableId, SizeType index);
@@ -159,14 +182,21 @@ namespace CxxReflect { namespace Metadata {
 
 
 
-    // Represents a reference to a blob.
+    /// Represents a reference to a blob.
+    ///
+    /// A blob may be contained in a metadata database, or it may be instantiated outside of a 
+    /// metadata database, e.g. during generic type instantiation.
     class BlobReference
     {
     public:
 
+        /// Constructs an uninitialized blob reference.
         BlobReference();
+
+        /// Constructs a reference to a blob deliniated by the iterators `first` and `last`.
         BlobReference(ConstByteIterator first, ConstByteIterator last);
 
+        /// Constructs a reference to a blob from a metadata signature.
         template <typename TSignature>
         explicit BlobReference(TSignature const& signature,
                                typename std::enable_if<std::is_class<TSignature>::value>::type* = nullptr)
@@ -297,19 +327,42 @@ namespace CxxReflect { namespace Metadata {
 
 
 
-    // Represents a four-component assembly version number (major.minor.build.revision).
+    /// Represents a four-component version number (major, minor, build, and revision).
     class FourComponentVersion
     {
     public:
 
+        /// Each component of the version number is a 16-bit unsigned integer.
         typedef std::uint16_t Component;
 
+        /// Default constructs a `FourComponentVersion` with each component having a value of zero.
+        ///
+        /// \nothrows
         FourComponentVersion();
+
+        /// Constructs a `FourComponentVersion` with the provided version number components.
+        ///
+        /// \param    major    The major component value.
+        /// \param    minor    The minor component value.
+        /// \param    build    The build component value.
+        /// \param    revision The revision component value.
+        /// \nothrows
         FourComponentVersion(Component major, Component minor, Component build, Component revision);
 
+        /// \returns  The major component value.
+        /// \nothrows
         Component GetMajor()    const;
+
+        /// \returns  The minor component value.
+        /// \nothrows
         Component GetMinor()    const;
+
+        /// \returns  The build component value.
+        /// \nothrows
         Component GetBuild()    const;
+
+        /// \returns  The revision component value.
+        /// \nothrows
         Component GetRevision() const;
 
     private:
@@ -324,18 +377,40 @@ namespace CxxReflect { namespace Metadata {
 
 
 
-    // Represents a metadata stream.  A metadata stream is a sequence of bytes in the assembly that
-    // contains metadata.  When we are constructed, we bulk copy the entire sequence of bytes into
-    // an array in memory, then provide access to that data via offsets into the stream.
+    /// Represents a stream in a metadata database.
+    ///
+    /// A metadata stream is a sequence of bytes in the assembly that contains metadata.  When a 
+    /// `Stream` object is constructed, it copies the entire sequence of bytes into an array in
+    /// memory (alternatively, memory-mapped I/O may be used).  The `Stream` class then provides
+    /// access to the stream data via offsets into the stream.
+    ///
+    /// This type is moveable and noncopyable.
+    ///
+    /// \todo Ownership and lifetimes?
     class Stream
     {
     public:
 
+        /// Constructs an uninitialized stream.  Calling any of the member functions on an
+        /// uninitialized stream will cause a `LogicError` to be thrown.
         Stream();
-        Stream(Detail::FileHandle& file, SizeType metadataOffset, SizeType streamOffset, SizeType streamSize);
-        Stream(Stream&& other);
 
-        Stream& operator=(Stream&& other);
+        /// Constructs a stream from the provided file information.
+        ///
+        /// This constructor seeks in the `file` to the beginning of the metadata stream, as
+        /// specified by the sum of `metadataOffset` and `streamOffset`, then reads `streamSize`
+        /// bytes from the file and uses those to initialize the `Stream`.
+        ///
+        /// It is unspecified where the read cursor of `file` is located when this constructor ends.
+        ///
+        /// \param file           The file in which the metadata stream is located.
+        /// \param metadataOffset The offset in the `file` at which the metadata database begins.
+        /// \param streamOffset   The offset in the metadata at which the stream begins.
+        /// \param streamSize     The size of the stream, in bytes.
+        ///
+        /// \throws LogicError  If `file` is not initialized.
+        /// \throws FileIOError If the stream is not successfully read from the file, for any reason.
+        Stream(Detail::ConstByteCursor file, SizeType metadataOffset, SizeType streamOffset, SizeType streamSize);
 
         ConstByteIterator Begin()            const;
         ConstByteIterator End()              const;
@@ -362,13 +437,9 @@ namespace CxxReflect { namespace Metadata {
 
     private:
 
-        // This class is movable and noncopyable.
-        Stream(Stream const&);
-        Stream& operator=(Stream const&);
-
         void AssertInitialized() const;
 
-        Detail::FileRange _data;
+        ConstByteRange _data;
     };
 
 
@@ -595,13 +666,24 @@ namespace CxxReflect { namespace Metadata {
 
 
 
-    // The core metadata database interface.  This loads the database from the assembly file and
-    // initializes all of the data structures required for accessing the metadata.
+    /// Represents a CLI metadata database.
+    ///
+    /// A `Database` represents a CLI assembly, which is a PE file that contains CLI metadata.  This
+    /// class loads the database from the PE file and initializes all of the data structures required
+    /// for accessing the metadata.
     class Database
     {
     public:
 
-        Database(String fileName);
+        /// Loads the file at the specified path into memory and constructs a `Database` from it.
+        ///
+        /// \param   path The full path to the manifest-containing assembly.
+        /// \returns A `Database` loaded from the file.
+        ///
+        /// \todo    Figure out what this throws.
+        static Database CreateFromFile(StringReference path);
+
+        Database(Detail::FileRange&& file);
         Database(Database&& other);
 
         Database& operator=(Database&& other);
@@ -635,13 +717,13 @@ namespace CxxReflect { namespace Metadata {
 
         void AssertInitialized() const;
 
-        String _fileName;
-
         Stream _blobStream;
         Stream _guidStream;
 
         StringCollection _strings;
         TableCollection  _tables;
+
+        Detail::FileRange _file;
     };
 
 
@@ -767,10 +849,18 @@ namespace CxxReflect { namespace Metadata {
 
 
 
-    // This function serves as a pseudo-constructor for the Row classes, as a workaround for the
-    // lack of inheriting constructors.  The BaseRow defines an Initialize() member function that
-    // constructs the object, and this function is the only function that is befriended and which
-    // can call it.
+    /// A pseudo-constructor for the table row classes.
+    ///
+    /// This function serves as a pseudo-constructor for the row classes, as a workaround for the
+    /// lack of inheriting constructors in Visual C++.  The `BaseRow<Id>` defines an `Initialize()`
+    /// member function that constructs the object, and this function is the only function that is
+    /// befriended and which can call it.
+    ///
+    /// \tparam  T        The type of row to be created.
+    /// \param   database A pointer to the database that owns the row
+    /// \param   data     A pointer to the initial byte of the row in the database
+    /// \returns The constructed row of type `T`.
+    /// \throws  LogicError If `database` or `data` is `nullptr`.
     template <typename TRow>
     TRow CreateRow(Database const* const database, ConstByteIterator const data)
     {
@@ -779,16 +869,29 @@ namespace CxxReflect { namespace Metadata {
         return row;
     }
 
+    /// Defines common functionality used by all of the row types.
+    ///
+    /// There is a 1:1 mapping between the concrete, derived row types and `BaseRow<T>` template
+    /// instantiations.  Each derived class instantiates `BaseRow<T>` with its corresponding
+    /// `TableId` enumerator.  This is used whenever the row is re-resolved in its owning database.
     template <TableId TTableId>
     class BaseRow
     {
     public:
 
+        /// Tests whether the row is initialized.
+        ///
+        /// \returns  `true` if the row is initialized; `false` otherwise.
+        /// \nothrows
         bool IsInitialized() const
         {
             return _database.Get() != nullptr && _data.Get() != nullptr;
         }
 
+        /// Gets the `Database` that owns the row.
+        ///
+        /// \returns The `Database` that owns the row.
+        /// \throws  LogicError if the row is not initialized.
         Database const& GetDatabase() const
         {
             AssertInitialized();
@@ -796,6 +899,13 @@ namespace CxxReflect { namespace Metadata {
             return *_database.Get();
         }
 
+        /// Gets a `RowReference` that refers to this row.
+        ///
+        /// The `RowReference` returned by this function can be round-tripped through the database
+        /// returned by `GetDatabase()`.
+        ///
+        /// \returns A `RowReference` that refers to this row.
+        /// \throws  LogicError if the row is not initialized.
         RowReference GetSelfReference() const
         {
             AssertInitialized();
@@ -807,6 +917,10 @@ namespace CxxReflect { namespace Metadata {
 
     protected:
 
+        /// Protected destructor.
+        ///
+        /// This class template is not intended to be used directly, so we prevent polymorphic
+        /// destruction by making the destructor protected.
         ~BaseRow()
         {
         }
@@ -823,6 +937,13 @@ namespace CxxReflect { namespace Metadata {
             Detail::Assert([&]{ return IsInitialized(); });
         }
 
+        /// Gets the offset of a particular row, in bytes, from the initial byte of this row.
+        ///
+        /// \param   column The column for which to get the offset.
+        /// \returns The offset of the column, in bytes.
+        /// \throws  LogicError If this object is not initialized, if the metadata database is not
+        ///          fully initialized, or if the column number is greater than the number of
+        ///          columns in the table.
         SizeType GetColumnOffset(SizeType const column) const
         {
             AssertInitialized();
@@ -849,6 +970,7 @@ namespace CxxReflect { namespace Metadata {
         Detail::ValueInitialized<ConstByteIterator> _data;
     };
 
+    /// Represents a row in the Assembly table.
     class AssemblyRow : public BaseRow<TableId::Assembly>
     {
     public:
@@ -861,6 +983,7 @@ namespace CxxReflect { namespace Metadata {
         StringReference       GetCulture()       const;
     };
 
+    /// Represents a row in the AssemblyOS table.
     class AssemblyOsRow : public BaseRow<TableId::AssemblyOs>
     {
     public:
@@ -870,6 +993,7 @@ namespace CxxReflect { namespace Metadata {
         std::uint32_t GetOsMinorVersion() const;
     };
 
+    /// Represents a row in the Assembly Processor table.
     class AssemblyProcessorRow : public BaseRow<TableId::AssemblyProcessor>
     {
     public:
@@ -877,6 +1001,7 @@ namespace CxxReflect { namespace Metadata {
         std::uint32_t GetProcessor() const;
     };
 
+    /// Represents a row in the AssemblyRef table.
     class AssemblyRefRow : public BaseRow<TableId::AssemblyRef>
     {
     public:
@@ -889,6 +1014,7 @@ namespace CxxReflect { namespace Metadata {
         BlobReference        GetHashValue() const;
     };
 
+    /// Represents a row in the AssemblyRefOS table.
     class AssemblyRefOsRow : public BaseRow<TableId::AssemblyRefOs>
     {
     public:
@@ -899,6 +1025,7 @@ namespace CxxReflect { namespace Metadata {
         RowReference  GetAssemblyRef()    const;
     };
 
+    /// Represents a row in the AssemblyRef Processor table.
     class AssemblyRefProcessorRow : public BaseRow<TableId::AssemblyRefProcessor>
     {
     public:
@@ -907,6 +1034,7 @@ namespace CxxReflect { namespace Metadata {
         RowReference  GetAssemblyRef() const;
     };
 
+    /// Represents a row in the ClassLayout table.
     class ClassLayoutRow : public BaseRow<TableId::ClassLayout>
     {
     public:
@@ -916,6 +1044,7 @@ namespace CxxReflect { namespace Metadata {
         RowReference  GetParentTypeDef() const;
     };
 
+    /// Represents a row in the Constant table.
     class ConstantRow : public BaseRow<TableId::Constant>
     {
     public:
@@ -925,6 +1054,7 @@ namespace CxxReflect { namespace Metadata {
         BlobReference GetValue()  const;
     };
 
+    /// Represents a row in the CustomAttribute table.
     class CustomAttributeRow : public BaseRow<TableId::CustomAttribute>
     {
     public:
@@ -934,6 +1064,7 @@ namespace CxxReflect { namespace Metadata {
         BlobReference GetValue()  const;
     };
 
+    /// Represents a row in the DeclSecurity table.
     class DeclSecurityRow : public BaseRow<TableId::DeclSecurity>
     {
     public:
@@ -943,6 +1074,7 @@ namespace CxxReflect { namespace Metadata {
         BlobReference GetPermissionSet() const;
     };
 
+    /// Represents a row in the EventMap table.
     class EventMapRow : public BaseRow<TableId::EventMap>
     {
     public:
@@ -952,6 +1084,7 @@ namespace CxxReflect { namespace Metadata {
         RowReference GetLastEvent()  const;
     };
 
+    /// Represents a row in the Event table.
     class EventRow : public BaseRow<TableId::Event>
     {
     public:
@@ -961,6 +1094,7 @@ namespace CxxReflect { namespace Metadata {
         RowReference    GetType()  const;
     };
 
+    /// Represents a row in the ExportedType table.
     class ExportedTypeRow : public BaseRow<TableId::ExportedType>
     {
     public:
@@ -972,6 +1106,7 @@ namespace CxxReflect { namespace Metadata {
         RowReference    GetImplementation() const;
     };
 
+    /// Represents a row in the Field table.
     class FieldRow : public BaseRow<TableId::Field>
     {
     public:
@@ -981,6 +1116,7 @@ namespace CxxReflect { namespace Metadata {
         BlobReference   GetSignature() const;
     };
 
+    /// Represents a row in the FieldLayout table.
     class FieldLayoutRow : public BaseRow<TableId::FieldLayout>
     {
     public:
@@ -989,6 +1125,7 @@ namespace CxxReflect { namespace Metadata {
         RowReference  GetField()  const;
     };
 
+    /// Represents a row in the FieldMarshal table.
     class FieldMarshalRow : public BaseRow<TableId::FieldMarshal>
     {
     public:
@@ -997,6 +1134,7 @@ namespace CxxReflect { namespace Metadata {
         BlobReference GetNativeType() const;
     };
 
+    /// Represents a row in the Field RVA table.
     class FieldRvaRow : public BaseRow<TableId::FieldRva>
     {
     public:
@@ -1005,6 +1143,7 @@ namespace CxxReflect { namespace Metadata {
         RowReference  GetField() const;
     };
 
+    /// Represents a row in the File table.
     class FileRow : public BaseRow<TableId::File>
     {
     public:
@@ -1014,6 +1153,7 @@ namespace CxxReflect { namespace Metadata {
         BlobReference   GetHashValue() const;
     };
 
+    /// Represents a row in the GenericParam table.
     class GenericParamRow : public BaseRow<TableId::GenericParam>
     {
     public:
@@ -1024,6 +1164,7 @@ namespace CxxReflect { namespace Metadata {
         StringReference       GetName()   const;
     };
 
+    /// Represents a row in the GenericParamConstraint table.
     class GenericParamConstraintRow : public BaseRow<TableId::GenericParamConstraint>
     {
     public:
@@ -1032,6 +1173,7 @@ namespace CxxReflect { namespace Metadata {
         RowReference GetConstraint() const;
     };
 
+    /// Represents a row in the ImplMap table.
     class ImplMapRow : public BaseRow<TableId::ImplMap>
     {
     public:
@@ -1042,6 +1184,7 @@ namespace CxxReflect { namespace Metadata {
         RowReference    GetImportScope()     const;
     };
 
+    /// Represents a row in the InterfaceImpl table.
     class InterfaceImplRow : public BaseRow<TableId::InterfaceImpl>
     {
     public:
@@ -1050,6 +1193,7 @@ namespace CxxReflect { namespace Metadata {
         RowReference GetInterface() const;
     };
 
+    /// Represents a row in the ManifestResource table.
     class ManifestResourceRow : public BaseRow<TableId::ManifestResource>
     {
     public:
@@ -1060,6 +1204,7 @@ namespace CxxReflect { namespace Metadata {
         RowReference          GetImplementation() const;
     };
 
+    /// Represents a row in the MemberRef table.
     class MemberRefRow : public BaseRow<TableId::MemberRef>
     {
     public:
@@ -1069,6 +1214,7 @@ namespace CxxReflect { namespace Metadata {
         BlobReference   GetSignature() const;
     };
 
+    /// Represents a row in the MethodDef table.
     class MethodDefRow : public BaseRow<TableId::MethodDef>
     {
     public:
@@ -1083,6 +1229,7 @@ namespace CxxReflect { namespace Metadata {
         RowReference              GetLastParameter()       const;
     };
 
+    /// Represents a row in the MethodImpl table.
     class MethodImplRow : public BaseRow<TableId::MethodImpl>
     {
     public:
@@ -1092,6 +1239,7 @@ namespace CxxReflect { namespace Metadata {
         RowReference GetMethodDeclaration() const;
     };
 
+    /// Represents a row in the MethodSemantics table.
     class MethodSemanticsRow : public BaseRow<TableId::MethodSemantics>
     {
     public:
@@ -1101,6 +1249,7 @@ namespace CxxReflect { namespace Metadata {
         RowReference         GetAssociation() const;
     };
 
+    /// Represents a row in the MethodSpec table.
     class MethodSpecRow : public BaseRow<TableId::MethodSpec>
     {
     public:
@@ -1109,6 +1258,7 @@ namespace CxxReflect { namespace Metadata {
         BlobReference GetInstantiation() const;
     };
 
+    /// Represents a row in the Module table.
     class ModuleRow : public BaseRow<TableId::Module>
     {
     public:
@@ -1116,6 +1266,7 @@ namespace CxxReflect { namespace Metadata {
         StringReference GetName() const;
     };
 
+    /// Represents a row in the ModuleRef table.
     class ModuleRefRow : public BaseRow<TableId::ModuleRef>
     {
     public:
@@ -1123,6 +1274,7 @@ namespace CxxReflect { namespace Metadata {
         StringReference GetName() const;
     };
 
+    /// Represents a row in the NestedClass table.
     class NestedClassRow : public BaseRow<TableId::NestedClass>
     {
     public:
@@ -1131,6 +1283,7 @@ namespace CxxReflect { namespace Metadata {
         RowReference GetEnclosingClass() const;
     };
 
+    /// Represents a row in the Param table.
     class ParamRow : public BaseRow<TableId::Param>
     {
     public:
@@ -1140,6 +1293,7 @@ namespace CxxReflect { namespace Metadata {
         StringReference GetName()     const;
     };
 
+    /// Represents a row in the Property table.
     class PropertyRow : public BaseRow<TableId::Property>
     {
     public:
@@ -1149,6 +1303,7 @@ namespace CxxReflect { namespace Metadata {
         BlobReference   GetSignature() const;
     };
 
+    /// Represents a row in the PropertyMap table.
     class PropertyMapRow : public BaseRow<TableId::PropertyMap>
     {
     public:
@@ -1158,6 +1313,7 @@ namespace CxxReflect { namespace Metadata {
         RowReference GetLastProperty()  const;
     };
 
+    /// Represents a row in the StandaloneSig table.
     class StandaloneSigRow : public BaseRow<TableId::StandaloneSig>
     {
     public:
@@ -1165,6 +1321,7 @@ namespace CxxReflect { namespace Metadata {
         BlobReference GetSignature() const;
     };
 
+    /// Represents a row in the TypeDef table.
     class TypeDefRow : public BaseRow<TableId::TypeDef>
     {
     public:
@@ -1181,6 +1338,7 @@ namespace CxxReflect { namespace Metadata {
         RowReference    GetLastMethod()  const;
     };
 
+    /// Represents a row in the TypeRef table.
     class TypeRefRow : public BaseRow<TableId::TypeRef>
     {
     public:
@@ -1190,6 +1348,7 @@ namespace CxxReflect { namespace Metadata {
         StringReference GetNamespace()       const;
     };
 
+    /// Represents a row in the TypeSpec table.
     class TypeSpecRow : public BaseRow<TableId::TypeSpec>
     {
     public:

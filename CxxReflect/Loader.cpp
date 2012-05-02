@@ -58,7 +58,7 @@ namespace CxxReflect {
     {
     }
 
-    String DirectoryBasedAssemblyLocator::LocateAssembly(AssemblyName const& name) const
+    AssemblyLocation DirectoryBasedAssemblyLocator::LocateAssembly(AssemblyName const& name) const
     {
         using std::begin;
         using std::end;
@@ -71,15 +71,15 @@ namespace CxxReflect {
                 std::wstring path(*dir_it + L"/" + name.GetName() + *ext_it);
                 if (Externals::FileExists(path.c_str()))
                 {
-                    return path;
+                    return AssemblyLocation(path);
                 }
             }
         }
 
-        return L"";
+        return AssemblyLocation();
     }
 
-    String DirectoryBasedAssemblyLocator::LocateAssembly(AssemblyName const& name, String const&) const
+    AssemblyLocation DirectoryBasedAssemblyLocator::LocateAssembly(AssemblyName const& name, String const&) const
     {
         // The directory-based resolver does not utilize namespace-based resolution, so we can
         // defer directly to the assembly-based resolution function.
@@ -152,6 +152,9 @@ namespace CxxReflect {
     {
         using namespace CxxReflect::Metadata;
 
+        if (!type.IsInitialized() || !type.IsRowReference())
+            throw LogicError(L"The type must be a RowReference and must be initialized");
+
         // A TypeDef or TypeSpec is already resolved:
         if (type.AsRowReference().GetTable() == TableId::TypeDef ||
             type.AsRowReference().GetTable() == TableId::TypeSpec)
@@ -203,11 +206,11 @@ namespace CxxReflect {
             String const namespaceName(_loaderConfiguration->TransformNamespace(typeRef.GetNamespace().c_str()));
 
             // TODO Add a LocateAssembly overload that takes a namespace and simple type name.
-            String const& path(_assemblyLocator->LocateAssembly(
+            AssemblyLocation const& location(_assemblyLocator->LocateAssembly(
                 definingAssemblyName,
                 String(namespaceName) + L"." + typeRef.GetName().c_str()));
 
-            Assembly const definingAssembly(LoadAssembly(path));
+            Assembly const definingAssembly(LoadAssembly(location));
             if (!definingAssembly.IsInitialized())
                 throw RuntimeError(L"Failed to resolve assembly reference");
 
@@ -233,17 +236,61 @@ namespace CxxReflect {
         }
     }
 
-    Assembly Loader::LoadAssembly(String const& path) const
+    Metadata::FullReference Loader::ResolveFundamentalType(Metadata::ElementType const elementType) const
     {
+        // TODO Refactor this so that we don't round-trip through the public interface.
+        Type const type(GetFundamentalType(elementType, InternalKey()));
+
+        Detail::Assert([&]{ return type.GetSelfReference(InternalKey()).IsRowReference(); });
+
+        return Metadata::FullReference(
+            &type.GetAssembly().GetContext(InternalKey()).GetDatabase(),
+            type.GetSelfReference(InternalKey()).AsRowReference());
+    }
+
+    Metadata::FullReference Loader::ResolveReplacementType(Metadata::FullReference const& type) const
+    {
+        // TODO IMPLEMENT
+        return type;
+    }
+
+    Assembly Loader::LoadAssembly(AssemblyLocation const& location) const
+    {
+        String const canonicalUri(location.IsInFile()
+            ? Externals::ComputeCanonicalUri(location.GetFilePath().c_str())
+            : L"Memory://" + Detail::ToString(location.GetMemoryRange().Begin()));
+
         auto const lock(_sync->Lock());
 
-        String canonicalUri(Externals::ComputeCanonicalUri(path.c_str()));
         auto it(_contexts.find(canonicalUri));
         if (it == end(_contexts))
         {
-            it = _contexts.insert(std::make_pair(
-                canonicalUri,
-                Detail::AssemblyContext(this, path, Metadata::Database(path.c_str())))).first;
+            if (location.GetKind() == AssemblyLocation::Kind::File)
+            {
+                it = _contexts.insert(std::make_pair(
+                    canonicalUri,
+                    Detail::AssemblyContext(
+                        this,
+                        canonicalUri,
+                        Metadata::Database::CreateFromFile(location.GetFilePath().c_str())))).first;
+            }
+            else if (location.GetKind() == AssemblyLocation::Kind::Memory)
+            {
+                it = _contexts.insert(std::make_pair(
+                    canonicalUri,
+                    Detail::AssemblyContext(
+                        this,
+                        canonicalUri,
+                        Metadata::Database(
+                            Detail::FileRange(
+                                location.GetMemoryRange().Begin(),
+                                location.GetMemoryRange().End(),
+                                nullptr))))).first;
+            }
+            else
+            {
+                throw LogicError(L"Attempted to load assembly from unknown location");
+            }
         }
 
         return Assembly(&it->second, InternalKey());
@@ -282,6 +329,8 @@ namespace CxxReflect {
         case Metadata::ElementType::U:          primitiveTypeName = L"UIntPtr";        break;
         case Metadata::ElementType::Object:     primitiveTypeName = L"Object";         break;
         case Metadata::ElementType::String:     primitiveTypeName = L"String";         break;
+        case Metadata::ElementType::Array:      primitiveTypeName = L"Array";          break;
+        case Metadata::ElementType::SzArray:    primitiveTypeName = L"Array";          break;
         case Metadata::ElementType::ValueType:  primitiveTypeName = L"ValueType";      break;
         case Metadata::ElementType::Void:       primitiveTypeName = L"Void";           break;
         case Metadata::ElementType::TypedByRef: primitiveTypeName = L"TypedReference"; break;

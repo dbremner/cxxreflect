@@ -23,6 +23,7 @@
 #include <iterator>
 #include <map>
 #include <memory>
+#include <new>
 #include <numeric>
 #include <set>
 #include <sstream>
@@ -69,7 +70,17 @@ namespace CxxReflect {
 
     typedef long                                          HResult;
 
+    /// Represents an object size in the CxxReflect library
+    ///
+    /// CxxReflect deals almost exclusively with objects read out of PE binaries.  Because these
+    /// binaries can be no larger than 4GB in size (and in practice are far smaller), we use a
+    /// 32-bit unsigned integer to represent sizes.  This helps us to save some space when running
+    /// in a 64-bit process.
     typedef std::uint32_t                                 SizeType;
+
+    /// Represents a difference between two sizes, pointers, or iterators in the CxxReflect library.
+    ///
+    /// This is the signed type corresponding to the unsigned `SizeType`.
     typedef std::int32_t                                  DifferenceType;
 
 }

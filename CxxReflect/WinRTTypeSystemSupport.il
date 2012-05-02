@@ -5,12 +5,12 @@
 
 // This file defines a fake Platform assembly for use with C++ projects targeting the Windows Runtime.
 
-.assembly CxxReflectPlatform
+.assembly WinRTTypeSystemSupport
 {
     .ver 1:0:0:0
 }
 
-.module     CxxReflectPlatform.winmd
+.module     WinRTTypeSystemSupport.winmd
 .corflags   0x00000001 // ILONLY
 
 .class  public auto ansi Platform.Object

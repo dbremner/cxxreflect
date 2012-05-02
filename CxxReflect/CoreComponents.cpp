@@ -538,4 +538,52 @@ namespace CxxReflect {
         Assembly const foundReferenceAssembly(loader.LoadAssembly(*it));
         return GetSystemObjectType(*foundReferenceAssembly.BeginTypes());
     }
+
+
+
+
+
+    AssemblyLocation::AssemblyLocation()
+        : _kind(Kind::Uninitialized)
+    {
+    }
+
+    AssemblyLocation::AssemblyLocation(ConstByteRange const& memoryRange)
+        : _kind(Kind::Memory), _memoryRange(memoryRange)
+    {
+        Detail::Assert([&]{ return memoryRange.IsInitialized(); });
+    }
+
+    AssemblyLocation::AssemblyLocation(String const& filePath)
+        : _kind(Kind::File), _filePath(filePath)
+    {
+        Detail::Assert([&]{ return !filePath.empty(); });
+    }
+
+    AssemblyLocation::Kind AssemblyLocation::GetKind() const
+    {
+        return _kind.Get();
+    }
+
+    bool AssemblyLocation::IsInFile() const
+    {
+        return GetKind() == Kind::File;
+    }
+
+    bool AssemblyLocation::IsInMemory() const
+    {
+        return GetKind() == Kind::Memory;
+    }
+
+    ConstByteRange const& AssemblyLocation::GetMemoryRange() const
+    {
+        Detail::Assert([&]{ return IsInMemory(); });
+        return _memoryRange;
+    }
+
+    String const& AssemblyLocation::GetFilePath() const
+    {
+        Detail::Assert([&]{ return IsInFile(); });
+        return _filePath;
+    }
 }

@@ -78,15 +78,24 @@
     <ClCompile Include="WindowsRuntimeInvocation.cpp" />
     <ClCompile Include="WindowsRuntimeLoader.cpp" />
     <ClCompile Include="WindowsRuntimeUtility.cpp" />
+    <ClCompile Include="*Embedded.cpp">
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <CustomBuild Include="CxxReflectPlatform.il">
+    <CustomBuild Include="CliTypeSystemSupport.il">
+      <Command>call $(ProjectDir)..\Utilities\IlasmAndEmbed.bat %(FullPath) $(OutDir)%(FileName).metadll $(ProjectDir)%(FileName)Embedded.cpp $(ProjectDir)..\Utilities\EmbedFileInCpp.exe CxxReflect::Detail::%(FileName)Embedded</Command>
+      <DeploymentContent>false</DeploymentContent>
       <ExcludedFromBuild>false</ExcludedFromBuild>
-      <DeploymentContent>true</DeploymentContent>
       <FileType>Document</FileType>
-      <Command>ilasm /nologo /dll /clock /noautoinherit /output=$(OutDir)%(Filename).dat %(FullPath)</Command>
-      <Outputs>$(OutDir)%(Filename).dat</Outputs>
-      <TreatOutputAsContent>true</TreatOutputAsContent>
+      <Outputs>$(OutDir)CliTypeSystemSupport.metadll;$(ProjectDir)%(FileName).cpp</Outputs>
+    </CustomBuild>
+    <CustomBuild Include="WinRTTypeSystemSupport.il">
+      <Command>call $(ProjectDir)..\Utilities\IlasmAndEmbed.bat %(FullPath) $(OutDir)%(FileName).metadll $(ProjectDir)%(FileName)Embedded.cpp $(ProjectDir)..\Utilities\EmbedFileInCpp.exe CxxReflect::Detail::%(FileName)Embedded</Command>
+      <DeploymentContent>false</DeploymentContent>
+      <ExcludedFromBuild>false</ExcludedFromBuild>
+      <FileType>Document</FileType>
+      <Outputs>$(OutDir)CliTypeSystemSupport.metadll;$(ProjectDir)%(FileName).cpp</Outputs>
     </CustomBuild>
   </ItemGroup>
   <ItemGroup>
