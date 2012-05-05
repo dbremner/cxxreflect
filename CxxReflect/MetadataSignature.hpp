@@ -705,7 +705,7 @@ namespace CxxReflect { namespace Metadata {
     /// An equality comparer for metadata signatures.
     ///
     /// This function object type compares metadata signatures using the compatibility and
-    /// equivalence rules as specified by ECMA-335 section 8.6.1.6, "Signature Matching."
+    /// equivalence rules as specified by ECMA-335 5ed/2010 section 8.6.1.6, "Signature Matching."
     class SignatureComparer
     {
     public:

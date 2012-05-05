@@ -242,18 +242,20 @@ namespace CxxReflect { namespace Detail {
     /// If that macro is not defined, this function is a no-op.  When compiling a release (non-debug)
     /// build or when iterator debugging is disabled, this macro is expressly not defined.
     ///
+    /// If no comparer is provided, `operator<` is used as the default.
+    ///
     /// \param  first, last The presumably-ordered range to be checked.
-    /// \param  predicate   The ordering predicate by which the sequence is expected to be ordered.
-    /// \throws LogicError  If the sequence is not ordered according to the predicate.
-    template <typename TForIt, typename TPredicate>
-    void AssertStrictWeakOrdering(TForIt const first, TForIt const last, TPredicate predicate)
+    /// \param  comparer    The ordering comparer by which the sequence is expected to be ordered.
+    /// \throws LogicError  If the sequence is not ordered according to the comparer.
+    template <typename TForIt, typename TComparer>
+    void AssertStrictWeakOrdering(TForIt const first, TForIt const last, TComparer comparer)
     {
         for (TForIt current(first), next(first); current != last && ++next != last; ++current)
-            if (predicate(*next, *current))
+            if (comparer(*next, *current))
                 throw LogicError("Sequence is not ordered");
     }
 
-    /// \copydoc AssertStrictWeakOrdering(TForIt, TForIt, TPredicate)
+    /// \copydoc AssertStrictWeakOrdering(TForIt, TForIt, TComparer)
     template <typename TForIt>
     void AssertStrictWeakOrdering(TForIt const first, TForIt const last)
     {
@@ -275,22 +277,24 @@ namespace CxxReflect { namespace Detail {
     /// When compiling a release (non-debug) build or when iterator debugging is disabled, this
     /// macro is expressly not defined.
     ///
-    /// If you wish to verify that a range is ordered according to a strict-weak predicate, use the
+    /// If you wish to verify that a range is ordered according to a strict-weak comparer, use the
     /// `AssertStrictWeakOrdering()` function template.
+    ///
+    /// If no comparer is provided, `operator<` is used as the default.
     ///
     /// \param    first, last The range to be searched.
     /// \param    value       The value to search for.
-    /// \param    predicate   The ordering predicate by which the range is ordered.
+    /// \param    comparer    The ordering comparer by which the range is ordered.
     /// \returns  The lower and upper bound results of the equal range search.
     /// \nothrows
-    template <typename TForIt, typename TValue, typename TPredicate>
-    ::std::pair<TForIt, TForIt> EqualRange(TForIt first, TForIt last, const TValue& value, TPredicate predicate)
+    template <typename TForIt, typename TValue, typename TComparer>
+    ::std::pair<TForIt, TForIt> EqualRange(TForIt first, TForIt last, const TValue& value, TComparer comparer)
     {
         auto const result(::std::_Equal_range(
             ::std::_Unchecked(first),
             ::std::_Unchecked(last),
             value,
-            predicate,
+            comparer,
             ::std::_Dist_type(first)));
 
         return ::std::pair<TForIt, TForIt>(
@@ -298,7 +302,7 @@ namespace CxxReflect { namespace Detail {
             ::std::_Rechecked(last, result.second));
     }
 
-    /// \copydoc EqualRange(TForIt, TForIt, const TValue&, TPredicate)
+    /// \copydoc EqualRange(TForIt, TForIt, const TValue&, TComparer)
     template <typename TForIt, typename TValue>
     ::std::pair<TForIt, TForIt> EqualRange(TForIt first, TForIt last, const TValue& value)
     {
@@ -321,8 +325,8 @@ namespace CxxReflect { namespace Detail {
         return;
     }
 
-    template <typename TForIt, typename TPredicate>
-    void AssertStrictWeakOrdering(TForIt const&, TForIt const&, TPredicate const&)
+    template <typename TForIt, typename TComparer>
+    void AssertStrictWeakOrdering(TForIt const&, TForIt const&, TComparer const&)
     {
         return;
     }
@@ -333,10 +337,10 @@ namespace CxxReflect { namespace Detail {
         return ::std::equal_range(first, last, value);
     }
 
-    template <typename TForIt, typename TValue, typename TPredicate>
-    ::std::pair<TForIt, TForIt> EqualRange(TForIt first, TForIt last, const TValue& value, TPredicate predicate)
+    template <typename TForIt, typename TValue, typename TComparer>
+    ::std::pair<TForIt, TForIt> EqualRange(TForIt first, TForIt last, const TValue& value, TComparer comparer)
     {
-        return ::std::equal_range(first, last, value, predicate);
+        return ::std::equal_range(first, last, value, comparer);
     }
 
     #endif
@@ -361,19 +365,31 @@ namespace CxxReflect { namespace Detail {
         return false;
     }
 
-    // We frequently compute the distance between two iterators and compare with a size; to avoid
-    // lots of casts and to avoid unsigned/signed comparison warnings, we cast to unsigned here:
+    /// Computes the distance between a range of iterators.
+    ///
+    /// We require an unsigned distance quantity in various places to use in comparisons with calls
+    /// to `size()` or likewise.  This function encapsulates the cast to `SizeType` in one place.
+    ///
+    /// \param    first, last The range whose size is to be computed.
+    /// \returns  The distance between `first` and `last`.
+    /// \nothrows
     template <typename TForIt>
     SizeType Distance(TForIt const first, TForIt const last)
     {
-        // Note:  The result of std::distance is always positive.
         return static_cast<SizeType>(std::distance(first, last));
     }
 
+    /// Performs a binary search for a unique element in an ordered sequence.
+    ///
+    /// \param    first, last The random-accessible range to be searched.
+    /// \param    value       The value for which to be searched.
+    /// \param    comparer    The comparer by which the range is ordered.
+    /// \returns  An iterator to the found element, or `last`, if no element is found.
+    /// \nothrows
     template <typename TRanIt, typename TValue, typename TComparer>
     TRanIt BinarySearch(TRanIt const first, TRanIt const last, TValue const& value, TComparer const comparer)
     {
-        TRanIt const it(::std::lower_bound(first, last, value, comparer));
+        TRanIt const it(std::lower_bound(first, last, value, comparer));
         if (it == last || comparer(*it, value) || comparer(value, *it))
         {
             return last;
@@ -393,10 +409,24 @@ namespace CxxReflect { namespace Detail {
         }
     }
 
-    template <typename TInIt0, typename TInIt1>
-    bool RangeCheckedEqual(TInIt0 first0, TInIt0 const last0, TInIt1 first1, TInIt1 const last1)
+    /// Peforms a range-checked equality comparison between two ranges.
+    ///
+    /// If no comparer is provided, `operator<` is used as a default.
+    ///
+    /// \param    first0, last0 The first range to be compared.
+    /// \param    first1, last1 The second range to be compared.
+    /// \param    comparer      The comparer to be used to compare elements from the two ranges.
+    /// \returns  `true` if the sequences contain the same number of elements and corresponding
+    ///           elements in each sequence compare equal using the comparer.
+    /// \nothrows
+    template <typename TInIt0, typename TInIt1, typename TComparer>
+    bool RangeCheckedEqual(TInIt0          first0,
+                           TInIt0    const last0,
+                           TInIt1          first1,
+                           TInIt1    const last1,
+                           TComparer const comparer)
     {
-        while (first0 != last0 && first1 != last1 && *first0 == *first1)
+        while (first0 != last0 && first1 != last1 && comparer(*first0, *first1))
         {
             ++first0;
             ++first1;
@@ -405,10 +435,11 @@ namespace CxxReflect { namespace Detail {
         return first0 == last0 && first1 == last1;
     }
 
-    template <typename TInIt0, typename TInIt1, typename TPred>
-    bool RangeCheckedEqual(TInIt0 first0, TInIt0 const last0, TInIt1 first1, TInIt1 const last1, TPred const pred)
+    /// \copydoc RangeCheckedEqual(TInIt0,TInIt0,TInIt1,TInIt1,TComparer)
+    template <typename TInIt0, typename TInIt1>
+    bool RangeCheckedEqual(TInIt0 first0, TInIt0 const last0, TInIt1 first1, TInIt1 const last1)
     {
-        while (first0 != last0 && first1 != last1 && pred(*first0, *first1))
+        while (first0 != last0 && first1 != last1 && *first0 == *first1)
         {
             ++first0;
             ++first1;

@@ -48,6 +48,12 @@ namespace CxxReflectTest {
             return L"c:\\windows\\Microsoft.NET\\Framework\\v4.0.30319\\mscorlib.dll";
         }
 
+        void Verify(bool b) const
+        {
+            if (!b)
+                throw TestError(L"");
+        }
+
         template <typename T, typename U>
         void VerifyEquals(T&& t, U&& u) const
         {
@@ -120,10 +126,10 @@ namespace CxxReflectTest {
     #define CXXREFLECTTEST_STRINGIZE_(q) # q 
     #define CXXREFLECTTEST_STRINGIZE(q) CXXREFLECTTEST_STRINGIZE_(q)
 
-    #define CXXREFLECTTEST_REGISTER(name, ...)                              \
-        int name ## RegistrationToken(Index::RegisterTest(                  \
-            CXXREFLECTTEST_CONCATENATE(L, CXXREFLECTTEST_STRINGIZE(name)),  \
-            __VA_ARGS__                                                     \
+    #define CXXREFLECTTEST_REGISTER(name, ...)                                       \
+        int CXXREFLECTTEST_CONCATENATE(name, RegistrationToken)(Index::RegisterTest( \
+            CXXREFLECTTEST_CONCATENATE(L, CXXREFLECTTEST_STRINGIZE(name)),           \
+            __VA_ARGS__                                                              \
         ))
 
     

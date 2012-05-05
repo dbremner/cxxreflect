@@ -5,6 +5,9 @@
 
 #include "Context.hpp"
 
+#include <iomanip>
+#include <iostream>
+
 namespace CxxReflectTest
 {
     Index::TestRegistry& Index::GetOrCreateRegistry()
@@ -28,9 +31,20 @@ namespace CxxReflectTest
         TestRegistry const& registry(GetOrCreateRegistry());
         std::for_each(begin(registry), end(registry), [&](Reference test)
         {
+            std::wcout << L"Running test [" << std::setw(40) << std::left << test.first << L"]:  ";
             Context context;
-            test.second(context);
+            try
+            {
+                test.second(context);
+                std::wcout << L"PASSED" << std::endl;
+            }
+            catch (CxxReflectTest::TestError const&)
+            {
+                throw; // TODO Report error on console instead.
+            }
         });
+
+        std::cin.get();
     }
 }
 
