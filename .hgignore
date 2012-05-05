@@ -2,3 +2,5 @@ syntax: glob
 Build/*
 CxxReflect.v11.suo
 Utilities/EmbedFileInCpp.exe
+*.log
+*.user
