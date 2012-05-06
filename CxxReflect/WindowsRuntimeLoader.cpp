@@ -38,8 +38,8 @@ namespace CxxReflect { namespace WindowsRuntime {
         if (simpleName == L"platform" || simpleName == L"mscorlib")
         {
             return AssemblyLocation(ConstByteRange(
-                Detail::BeginWinRTTypeSystemSupportEmbedded(),
-                Detail::EndWinRTTypeSystemSupportEmbedded()));
+                Detail::BeginWindowsRuntimeTypeSystemSupportEmbedded(),
+                Detail::EndWindowsRuntimeTypeSystemSupportEmbedded()));
         }
 
         // TODO We are not expecting to have to locate an assembly without a type name, so we expect
@@ -57,8 +57,8 @@ namespace CxxReflect { namespace WindowsRuntime {
         if (simpleName == L"platform" || simpleName == L"mscorlib")
         {
             return AssemblyLocation(ConstByteRange(
-                Detail::BeginWinRTTypeSystemSupportEmbedded(),
-                Detail::EndWinRTTypeSystemSupportEmbedded()));
+                Detail::BeginWindowsRuntimeTypeSystemSupportEmbedded(),
+                Detail::EndWindowsRuntimeTypeSystemSupportEmbedded()));
         }
 
         // The name of the assembly must be a prefix of the name of the type.  TODO This may not
@@ -126,8 +126,8 @@ namespace CxxReflect { namespace WindowsRuntime {
         if (Detail::StartsWith(lowercaseNamespaceName.c_str(), L"platform") ||
             Detail::StartsWith(lowercaseNamespaceName.c_str(), L"system"))
             return AssemblyLocation(ConstByteRange(
-                Detail::BeginWinRTTypeSystemSupportEmbedded(),
-                Detail::EndWinRTTypeSystemSupportEmbedded()));
+                Detail::BeginWindowsRuntimeTypeSystemSupportEmbedded(),
+                Detail::EndWindowsRuntimeTypeSystemSupportEmbedded()));
 
         // Otherwise, we failed to locate the metadata file.  Rats.
         throw RuntimeError(L"Failed to locate metadata file for provided namespace");

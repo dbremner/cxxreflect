@@ -1,9 +1,6 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
-    <CustomBuild Include="WinRTTypeSystemSupport.il">
-      <Filter>Assemblies</Filter>
-    </CustomBuild>
     <CustomBuild Include="*Embedded.il">
       <Filter>Assemblies\Generated</Filter>
     </CustomBuild>
@@ -85,7 +82,7 @@
     <CustomBuild Include="CliTypeSystemSupport.il">
       <Filter>Assemblies</Filter>
     </CustomBuild>
-    <CustomBuild Include="WinRTTypeSystemSupport.il">
+    <CustomBuild Include="WindowsRuntimeTypeSystemSupport.il">
       <Filter>Assemblies</Filter>
     </CustomBuild>
   </ItemGroup>
@@ -221,6 +218,9 @@
     <Filter Include="Headers\Documentation">
       <UniqueIdentifier>{8b7e715a-bb9c-4a30-9130-8643db7294cb}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Sources\Generated">
+      <UniqueIdentifier>{7e6b4e8f-c69c-4e3f-ae79-5b42d3629d23}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="X64FastCallThunk.asm">
@@ -231,17 +231,14 @@
     <None Include="CxxReflect.props" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="WinRTTypeSystemSupportEmbedded.cpp" />
-    <ClCompile Include="WinRTTypeSystemSupportEmbedded.cpp" />
-    <ClCompile Include="WinRTTypeSystemSupportEmbedded.cpp" />
-    <ClCompile Include="*Embedded.cpp" />
-    <ClCompile Include="CliTypeSystemSupportEmbedded.cpp">
-      <Filter>Assemblies</Filter>
-    </ClCompile>
-    <ClCompile Include="WinRTTypeSystemSupportEmbedded.cpp" />
-    <ClCompile Include="*Embedded.cpp" />
     <ClCompile Include="Constant.cpp">
       <Filter>Sources\Interface</Filter>
+    </ClCompile>
+    <ClCompile Include="WindowsRuntimeTypeSystemSupportEmbedded.cpp">
+      <Filter>Sources\Generated</Filter>
+    </ClCompile>
+    <ClCompile Include="CliTypeSystemSupportEmbedded.cpp">
+      <Filter>Sources\Generated</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

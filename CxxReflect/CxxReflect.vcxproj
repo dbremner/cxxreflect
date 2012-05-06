@@ -81,7 +81,12 @@
     <ClCompile Include="WindowsRuntimeInvocation.cpp" />
     <ClCompile Include="WindowsRuntimeLoader.cpp" />
     <ClCompile Include="WindowsRuntimeUtility.cpp" />
-    <ClCompile Include="*Embedded.cpp">
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="CliTypeSystemSupportEmbedded.cpp">
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+    </ClCompile>
+    <ClCompile Include="WindowsRuntimeTypeSystemSupportEmbedded.cpp">
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
     </ClCompile>
   </ItemGroup>
@@ -93,7 +98,7 @@
       <FileType>Document</FileType>
       <Outputs>$(OutDir)CliTypeSystemSupport.metadll;$(ProjectDir)%(FileName).cpp</Outputs>
     </CustomBuild>
-    <CustomBuild Include="WinRTTypeSystemSupport.il">
+    <CustomBuild Include="WindowsRuntimeTypeSystemSupport.il">
       <Command>call $(ProjectDir)..\Utilities\IlasmAndEmbed.bat %(FullPath) $(OutDir)%(FileName).metadll $(ProjectDir)%(FileName)Embedded.cpp $(ProjectDir)..\Utilities\EmbedFileInCpp.exe CxxReflect::Detail::%(FileName)Embedded</Command>
       <DeploymentContent>false</DeploymentContent>
       <ExcludedFromBuild>false</ExcludedFromBuild>

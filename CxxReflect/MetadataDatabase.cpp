@@ -2280,6 +2280,11 @@ namespace CxxReflect { namespace Metadata {
         return Private::ReadRowReference(GetDatabase(), GetIterator(), CompositeIndex::HasConstant, GetColumnOffset(1));
     }
 
+    SizeType ConstantRow::GetParentRaw() const
+    {
+        return Private::ReadCompositeIndex(GetDatabase(), GetIterator(), CompositeIndex::HasConstant, GetColumnOffset(1));
+    }
+
     BlobReference ConstantRow::GetValue() const
     {
         return Private::ReadBlobReference(GetDatabase(), GetIterator(), GetColumnOffset(2));
@@ -2290,9 +2295,19 @@ namespace CxxReflect { namespace Metadata {
         return Private::ReadRowReference(GetDatabase(), GetIterator(), CompositeIndex::HasCustomAttribute, GetColumnOffset(0));
     }
 
+    SizeType CustomAttributeRow::GetParentRaw() const
+    {
+        return Private::ReadCompositeIndex(GetDatabase(), GetIterator(), CompositeIndex::HasCustomAttribute, GetColumnOffset(0));
+    }
+
     RowReference CustomAttributeRow::GetType() const
     {
         return Private::ReadRowReference(GetDatabase(), GetIterator(), CompositeIndex::CustomAttributeType, GetColumnOffset(1));
+    }
+
+    SizeType CustomAttributeRow::GetTypeRaw() const
+    {
+        return Private::ReadCompositeIndex(GetDatabase(), GetIterator(), CompositeIndex::CustomAttributeType, GetColumnOffset(1));
     }
 
     BlobReference CustomAttributeRow::GetValue() const
@@ -2308,6 +2323,11 @@ namespace CxxReflect { namespace Metadata {
     RowReference DeclSecurityRow::GetParent() const
     {
         return Private::ReadRowReference(GetDatabase(), GetIterator(), CompositeIndex::HasDeclSecurity, GetColumnOffset(1));
+    }
+
+    SizeType DeclSecurityRow::GetParentRaw() const
+    {
+        return Private::ReadCompositeIndex(GetDatabase(), GetIterator(), CompositeIndex::HasDeclSecurity, GetColumnOffset(1));
     }
 
     BlobReference DeclSecurityRow::GetPermissionSet() const
@@ -2348,6 +2368,11 @@ namespace CxxReflect { namespace Metadata {
         return Private::ReadRowReference(GetDatabase(), GetIterator(), CompositeIndex::TypeDefOrRef, GetColumnOffset(2));
     }
 
+    SizeType EventRow::GetTypeRaw() const
+    {
+        return Private::ReadCompositeIndex(GetDatabase(), GetIterator(), CompositeIndex::TypeDefOrRef, GetColumnOffset(2));
+    }
+
     TypeFlags ExportedTypeRow::GetFlags() const
     {
         return Private::ReadAs<TypeAttribute>(GetIterator(), GetColumnOffset(0));
@@ -2371,6 +2396,11 @@ namespace CxxReflect { namespace Metadata {
     RowReference ExportedTypeRow::GetImplementation() const
     {
         return Private::ReadRowReference(GetDatabase(), GetIterator(), CompositeIndex::Implementation, GetColumnOffset(4));
+    }
+
+    SizeType ExportedTypeRow::GetImplementationRaw() const
+    {
+        return Private::ReadCompositeIndex(GetDatabase(), GetIterator(), CompositeIndex::Implementation, GetColumnOffset(4));
     }
 
     FieldFlags FieldRow::GetFlags() const
@@ -2401,6 +2431,11 @@ namespace CxxReflect { namespace Metadata {
     RowReference FieldMarshalRow::GetParent() const
     {
         return Private::ReadRowReference(GetDatabase(), GetIterator(), CompositeIndex::HasFieldMarshal, GetColumnOffset(0));
+    }
+
+    SizeType FieldMarshalRow::GetParentRaw() const
+    {
+        return Private::ReadCompositeIndex(GetDatabase(), GetIterator(), CompositeIndex::HasFieldMarshal, GetColumnOffset(0));
     }
 
     BlobReference FieldMarshalRow::GetNativeType() const
@@ -2448,6 +2483,11 @@ namespace CxxReflect { namespace Metadata {
         return Private::ReadRowReference(GetDatabase(), GetIterator(), CompositeIndex::TypeOrMethodDef, GetColumnOffset(2));
     }
 
+    SizeType GenericParamRow::GetParentRaw() const
+    {
+        return Private::ReadCompositeIndex(GetDatabase(), GetIterator(), CompositeIndex::TypeOrMethodDef, GetColumnOffset(2));
+    }
+
     StringReference GenericParamRow::GetName() const
     {
         return Private::ReadStringReference(GetDatabase(), GetIterator(), GetColumnOffset(3));
@@ -2463,6 +2503,11 @@ namespace CxxReflect { namespace Metadata {
         return Private::ReadRowReference(GetDatabase(), GetIterator(), CompositeIndex::TypeDefOrRef, GetColumnOffset(1));
     }
 
+    SizeType GenericParamConstraintRow::GetConstraintRaw() const
+    {
+        return Private::ReadCompositeIndex(GetDatabase(), GetIterator(), CompositeIndex::TypeDefOrRef, GetColumnOffset(1));
+    }
+
     PInvokeFlags ImplMapRow::GetMappingFlags() const
     {
         return Private::ReadAs<PInvokeAttribute>(GetIterator(), GetColumnOffset(0));
@@ -2471,6 +2516,11 @@ namespace CxxReflect { namespace Metadata {
     RowReference ImplMapRow::GetMemberForwarded() const
     {
         return Private::ReadRowReference(GetDatabase(), GetIterator(), CompositeIndex::MemberForwarded, GetColumnOffset(1));
+    }
+
+    SizeType ImplMapRow::GetMemberForwardedRaw() const
+    {
+        return Private::ReadCompositeIndex(GetDatabase(), GetIterator(), CompositeIndex::MemberForwarded, GetColumnOffset(1));
     }
 
     StringReference ImplMapRow::GetImportName() const
@@ -2493,6 +2543,11 @@ namespace CxxReflect { namespace Metadata {
         return Private::ReadRowReference(GetDatabase(), GetIterator(), CompositeIndex::TypeDefOrRef, GetColumnOffset(1));
     }
 
+    SizeType InterfaceImplRow::GetInterfaceRaw() const
+    {
+        return Private::ReadCompositeIndex(GetDatabase(), GetIterator(), CompositeIndex::TypeDefOrRef, GetColumnOffset(1));
+    }
+
     SizeType ManifestResourceRow::GetOffset() const
     {
         return Private::ReadAs<std::uint32_t>(GetIterator(), GetColumnOffset(0));
@@ -2513,9 +2568,19 @@ namespace CxxReflect { namespace Metadata {
         return Private::ReadRowReference(GetDatabase(), GetIterator(), CompositeIndex::Implementation, GetColumnOffset(3));
     }
 
+    SizeType ManifestResourceRow::GetImplementationRaw() const
+    {
+        return Private::ReadCompositeIndex(GetDatabase(), GetIterator(), CompositeIndex::Implementation, GetColumnOffset(3));
+    }
+
     RowReference MemberRefRow::GetClass() const
     {
         return Private::ReadRowReference(GetDatabase(), GetIterator(), CompositeIndex::MemberRefParent, GetColumnOffset(0));
+    }
+
+    SizeType MemberRefRow::GetClassRaw() const
+    {
+        return Private::ReadCompositeIndex(GetDatabase(), GetIterator(), CompositeIndex::MemberRefParent, GetColumnOffset(0));
     }
 
     StringReference MemberRefRow::GetName() const
@@ -2576,9 +2641,19 @@ namespace CxxReflect { namespace Metadata {
         return Private::ReadRowReference(GetDatabase(), GetIterator(), CompositeIndex::MethodDefOrRef, GetColumnOffset(1));
     }
 
+    SizeType MethodImplRow::GetMethodBodyRaw() const
+    {
+        return Private::ReadCompositeIndex(GetDatabase(), GetIterator(), CompositeIndex::MethodDefOrRef, GetColumnOffset(1));
+    }
+
     RowReference MethodImplRow::GetMethodDeclaration() const
     {
         return Private::ReadRowReference(GetDatabase(), GetIterator(), CompositeIndex::MethodDefOrRef, GetColumnOffset(2));
+    }
+
+    SizeType MethodImplRow::GetMethodDeclarationRaw() const
+    {
+        return Private::ReadCompositeIndex(GetDatabase(), GetIterator(), CompositeIndex::MethodDefOrRef, GetColumnOffset(2));
     }
 
     MethodSemanticsFlags MethodSemanticsRow::GetSemantics() const
@@ -2596,9 +2671,19 @@ namespace CxxReflect { namespace Metadata {
         return Private::ReadRowReference(GetDatabase(), GetIterator(), CompositeIndex::HasSemantics, GetColumnOffset(2));
     }
 
+    SizeType MethodSemanticsRow::GetParentRaw() const
+    {
+        return Private::ReadCompositeIndex(GetDatabase(), GetIterator(), CompositeIndex::HasSemantics, GetColumnOffset(2));
+    }
+
     RowReference MethodSpecRow::GetMethod() const
     {
         return Private::ReadRowReference(GetDatabase(), GetIterator(), CompositeIndex::MethodDefOrRef, GetColumnOffset(0));
+    }
+
+    SizeType MethodSpecRow::GetMethodRaw() const
+    {
+        return Private::ReadCompositeIndex(GetDatabase(), GetIterator(), CompositeIndex::MethodDefOrRef, GetColumnOffset(0));
     }
 
     BlobReference MethodSpecRow::GetSignature() const
@@ -2704,6 +2789,11 @@ namespace CxxReflect { namespace Metadata {
         return Private::ReadRowReference(GetDatabase(), GetIterator(), CompositeIndex::TypeDefOrRef, GetColumnOffset(3));
     }
 
+    SizeType TypeDefRow::GetExtendsRaw() const
+    {
+        return Private::ReadCompositeIndex(GetDatabase(), GetIterator(), CompositeIndex::TypeDefOrRef, GetColumnOffset(3));
+    }
+
     RowReference TypeDefRow::GetFirstField() const
     {
         return Private::ReadRowReference(GetDatabase(), GetIterator(), TableId::Field, GetColumnOffset(4));
@@ -2733,6 +2823,11 @@ namespace CxxReflect { namespace Metadata {
     RowReference TypeRefRow::GetResolutionScope() const
     {
         return Private::ReadRowReference(GetDatabase(), GetIterator(), CompositeIndex::ResolutionScope, GetColumnOffset(0));
+    }
+
+    SizeType TypeRefRow::GetResolutionScopeRaw() const
+    {
+        return Private::ReadCompositeIndex(GetDatabase(), GetIterator(), CompositeIndex::ResolutionScope, GetColumnOffset(0));
     }
 
     StringReference TypeRefRow::GetName() const

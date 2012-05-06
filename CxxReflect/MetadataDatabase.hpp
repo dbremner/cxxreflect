@@ -1428,6 +1428,7 @@ namespace CxxReflect { namespace Metadata {
         /// In ECMA 335-2010, this is called the "Type" field.
         ElementType   GetElementType() const;
         RowReference  GetParent()      const;
+        SizeType      GetParentRaw()   const;
         BlobReference GetValue()       const;
     };
 
@@ -1436,9 +1437,11 @@ namespace CxxReflect { namespace Metadata {
     {
     public:
 
-        RowReference  GetParent() const;
-        RowReference  GetType()   const;
-        BlobReference GetValue()  const;
+        RowReference  GetParent()    const;
+        SizeType      GetParentRaw() const;
+        RowReference  GetType()      const;
+        SizeType      GetTypeRaw()   const;
+        BlobReference GetValue()     const;
     };
 
     /// Represents a row in the **DeclSecurity** table (ECMA 335-2010 II.22.11)
@@ -1451,6 +1454,7 @@ namespace CxxReflect { namespace Metadata {
 
         std::uint16_t GetAction()        const;
         RowReference  GetParent()        const;
+        SizeType      GetParentRaw()     const;
         BlobReference GetPermissionSet() const;
     };
 
@@ -1469,9 +1473,10 @@ namespace CxxReflect { namespace Metadata {
     {
     public:
 
-        EventFlags      GetFlags() const;
-        StringReference GetName()  const;
-        RowReference    GetType()  const;
+        EventFlags      GetFlags()   const;
+        StringReference GetName()    const;
+        RowReference    GetType()    const;
+        SizeType        GetTypeRaw() const;
     };
 
     /// Represents a row in the **ExportedType** table (ECMA 335-2010 II.22.14)
@@ -1479,11 +1484,12 @@ namespace CxxReflect { namespace Metadata {
     {
     public:
 
-        TypeFlags       GetFlags()          const;
-        std::uint32_t   GetTypeDefId()      const;
-        StringReference GetName()           const;
-        StringReference GetNamespace()      const;
-        RowReference    GetImplementation() const;
+        TypeFlags       GetFlags()             const;
+        std::uint32_t   GetTypeDefId()         const;
+        StringReference GetName()              const;
+        StringReference GetNamespace()         const;
+        RowReference    GetImplementation()    const;
+        SizeType        GetImplementationRaw() const;
     };
 
     /// Represents a row in the **Field** table (ECMA 335-2010 II.22.15)
@@ -1511,6 +1517,7 @@ namespace CxxReflect { namespace Metadata {
     public:
 
         RowReference  GetParent()     const;
+        SizeType      GetParentRaw()  const;
         BlobReference GetNativeType() const;
     };
 
@@ -1538,10 +1545,11 @@ namespace CxxReflect { namespace Metadata {
     {
     public:
 
-        std::uint16_t         GetSequence() const;
-        GenericParameterFlags GetFlags()    const;
-        RowReference          GetParent()   const;
-        StringReference       GetName()     const;
+        std::uint16_t         GetSequence()  const;
+        GenericParameterFlags GetFlags()     const;
+        RowReference          GetParent()    const;
+        SizeType              GetParentRaw() const;
+        StringReference       GetName()      const;
     };
 
     /// Represents a row in the **GenericParamConstraint** table (ECMA 335-2010 II.22.21)
@@ -1549,8 +1557,9 @@ namespace CxxReflect { namespace Metadata {
     {
     public:
 
-        RowReference GetParent()     const;
-        RowReference GetConstraint() const;
+        RowReference GetParent()        const;
+        RowReference GetConstraint()    const;
+        SizeType     GetConstraintRaw() const;
     };
 
     /// Represents a row in the **ImplMap** table (ECMA 335-2010 II.22.22)
@@ -1558,10 +1567,11 @@ namespace CxxReflect { namespace Metadata {
     {
     public:
 
-        PInvokeFlags    GetMappingFlags()    const;
-        RowReference    GetMemberForwarded() const;
-        StringReference GetImportName()      const;
-        RowReference    GetImportScope()     const;
+        PInvokeFlags    GetMappingFlags()       const;
+        RowReference    GetMemberForwarded()    const;
+        SizeType        GetMemberForwardedRaw() const;
+        StringReference GetImportName()         const;
+        RowReference    GetImportScope()        const;
     };
 
     /// Represents a row in the **InterfaceImpl** table (ECMA 335-2010 II.22.23)
@@ -1569,8 +1579,9 @@ namespace CxxReflect { namespace Metadata {
     {
     public:
 
-        RowReference GetClass()     const;
-        RowReference GetInterface() const;
+        RowReference GetClass()        const;
+        RowReference GetInterface()    const;
+        SizeType     GetInterfaceRaw() const;
     };
 
     /// Represents a row in the **ManifestResource** table (ECMA 335-2010 II.22.24)
@@ -1578,10 +1589,11 @@ namespace CxxReflect { namespace Metadata {
     {
     public:
 
-        SizeType              GetOffset()         const;
-        ManifestResourceFlags GetFlags()          const;
-        StringReference       GetName()           const;
-        RowReference          GetImplementation() const;
+        SizeType              GetOffset()            const;
+        ManifestResourceFlags GetFlags()             const;
+        StringReference       GetName()              const;
+        RowReference          GetImplementation()    const;
+        SizeType              GetImplementationRaw() const;
     };
 
     /// Represents a row in the **MemberRef** table (ECMA 335-2010 II.22.25)
@@ -1590,6 +1602,7 @@ namespace CxxReflect { namespace Metadata {
     public:
 
         RowReference    GetClass()     const;
+        SizeType        GetClassRaw()  const;
         StringReference GetName()      const;
         BlobReference   GetSignature() const;
     };
@@ -1620,8 +1633,10 @@ namespace CxxReflect { namespace Metadata {
         /// in ECMA 335-2010, this is called the "Class" field.
         RowReference GetParent() const;
 
-        RowReference GetMethodBody() const;
-        RowReference GetMethodDeclaration() const;
+        RowReference GetMethodBody()           const;
+        SizeType     GetMethodBodyRaw()        const;
+        RowReference GetMethodDeclaration()    const;
+        SizeType     GetMethodDeclarationRaw() const;
     };
 
     /// Represents a row in the **MethodSemantics** table (ECMA 335-2010 II.22.28)
@@ -1637,6 +1652,7 @@ namespace CxxReflect { namespace Metadata {
         /// Note that in ECMA 335-2010, this is called the "Association" field.  We have named it
         /// "Parent" for consistency with other tables in the database.
         RowReference         GetParent()      const;
+        SizeType             GetParentRaw()   const;
     };
 
     /// Represents a row in the **MethodSpec** table (ECMA 335-2010 II.22.29)
@@ -1645,6 +1661,7 @@ namespace CxxReflect { namespace Metadata {
     public:
 
         RowReference  GetMethod()    const;
+        SizeType      GetMethodRaw() const;
         BlobReference GetSignature() const;
     };
 
@@ -1723,6 +1740,7 @@ namespace CxxReflect { namespace Metadata {
         StringReference GetName()        const;
         StringReference GetNamespace()   const;
         RowReference    GetExtends()     const;
+        SizeType        GetExtendsRaw()  const;
 
         RowReference    GetFirstField()  const;
         RowReference    GetLastField()   const;
@@ -1736,9 +1754,10 @@ namespace CxxReflect { namespace Metadata {
     {
     public:
 
-        RowReference    GetResolutionScope() const;
-        StringReference GetName()            const;
-        StringReference GetNamespace()       const;
+        RowReference    GetResolutionScope()    const;
+        SizeType        GetResolutionScopeRaw() const;
+        StringReference GetName()               const;
+        StringReference GetNamespace()          const;
     };
 
     /// Represents a row in the **TypeSpec** table (ECMA 335-2010 II.22.39)

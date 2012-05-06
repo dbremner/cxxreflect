@@ -11,8 +11,8 @@
 
 namespace CxxReflect { namespace Detail {
 
-    std::uint8_t const* BeginWinRTTypeSystemSupportEmbedded();
-    std::uint8_t const* EndWinRTTypeSystemSupportEmbedded();
+    std::uint8_t const* BeginWindowsRuntimeTypeSystemSupportEmbedded();
+    std::uint8_t const* EndWindowsRuntimeTypeSystemSupportEmbedded();
 
 } }
 

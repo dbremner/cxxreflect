@@ -16,9 +16,7 @@
 /// This Getting Started Guide focuses on usage with the Windows Runtime.  Future documentation will
 /// describe how the library may be used with ordinary CLI assemblies without the Windows Runtime.
 ///
-/// **Why is it called CxxReflect?** It was actually called C++Reflect, but the +'s got drunk and
-/// fell over, so now it's CxxReflect.  Also, the C++ compiler will get angry with you if you try
-/// using a + in a namespace name.
+///
 ///
 /// # Copyright
 ///
@@ -447,17 +445,27 @@
 ///
 ///
 ///
-/// ## A Few Comments
+/// # A Few Comments
 ///
-/// Remember that CxxReflect is a work in progress.  It has bugs.  If you find a bug, please report
-/// the issue on the CodePlex site.  It may just be that a feature is not yet implemented, but if
-/// you report the issue, that helps us to know which features need to be implemented first.  Also,
-/// if you have feature requests, please post them on the CodePlex website.  We'd like to know what
-/// people would like to do with the library so that we can implement wanted features and optimize
-/// the right areas of the code first.
+/// **CxxReflect is a work in progress.**  It has bugs, and in some areas it still doesn't perform
+/// very well.  In debug builds, the library makes heavy use of assertions to verify assumptions;
+/// if you hit one of these assertions or if you find a bug, please report it on the CodePlex site,
+/// with a project or binary that demonstrates the problem, if possible.
 ///
-/// I'll be blogging about the development of CxxReflect on my blog:
+/// **Why can't I do _________?**  If you have feature requests, please open an issue on the
+/// CodePlex site.  Feature requests get top priority (after fixing known bugs, of course).
+///
+/// **Can I use CxxReflect from multiple threads?**  CxxReflect may be called concurrently from
+/// multiple threads.  It is internally synchronized.
+///
+/// **Why is it called CxxReflect?** It was actually called C++Reflect, but the +'s fell over, so
+/// now it's CxxReflect.  Also, the C++ compiler will get angry with you if you try using a + in a
+/// namespace name.
+///
+/// I'll be blogging about the development of CxxReflect on my blog, with other examples and some
+/// discussion as to what is required to make various features work:
 ///
 ///     http://seaplusplus.com
 ///
 /// Happy Reflecting!
+///
