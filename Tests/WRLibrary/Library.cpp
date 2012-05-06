@@ -5,6 +5,27 @@
 
 namespace WRLibrary
 {
+    public enum class DayOfWeek
+    {
+        Sunday    = 0,
+        Monday    = 1,
+        Tuesday   = 2,
+        Wednesday = 3,
+        Thursday  = 4,
+        Friday    = 5,
+        Saturday  = 6
+    };
+
+    public ref class MyAwesomeType
+    {
+    public:
+
+        void DoSomethingAwesome()     { }
+        void DoSomethingLessAwesome() { }
+        void DoSomethingMoreAwesome() { }
+
+    };
+
     public interface class IProvideANumber
     {
         default::int32 GetNumber();

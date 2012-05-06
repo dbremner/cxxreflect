@@ -9,6 +9,7 @@
 
 #include "CxxReflect/Assembly.hpp"
 #include "CxxReflect/AssemblyName.hpp"
+#include "CxxReflect/Constant.hpp"
 #include "CxxReflect/CustomAttribute.hpp"
 #include "CxxReflect/Event.hpp"
 #include "CxxReflect/Field.hpp"

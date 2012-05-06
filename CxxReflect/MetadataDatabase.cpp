@@ -607,7 +607,7 @@ namespace CxxReflect { namespace Metadata { namespace { namespace Private {
     ///
     /// Note that the lists in an owned-row table (like MethodDef or Field) are guaranteed to be
     /// sorted by the owning row, so the methods for TypeDef 1 will be followed immediately by those
-    /// for TypeDef 2, and so on. This is not explicitly specified in ECMA-335 5ed/2010, but it is necessarily
+    /// for TypeDef 2, and so on. This is not explicitly specified in ECMA 335-2010, but it is necessarily
     /// the case due to the way that the lists are specified.
     template
     <
@@ -677,6 +677,23 @@ namespace CxxReflect { namespace Metadata { namespace { namespace Private {
 } } } }
 
 namespace CxxReflect { namespace Metadata {
+
+    bool IsValidTableId(SizeType const value)
+    {
+        static std::array<Byte, 0x40> const mask =
+        {
+            1, 1, 1, 0, 1, 0, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1,
+            1, 1, 1, 0, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 0, 0,
+            1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0,
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+        };
+
+        return value < mask.size() && mask[value] == 1;
+    }
+
+
+
+
 
     TableId GetTableIdFromCompositeIndexKey(SizeType const key, CompositeIndex const index)
     {
@@ -996,19 +1013,9 @@ namespace CxxReflect { namespace Metadata {
         return _value.Get() + 1;
     }
 
-    bool RowReference::IsValid() const
-    {
-        return _value.Get() != InvalidValue;
-    }
-
     bool RowReference::IsInitialized() const
     {
         return _value.Get() != InvalidValue;
-    }
-
-    void RowReference::AssertInitialized() const
-    {
-        Detail::Assert([&]{ return IsInitialized(); });
     }
 
     bool operator==(RowReference const& lhs, RowReference const& rhs)
@@ -1037,9 +1044,12 @@ namespace CxxReflect { namespace Metadata {
 
     RowReference RowReference::FromToken(TokenType const token)
     {
-        Detail::Assert([&]{ return (token & ValueIndexMask) != 0; });
         RowReference result;
-        result._value.Get() = token - 1;
+
+        // If the token is a null reference, we will return the default-constructed object.
+        if ((token & ValueIndexMask) != 0)
+            result._value.Get() = token - 1;
+
         return result;
     }
 
@@ -1054,21 +1064,22 @@ namespace CxxReflect { namespace Metadata {
     BlobReference::BlobReference(ConstByteIterator const first, ConstByteIterator const last)
         : _first(first), _last(last)
     {
-        Detail::AssertNotNull(first);
-        Detail::AssertNotNull(last);
+        AssertInitialized();
+    }
+
+    BlobReference::BlobReference(BaseSignature const& signature)
+        : _first(signature.BeginBytes()), _last(signature.EndBytes())
+    {
+        AssertInitialized();
     }
 
     ConstByteIterator BlobReference::Begin() const
     {
-        AssertInitialized();
-
         return _first.Get();
     }
 
     ConstByteIterator BlobReference::End() const
     {
-        AssertInitialized();
-
         return _last.Get();
     }
 
@@ -1164,17 +1175,12 @@ namespace CxxReflect { namespace Metadata {
 
     bool BaseElementReference::IsRowReference() const
     {
-        return IsValid() && (_size.Get() & KindMask) == TableKindBit;
+        return IsInitialized() && (_size.Get() & KindMask) == TableKindBit;
     }
 
     bool BaseElementReference::IsBlobReference() const
     {
-        return IsValid() && (_size.Get() & KindMask) == BlobKindBit;
-    }
-
-    bool BaseElementReference::IsValid() const
-    {
-        return _size.Get() != InvalidElementSentinel;
+        return IsInitialized() && (_size.Get() & KindMask) == BlobKindBit;
     }
 
     bool BaseElementReference::IsInitialized() const
@@ -1246,26 +1252,26 @@ namespace CxxReflect { namespace Metadata {
     {
     }
 
-    FullReference::FullReference(Database const* const database, RowReference const& r)
-        : BaseElementReference(r),
+    FullReference::FullReference(Database const* const database, RowReference const& reference)
+        : BaseElementReference(reference),
           _database(database)
     {
         Detail::AssertNotNull(database);
         AssertInitialized();
     }
 
-    FullReference::FullReference(Database const* const database, BlobReference const& r)
-        : BaseElementReference(r),
+    FullReference::FullReference(Database const* const database, BlobReference const& reference)
+        : BaseElementReference(reference),
           _database(database)
     {
         Detail::AssertNotNull(database);
         AssertInitialized();
     }
 
-    FullReference::FullReference(Database const* const database, ElementReference const& r)
-        : BaseElementReference(r.IsRowReference()
-              ? BaseElementReference(r.AsRowReference())
-              : BaseElementReference(r.AsBlobReference())),
+    FullReference::FullReference(Database const* const database, ElementReference const& reference)
+        : BaseElementReference(reference.IsRowReference()
+              ? BaseElementReference(reference.AsRowReference())
+              : BaseElementReference(reference.AsBlobReference())),
           _database(database)
     {
         Detail::AssertNotNull(database);
@@ -1274,6 +1280,7 @@ namespace CxxReflect { namespace Metadata {
 
     Database const& FullReference::GetDatabase() const
     {
+        Detail::AssertNotNull(_database.Get());
         return *_database.Get();
     }
 
@@ -1342,117 +1349,6 @@ namespace CxxReflect { namespace Metadata {
 
 
 
-    /// Transforms UTF-8 strings to UTF-16, with string caching.
-    ///
-    /// This class is pimpl'ed because it depends on the C++ <mutex>, which cannot be included in
-    /// the public interface headers.
-    class StringCollectionCache
-    {
-    public:
-
-        StringCollectionCache()
-        {
-        }
-
-        explicit StringCollectionCache(Stream&& stream)
-            : _stream(std::move(stream))
-        {
-        }
-
-        StringReference At(SizeType const index)
-        {
-            // TODO We can easily break this work up into smaller chunks if this becomes contentious.
-            // We can easily do the UTF8->UTF16 conversion outside of any locks.
-            Lock const lock(_sync);
-
-            auto const existingIt(_index.find(index));
-            if (existingIt != _index.end())
-                return existingIt->second;
-
-            char const* pointer(_stream.ReinterpretAs<char>(index));
-            int const required(Externals::ComputeUtf16LengthOfUtf8String(pointer));
-
-            auto const range(_buffer.Allocate(required));
-            if (!Externals::ConvertUtf8ToUtf16(pointer, range.Begin(), required))
-                throw MetadataReadError(L"Failed to convert UTF8 to UTF16");
-
-            return _index.insert(std::make_pair(
-                index,
-                StringReference(range.Begin(), range.End() - 1)
-            )).first->second;
-        }
-
-        bool IsInitialized() const
-        {
-            return _stream.IsInitialized();
-        }
-
-    private:
-
-        typedef Detail::LinearArrayAllocator<Character, (1 << 16)> Allocator;
-        typedef std::map<SizeType, StringReference>                StringMap;
-        typedef std::mutex                                         Mutex;
-        typedef std::lock_guard<Mutex>                             Lock;
-
-        StringCollectionCache(StringCollectionCache const&);
-        StringCollectionCache& operator=(StringCollectionCache const&);
-
-        void AssertInitialized() const
-        {
-            Detail::Assert([&]{ return IsInitialized(); });
-        }
-
-        Stream            _stream;
-        Allocator mutable _buffer;  // Stores the transformed UTF-16 strings
-        StringMap mutable _index;   // Maps string heap indices into indices in the buffer
-        Mutex     mutable _sync;
-    };
-
-
-    StringCollection::StringCollection()
-    {
-    }
-
-    StringCollection::StringCollection(Stream&& stream)
-        : _cache(new StringCollectionCache(std::move(stream)))
-    {
-    }
-
-    StringCollection::StringCollection(StringCollection&& other)
-        : _cache(std::move(other._cache))
-    {
-    }
-
-    StringCollection& StringCollection::operator=(StringCollection&& other)
-    {
-        _cache = std::move(other._cache);
-        return *this;
-    }
-
-    StringCollection::~StringCollection()
-    {
-        // User-defined destructor required for pimpl'ed unique_ptr
-    }
-
-    StringReference StringCollection::At(SizeType const index) const
-    {
-        return _cache->At(index);
-    }
-
-    bool StringCollection::IsInitialized() const
-    {
-        return _cache != nullptr && _cache->IsInitialized();
-    }
-
-    void StringCollection::AssertInitialized() const
-    {
-        Detail::Assert([&]{ return IsInitialized(); });
-    }
-
-
-
-
-
     Stream::Stream()
     {
     }
@@ -1462,27 +1358,32 @@ namespace CxxReflect { namespace Metadata {
                    SizeType const streamOffset,
                    SizeType const streamSize)
     {
+        SizeType const metadataStart(metadataOffset + streamOffset);
+
+        if (!file.CanSeek(metadataStart, Detail::ConstByteCursor::Begin))
+            throw MetadataReadError(L"Unable to read metadata stream:  start index out of range");
+
         file.Seek(metadataOffset + streamOffset, Detail::ConstByteCursor::Begin);
-        file.VerifyAvailable(streamSize);
+
+        if (!file.CanRead(streamSize))
+            throw MetadataReadError(L"Unable to read metadata stream:  end index out of range");
+
         ConstByteIterator const it(file.GetCurrent());
         _data = ConstByteRange(it, it + streamSize);
     }
 
     ConstByteIterator Stream::Begin() const
     {
-        AssertInitialized();
         return _data.Begin();
     }
 
     ConstByteIterator Stream::End() const
     {
-        AssertInitialized();
         return _data.End();
     }
 
     SizeType Stream::Size() const
     {
-        AssertInitialized();
         return Detail::Distance(_data.Begin(), _data.End());
     }
 
@@ -1493,13 +1394,21 @@ namespace CxxReflect { namespace Metadata {
 
     void Stream::AssertInitialized() const
     {
-        Detail::Assert([&] { return IsInitialized(); }, L"Stream is not initialized");
+        Detail::Assert([&] { return IsInitialized(); });
     }
 
     ConstByteIterator Stream::At(SizeType const index) const
     {
+        return RangeCheckedAt(index, 0);
+    }
+
+    ConstByteIterator Stream::RangeCheckedAt(SizeType const index, SizeType const size) const
+    {
         AssertInitialized();
-        Detail::Assert([&] { return index <= Size(); });
+
+        if (index + size > Size())
+            throw MetadataReadError(L"Attempted to read from beyond the end of the stream");
+
         return _data.Begin() + index;
     }
 
@@ -1552,7 +1461,9 @@ namespace CxxReflect { namespace Metadata {
     {
         AssertInitialized();
 
-        Detail::Assert([&] { return index < _rowCount.Get(); }, L"Index out of range");
+        if (index >= GetRowCount())
+            throw MetadataReadError(L"Attempted to read row at index greater than number of rows");
+
         return _data.Get() + _rowSize.Get() * index;
     }
 
@@ -1574,8 +1485,8 @@ namespace CxxReflect { namespace Metadata {
     {
     }
 
-    TableCollection::TableCollection(Stream&& stream)
-        : _stream(std::move(stream))
+    TableCollection::TableCollection(Stream const& stream)
+        : _stream(stream)
     {
         std::bitset<8> heapSizes(_stream.ReadAs<std::uint8_t>(6));
         _state.Get()._stringHeapIndexSize = heapSizes.test(0) ? 4 : 2;
@@ -1612,25 +1523,6 @@ namespace CxxReflect { namespace Metadata {
                                             _state.Get()._sortedBits.test(x));
             index += _state.Get()._rowSizes[x] * _state.Get()._rowCounts[x];
         }
-    }
-
-    TableCollection::TableCollection(TableCollection&& other)
-        : _stream(std::move(other._stream)),
-          _state (std::move(other._state ))
-    {
-        other._state.Reset();
-    }
-
-    TableCollection& TableCollection::operator=(TableCollection&& other)
-    {
-        Swap(other);
-        return *this;
-    }
-
-    void TableCollection::Swap(TableCollection& other)
-    {
-        std::swap(other._stream,      _stream     );
-        std::swap(other._state,       _state      );
     }
 
     void TableCollection::ComputeCompositeIndexSizes()
@@ -1890,6 +1782,117 @@ namespace CxxReflect { namespace Metadata {
     }
 
     void TableCollection::AssertInitialized() const
+    {
+        Detail::Assert([&]{ return IsInitialized(); });
+    }
+
+
+
+
+
+    /// Transforms UTF-8 strings to UTF-16, with string caching.
+    ///
+    /// This class is pimpl'ed because it depends on the C++ <mutex>, which cannot be included in
+    /// the public interface headers.
+    class StringCollectionCache
+    {
+    public:
+
+        StringCollectionCache()
+        {
+        }
+
+        explicit StringCollectionCache(Stream&& stream)
+            : _stream(std::move(stream))
+        {
+        }
+
+        StringReference At(SizeType const index)
+        {
+            // TODO We can easily break this work up into smaller chunks if this becomes contentious.
+            // We can easily do the UTF8->UTF16 conversion outside of any locks.
+            Lock const lock(_sync);
+
+            auto const existingIt(_index.find(index));
+            if (existingIt != _index.end())
+                return existingIt->second;
+
+            char const* pointer(_stream.ReinterpretAs<char>(index));
+            int const required(Externals::ComputeUtf16LengthOfUtf8String(pointer));
+
+            auto const range(_buffer.Allocate(required));
+            if (!Externals::ConvertUtf8ToUtf16(pointer, range.Begin(), required))
+                throw MetadataReadError(L"Failed to convert UTF8 to UTF16");
+
+            return _index.insert(std::make_pair(
+                index,
+                StringReference(range.Begin(), range.End() - 1)
+            )).first->second;
+        }
+
+        bool IsInitialized() const
+        {
+            return _stream.IsInitialized();
+        }
+
+    private:
+
+        typedef Detail::LinearArrayAllocator<Character, (1 << 16)> Allocator;
+        typedef std::map<SizeType, StringReference>                StringMap;
+        typedef std::mutex                                         Mutex;
+        typedef std::lock_guard<Mutex>                             Lock;
+
+        StringCollectionCache(StringCollectionCache const&);
+        StringCollectionCache& operator=(StringCollectionCache const&);
+
+        void AssertInitialized() const
+        {
+            Detail::Assert([&]{ return IsInitialized(); });
+        }
+
+        Stream            _stream;
+        Allocator mutable _buffer;  // Stores the transformed UTF-16 strings
+        StringMap mutable _index;   // Maps string heap indices into indices in the buffer
+        Mutex     mutable _sync;
+    };
+
+
+    StringCollection::StringCollection()
+    {
+    }
+
+    StringCollection::StringCollection(Stream&& stream)
+        : _cache(new StringCollectionCache(std::move(stream)))
+    {
+    }
+
+    StringCollection::StringCollection(StringCollection&& other)
+        : _cache(std::move(other._cache))
+    {
+    }
+
+    StringCollection& StringCollection::operator=(StringCollection&& other)
+    {
+        _cache = std::move(other._cache);
+        return *this;
+    }
+
+    StringCollection::~StringCollection()
+    {
+        // User-defined destructor required for pimpl'ed unique_ptr
+    }
+
+    StringReference StringCollection::At(SizeType const index) const
+    {
+        return _cache->At(index);
+    }
+
+    bool StringCollection::IsInitialized() const
+    {
+        return _cache != nullptr && _cache->IsInitialized();
+    }
+
+    void StringCollection::AssertInitialized() const
     {
         Detail::Assert([&]{ return IsInitialized(); });
     }

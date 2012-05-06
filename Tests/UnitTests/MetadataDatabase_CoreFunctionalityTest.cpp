@@ -364,7 +364,7 @@ namespace CxxReflectTest { namespace {
                 cxr::RowReference const cxrFieldRef(cxr::RowReference::FromToken(corOffset.ridOfField));
                 cxr::FieldRow const cxrFieldRow(cxrDatabase.GetRow<cxr::TableId::Field>(cxrFieldRef));
 
-                cxr::FieldLayoutRow const cxrFieldLayoutRow(cxr::GetFieldLayout(cxrFieldRow.GetFullSelfReference()));
+                cxr::FieldLayoutRow const cxrFieldLayoutRow(cxr::GetFieldLayout(cxrFieldRow.GetSelfFullReference()));
                 c.VerifyEquals(corOffset.ulOffset != static_cast<ULONG>(-1), cxrFieldLayoutRow.IsInitialized());
 
                 if (cxrFieldLayoutRow.IsInitialized())
@@ -603,7 +603,7 @@ namespace CxxReflectTest { namespace {
                 corSignatureIt, corSignatureIt + corSignatureLength,
                 cxrRow.GetSignature().Begin(), cxrRow.GetSignature().End());
 
-            cxr::ConstantRow cxrConstant(cxr::GetConstant(cxrRow.GetFullSelfReference()));
+            cxr::ConstantRow cxrConstant(cxr::GetConstant(cxrRow.GetSelfFullReference()));
             c.VerifyEquals(cxrConstant.IsInitialized(), corConstant != nullptr);
             
             if (cxrConstant.IsInitialized())
@@ -985,8 +985,8 @@ namespace CxxReflectTest { namespace {
             cxr::TypeDefRow   const cxrRow(cxrDatabase.GetRow<cxr::TableId::TypeDef>(cxrRowRef));
 
             std::vector<std::pair<mdToken, mdToken>> cxrMethods;
-            std::transform(cxr::BeginMethodImpls(cxrRow.GetFullSelfReference()),
-                           cxr::EndMethodImpls(cxrRow.GetFullSelfReference()),
+            std::transform(cxr::BeginMethodImpls(cxrRow.GetSelfFullReference()),
+                           cxr::EndMethodImpls(cxrRow.GetSelfFullReference()),
                            std::back_inserter(cxrMethods),
                            [&](cxr::MethodImplRow const& cxrMethodRow)
             {
@@ -1149,7 +1149,7 @@ namespace CxxReflectTest { namespace {
             c.VerifyEquals(cxr::StringReference(corName.data()), cxrRow.GetName());
             c.VerifyEquals(corFlags,                             cxrRow.GetFlags().GetIntegral());
 
-            cxr::ConstantRow cxrConstant(cxr::GetConstant(cxrRow.GetFullSelfReference()));
+            cxr::ConstantRow cxrConstant(cxr::GetConstant(cxrRow.GetSelfFullReference()));
             c.VerifyEquals(cxrConstant.IsInitialized(), corConstant != nullptr);
             
             if (cxrConstant.IsInitialized())
@@ -1253,7 +1253,7 @@ namespace CxxReflectTest { namespace {
                 }
             });
 
-            cxr::ConstantRow cxrConstant(cxr::GetConstant(cxrRow.GetFullSelfReference()));
+            cxr::ConstantRow cxrConstant(cxr::GetConstant(cxrRow.GetSelfFullReference()));
             c.VerifyEquals(cxrConstant.IsInitialized(), corConstant != nullptr);
             
             if (cxrConstant.IsInitialized())

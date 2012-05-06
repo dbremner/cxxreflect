@@ -170,7 +170,7 @@ namespace CxxReflect {
         RowReference const resolutionScope(typeRef.GetResolutionScope());
 
         // If the resolution scope is null, we look in the ExportedType table for this type.
-        if (!resolutionScope.IsValid())
+        if (!resolutionScope.IsInitialized())
         {
             throw LogicError(L"Not yet implemented");
         }
@@ -352,6 +352,11 @@ namespace CxxReflect {
 
         _fundamentalTypes[Detail::AsInteger(elementType)] = Detail::TypeHandle(primitiveType);
         return primitiveType;
+    }
+
+    String Loader::TransformNamespace(String const& namespaceName, InternalKey) const
+    {
+        return _loaderConfiguration->TransformNamespace(namespaceName);
     }
 
     Detail::EventContextTable Loader::GetOrCreateEventTable(Metadata::FullReference const& typeDef, InternalKey) const

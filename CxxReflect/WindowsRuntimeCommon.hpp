@@ -11,6 +11,7 @@
 
 #include "CxxReflect/Assembly.hpp"
 #include "CxxReflect/AssemblyName.hpp"
+#include "CxxReflect/Constant.hpp"
 #include "CxxReflect/CustomAttribute.hpp"
 #include "CxxReflect/Event.hpp"
 #include "CxxReflect/Field.hpp"
@@ -47,6 +48,75 @@ namespace CxxReflect { namespace WindowsRuntime {
     };
 
     typedef std::unique_ptr<IInspectable, InspectableDeleter> UniqueInspectable;
+
+
+
+
+
+    class Enumerator
+    {
+    public:
+
+        Enumerator();
+        Enumerator(StringReference name, std::uint64_t value);
+
+        StringReference GetName() const;
+
+        std::int64_t GetValueAsInt64() const;
+        std::uint64_t GetValueAsUInt64() const;
+        
+        template <typename T>
+        typename std::enable_if<std::is_signed<T>::value, T>::type GetValueAs() const
+        {
+            std::int64_t const value(GetValueAsInt64());
+            if (value > std::numeric_limits<T>::max() || value < std::numeric_limits<T>::min())
+                throw RuntimeError(L"Conversion would yield out-of-range value");
+
+            return static_cast<T>(value);
+        }
+
+        template <typename T>
+        typename std::enable_if<std::is_unsigned<T>::value, T>::type GetValueAs() const
+        {
+            std::uint64_t const value(GetValueAsUInt64());
+            if (value > std::numeric_limits<T>::max())
+                throw RuntimeError(L"Conversion would yield out-of-range value");
+
+            return static_cast<T>(value);
+        }
+
+        template <typename T>
+        typename std::enable_if<std::is_enum<T>::value, T>::type GetValueAs() const
+        {
+            return static_cast<T>(GetValueAs<typename std::underlying_type<T>::type>());
+        }
+
+    private:
+
+        StringReference                         _name;
+        Detail::ValueInitialized<std::uint64_t> _value;
+    };
+
+    class EnumeratorSignedValueOrdering
+    {
+    public:
+
+        bool operator()(Enumerator const& lhs, Enumerator const& rhs) const;
+    };
+
+    class EnumeratorUnsignedValueOrdering
+    {
+    public:
+
+        bool operator()(Enumerator const& lhs, Enumerator const& rhs) const;
+    };
+
+    class EnumeratorNameOrdering
+    {
+    public:
+
+        bool operator()(Enumerator const& lhs, Enumerator const& rhs) const;
+    };
 
 } }
 

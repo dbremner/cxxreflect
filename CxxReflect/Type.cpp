@@ -520,7 +520,7 @@ namespace CxxReflect {
 
     bool Type::IsInitialized() const
     {
-        return _assembly.IsInitialized() && _type.IsValid();
+        return _assembly.IsInitialized() && _type.IsInitialized();
     }
 
     bool Type::operator!() const
@@ -786,7 +786,7 @@ namespace CxxReflect {
         return ResolveTypeDefTypeAndCall([&](Type const& t) -> Type
         {
             Metadata::RowReference const extends(t.GetTypeDefRow().GetExtends());
-            if (!extends.IsValid())
+            if (!extends.IsInitialized())
                 return Type();
 
             switch (extends.GetTable())

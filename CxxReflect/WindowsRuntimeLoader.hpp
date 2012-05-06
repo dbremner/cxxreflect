@@ -81,6 +81,8 @@ namespace CxxReflect { namespace WindowsRuntime {
 
         std::vector<Type> GetImplementers(Type const& interfaceType) const;
 
+        std::vector<Enumerator> GetEnumerators(Type const& enumerationType) const;
+
         Type GetActivationFactoryType(Type const& type);
 
         Guid GetGuid(Type const& type);

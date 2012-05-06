@@ -23,6 +23,8 @@
     <ClInclude Include="Assembly.hpp" />
     <ClInclude Include="AssemblyName.hpp" />
     <ClInclude Include="Configuration.hpp" />
+    <ClInclude Include="Constant.hpp" />
+    <ClInclude Include="DocumentationGettingStarted.hpp" />
     <ClInclude Include="ExternalFunctions.hpp" />
     <ClInclude Include="FundamentalUtilities.hpp" />
     <ClInclude Include="CustomAttribute.hpp" />
@@ -53,6 +55,7 @@
   <ItemGroup>
     <ClCompile Include="Assembly.cpp" />
     <ClCompile Include="AssemblyName.cpp" />
+    <ClCompile Include="Constant.cpp" />
     <ClCompile Include="CustomAttribute.cpp" />
     <ClCompile Include="Event.cpp" />
     <ClCompile Include="ExternalFunctions.cpp" />

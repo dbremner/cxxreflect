@@ -241,6 +241,41 @@ namespace CxxReflect { namespace WindowsRuntime {
         return implementers;
     }
 
+    std::vector<Enumerator> LoaderContext::GetEnumerators(Type const& enumerationType) const
+    {
+        Detail::Verify([&]{ return enumerationType.IsInitialized(); });
+
+        if (!enumerationType.IsEnum())
+            return std::vector<Enumerator>();
+
+        auto const first(enumerationType.BeginFields(BindingAttribute::Public | BindingAttribute::Static));
+        auto const last(enumerationType.EndFields());
+
+        std::vector<Enumerator> result;
+        std::transform(first, last, std::back_inserter(result), [&](Field const& field) -> Enumerator
+        {
+            Constant const constant(field.GetConstantValue());
+
+            std::uint64_t value(0);
+            switch (constant.GetKind())
+            {
+            case Constant::Kind::Int8:   value = static_cast<uint64_t>(constant.AsInt8());   break;
+            case Constant::Kind::UInt8:  value = static_cast<uint64_t>(constant.AsUInt8());  break;
+            case Constant::Kind::Int16:  value = static_cast<uint64_t>(constant.AsInt16());  break;
+            case Constant::Kind::UInt16: value = static_cast<uint64_t>(constant.AsUInt16()); break;
+            case Constant::Kind::Int32:  value = static_cast<uint64_t>(constant.AsInt32());  break;
+            case Constant::Kind::UInt32: value = static_cast<uint64_t>(constant.AsUInt32()); break;
+            case Constant::Kind::Int64:  value = static_cast<uint64_t>(constant.AsInt64());  break;
+            case Constant::Kind::UInt64: value = static_cast<uint64_t>(constant.AsUInt64()); break;
+            default:                     throw RuntimeError(L"Invalid enumerator type encountered");
+            }
+
+            return Enumerator(field.GetName(), value);
+        });
+
+        return result;
+    }
+
     Type LoaderContext::GetActivationFactoryType(Type const& type)
     {
         Detail::Verify([&]{ return type.IsInitialized(); });

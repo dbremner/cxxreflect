@@ -1086,7 +1086,7 @@ namespace CxxReflect { namespace Detail {
         // First, recursively handle the base type hierarchy so that inherited members are emplaced
         // into the table first; this allows us to emulate runtime overriding and hiding behaviors.
         Metadata::RowReference const baseTypeReference(typeDef.GetExtends());
-        if (baseTypeReference.IsValid())
+        if (baseTypeReference.IsInitialized())
         {
             ContextTableType const table(GetOrCreateTable(FullReference(&database, baseTypeReference)));
 

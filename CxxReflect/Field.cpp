@@ -6,6 +6,7 @@
 #include "CxxReflect/PrecompiledHeaders.hpp"
 
 #include "CxxReflect/Assembly.hpp"
+#include "CxxReflect/Constant.hpp"
 #include "CxxReflect/Loader.hpp"
 #include "CxxReflect/Field.hpp"
 #include "CxxReflect/Type.hpp"
@@ -79,6 +80,11 @@ namespace CxxReflect {
     SizeType Field::GetMetadataToken() const
     {
         return GetContext(InternalKey()).GetElementRow().GetSelfReference().GetToken();
+    }
+
+    Constant Field::GetConstantValue() const
+    {
+        return Constant::For(_context.Get()->GetElement(), InternalKey());
     }
 
     StringReference Field::GetName() const

@@ -105,6 +105,8 @@ namespace CxxReflect {
 
         Type GetFundamentalType(Metadata::ElementType elementType, InternalKey) const;
 
+        String TransformNamespace(String const& namespaceName, InternalKey) const;
+
         Detail::EventContextTable     GetOrCreateEventTable    (Metadata::FullReference const& typeDef, InternalKey) const;
         Detail::FieldContextTable     GetOrCreateFieldTable    (Metadata::FullReference const& typeDef, InternalKey) const;
         Detail::InterfaceContextTable GetOrCreateInterfaceTable(Metadata::FullReference const& typeDef, InternalKey) const;

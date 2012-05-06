@@ -177,6 +177,12 @@
     <ClInclude Include="FundamentalUtilities.hpp">
       <Filter>Headers\Core</Filter>
     </ClInclude>
+    <ClInclude Include="Constant.hpp">
+      <Filter>Headers\Interface</Filter>
+    </ClInclude>
+    <ClInclude Include="DocumentationGettingStarted.hpp">
+      <Filter>Headers\Documentation</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Headers">
@@ -212,6 +218,9 @@
     <Filter Include="Assemblies">
       <UniqueIdentifier>{41767ab4-df6d-4e9c-9bcc-c16d777e3df1}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Headers\Documentation">
+      <UniqueIdentifier>{8b7e715a-bb9c-4a30-9130-8643db7294cb}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="X64FastCallThunk.asm">
@@ -225,14 +234,14 @@
     <ClCompile Include="WinRTTypeSystemSupportEmbedded.cpp" />
     <ClCompile Include="WinRTTypeSystemSupportEmbedded.cpp" />
     <ClCompile Include="WinRTTypeSystemSupportEmbedded.cpp" />
-    <ClCompile Include="CliTypeSystemSupportEmbedded.cpp">
-      <Filter>Assemblies</Filter>
-    </ClCompile>
-    <ClCompile Include="WinRTTypeSystemSupportEmbedded.cpp" />
     <ClCompile Include="*Embedded.cpp" />
     <ClCompile Include="CliTypeSystemSupportEmbedded.cpp">
       <Filter>Assemblies</Filter>
     </ClCompile>
     <ClCompile Include="WinRTTypeSystemSupportEmbedded.cpp" />
+    <ClCompile Include="*Embedded.cpp" />
+    <ClCompile Include="Constant.cpp">
+      <Filter>Sources\Interface</Filter>
+    </ClCompile>
   </ItemGroup>
 </Project>

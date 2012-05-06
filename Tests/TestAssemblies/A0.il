@@ -6,7 +6,7 @@
 // A0.il --> A0.dat
 //
 // This is the core metadata test assembly.  It defines simple types that validate all of the basic
-// metadata rules from Partition II of ECMA-335 5ed/2010.  It contains only metadata and has no
+// metadata rules from Partition II of ECMA 335-2010.  It contains only metadata and has no
 // executable code.  The test assemblies A1 and A2 contain additional tests that verify cross-assembly
 // type and member resolution (since these tests necessarily require multiple assemblies).
 //

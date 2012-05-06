@@ -28,8 +28,56 @@ namespace WRTestApp {
         cxr::WhenInitializedCall([&]
         {
             {
-                // typedef Windows::UI::Xaml::IDependencyObject IDependencyObject;
-                // auto const dependencyObjectTypes = cxr::GetImplementersOf<IDependencyObject>();
+                auto enumerators(cxr::GetEnumerators(cxr::GetType(L"WRLibrary.DayOfWeek")));
+
+                // The order of the enumerators is unspecified, so we'll sort them by value:
+                std::sort(begin(enumerators), end(enumerators), cxr::EnumeratorUnsignedValueOrdering());
+
+                // Print the enumerators:
+                std::for_each(begin(enumerators), end(enumerators), [&](cxr::Enumerator const& e)
+                {
+                    std::wstringstream formatter;
+                    formatter << e.GetName() << L":  " << e.GetValueAsUInt64() << L"\n";
+                    OutputDebugString(formatter.str().c_str());
+                });
+            }
+
+            {
+                cxr::Type const awesomeType(cxr::GetType(L"WRLibrary.MyAwesomeType"));
+
+                OutputDebugString(L"Type hierarchy of WRLibrary.MyAwesomeType:\n");
+                cxr::Type baseType(awesomeType);
+                while (baseType.IsInitialized())
+                {
+                    std::wstringstream formatter;
+                    formatter << baseType.GetFullName() << L"\n";
+                    OutputDebugString(formatter.str().c_str());
+
+                    baseType = baseType.GetBaseType();
+                }
+
+                OutputDebugString(L"Interfaces implemented by WRLibrary.MyAwesomeType:\n");
+                std::for_each(awesomeType.BeginInterfaces(), awesomeType.EndInterfaces(), [&](cxr::Type const& iface)
+                {
+                    std::wstringstream formatter;
+                    formatter << iface.GetFullName() << L"\n";
+                    OutputDebugString(formatter.str().c_str());
+                });
+
+                OutputDebugString(L"Methods of WRLibrary.MyAwesomeType:\n");
+                auto const firstMethod(awesomeType.BeginMethods(cxr::BindingAttribute::AllInstance));
+                auto const lastMethod(awesomeType.EndMethods());
+                std::for_each(firstMethod, lastMethod, [&](cxr::Method const& method)
+                {
+                    std::wstringstream formatter;
+                    formatter << method.GetName() << L"\n";
+                    OutputDebugString(formatter.str().c_str());
+                });
+            }
+
+            {
+                typedef Windows::UI::Xaml::IDependencyObject IDependencyObject;
+                auto const dependencyObjectTypes = cxr::GetImplementersOf<IDependencyObject>();
             }
 
             {

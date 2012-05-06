@@ -18,10 +18,19 @@ namespace CxxReflect {
         DisableJitCompileOptimizer = 0x4000,
         EnableJitCompileTracking   = 0x8000,
 
-        // Note: These are not in ECMA-335 5ed/2010; they can be found in the Windows SDK 8.0 header <cor.h>.
+        /// A mask for the content type flags of the Assembly flags
+        ///
+        /// The content type flags are not part of ECMA 335-2010.  They are used to differentiate
+        /// between Windows Runtime metadata and ordinary CLI metadata.  The flags are found in the
+        /// Windows 8.0 SDK header corhdr.h, in the CorAssemblyFlags enumeration.
+        ContentTypeMask            = 0x0E00,
+
+        /// The "default" content type, used for ordinary CLI metadata
         DefaultContentType         = 0x0000,
-        WindowsRuntimeContentType  = 0x0200,
-        ContentTypeMask            = 0x0E00
+
+        /// The Windows Runtime content type, used for Windows Runtime metadata (.winmd files)
+        WindowsRuntimeContentType  = 0x0200
+        
     };
 
     enum class AssemblyHashAlgorithm : std::uint32_t
@@ -336,6 +345,7 @@ namespace CxxReflect { namespace Metadata {
     class TypeRefRow;
     class TypeSpecRow;
 
+    class BaseSignature;
     class ArrayShape;
     class CustomModifier;
     class FieldSignature;
@@ -394,7 +404,7 @@ namespace CxxReflect { namespace Metadata {
         CustomAttributeProperty    = 0x54,
         CustomAttributeEnum        = 0x55,
 
-        /// For internal use only.
+        /// For internal use only
         ///
         /// This is not a real ElementType and it will never be found in metadata read from a
         /// database.  This faux ElementType is used when a signature is instantiated with types
@@ -403,12 +413,14 @@ namespace CxxReflect { namespace Metadata {
         ///
         /// The cross-module type reference is composed of both a TypeDefOrSpec and a pointer to the
         /// database in which it is to be resolved.
-        CrossModuleTypeReference   = 0x5f
+        CrossModuleTypeReference   = 0x5f,
+
+
     };
 
     CXXREFLECT_GENERATE_SCOPED_ENUM_OPERATORS(ElementType);
 
-    /// Resolves types.
+    /// Resolves types, potentially across assembly boundaries
     ///
     /// A Type Resolver is used to resolve type references (TypeRef tokens) and fundamental types.
     /// This interface is provided because the Metadata library itself is incapable of resolving a
@@ -418,7 +430,7 @@ namespace CxxReflect { namespace Metadata {
     {
     public:
 
-        /// Resolves a TypeRef to the TypeDef or TypeSpec to which it refers.
+        /// Resolves a TypeRef to the TypeDef or TypeSpec to which it refers
         ///
         /// This function should be used to resolve type references, potentially across assembly
         /// boundaries.  The provided `type` must be a `RowReference` and must refer to a row in
@@ -429,48 +441,44 @@ namespace CxxReflect { namespace Metadata {
         /// in that scope.  This resolution process may cause a new assembly to be loaded into the
         /// type universe.
         ///
-        /// \param type The TypeDef, TypeRef, or TypeSpec `RowReference` to be resolved.
+        /// \param   type A reference to the TypeDef, TypeRef, or TypeSpec to be resolved
+        /// \returns A reference to the resolved TypeDef or TypeSpec, with its resolution scope
+        /// \throws LogicError If `type` is not initialized or if `type` is not a row reference
         ///
-        /// \returns The resolved TypeDef or TypeSpec `RowReference`, with its resolution scope.
-        ///
-        /// \throws LogicError If `type` is not initialized or if `type` is not a RowReference.
-        ///
-        /// \todo Other throws?
+        /// \todo Finish documentation of exceptions
         virtual FullReference ResolveType(FullReference const& type) const = 0;
 
-        /// Resolves a fundamental type.
+        /// Resolves a fundamental type
         ///
         /// This function should be used to resolve a fundamental ElementType to the TypeDef that
         /// represents the fundamental type.  The resolved TypeDef must be found in the System
         /// assembly (that is, the assembly that references no other assemblies).
         ///
-        /// \param elementType The fundamental type to be resolved.
+        /// \param   elementType The fundamental type to be resolved
+        /// \returns The TypeDef representing the fundamental type
+        /// \throws  LogicError If `elementType` is unknown or not represented by a TypeDef
         ///
-        /// \returns The TypeDef representing the fundamental type.
-        ///
-        /// \todo Throws?
+        /// \todo Finish documentation of exceptions
         virtual FullReference ResolveFundamentalType(ElementType elementType) const = 0;
 
-        /// Resolves an internal-use-only replacement type.
+        /// Resolves an internal-use-only replacement type
         ///
         /// This interface is for internal support and allows CxxReflect to emulate the behavior of
-        /// different reflection APIs and type systems.  For example, in the CLI type system, a `T[]`
-        /// implements `IEnumerable<T>`, `IList<T>`, and `ICollection<T>`.  To allow us to correctly
-        /// include these (and their related methods and properties) when we are queried about the
-        /// array type, we can use this `ResolveReplacementType()` to transform `T[]` into a faux
-        /// `Array<T>` type (name for exposition only) that implements the interfaces and provides
-        /// the runtime capabilities.
+        /// different reflection APIs and type systems.
         ///
-        /// \param type The type for which to get its replacement.
+        /// For example, in the CLI type system, a `T[]` implements `IEnumerable<T>`, `IList<T>`,
+        /// and `ICollection<T>`.  To allow us to correctly include these (and their related methods
+        /// and properties) when we are queried about the array type, we can use this function to
+        /// transform `T[]` into a faux `Array<T>` type (name for exposition only) that implements
+        /// the interfaces and provides the runtime capabilities.
         ///
-        /// \returns The replacement type.  If there is no replacement type, it returns `type`.
+        /// \param   type The type for which to get its replacement
+        /// \returns The replacement type; if there is no replacement type, `type` is returned
+        /// \throws  LogicError If `type` is not initialized
         ///
-        /// \throws LogicError If `type` is not initialized.
-        ///
-        /// \todo Throws?
+        /// \todo After we implement this function, we should verify the \throws is correct.
         virtual FullReference ResolveReplacementType(FullReference const& type) const = 0;
 
-        /// Virtual destructor required for interface.
         virtual ~ITypeResolver();
     };
 

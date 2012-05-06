@@ -119,6 +119,23 @@ namespace CxxReflect { namespace WindowsRuntime {
     /// zeroes).
     Guid GetGuid(Type const& type);
 
+
+
+
+
+    std::vector<Enumerator> GetEnumerators(Type const& enumerationType);
+    std::vector<Enumerator> GetEnumerators(StringReference enumerationFullName);
+    std::vector<Enumerator> GetEnumerators(StringReference namespaceName, StringReference enumerationSimpleName);
+
+    #ifdef CXXREFLECT_ENABLE_WINDOWS_RUNTIME_CPPCX
+    template<typename TEnumeration>
+    std::vector<Enumerator> GetEnumeratorsOf()
+    {
+        String const enumerationFullName(TInterface::typeid->FullName->Data());
+        return WindowsRuntime::GetEnumerators(StringReference(enumerationFullName.c_str()));
+    }
+    #endif
+
 } }
 
 #endif // CXXREFLECT_ENABLE_WINDOWS_RUNTIME_INTEGRATION

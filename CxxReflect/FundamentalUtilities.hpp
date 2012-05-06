@@ -255,7 +255,7 @@ namespace CxxReflect { namespace Detail {
                 throw LogicError("Sequence is not ordered");
     }
 
-    /// \copydoc AssertStrictWeakOrdering(TForIt, TForIt, TComparer)
+    /// \sa AssertStrictWeakOrdering(TForIt, TForIt, TComparer)
     template <typename TForIt>
     void AssertStrictWeakOrdering(TForIt const first, TForIt const last)
     {
@@ -302,7 +302,7 @@ namespace CxxReflect { namespace Detail {
             ::std::_Rechecked(last, result.second));
     }
 
-    /// \copydoc EqualRange(TForIt, TForIt, const TValue&, TComparer)
+    /// \sa EqualRange(TForIt, TForIt, const TValue&, TComparer)
     template <typename TForIt, typename TValue>
     ::std::pair<TForIt, TForIt> EqualRange(TForIt first, TForIt last, const TValue& value)
     {
@@ -435,7 +435,7 @@ namespace CxxReflect { namespace Detail {
         return first0 == last0 && first1 == last1;
     }
 
-    /// \copydoc RangeCheckedEqual(TInIt0,TInIt0,TInIt1,TInIt1,TComparer)
+    /// \sa RangeCheckedEqual(TInIt0,TInIt0,TInIt1,TInIt1,TComparer)
     template <typename TInIt0, typename TInIt1>
     bool RangeCheckedEqual(TInIt0 first0, TInIt0 const last0, TInIt1 first1, TInIt1 const last1)
     {
@@ -1626,6 +1626,12 @@ namespace CxxReflect { namespace Detail {
             return this->Read(buffer, sizeof *buffer, count);
         }
 
+        bool CanRead(DifferenceType const size) const
+        {
+            AssertInitialized();
+            return std::distance(_current.Get(), _last.Get()) >= size;
+        }
+
         void Seek(DifferenceType const position, OriginType const origin)
         {
             AssertInitialized();
@@ -1642,9 +1648,26 @@ namespace CxxReflect { namespace Detail {
             _current.Get() += position;
         }
 
+        bool CanSeek(DifferenceType const position, OriginType const origin)
+        {
+            AssertInitialized();
+            if (origin == OriginType::Begin)
+            {
+                return std::distance(_first.Get(), _last.Get()) >= position;
+            }
+            else if (origin == OriginType::End)
+            {
+                return -std::distance(_first.Get(), _last.Get()) <= position;
+            }
+            else
+            {
+                return std::distance(_current.Get(), _last.Get()) >= position;
+            }
+        }
+
         void VerifyAvailable(DifferenceType const size) const
         {
-            if (std::distance(_current.Get(), _last.Get()) < size)
+            if (!CanRead(size))
                 throw FileIOError(0);
         }
 
@@ -2239,6 +2262,19 @@ namespace CxxReflect {
     typedef Detail::Range<Byte>                ByteRange;
     typedef Detail::Range<Byte const>          ConstByteRange;
 
+    /// A non-owning reference to a C string.
+    ///
+    /// This class provides a `std::wstring`-like interface over a simple C string.  It does not own
+    /// the string to which it refers; some other object must ensure that the string exists for at
+    /// least as long as the `StringReference` exists and is being used.
+    ///
+    /// We do a lot of string manipulation in the library, so to avoid copying strings unnecessarily
+    /// we use references to strings.  This also allows greater flexibility with parameter passing.
+    ///
+    /// As an example, when a metadata database loads strings from an assembly, it will actually
+    /// realize the string in an internal, persistent buffer, then return a reference to it.  The
+    /// referenced string is cached so that it can be returned on subsequent calls.  Avoiding this
+    /// copying has proven to be extremely beneficial for performance during profiling.
     typedef Detail::EnhancedCString<Character> StringReference;
 
 }

@@ -36,6 +36,8 @@ namespace CxxReflect {
 
         SizeType   GetMetadataToken()    const;
 
+        Constant   GetConstantValue()    const;
+
         StringReference GetName() const;
 
         bool IsInitialized() const;

@@ -91,4 +91,34 @@ namespace CxxReflect { namespace WindowsRuntime {
     }
 
 
+
+
+
+    std::vector<Enumerator> GetEnumerators(Type const& enumerationType)
+    {
+        return GlobalLoaderContext::Get().GetEnumerators(enumerationType);
+    }
+
+    std::vector<Enumerator> GetEnumerators(StringReference const enumerationFullName)
+    {
+        Type const enumerationType(GetType(enumerationFullName));
+        if (!enumerationType.IsInitialized())
+            throw RuntimeError(L"Failed to locate type");
+
+        return GetEnumerators(enumerationType);
+    }
+
+    std::vector<Enumerator> GetEnumerators(StringReference const namespaceName,
+                                           StringReference const enumerationSimpleName)
+    {
+        Type const enumerationType(GetType(namespaceName, enumerationSimpleName));
+        if (!enumerationType.IsInitialized())
+            throw RuntimeError(L"Failed to locate type");
+
+        return GetEnumerators(enumerationType);
+    }
+
+
+
+
 } }

@@ -432,8 +432,14 @@ namespace CxxReflect {
     {
         Detail::Assert([&]{ return type.IsInitialized(); });
 
+        String const transformedNamespace(type
+            .GetAssembly()
+            .GetContext(InternalKey())
+            .GetLoader()
+            .TransformNamespace(systemTypeNamespace.c_str(), InternalKey()));
+
         return IsSystemAssembly(type.GetAssembly())
-            && type.GetNamespace() == systemTypeNamespace
+            && type.GetNamespace() == transformedNamespace
             && type.GetName()      == systemTypeSimpleName;
     }
 

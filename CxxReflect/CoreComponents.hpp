@@ -15,6 +15,7 @@ namespace CxxReflect {
 
     class Assembly;
     class AssemblyName;
+    class Constant;
     class CustomAttribute;
     class Event;
     class Field;
@@ -429,11 +430,21 @@ namespace CxxReflect {
 
 
 
-    // This interface allows configuration of the type universe owned by the Loader.
+    /// Interface for loader configuration functionality
+    ///
+    /// The functions of this interface allow different types system implementations to configure
+    /// the loader differently (notably, we need special handling of a few Windows Runtime types).
     class ILoaderConfiguration
     {
     public:
 
+        /// Transforms a namespace prior to resolution of a system type
+        ///
+        /// Prior to resolving a system type, the Loader will call this function to transform the
+        /// namespace of the system type.  It should return the original namespace unchanged if it
+        /// does not need to be transformed.  This allows us to transform, e.g., System -> Platform.
+        ///
+        /// \todo This could be better implemented as GetSystemNamespace() or something like that.
         virtual String TransformNamespace(String const& namespaceName) = 0;
 
         virtual ~ILoaderConfiguration();
