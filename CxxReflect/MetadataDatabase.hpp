@@ -763,20 +763,26 @@ namespace CxxReflect { namespace Metadata {
 
     /// \cond CXXREFLECT_DOXYGEN_FALSE
 
-    #define CXXREFLECT_GENERATE(t)        \
-    class t ## Row;                       \
-                                          \
-    template <>                           \
-    struct RowTypeToTableId<t ## Row>     \
-    {                                     \
-        enum { Value = TableId::t };      \
-    };                                    \
-                                          \
-    template <>                           \
-    struct TableIdToRowType<TableId::t>   \
-    {                                     \
-        typedef t ## Row Type;            \
-    }
+    template <TableId TId>
+    class RowIterator;
+
+    #define CXXREFLECT_GENERATE(t)                                              \
+    class t ## Row;                                                             \
+                                                                                \
+    template <>                                                                 \
+    struct RowTypeToTableId<t ## Row>                                           \
+    {                                                                           \
+        enum { Value = TableId::t };                                            \
+    };                                                                          \
+                                                                                \
+    template <>                                                                 \
+    struct TableIdToRowType<TableId::t>                                         \
+    {                                                                           \
+        typedef t ## Row Type;                                                  \
+    };                                                                          \
+                                                                                \
+    typedef RowIterator<TableId::t> t ## RowIterator;                           \
+    typedef std::pair<t ## RowIterator, t ## RowIterator> t ## RowIteratorPair
 
     CXXREFLECT_GENERATE(Assembly              );
     CXXREFLECT_GENERATE(AssemblyOs            );
@@ -1009,8 +1015,7 @@ namespace CxxReflect { namespace Metadata {
 
 
 
-    template <TableId TId>
-    class RowIterator;
+    class StrideIterator;
 
 
 
@@ -1042,6 +1047,10 @@ namespace CxxReflect { namespace Metadata {
 
         template <TableId TId> RowIterator<TId> Begin() const;
         template <TableId TId> RowIterator<TId> End()   const;
+
+        template <TableId TId> StrideIterator LightweightBegin() const;
+        template <TableId TId> StrideIterator LightweightEnd()   const;
+
 
         /// Gets the row at the specified index in a table.
         ///
@@ -1085,6 +1094,122 @@ namespace CxxReflect { namespace Metadata {
         TableCollection  _tables;
 
         Detail::FileRange _file;
+    };
+
+
+
+
+
+    /// An iterator that iterates a range of bytes in strides
+    ///
+    /// This is used as a low-level row iterator.  It never instantiates any objects; it is merely a
+    /// ConstByteIterator where advancing or retreating the iterator moves the pointer by a 'stride'
+    /// instead of by a single byte.  This is used for iterating over a metadata table, wherein the
+    /// stride is the size of each row.
+    ///
+    /// We've introduced this class as an internal replacement for RowIterator, which while very
+    /// friendly and easy to use, is far too slow for internal operations that should be quick,
+    /// especially binary searches of a sorted column in a metadata table.
+    class StrideIterator
+    {
+    public:
+
+        typedef std::random_access_iterator_tag     iterator_category;
+        typedef DifferenceType                      difference_type;
+        typedef ConstByteIterator                   value_type;
+        typedef value_type                          reference;
+        typedef Detail::Dereferenceable<value_type> pointer;
+
+        typedef value_type                          ValueType;
+        typedef reference                           Reference;
+        typedef pointer                             Pointer;
+
+        StrideIterator()
+        {
+        }
+
+        StrideIterator(ConstByteIterator const current, SizeType const stride)
+            : _current(current), _stride(stride)
+        {
+            Detail::AssertNotNull(current);
+            Detail::Assert([&]{ return stride > 0; });
+        }
+
+        Reference    Get()           const { return GetValue(); }
+        Reference    operator*()     const { return GetValue(); }
+        Pointer      operator->()    const { return GetValue(); }
+
+        StrideIterator& operator++()    { AssertInitialized(); _current.Get() += _stride.Get(); return *this;  }
+        StrideIterator  operator++(int) { StrideIterator const it(*this); ++*this; return it;                  }
+
+        StrideIterator& operator--()    { AssertInitialized(); _current.Get() -= _stride.Get(); return *this;  }
+        StrideIterator  operator--(int) { StrideIterator const it(*this); --*this; return it;                  }
+
+        StrideIterator& operator+=(DifferenceType const n)
+        {
+            AssertInitialized();
+            _current.Get() += n * _stride.Get();
+            return *this;
+        }
+        StrideIterator& operator-=(DifferenceType const n)
+        {
+            AssertInitialized();
+            _current.Get() -= n * _stride.Get();
+            return *this;
+        }
+
+        Reference operator[](DifferenceType const n) const
+        {
+            AssertInitialized();
+            return _current.Get() + n * _stride.Get();
+        }
+
+        friend StrideIterator operator+(StrideIterator it, DifferenceType const n) { return it +=  n; }
+        friend StrideIterator operator+(DifferenceType const n, StrideIterator it) { return it +=  n; }
+        friend StrideIterator operator-(StrideIterator it, DifferenceType const n) { return it += -n; }
+
+        friend DifferenceType operator-(StrideIterator const& lhs, StrideIterator const& rhs)
+        {
+            AssertComparable(lhs, rhs);
+            return (lhs._current.Get() - rhs._current.Get()) / lhs._stride.Get();
+        }
+
+        friend bool operator==(StrideIterator const& lhs, StrideIterator const& rhs)
+        {
+            AssertComparable(lhs, rhs);
+            return lhs._current.Get() == rhs._current.Get();
+        }
+
+        friend bool operator<(StrideIterator const& lhs, StrideIterator const& rhs)
+        {
+            lhs.AssertInitialized();
+            rhs.AssertInitialized();
+            AssertComparable(lhs, rhs);
+            return lhs._current.Get() < rhs._current.Get();
+        }
+
+        CXXREFLECT_GENERATE_COMPARISON_OPERATORS(StrideIterator)
+
+    private:
+
+        static void AssertComparable(StrideIterator const& lhs, StrideIterator const& rhs)
+        {
+            Detail::Assert([&]{ return lhs._stride.Get() == rhs._stride.Get(); });
+        }
+
+        void AssertInitialized() const
+        {
+            Detail::Assert([&]{ return _current.Get() != nullptr; });
+        }
+
+        Reference GetValue() const
+        {
+            AssertInitialized();
+            return _current.Get();
+        }
+
+        Detail::ValueInitialized<ConstByteIterator> _current;
+        Detail::ValueInitialized<SizeType>          _stride;
     };
 
 
@@ -1926,17 +2051,17 @@ namespace CxxReflect { namespace Metadata {
     ///          builds.
     /// \returns The range of **CustomAttribute** rows owned by the parent row as `[first, second)`
     /// \throws  MetadataReadError If the metadata is invalid and the range cannot be computed
-    RowReferencePair GetCustomAttributesRange(FullReference const& parent);
+    CustomAttributeRowIteratorPair GetCustomAttributesRange(FullReference const& parent);
 
     /// Gets an iterator to the initial **CustomAttribute** owned by `parent`
     ///
     /// \throws MetadataReadError If the metadata is invalid and the iterator cannot be computed
-    RowIterator<TableId::CustomAttribute> BeginCustomAttributes(FullReference const& parent);
+    CustomAttributeRowIterator BeginCustomAttributes(FullReference const& parent);
 
     /// Gets an iterator to one-past-the-end of the **CustomAttributes** owned by `parent`
     ///
     /// \throws MetadataReadError If the metadata is invalid and the iterator cannot be computed
-    RowIterator<TableId::CustomAttribute> EndCustomAttributes(FullReference const& parent);
+    CustomAttributeRowIterator EndCustomAttributes(FullReference const& parent);
 
 
 
@@ -1951,17 +2076,17 @@ namespace CxxReflect { namespace Metadata {
     ///          This constraint is only checked in debug builds.
     /// \returns The range of **MethodImpl** owned by the parent row as `[first, second)`
     /// \throws  MetadataReadError If the metadata is invalid and the range cannot be computed
-    RowReferencePair GetMethodImplsRange(FullReference const& parent);
+    MethodImplRowIteratorPair GetMethodImplsRange(FullReference const& parent);
 
     /// Gets an iterator to the initial **MethodImpl** owned by `parent`
     ///
     /// \throws MetadataReadError If the metadata is invalid and the iterator cannot be computed
-    RowIterator<TableId::MethodImpl> BeginMethodImpls(FullReference const& parent);
+    MethodImplRowIterator BeginMethodImpls(FullReference const& parent);
 
     /// Gets an iterator to one-past-the-end of the **MethodImpls** owned by `parent`
     ///
     /// \throws MetadataReadError If the metadata is invalid and the iterator cannot be computed
-    RowIterator<TableId::MethodImpl> EndMethodImpls(FullReference const& parent);
+    MethodImplRowIterator EndMethodImpls(FullReference const& parent);
 
 
 
@@ -1976,17 +2101,17 @@ namespace CxxReflect { namespace Metadata {
     ///          or to the **Property** table.  This constraint is only checked in debug builds.
     /// \returns The range of **MethodSemantics** owned by the parent row as `[first, second)`
     /// \throws  MetadataReadError If the metadata is invalid and the range cannot be computed
-    RowReferencePair GetMethodSemanticsRange(FullReference const& parent);
+    MethodSemanticsRowIteratorPair GetMethodSemanticsRange(FullReference const& parent);
 
     /// Gets an iterator to the initial **MethodSemantics** owned by `parent`
     ///
     /// \throws MetadataReadError If the metadata is invalid and the iterator cannot be computed
-    RowIterator<TableId::MethodSemantics> BeginMethodSemantics(FullReference const& parent);
+    MethodSemanticsRowIterator BeginMethodSemantics(FullReference const& parent);
 
     /// Gets an iterator to one-past-the-end of the **MethodSemantics** owned by `parent`
     ///
     /// \throws MetadataReadError If the metadata is invalid and the iterator cannot be computed
-    RowIterator<TableId::MethodSemantics> EndMethodSemantics(FullReference const& parent);
+    MethodSemanticsRowIterator EndMethodSemantics(FullReference const& parent);
 
 
 

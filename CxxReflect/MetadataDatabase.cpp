@@ -434,22 +434,27 @@ namespace CxxReflect { namespace Metadata { namespace { namespace Private {
 
 
 
-    std::uint32_t ReadTableIndex(Database          const& database,
-                                 ConstByteIterator const  data,
-                                 TableId           const  table,
-                                 SizeType          const  offset)
+    SizeType ReadUnsignedInteger(ConstByteIterator const pointer, SizeType const size)
     {
         // Table indexes are one-based, to allow zero to be used as a null reference value.  In
         // order to simplify row offset calculations, we subtract one from all table indices to
         // make them zero-based, with -1 (0xffffffff) representing a null reference.
-        switch (database.GetTables().GetTableIndexSize(table))
+        switch (size)
         {
-        case 2:  return ReadAs<std::uint16_t>(data, offset) - 1;
-        case 4:  return ReadAs<std::uint32_t>(data, offset) - 1;
-        default: Detail::AssertFail(L"Invalid table index size");
+        case 2:  return ReadAs<std::uint16_t>(pointer, 0);
+        case 4:  return ReadAs<std::uint32_t>(pointer, 0);
+        default: Detail::AssertFail(L"Invalid integer size");
         }
 
         return 0;
+    }
+
+    SizeType ReadTableIndex(Database          const& database,
+                            ConstByteIterator const  data,
+                            TableId           const  table,
+                            SizeType          const  offset)
+    {
+        return ReadUnsignedInteger(data + offset, database.GetTables().GetTableIndexSize(table)) - 1;
     }
 
     SizeType ReadCompositeIndex(Database            const& database,
@@ -457,26 +462,12 @@ namespace CxxReflect { namespace Metadata { namespace { namespace Private {
                                 CompositeIndex      const  index,
                                 SizeType            const  offset)
     {
-        switch (database.GetTables().GetCompositeIndexSize(index))
-        {
-            case 2:  return ReadAs<std::uint16_t>(data, offset);
-            case 4:  return ReadAs<std::uint32_t>(data, offset);
-            default: Detail::AssertFail(L"Invalid composite index size");
-        }
-        
-        return 0;
+        return ReadUnsignedInteger(data + offset, database.GetTables().GetCompositeIndexSize(index));
     }
 
     SizeType ReadBlobHeapIndex(Database const& database, ConstByteIterator const data, SizeType const offset)
     {
-        switch (database.GetTables().GetBlobHeapIndexSize())
-        {
-        case 2:  return ReadAs<std::uint16_t>(data, offset);
-        case 4:  return ReadAs<std::uint32_t>(data, offset);
-        default: Detail::AssertFail(L"Invalid blob heap index size");
-        }
-
-        return 0;
+        return ReadUnsignedInteger(data + offset, database.GetTables().GetBlobHeapIndexSize());
     }
 
     BlobReference ReadBlobReference(Database const& database, ConstByteIterator const data, SizeType const offset)
@@ -488,14 +479,7 @@ namespace CxxReflect { namespace Metadata { namespace { namespace Private {
 
     SizeType ReadGuidHeapIndex(Database const& database, ConstByteIterator const data, SizeType const offset)
     {
-        switch (database.GetTables().GetGuidHeapIndexSize())
-        {
-        case 2:  return ReadAs<std::uint16_t>(data, offset);
-        case 4:  return ReadAs<std::uint32_t>(data, offset);
-        default: Detail::AssertFail(L"Invalid blob heap index size");
-        }
-
-        return 0;
+        return ReadUnsignedInteger(data + offset, database.GetTables().GetGuidHeapIndexSize());
     }
 
     BlobReference ReadGuidReference(Database const& database, ConstByteIterator const data, SizeType const offset)
@@ -537,15 +521,22 @@ namespace CxxReflect { namespace Metadata { namespace { namespace Private {
 
 
 
-    typedef std::pair<std::uint32_t, std::uint32_t> TagIndexPair;
+    typedef std::pair<SizeType, SizeType> TagIndexPair;
 
-    TagIndexPair SplitCompositeIndex(CompositeIndex const index, std::uint32_t const value)
+    TagIndexPair DecomposeCompositeIndex(CompositeIndex const index, SizeType const value)
     {
-        std::uint32_t const tagBits(CompositeIndexTagSize[Detail::AsInteger(index)]);
+        SizeType const tagBits(CompositeIndexTagSize[Detail::AsInteger(index)]);
         return std::make_pair(
             value & ((static_cast<std::uint32_t>(1u) << tagBits) - 1),
             (value >> tagBits) - 1
             );
+    }
+
+    SizeType ComposeCompositeIndex(CompositeIndex const index, SizeType const indexTag, SizeType const indexValue)
+    {
+        SizeType const tagBits(CompositeIndexTagSize[Detail::AsInteger(index)]);
+
+        return indexTag | ((indexValue + 1) << tagBits);
     }
 
     RowReference ConvertIndexAndComposeRow(CompositeIndex const index, TagIndexPair const split)
@@ -566,7 +557,7 @@ namespace CxxReflect { namespace Metadata { namespace { namespace Private {
         if (value == 0)
             return RowReference();
 
-        return ConvertIndexAndComposeRow(index, SplitCompositeIndex(index, value));
+        return ConvertIndexAndComposeRow(index, DecomposeCompositeIndex(index, value));
     }
 
 
@@ -672,6 +663,70 @@ namespace CxxReflect { namespace Metadata { namespace { namespace Private {
             throw MetadataReadError(L"Failed to locate owning row");
 
         return ownedRow.GetDatabase().GetRow<OwningTableId>(it.GetReference());
+    }
+
+    class OwningRowStrictWeakOrdering
+    {
+    public:
+
+        OwningRowStrictWeakOrdering(SizeType          const rowSize,
+                                    SizeType          const valueSize,
+                                    SizeType          const valueOffset,
+                                    ConstByteIterator const last)
+            : _rowSize(rowSize), _valueSize(valueSize), _valueOffset(valueOffset), _last(last)
+        {
+        }
+
+        bool operator()(ConstByteIterator const owningRow, SizeType const ownedRow) const
+        {
+            ConstByteIterator const nextRow(owningRow + _rowSize.Get());
+            if (nextRow == _last.Get())
+                return false;
+
+            SizeType const ownedRangeLast(ReadUnsignedInteger(nextRow + _valueOffset.Get(), _valueSize.Get()));
+
+            return ownedRangeLast <= ownedRow;
+        }
+
+        bool operator()(SizeType const ownedRow, ConstByteIterator const owningRow) const
+        {
+            SizeType const ownedRangeFirst(ReadUnsignedInteger(owningRow + _valueOffset.Get(), _valueSize.Get()));
+
+            return ownedRow < ownedRangeFirst;
+        }
+
+    private:
+
+        Detail::ValueInitialized<SizeType>          _rowSize;
+        Detail::ValueInitialized<SizeType>          _valueSize;
+        Detail::ValueInitialized<SizeType>          _valueOffset;
+        Detail::ValueInitialized<ConstByteIterator> _last;
+    };
+
+    template <typename TOwningRow, typename TOwnedRow>
+    TOwningRow GetOwningRow(TOwnedRow const& ownedRow, SizeType const columnNumber)
+    {
+        Detail::Assert([&]{ return ownedRow.IsInitialized(); });
+
+        TableId const OwnedTableId (static_cast<TableId>(RowTypeToTableId<TOwnedRow >::Value));
+        TableId const OwningTableId(static_cast<TableId>(RowTypeToTableId<TOwningRow>::Value));
+
+        SizeType const ownedIndex(ownedRow.GetSelfReference().GetIndex() + 1);
+        Database const& ownedDatabase(ownedRow.GetDatabase());
+
+        auto const first(ownedDatabase.LightweightBegin<OwningTableId>());
+        auto const last(ownedDatabase.LightweightEnd<OwningTableId>());
+
+        auto const it(Detail::BinarySearch(first, last, ownedIndex, OwningRowStrictWeakOrdering(
+            ownedDatabase.GetTables().GetTable(OwningTableId).GetRowSize(),
+            ownedDatabase.GetTables().GetTableIndexSize(OwnedTableId),
+            ownedDatabase.GetTables().GetTableColumnOffset(OwningTableId, columnNumber),
+            *last)));
+
+        if (it == last)
+            throw MetadataReadError(L"Failed to find owning row");
+
+        return CreateRow<TOwningRow>(&ownedDatabase, *it);
     }
 
 } } } }
@@ -1994,6 +2049,22 @@ namespace CxxReflect { namespace Metadata {
     }
 
     template <TableId TId>
+    StrideIterator Database::LightweightBegin() const
+    {
+        AssertInitialized();
+
+        return StrideIterator(_tables.GetTable(TId).Begin(), _tables.GetTable(TId).GetRowSize());
+    }
+
+    template <TableId TId>
+    StrideIterator Database::LightweightEnd() const
+    {
+        AssertInitialized();
+
+        return StrideIterator(_tables.GetTable(TId).End(), _tables.GetTable(TId).GetRowSize());
+    }
+
+    template <TableId TId>
     typename TableIdToRowType<TId>::Type Database::GetRow(SizeType const index) const
     {
         typedef typename TableIdToRowType<TId>::Type ReturnType;
@@ -2085,11 +2156,13 @@ namespace CxxReflect { namespace Metadata {
 
     // Generate explicit instantiations of the Database class's member functions:
     #define CXXREFLECT_GENERATE(t)                                                         \
-        template RowIterator<TableId::t> Database::Begin<TableId::t>() const;              \
-        template RowIterator<TableId::t> Database::End<TableId::t>()   const;              \
+        template RowIterator<TableId::t> Database::Begin<TableId::t>()              const; \
+        template RowIterator<TableId::t> Database::End<TableId::t>()                const; \
+        template StrideIterator Database::LightweightBegin<TableId::t>()            const; \
+        template StrideIterator Database::LightweightEnd<TableId::t>()              const; \
         template t ## Row Database::GetRow<TableId::t>(SizeType                   ) const; \
         template t ## Row Database::GetRow<TableId::t>(RowReference         const&) const; \
-        template t ## Row Database::GetRow<TableId::t>(BaseElementReference const&) const;
+        template t ## Row Database::GetRow<TableId::t>(BaseElementReference const&) const
 
     CXXREFLECT_GENERATE(Assembly              );
     CXXREFLECT_GENERATE(AssemblyOs            );
@@ -2904,16 +2977,13 @@ namespace CxxReflect { namespace Metadata {
     
     TypeDefRow GetOwnerOfMethodDef(MethodDefRow const& methodDef)
     {
-        return Private::GetOwningRow<
-            TypeDefRow, MethodDefRow, &TypeDefRow::GetFirstMethod, &TypeDefRow::GetLastMethod
-        >(methodDef);
+        
+        return Private::GetOwningRow<TypeDefRow, MethodDefRow>(methodDef, 5);
     }
 
     TypeDefRow GetOwnerOfField(FieldRow const& field)
     {
-        return Private::GetOwningRow<
-            TypeDefRow, FieldRow, &TypeDefRow::GetFirstField, &TypeDefRow::GetLastField
-        >(field);
+        return Private::GetOwningRow<TypeDefRow, FieldRow>(field, 4);
     }
 
     TypeDefRow GetOwnerOfProperty(PropertyRow const& propertyRow)
@@ -2927,9 +2997,7 @@ namespace CxxReflect { namespace Metadata {
 
     MethodDefRow GetOwnerOfParam(ParamRow const& param)
     {
-        return Private::GetOwningRow<
-            MethodDefRow, ParamRow, &MethodDefRow::GetFirstParameter, &MethodDefRow::GetLastParameter
-        >(param);
+        return Private::GetOwningRow<MethodDefRow, ParamRow>(param, 5);
     }
 
 
@@ -2992,93 +3060,75 @@ namespace CxxReflect { namespace Metadata {
 
 
 
-    RowReferencePair GetCustomAttributesRange(FullReference const& parent)
+    CustomAttributeRowIteratorPair GetCustomAttributesRange(FullReference const& parent)
     {
         Detail::Verify([&]{ return parent.IsRowReference(); });
 
-        auto const range(Detail::EqualRange(
+        return Detail::EqualRange(
             parent.GetDatabase().Begin<TableId::CustomAttribute>(),
             parent.GetDatabase().End<TableId::CustomAttribute>(),
             parent.AsRowReference(),
-            CompositeIndexPrimaryKeyStrictWeakOrdering(CompositeIndex::HasCustomAttribute)));
-
-        return std::make_pair(range.first.GetReference(), range.second.GetReference());
+            CompositeIndexPrimaryKeyStrictWeakOrdering(CompositeIndex::HasCustomAttribute));
     }
     
-    RowIterator<TableId::CustomAttribute> BeginCustomAttributes(FullReference const& parent)
+    CustomAttributeRowIterator BeginCustomAttributes(FullReference const& parent)
     {
-        return RowIterator<TableId::CustomAttribute>(
-            &parent.GetDatabase(),
-            GetCustomAttributesRange(parent).first.GetIndex());
+        return GetCustomAttributesRange(parent).first;
     }
 
-    RowIterator<TableId::CustomAttribute> EndCustomAttributes(FullReference const& parent)
+    CustomAttributeRowIterator EndCustomAttributes(FullReference const& parent)
     {
-        return RowIterator<TableId::CustomAttribute>(
-            &parent.GetDatabase(),
-            GetCustomAttributesRange(parent).second.GetIndex());
+        return GetCustomAttributesRange(parent).second;
     }
 
 
 
 
 
-    RowReferencePair GetMethodImplsRange(FullReference const& parent)
+    MethodImplRowIteratorPair GetMethodImplsRange(FullReference const& parent)
     {
         Detail::Verify([&]{ return parent.IsRowReference(); });
 
-        auto const range(Detail::EqualRange(
+        return Detail::EqualRange(
             parent.GetDatabase().Begin<TableId::MethodImpl>(),
             parent.GetDatabase().End<TableId::MethodImpl>(),
             parent.AsRowReference(),
-            TableIdPrimeryKeyStrictWeakOrdering(TableId::TypeDef)));
-
-        return std::make_pair(range.first.GetReference(), range.second.GetReference());
+            TableIdPrimeryKeyStrictWeakOrdering(TableId::TypeDef));
     }
     
-    RowIterator<TableId::MethodImpl> BeginMethodImpls(FullReference const& parent)
+    MethodImplRowIterator BeginMethodImpls(FullReference const& parent)
     {
-        return RowIterator<TableId::MethodImpl>(
-            &parent.GetDatabase(),
-            GetMethodImplsRange(parent).first.GetIndex());
+        return GetMethodImplsRange(parent).first;
     }
 
-    RowIterator<TableId::MethodImpl> EndMethodImpls(FullReference const& parent)
+    MethodImplRowIterator EndMethodImpls(FullReference const& parent)
     {
-        return RowIterator<TableId::MethodImpl>(
-            &parent.GetDatabase(),
-            GetMethodImplsRange(parent).second.GetIndex());
+        return GetMethodImplsRange(parent).second;
     }
 
 
 
 
 
-    RowReferencePair GetMethodSemanticsRange(FullReference const& parent)
+    MethodSemanticsRowIteratorPair GetMethodSemanticsRange(FullReference const& parent)
     {
         Detail::Verify([&]{ return parent.IsRowReference(); });
 
-        auto const range(Detail::EqualRange(
+        return Detail::EqualRange(
             parent.GetDatabase().Begin<TableId::MethodSemantics>(),
             parent.GetDatabase().End<TableId::MethodSemantics>(),
             parent.AsRowReference(),
-            CompositeIndexPrimaryKeyStrictWeakOrdering(CompositeIndex::HasSemantics)));
-
-        return std::make_pair(range.first.GetReference(), range.second.GetReference());
+            CompositeIndexPrimaryKeyStrictWeakOrdering(CompositeIndex::HasSemantics));
     }
 
-    RowIterator<TableId::MethodSemantics> BeginMethodSemantics(FullReference const& parent)
+    MethodSemanticsRowIterator BeginMethodSemantics(FullReference const& parent)
     {
-        return RowIterator<TableId::MethodSemantics>(
-            &parent.GetDatabase(),
-            GetMethodSemanticsRange(parent).first.GetIndex());
+        return GetMethodSemanticsRange(parent).first;
     }
 
-    RowIterator<TableId::MethodSemantics> EndMethodSemantics(FullReference const& parent)
+    MethodSemanticsRowIterator EndMethodSemantics(FullReference const& parent)
     {
-        return RowIterator<TableId::MethodSemantics>(
-            &parent.GetDatabase(),
-            GetMethodSemanticsRange(parent).second.GetIndex());
+        return GetMethodSemanticsRange(parent).second;
     }
 
 } }

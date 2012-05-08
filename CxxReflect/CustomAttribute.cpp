@@ -126,7 +126,7 @@ namespace CxxReflect {
         return CustomAttributeIterator(
             assembly,
             Metadata::GetCustomAttributesRange(
-                Metadata::FullReference(&assembly.GetContext(InternalKey()).GetDatabase(), parent)).first);
+                Metadata::FullReference(&assembly.GetContext(InternalKey()).GetDatabase(), parent)).first.GetReference());
     }
 
     CustomAttributeIterator CustomAttribute::EndFor(Assembly               const& assembly,
@@ -136,7 +136,7 @@ namespace CxxReflect {
         return CustomAttributeIterator(
             assembly,
             Metadata::GetCustomAttributesRange(
-                Metadata::FullReference(&assembly.GetContext(InternalKey()).GetDatabase(), parent)).second);
+                Metadata::FullReference(&assembly.GetContext(InternalKey()).GetDatabase(), parent)).second.GetReference());
     }
 
     bool CustomAttribute::IsInitialized() const
