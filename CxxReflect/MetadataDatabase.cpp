@@ -589,81 +589,42 @@ namespace CxxReflect { namespace Metadata { namespace { namespace Private {
 
 
 
-    /// A strict weak ordering for owning rows.
-    ///
-    /// This comparison function object provides a strict-weak ordering over a range of rows to find
-    /// the row in an owning table that owns the row in an owned-record table.  For example, given a
-    /// MethodDef row, it can be used to search over a range of TypeDef rows for the TypeDef that
-    /// owns the MethodDef.
-    ///
-    /// Note that the lists in an owned-row table (like MethodDef or Field) are guaranteed to be
-    /// sorted by the owning row, so the methods for TypeDef 1 will be followed immediately by those
-    /// for TypeDef 2, and so on. This is not explicitly specified in ECMA 335-2010, but it is necessarily
-    /// the case due to the way that the lists are specified.
-    template
-    <
-        typename TOwningRow,
-        RowReference (TOwningRow::*FFirst)() const,
-        RowReference (TOwningRow::*FLast)() const
-    >
-    class ElementListStrictWeakOrdering
+    class PrimaryKeyStrictWeakOrdering
     {
     public:
 
-        template <typename TOwnedRow>
-        bool operator()(TOwningRow const& owningRow, TOwnedRow const& ownedRow) const
+        PrimaryKeyStrictWeakOrdering(SizeType          const rowSize,
+                                     SizeType          const valueSize,
+                                     SizeType          const valueOffset)
+            : _rowSize(rowSize), _valueSize(valueSize), _valueOffset(valueOffset)
         {
-            Detail::Assert([&]{ return owningRow.IsInitialized(); });
-            Detail::Assert([&]{ return ownedRow.IsInitialized();  });
-
-            RowReference const rangeLast((owningRow.*FLast)());
-            
-            Detail::Assert([&]{ return rangeLast.GetTable() == ownedRow.GetSelfReference().GetTable(); });
-            return rangeLast <= ownedRow.GetSelfReference();
         }
 
-        template <typename TOwnedRow>
-        bool operator()(TOwnedRow const& ownedRow, TOwningRow const& owningRow) const
+        bool operator()(ConstByteIterator const rowIt, SizeType const targetValue) const
         {
-            Detail::Assert([&]{ return ownedRow.IsInitialized();  });
-            Detail::Assert([&]{ return owningRow.IsInitialized(); });
-            
-            RowReference const rangeFirst((owningRow.*FFirst)());
-            
-            Detail::Assert([&]{ return rangeFirst.GetTable() == ownedRow.GetSelfReference().GetTable(); });
-            return ownedRow.GetSelfReference() < rangeFirst;
+            SizeType const rowValue(ReadUnsignedInteger(rowIt + _valueOffset.Get(), _valueSize.Get()));
+
+            return rowValue < targetValue;
         }
+
+        bool operator()(SizeType const targetValue, ConstByteIterator const rowIt) const
+        {
+            SizeType const rowValue(ReadUnsignedInteger(rowIt + _valueOffset.Get(), _valueSize.Get()));
+
+            return targetValue < rowValue;
+        }
+
+    private:
+
+        Detail::ValueInitialized<SizeType>          _rowSize;
+        Detail::ValueInitialized<SizeType>          _valueSize;
+        Detail::ValueInitialized<SizeType>          _valueOffset;
+        Detail::ValueInitialized<ConstByteIterator> _last;
     };
 
-    
 
 
 
-    template
-    <
-        typename TOwningRow,
-        typename TOwnedRow,
-        RowReference (TOwningRow::*FFirst)() const,
-        RowReference (TOwningRow::*FLast)() const
-    >
-    TOwningRow GetOwningRow(TOwnedRow const& ownedRow)
-    {
-        Detail::Assert([&]{ return ownedRow.IsInitialized(); });
-
-        typedef Private::ElementListStrictWeakOrdering<TOwningRow, FFirst, FLast> ComparerType;
-        TableId const OwningTableId(static_cast<TableId>(RowTypeToTableId<TOwningRow>::Value));
-
-        auto const it(Detail::BinarySearch(
-            ownedRow.GetDatabase().Begin<OwningTableId>(),
-            ownedRow.GetDatabase().End<OwningTableId>(),
-            ownedRow,
-            ComparerType()));
-
-        if (it == ownedRow.GetDatabase().End<OwningTableId>())
-            throw MetadataReadError(L"Failed to locate owning row");
-
-        return ownedRow.GetDatabase().GetRow<OwningTableId>(it.GetReference());
-    }
 
     class OwningRowStrictWeakOrdering
     {
@@ -2967,13 +2928,10 @@ namespace CxxReflect { namespace Metadata {
     
     TypeDefRow GetOwnerOfEvent(EventRow const& eventRow)
     {
-        EventMapRow const mapRow(Private::GetOwningRow<
-            EventMapRow, EventRow, &EventMapRow::GetFirstEvent, &EventMapRow::GetLastEvent
-        >(eventRow));
+        EventMapRow const mapRow(Private::GetOwningRow<EventMapRow, EventRow>(eventRow, 1));
 
         return eventRow.GetDatabase().GetRow<TableId::TypeDef>(mapRow.GetParent());
     }
-
     
     TypeDefRow GetOwnerOfMethodDef(MethodDefRow const& methodDef)
     {
@@ -2988,9 +2946,7 @@ namespace CxxReflect { namespace Metadata {
 
     TypeDefRow GetOwnerOfProperty(PropertyRow const& propertyRow)
     {
-        PropertyMapRow const mapRow(Private::GetOwningRow<
-            PropertyMapRow, PropertyRow, &PropertyMapRow::GetFirstProperty, &PropertyMapRow::GetLastProperty
-        >(propertyRow));
+        PropertyMapRow const mapRow(Private::GetOwningRow<PropertyMapRow, PropertyRow>(propertyRow, 1));
 
         return propertyRow.GetDatabase().GetRow<TableId::TypeDef>(mapRow.GetParent());
     }
@@ -3011,14 +2967,25 @@ namespace CxxReflect { namespace Metadata {
 
         RowReference const& parentRow(parent.AsRowReference());
 
-        if (GetCompositeIndexKeyFromTableId(parentRow.GetTable(), CompositeIndex::HasConstant) == -1)
+        SizeType const indexTag(GetCompositeIndexKeyFromTableId(
+            parentRow.GetTable(),
+            CompositeIndex::HasConstant));
+
+        if (indexTag == -1)
             throw LogicError(L"Invalid argument:  parent is not from an allowed table for this index");
 
-        auto const range(Detail::EqualRange(
-            parent.GetDatabase().Begin<TableId::Constant>(),
-            parent.GetDatabase().End<TableId::Constant>(),
-            parentRow,
-            CompositeIndexPrimaryKeyStrictWeakOrdering(CompositeIndex::HasConstant)));
+        SizeType const indexValue(Private::ComposeCompositeIndex(
+            CompositeIndex::HasConstant,
+            indexTag,
+            parentRow.GetIndex()));
+
+        auto const first(parent.GetDatabase().LightweightBegin<TableId::Constant>());
+        auto const last (parent.GetDatabase().LightweightEnd  <TableId::Constant>());
+
+        auto const range(Detail::EqualRange(first, last, indexValue, Private::PrimaryKeyStrictWeakOrdering(
+            parent.GetDatabase().GetTables().GetTable(TableId::Constant).GetRowSize(),
+            parent.GetDatabase().GetTables().GetCompositeIndexSize(CompositeIndex::HasConstant),
+            parent.GetDatabase().GetTables().GetTableColumnOffset(TableId::Constant, 1))));
 
         // Not every row has a constant value:
         if (range.first == range.second)
@@ -3027,7 +2994,7 @@ namespace CxxReflect { namespace Metadata {
         if (Detail::Distance(range.first, range.second) != 1)
             throw MetadataReadError(L"Constant table has non-unique parent index");
 
-        return *range.first;
+        return CreateRow<ConstantRow>(&parent.GetDatabase(), *range.first);
     }
 
     FieldLayoutRow GetFieldLayout(FullReference const& parent)
