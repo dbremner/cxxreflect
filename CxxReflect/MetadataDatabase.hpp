@@ -1048,8 +1048,8 @@ namespace CxxReflect { namespace Metadata {
         template <TableId TId> RowIterator<TId> Begin() const;
         template <TableId TId> RowIterator<TId> End()   const;
 
-        template <TableId TId> StrideIterator LightweightBegin() const;
-        template <TableId TId> StrideIterator LightweightEnd()   const;
+        StrideIterator LightweightBegin(TableId tableId) const;
+        StrideIterator LightweightEnd  (TableId tableId) const;
 
 
         /// Gets the row at the specified index in a table.
@@ -1248,6 +1248,14 @@ namespace CxxReflect { namespace Metadata {
         {
             Detail::AssertNotNull(database);
             Detail::Assert([&]{ return index != BaseElementReference::InvalidElementSentinel; });
+        }
+
+        static RowIterator FromRowPointer(Database const* const database, ConstByteIterator const iterator)
+        {
+            Detail::AssertNotNull(database);
+
+            auto const& table(database->GetTables().GetTable(TId));
+            return RowIterator(database, (iterator - table.Begin()) / table.GetRowSize());
         }
 
         RowReference GetReference()  const { AssertInitialized(); return RowReference(TId, _index.Get()); } 
@@ -1891,75 +1899,6 @@ namespace CxxReflect { namespace Metadata {
     public:
 
         BlobReference GetSignature() const;
-    };
-
-
-
-
-
-    /// A strict weak ordering for composite key primary indices.
-    ///
-    /// \todo Document and finish.
-    class CompositeIndexPrimaryKeyStrictWeakOrdering
-    {
-    public:
-
-        CompositeIndexPrimaryKeyStrictWeakOrdering(CompositeIndex index);
-
-        template <typename TRow>
-        bool operator()(TRow const& lhs, TRow const& rhs) const
-        {
-            return (*this)(lhs.GetParent(), rhs.GetParent());
-        }
-
-        template <typename TRow>
-        bool operator()(TRow const& lhs, RowReference const& rhs) const
-        {
-            return (*this)(lhs.GetParent(), rhs);
-        }
-
-        template <typename TRow>
-        bool operator()(RowReference const& lhs, TRow const& rhs) const
-        {
-            return (*this)(lhs, rhs.GetParent());
-        }
-
-        bool operator()(RowReference const& lhs, RowReference const& rhs) const;
-
-    private:
-
-        Detail::ValueInitialized<CompositeIndex> _index;
-    };
-
-    class TableIdPrimeryKeyStrictWeakOrdering
-    {
-    public:
-
-        TableIdPrimeryKeyStrictWeakOrdering(TableId tableId);
-
-        template <typename TRow>
-        bool operator()(TRow const& lhs, TRow const& rhs) const
-        {
-            return (*this)(lhs.GetParent(), rhs.GetParent());
-        }
-
-        template <typename TRow>
-        bool operator()(TRow const& lhs, RowReference const& rhs) const
-        {
-            return (*this)(lhs.GetParent(), rhs);
-        }
-
-        template <typename TRow>
-        bool operator()(RowReference const& lhs, TRow const& rhs) const
-        {
-            return (*this)(lhs, rhs.GetParent());
-        }
-
-        bool operator()(RowReference const& lhs, RowReference const& rhs) const;
-
-    private:
-
-        Detail::ValueInitialized<TableId> _tableId;
     };
 
 

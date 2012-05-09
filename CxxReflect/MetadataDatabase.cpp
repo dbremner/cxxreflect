@@ -622,6 +622,56 @@ namespace CxxReflect { namespace Metadata { namespace { namespace Private {
         Detail::ValueInitialized<ConstByteIterator> _last;
     };
 
+    ConstByteRange CompositeIndexPrimaryKeyEqualRange(FullReference  const& parent,
+                                                      CompositeIndex const  index,
+                                                      TableId        const  tableId,
+                                                      SizeType       const  column)
+    {
+        if (!parent.IsRowReference())
+            throw LogicError(L"Invalid argument:  parent must be a row reference");
+
+        RowReference const& parentRow(parent.AsRowReference());
+
+        SizeType const indexTag(GetCompositeIndexKeyFromTableId(parentRow.GetTable(), index));
+        if (indexTag == -1)
+            throw LogicError(L"Invalid argument:  parent is not from an allowed table for this index");
+
+        SizeType const indexValue(Private::ComposeCompositeIndex(index, indexTag, parentRow.GetIndex()));
+
+        auto const first(parent.GetDatabase().LightweightBegin(tableId));
+        auto const last (parent.GetDatabase().LightweightEnd  (tableId));
+
+        auto const range(Detail::EqualRange(first, last, indexValue, Private::PrimaryKeyStrictWeakOrdering(
+            parent.GetDatabase().GetTables().GetTable(tableId).GetRowSize(),
+            parent.GetDatabase().GetTables().GetCompositeIndexSize(index),
+            parent.GetDatabase().GetTables().GetTableColumnOffset(tableId, column))));
+
+        return ConstByteRange(*range.first, *range.second);
+    }
+
+    ConstByteRange TableIdPrimaryKeyEqualRange(FullReference const& parent,
+                                               TableId       const  foreignTableId,
+                                               TableId       const  primaryTableId,
+                                               SizeType      const  column)
+    {
+        if (!parent.IsRowReference())
+            throw LogicError(L"Invalid argument:  parent must be a row reference");
+
+        RowReference const& parentRow(parent.AsRowReference());
+
+        SizeType const indexValue(parentRow.GetIndex() + 1);
+
+        auto const first(parent.GetDatabase().LightweightBegin(primaryTableId));
+        auto const last (parent.GetDatabase().LightweightEnd  (primaryTableId));
+
+        auto const range(Detail::EqualRange(first, last, indexValue, Private::PrimaryKeyStrictWeakOrdering(
+            parent.GetDatabase().GetTables().GetTable(primaryTableId).GetRowSize(),
+            parent.GetDatabase().GetTables().GetTableIndexSize(foreignTableId),
+            parent.GetDatabase().GetTables().GetTableColumnOffset(primaryTableId, column))));
+
+        return ConstByteRange(*range.first, *range.second);
+    }
+
 
 
 
@@ -675,8 +725,8 @@ namespace CxxReflect { namespace Metadata { namespace { namespace Private {
         SizeType const ownedIndex(ownedRow.GetSelfReference().GetIndex() + 1);
         Database const& ownedDatabase(ownedRow.GetDatabase());
 
-        auto const first(ownedDatabase.LightweightBegin<OwningTableId>());
-        auto const last(ownedDatabase.LightweightEnd<OwningTableId>());
+        auto const first(ownedDatabase.LightweightBegin(OwningTableId));
+        auto const last(ownedDatabase.LightweightEnd(OwningTableId));
 
         auto const it(Detail::BinarySearch(first, last, ownedIndex, OwningRowStrictWeakOrdering(
             ownedDatabase.GetTables().GetTable(OwningTableId).GetRowSize(),
@@ -2009,20 +2059,18 @@ namespace CxxReflect { namespace Metadata {
         return RowIterator<TId>(this, _tables.GetTable(TId).GetRowCount());
     }
 
-    template <TableId TId>
-    StrideIterator Database::LightweightBegin() const
+    StrideIterator Database::LightweightBegin(TableId const tableId) const
     {
         AssertInitialized();
 
-        return StrideIterator(_tables.GetTable(TId).Begin(), _tables.GetTable(TId).GetRowSize());
+        return StrideIterator(_tables.GetTable(tableId).Begin(), _tables.GetTable(tableId).GetRowSize());
     }
 
-    template <TableId TId>
-    StrideIterator Database::LightweightEnd() const
+    StrideIterator Database::LightweightEnd(TableId const tableId) const
     {
         AssertInitialized();
 
-        return StrideIterator(_tables.GetTable(TId).End(), _tables.GetTable(TId).GetRowSize());
+        return StrideIterator(_tables.GetTable(tableId).End(), _tables.GetTable(tableId).GetRowSize());
     }
 
     template <TableId TId>
@@ -2119,8 +2167,6 @@ namespace CxxReflect { namespace Metadata {
     #define CXXREFLECT_GENERATE(t)                                                         \
         template RowIterator<TableId::t> Database::Begin<TableId::t>()              const; \
         template RowIterator<TableId::t> Database::End<TableId::t>()                const; \
-        template StrideIterator Database::LightweightBegin<TableId::t>()            const; \
-        template StrideIterator Database::LightweightEnd<TableId::t>()              const; \
         template t ## Row Database::GetRow<TableId::t>(SizeType                   ) const; \
         template t ## Row Database::GetRow<TableId::t>(RowReference         const&) const; \
         template t ## Row Database::GetRow<TableId::t>(BaseElementReference const&) const
@@ -2882,49 +2928,6 @@ namespace CxxReflect { namespace Metadata {
 
 
 
-
-    CompositeIndexPrimaryKeyStrictWeakOrdering::CompositeIndexPrimaryKeyStrictWeakOrdering(CompositeIndex const index)
-        : _index(index)
-    {
-        Detail::Assert([&]{ return index != static_cast<CompositeIndex>(-1); });
-    }
-
-    bool CompositeIndexPrimaryKeyStrictWeakOrdering::operator()(RowReference const& lhs, RowReference const& rhs) const
-    {
-        if (lhs.GetIndex() < rhs.GetIndex())
-            return true;
-
-        if (lhs.GetIndex() > rhs.GetIndex())
-            return false;
-
-        SizeType const lhsIndexKey(GetCompositeIndexKeyFromTableId(lhs.GetTable(), _index.Get()));
-        SizeType const rhsIndexKey(GetCompositeIndexKeyFromTableId(rhs.GetTable(), _index.Get()));
-
-        // If we've already gotten this far, we've successfully converted the index value to a
-        // table identifier, so the reverse should work equally well.  Check only in debug:
-        Detail::Assert([&]{ return lhsIndexKey != -1 && rhsIndexKey != -1; });
-
-        return lhsIndexKey < rhsIndexKey;
-    }
-
-    TableIdPrimeryKeyStrictWeakOrdering::TableIdPrimeryKeyStrictWeakOrdering(TableId const tableId)
-        : _tableId(tableId)
-    {
-    }
-
-    bool TableIdPrimeryKeyStrictWeakOrdering::operator()(RowReference const& lhs, RowReference const& rhs) const
-    {
-        Detail::Assert([&]{ return lhs.GetTable() == rhs.GetTable(); });
-
-        if (lhs.GetIndex() < rhs.GetIndex())
-            return true;
-
-        return false;
-    }
-
-
-
-
     
     TypeDefRow GetOwnerOfEvent(EventRow const& eventRow)
     {
@@ -2962,65 +2965,42 @@ namespace CxxReflect { namespace Metadata {
 
     ConstantRow GetConstant(FullReference const& parent)
     {
-        if (!parent.IsRowReference())
-            throw LogicError(L"Invalid argument:  parent must be a row reference");
-
-        RowReference const& parentRow(parent.AsRowReference());
-
-        SizeType const indexTag(GetCompositeIndexKeyFromTableId(
-            parentRow.GetTable(),
-            CompositeIndex::HasConstant));
-
-        if (indexTag == -1)
-            throw LogicError(L"Invalid argument:  parent is not from an allowed table for this index");
-
-        SizeType const indexValue(Private::ComposeCompositeIndex(
+        auto const range(Private::CompositeIndexPrimaryKeyEqualRange(
+            parent,
             CompositeIndex::HasConstant,
-            indexTag,
-            parentRow.GetIndex()));
-
-        auto const first(parent.GetDatabase().LightweightBegin<TableId::Constant>());
-        auto const last (parent.GetDatabase().LightweightEnd  <TableId::Constant>());
-
-        auto const range(Detail::EqualRange(first, last, indexValue, Private::PrimaryKeyStrictWeakOrdering(
-            parent.GetDatabase().GetTables().GetTable(TableId::Constant).GetRowSize(),
-            parent.GetDatabase().GetTables().GetCompositeIndexSize(CompositeIndex::HasConstant),
-            parent.GetDatabase().GetTables().GetTableColumnOffset(TableId::Constant, 1))));
+            TableId::Constant,
+            1));
 
         // Not every row has a constant value:
-        if (range.first == range.second)
+        if (range.Begin() == range.End())
             return ConstantRow();
 
-        if (Detail::Distance(range.first, range.second) != 1)
+        // If a row has a constant, it must have exactly one:
+        Table const& constantTable(parent.GetDatabase().GetTables().GetTable(TableId::Constant));
+        if (Detail::Distance(range.Begin(), range.End()) != constantTable.GetRowSize())
             throw MetadataReadError(L"Constant table has non-unique parent index");
 
-        return CreateRow<ConstantRow>(&parent.GetDatabase(), *range.first);
+        return CreateRow<ConstantRow>(&parent.GetDatabase(), range.Begin());
     }
 
     FieldLayoutRow GetFieldLayout(FullReference const& parent)
     {
-        if (!parent.IsRowReference())
-            throw LogicError(L"Invalid argument:  parent must be a row reference");
+        auto const range(Private::TableIdPrimaryKeyEqualRange(
+            parent,
+            TableId::Field,
+            TableId::FieldLayout,
+            1));
 
-        RowReference const& parentRow(parent.AsRowReference());
-
-        if (parentRow.GetTable() != TableId::Field)
-            throw LogicError(L"Invalid argument:  parent is not from an allowed table for this query");
-
-        auto const range(Detail::EqualRange(
-            parent.GetDatabase().Begin<TableId::FieldLayout>(),
-            parent.GetDatabase().End<TableId::FieldLayout>(),
-            parentRow,
-            TableIdPrimeryKeyStrictWeakOrdering(TableId::Field)));
-
-        // Not every row has a constant value:
-        if (range.first == range.second)
+        // Not every row has a field layout value:
+        if (range.Begin() == range.End())
             return FieldLayoutRow();
 
-        if (Detail::Distance(range.first, range.second) != 1)
+        // If a row has a field layout, it must have exactly one:
+        Table const& fieldLayoutTable(parent.GetDatabase().GetTables().GetTable(TableId::FieldLayout));
+        if (Detail::Distance(range.Begin(), range.End()) != fieldLayoutTable.GetRowSize())
             throw MetadataReadError(L"FieldLayout table has non-unique parent index");
 
-        return *range.first;
+        return CreateRow<FieldLayoutRow>(&parent.GetDatabase(), range.Begin());
     }
 
 
@@ -3029,13 +3009,15 @@ namespace CxxReflect { namespace Metadata {
 
     CustomAttributeRowIteratorPair GetCustomAttributesRange(FullReference const& parent)
     {
-        Detail::Verify([&]{ return parent.IsRowReference(); });
+        auto const range(Private::CompositeIndexPrimaryKeyEqualRange(
+            parent,
+            CompositeIndex::HasCustomAttribute,
+            TableId::CustomAttribute,
+            0));
 
-        return Detail::EqualRange(
-            parent.GetDatabase().Begin<TableId::CustomAttribute>(),
-            parent.GetDatabase().End<TableId::CustomAttribute>(),
-            parent.AsRowReference(),
-            CompositeIndexPrimaryKeyStrictWeakOrdering(CompositeIndex::HasCustomAttribute));
+        return std::make_pair(
+            CustomAttributeRowIterator::FromRowPointer(&parent.GetDatabase(), range.Begin()),
+            CustomAttributeRowIterator::FromRowPointer(&parent.GetDatabase(), range.End()));
     }
     
     CustomAttributeRowIterator BeginCustomAttributes(FullReference const& parent)
@@ -3054,13 +3036,15 @@ namespace CxxReflect { namespace Metadata {
 
     MethodImplRowIteratorPair GetMethodImplsRange(FullReference const& parent)
     {
-        Detail::Verify([&]{ return parent.IsRowReference(); });
-
-        return Detail::EqualRange(
-            parent.GetDatabase().Begin<TableId::MethodImpl>(),
-            parent.GetDatabase().End<TableId::MethodImpl>(),
-            parent.AsRowReference(),
-            TableIdPrimeryKeyStrictWeakOrdering(TableId::TypeDef));
+        auto const range(Private::TableIdPrimaryKeyEqualRange(
+            parent,
+            TableId::TypeDef,
+            TableId::MethodImpl,
+            0));
+        
+        return std::make_pair(
+            MethodImplRowIterator::FromRowPointer(&parent.GetDatabase(), range.Begin()),
+            MethodImplRowIterator::FromRowPointer(&parent.GetDatabase(), range.End()));
     }
     
     MethodImplRowIterator BeginMethodImpls(FullReference const& parent)
@@ -3079,13 +3063,15 @@ namespace CxxReflect { namespace Metadata {
 
     MethodSemanticsRowIteratorPair GetMethodSemanticsRange(FullReference const& parent)
     {
-        Detail::Verify([&]{ return parent.IsRowReference(); });
+        auto const range(Private::CompositeIndexPrimaryKeyEqualRange(
+            parent,
+            CompositeIndex::HasSemantics,
+            TableId::MethodSemantics,
+            2));
 
-        return Detail::EqualRange(
-            parent.GetDatabase().Begin<TableId::MethodSemantics>(),
-            parent.GetDatabase().End<TableId::MethodSemantics>(),
-            parent.AsRowReference(),
-            CompositeIndexPrimaryKeyStrictWeakOrdering(CompositeIndex::HasSemantics));
+        return std::make_pair(
+            MethodSemanticsRowIterator::FromRowPointer(&parent.GetDatabase(), range.Begin()),
+            MethodSemanticsRowIterator::FromRowPointer(&parent.GetDatabase(), range.End()));
     }
 
     MethodSemanticsRowIterator BeginMethodSemantics(FullReference const& parent)
