@@ -412,7 +412,8 @@ namespace CxxReflect { namespace WindowsRuntime { namespace Internal {
             }
         }
 
-        _result = *bestMatch;
+        if (bestMatch != end(_candidates))
+            _result = *bestMatch;
 
         if (_result.IsInitialized())
             _state.Get() = State::MatchFound;
@@ -492,6 +493,8 @@ namespace CxxReflect { namespace WindowsRuntime { namespace Internal {
                 auto const it(std::find(currentType.BeginInterfaces(), currentType.EndInterfaces(), parameterType));
                 if (it != currentType.EndInterfaces())
                     return ConversionRank::DerivedToInterfaceConversion;
+
+                currentType = currentType.GetBaseType();
             }
         }
 
