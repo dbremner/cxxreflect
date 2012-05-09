@@ -239,38 +239,37 @@ namespace CxxReflect { namespace Detail {
     >
     class MemberIterator;
 
+
+
+
+
+    // Tests whether 'assembly' is the system assembly (i.e., the assembly that references no
+    // other assemblies).  This is usually mscorlib.dll.
+    bool IsSystemAssembly(Assembly const& assembly);
+
+    // Tests whether 'type' is the system type named 'systemTypeNamespace.systemTypeSimpleName'.
+    bool IsSystemType(Type            const& type,
+                      StringReference const& systemTypeNamespace,
+                      StringReference const& systemTypeSimpleName);
+
+    bool IsDerivedFromSystemType(Type const&, Metadata::ElementType, bool);
+
+    // Tests whether 'type' is derived from the named system type, optionally including the type
+    // itself.  This is used to test whether a type is contextual, an enumeration, etc.
+    bool IsDerivedFromSystemType(Type            const& type,
+                                 StringReference const& systemTypeNamespace,
+                                 StringReference const& systemTypeSimpleName,
+                                 bool                   includeSelf);
+
+    Assembly GetSystemAssembly(Type const& referenceType);
+    Assembly GetSystemAssembly(Assembly const& referenceAssembly);
+
+    Type GetSystemObjectType(Type const& referenceType);
+    Type GetSystemObjectType(Assembly const& referenceAssembly);
+
 } }
 
 namespace CxxReflect {
-
-    class Utility
-    {
-    public:
-
-        // Tests whether 'assembly' is the system assembly (i.e., the assembly that references no
-        // other assemblies).  This is usually mscorlib.dll.
-        static bool IsSystemAssembly(Assembly const& assembly);
-
-        // Tests whether 'type' is the system type named 'systemTypeNamespace.systemTypeSimpleName'.
-        static bool IsSystemType(Type            const& type,
-                                 StringReference const& systemTypeNamespace,
-                                 StringReference const& systemTypeSimpleName);
-
-        static bool IsDerivedFromSystemType(Type const&, Metadata::ElementType, bool);
-
-        // Tests whether 'type' is derived from the named system type, optionally including the type
-        // itself.  This is used to test whether a type is contextual, an enumeration, etc.
-        static bool IsDerivedFromSystemType(Type            const& type,
-                                            StringReference const& systemTypeNamespace,
-                                            StringReference const& systemTypeSimpleName,
-                                            bool                   includeSelf);
-
-        static Assembly GetSystemAssembly(Type const& referenceType);
-        static Assembly GetSystemAssembly(Assembly const& referenceAssembly);
-
-        static Type GetSystemObjectType(Type const& referenceType);
-        static Type GetSystemObjectType(Assembly const& referenceAssembly);
-    };
 
 
 

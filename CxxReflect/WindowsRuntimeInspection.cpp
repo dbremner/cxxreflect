@@ -7,7 +7,7 @@
 
 #include "CxxReflect/WindowsRuntimeInspection.hpp"
 #include "CxxReflect/WindowsRuntimeLoader.hpp"
-#include "CxxReflect/WindowsRuntimeUtility.hpp"
+#include "CxxReflect/WindowsRuntimeInternals.hpp"
 
 #include <inspectable.h>
 
@@ -55,7 +55,7 @@ namespace CxxReflect { namespace WindowsRuntime {
         if (object == nullptr)
             throw LogicError(L"Cannot get type of null inspectable object");
 
-        Internal::SmartHString typeNameHString;
+        Utility::SmartHString typeNameHString;
         if (Detail::Failed(object->GetRuntimeClassName(typeNameHString.proxy())))
             throw RuntimeError(L"Failed to get runtime class name from inspectable object");
 

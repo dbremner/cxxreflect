@@ -47,10 +47,11 @@
     <ClInclude Include="StandardLibrary.hpp" />
     <ClInclude Include="Type.hpp" />
     <ClInclude Include="WindowsRuntimeCommon.hpp" />
+    <ClInclude Include="WindowsRuntimeUtilities.hpp" />
     <ClInclude Include="WindowsRuntimeInspection.hpp" />
     <ClInclude Include="WindowsRuntimeInvocation.hpp" />
     <ClInclude Include="WindowsRuntimeLoader.hpp" />
-    <ClInclude Include="WindowsRuntimeUtility.hpp" />
+    <ClInclude Include="WindowsRuntimeInternals.hpp" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Assembly.cpp" />
@@ -80,7 +81,7 @@
     <ClCompile Include="WindowsRuntimeInspection.cpp" />
     <ClCompile Include="WindowsRuntimeInvocation.cpp" />
     <ClCompile Include="WindowsRuntimeLoader.cpp" />
-    <ClCompile Include="WindowsRuntimeUtility.cpp" />
+    <ClCompile Include="WindowsRuntimeInternals.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="CliTypeSystemSupportEmbedded.cpp">

@@ -767,7 +767,7 @@ namespace CxxReflect {
             // All arrays are derived directly from System.Array:
             case Metadata::TypeSignature::Kind::Array:
             case Metadata::TypeSignature::Kind::SzArray:
-                return Utility::GetSystemAssembly(GetAssembly()).GetType(L"System", L"Array");
+                return Detail::GetSystemAssembly(GetAssembly()).GetType(L"System", L"Array");
 
             case Metadata::TypeSignature::Kind::Ptr:
                 return Type();
@@ -1033,7 +1033,7 @@ namespace CxxReflect {
     {
         return ResolveTypeDefTypeAndCall([](Type const& t)
         {
-            return Utility::IsDerivedFromSystemType(t, L"System", L"__ComObject", true);
+            return Detail::IsDerivedFromSystemType(t, L"System", L"__ComObject", true);
         });
     }
 
@@ -1041,7 +1041,7 @@ namespace CxxReflect {
     {
         return ResolveTypeDefTypeAndCall([](Type const& t)
         {
-            return Utility::IsDerivedFromSystemType(t, L"System", L"ContextBoundObject", true);
+            return Detail::IsDerivedFromSystemType(t, L"System", L"ContextBoundObject", true);
         });
     }
 
@@ -1055,7 +1055,7 @@ namespace CxxReflect {
 
         return ResolveTypeDefTypeAndCall([](Type const& t)
         {
-            return Utility::IsDerivedFromSystemType(t, L"System", L"Enum", false);
+            return Detail::IsDerivedFromSystemType(t, L"System", L"Enum", false);
         });
     }
 
@@ -1203,7 +1203,7 @@ namespace CxxReflect {
 
         return ResolveTypeDefTypeAndCall([](Type const& t)
         {
-            return Utility::IsDerivedFromSystemType(t, L"System", L"MarshalByRefObject", true);
+            return Detail::IsDerivedFromSystemType(t, L"System", L"MarshalByRefObject", true);
         });
     }
 
@@ -1455,7 +1455,7 @@ namespace CxxReflect {
         if (!IsTypeDef())
             return false;
 
-        if (!Utility::IsSystemAssembly(_assembly.Realize()))
+        if (!Detail::IsSystemAssembly(_assembly.Realize()))
             return false;
 
         if (GetTypeDefRow().GetNamespace() != L"System")
@@ -1559,7 +1559,7 @@ namespace CxxReflect {
         {
             return t.GetTypeDefRow().GetFlags().IsSet(TypeAttribute::Serializable)
                 || t.IsEnum()
-                || Utility::IsDerivedFromSystemType(t, L"System", L"MulticastDelegate", true);
+                || Detail::IsDerivedFromSystemType(t, L"System", L"MulticastDelegate", true);
         });
     }
 
@@ -1601,8 +1601,8 @@ namespace CxxReflect {
 
         return ResolveTypeDefTypeAndCall([](Type const& t)
         {
-            return Utility::IsDerivedFromSystemType(t, Metadata::ElementType::ValueType, false)
-                && !Utility::IsSystemType(t, L"System", L"Enum");
+            return Detail::IsDerivedFromSystemType(t, Metadata::ElementType::ValueType, false)
+                && !Detail::IsSystemType(t, L"System", L"Enum");
         });
     }
 

@@ -6,7 +6,7 @@
 #include "CxxReflect/PrecompiledHeaders.hpp"
 
 #include "CxxReflect/WindowsRuntimeLoader.hpp"
-#include "CxxReflect/WindowsRuntimeUtility.hpp"
+#include "CxxReflect/WindowsRuntimeInternals.hpp"
 
 
 namespace CxxReflect { namespace WindowsRuntime {

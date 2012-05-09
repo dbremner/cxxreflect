@@ -342,7 +342,7 @@ namespace CxxReflect {
         Detail::Assert([&]{ return !_contexts.empty(); });
 
         Assembly const referenceAssembly(&_contexts.begin()->second, InternalKey());
-        Assembly const systemAssembly(Utility::GetSystemAssembly(referenceAssembly));
+        Assembly const systemAssembly(Detail::GetSystemAssembly(referenceAssembly));
         Detail::Assert([&]{ return systemAssembly.IsInitialized(); });
 
         String const namespaceName(_loaderConfiguration->TransformNamespace(L"System"));

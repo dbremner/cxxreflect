@@ -98,7 +98,7 @@ namespace CxxReflect {
     {
     public:
 
-        explicit HResultRuntimeError(HResult const hresult, String message = L"")
+        explicit HResultRuntimeError(HResult const hresult = 0x80004005, String message = L"")
             : RuntimeError(std::move(message)), _hresult(hresult)
         {
         }

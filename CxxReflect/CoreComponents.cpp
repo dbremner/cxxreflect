@@ -405,30 +405,20 @@ namespace CxxReflect { namespace Detail {
         return *_signature;
     }
 
-} }
 
-namespace CxxReflect {
 
-    IAssemblyLocator::~IAssemblyLocator()
-    {
-        // Virtual destructor required for interface class
-    }
 
-    ILoaderConfiguration::~ILoaderConfiguration()
-    {
-        // Virtual destructor required for interface class
-    }
 
-    bool Utility::IsSystemAssembly(Assembly const& assembly)
+    bool IsSystemAssembly(Assembly const& assembly)
     {
         Detail::Assert([&]{ return assembly.IsInitialized(); });
 
         return assembly.GetReferencedAssemblyCount() == 0;
     }
 
-    bool Utility::IsSystemType(Type            const& type,
-                               StringReference const& systemTypeNamespace,
-                               StringReference const& systemTypeSimpleName)
+    bool IsSystemType(Type            const& type,
+                      StringReference const& systemTypeNamespace,
+                      StringReference const& systemTypeSimpleName)
     {
         Detail::Assert([&]{ return type.IsInitialized(); });
 
@@ -443,9 +433,9 @@ namespace CxxReflect {
             && type.GetName()      == systemTypeSimpleName;
     }
 
-    bool Utility::IsDerivedFromSystemType(Type                  const& type,
-                                          Metadata::ElementType const  systemType,
-                                          bool                         includeSelf)
+    bool IsDerivedFromSystemType(Type                  const& type,
+                                 Metadata::ElementType const  systemType,
+                                 bool                         includeSelf)
     {
         Detail::Assert([&]{ return type.IsInitialized(); });
 
@@ -466,10 +456,10 @@ namespace CxxReflect {
         return false;
     }
 
-    bool Utility::IsDerivedFromSystemType(Type            const& type,
-                                          StringReference const& systemTypeNamespace,
-                                          StringReference const& systemTypeSimpleName,
-                                          bool                   includeSelf)
+    bool IsDerivedFromSystemType(Type            const& type,
+                                 StringReference const& systemTypeNamespace,
+                                 StringReference const& systemTypeSimpleName,
+                                 bool                   includeSelf)
     {
         Detail::Assert([&]{ return type.IsInitialized(); });
 
@@ -488,21 +478,21 @@ namespace CxxReflect {
         return false;
     }
 
-    Assembly Utility::GetSystemAssembly(Type const& referenceType)
+    Assembly GetSystemAssembly(Type const& referenceType)
     {
         Detail::Assert([&]{ return referenceType.IsInitialized(); });
 
         return GetSystemObjectType(referenceType).GetAssembly();
     }
 
-    Assembly Utility::GetSystemAssembly(Assembly const& referenceAssembly)
+    Assembly GetSystemAssembly(Assembly const& referenceAssembly)
     {
         Detail::Assert([&]{ return referenceAssembly.IsInitialized(); });
 
         return GetSystemObjectType(referenceAssembly).GetAssembly();
     }
 
-    Type Utility::GetSystemObjectType(Type const& referenceType)
+    Type GetSystemObjectType(Type const& referenceType)
     {
         Detail::Assert([&]{ return referenceType.IsInitialized(); });
 
@@ -518,7 +508,7 @@ namespace CxxReflect {
         return currentType;
     }
 
-    Type Utility::GetSystemObjectType(Assembly const& referenceAssembly)
+    Type GetSystemObjectType(Assembly const& referenceAssembly)
     {
         Detail::Assert([&]{ return referenceAssembly.IsInitialized(); });
 
@@ -543,6 +533,20 @@ namespace CxxReflect {
 
         Assembly const foundReferenceAssembly(loader.LoadAssembly(*it));
         return GetSystemObjectType(*foundReferenceAssembly.BeginTypes());
+    }
+
+} }
+
+namespace CxxReflect {
+
+    IAssemblyLocator::~IAssemblyLocator()
+    {
+        // Virtual destructor required for interface class
+    }
+
+    ILoaderConfiguration::~ILoaderConfiguration()
+    {
+        // Virtual destructor required for interface class
     }
 
 

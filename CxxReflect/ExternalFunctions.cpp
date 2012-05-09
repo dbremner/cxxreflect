@@ -6,7 +6,7 @@
 #include "CxxReflect/PrecompiledHeaders.hpp"
 
 #include "CxxReflect/FundamentalUtilities.hpp"
-#include "CxxReflect/WindowsRuntimeUtility.hpp"
+#include "CxxReflect/WindowsRuntimeInternals.hpp"
 
 #include <io.h>
 #include <shlwapi.h>

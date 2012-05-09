@@ -8,7 +8,7 @@
 #include "CxxReflect/WindowsRuntimeInspection.hpp"
 #include "CxxReflect/WindowsRuntimeInvocation.hpp"
 #include "CxxReflect/WindowsRuntimeLoader.hpp"
-#include "CxxReflect/WindowsRuntimeUtility.hpp"
+#include "CxxReflect/WindowsRuntimeInternals.hpp"
 
 #include <inspectable.h>
 #include <wrl/client.h>
@@ -105,7 +105,7 @@ namespace CxxReflect { namespace WindowsRuntime { namespace Internal {
             // If we have an IInspectable object, try to get its runtime class name:
             if (value != nullptr)
             {
-                SmartHString inspectableTypeName;
+                Utility::SmartHString inspectableTypeName;
                 Detail::VerifySuccess(value->GetRuntimeClassName(inspectableTypeName.proxy()));
 
                 Type const type(WindowsRuntime::GetType(inspectableTypeName.c_str()));
@@ -546,7 +546,7 @@ namespace CxxReflect { namespace WindowsRuntime { namespace Internal {
         Detail::Assert([&]{ return type.IsInitialized(); });
 
         // Shortcut:  If 'type' isn't from the system assembly, it isn't one of the system types:
-        if (!Utility::IsSystemAssembly(type.GetAssembly()))
+        if (!Detail::IsSystemAssembly(type.GetAssembly()))
             return type.IsValueType() ? Metadata::ElementType::ValueType : Metadata::ElementType::Class;
 
         Loader const& loader(type.GetAssembly().GetContext(InternalKey()).GetLoader());
@@ -1239,7 +1239,7 @@ namespace CxxReflect { namespace WindowsRuntime {
         if (!type.IsClass())
             throw InvocationError(L"Type is not a reference type; only reference types may be created");
 
-        Internal::SmartHString const typeFullName(type.GetFullName());
+        Utility::SmartHString const typeFullName(type.GetFullName().c_str());
 
         ComPtr<IInspectable> instance;
         if (Detail::Failed(::RoActivateInstance(typeFullName.value(), instance.GetAddressOf())) || instance == nullptr)

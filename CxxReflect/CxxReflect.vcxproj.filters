@@ -58,9 +58,6 @@
     <ClCompile Include="WindowsRuntimeInvocation.cpp">
       <Filter>Sources\WindowsRuntime</Filter>
     </ClCompile>
-    <ClCompile Include="WindowsRuntimeUtility.cpp">
-      <Filter>Sources\WindowsRuntime</Filter>
-    </ClCompile>
     <ClCompile Include="WindowsRuntimeCommon.cpp">
       <Filter>Sources\WindowsRuntime</Filter>
     </ClCompile>
@@ -156,9 +153,6 @@
     <ClInclude Include="WindowsRuntimeCommon.hpp">
       <Filter>Headers\WindowsRuntime</Filter>
     </ClInclude>
-    <ClInclude Include="WindowsRuntimeUtility.hpp">
-      <Filter>Headers\WindowsRuntime</Filter>
-    </ClInclude>
     <ClInclude Include="WindowsRuntimeInspection.hpp">
       <Filter>Headers\WindowsRuntime</Filter>
     </ClInclude>
@@ -179,6 +173,12 @@
     </ClInclude>
     <ClInclude Include="DocumentationGettingStarted.hpp">
       <Filter>Headers\Documentation</Filter>
+    </ClInclude>
+    <ClInclude Include="WindowsRuntimeInternals.hpp">
+      <Filter>Headers\WindowsRuntime</Filter>
+    </ClInclude>
+    <ClInclude Include="WindowsRuntimeUtilities.hpp">
+      <Filter>Headers\WindowsRuntime</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -239,6 +239,9 @@
     </ClCompile>
     <ClCompile Include="CliTypeSystemSupportEmbedded.cpp">
       <Filter>Sources\Generated</Filter>
+    </ClCompile>
+    <ClCompile Include="WindowsRuntimeInternals.cpp">
+      <Filter>Sources\WindowsRuntime</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>
