@@ -28,6 +28,22 @@ namespace WRTestApp {
         cxr::WhenInitializedCall([&]
         {
             {
+                using namespace WRLibrary;
+
+                Band^ band = ref new Band();
+
+                IJohn^ john = band;
+                IPaul^ paul = band;
+
+                cxr::CreateObjectInstance(
+                    cxr::GetType(L"WRLibrary.BandClient"),
+                    john,
+                    paul,
+                    band,
+                    band);
+            }
+
+            {
                 auto enumerators(cxr::GetEnumerators(cxr::GetType(L"WRLibrary.DayOfWeek")));
 
                 // The order of the enumerators is unspecified, so we'll sort them by value:

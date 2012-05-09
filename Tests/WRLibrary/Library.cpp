@@ -99,4 +99,27 @@ namespace WRLibrary
 
         IProvideANumber^ _inner;
     };
+
+    public interface class IJohn   { void John();   };
+    public interface class IPaul   { void Paul();   };
+    public interface class IGeorge { void George(); };
+    public interface class IRingo  { void Ringo();  };
+
+    public ref class Band : public IJohn, public IPaul, public IGeorge, public IRingo
+    {
+        virtual void John()   { }
+        virtual void Paul()   { }
+        virtual void George() { }
+        virtual void Ringo()  { }
+    };
+
+    public ref class BandClient sealed
+    {
+    public:
+
+        BandClient(IJohn^ john, IPaul^ paul, IGeorge^ george, IRingo^ ringo)
+        {
+        }
+
+    };
 }

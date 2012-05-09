@@ -43,8 +43,6 @@ namespace CxxReflectTest
                 throw; // TODO Report error on console instead.
             }
         });
-
-        std::cin.get();
     }
 }
 

@@ -292,12 +292,15 @@ namespace CxxReflect { namespace WindowsRuntime { namespace Internal {
                   reinterpret_cast<ConstByteIterator>(argument.GetTypeName().end()),
                   std::back_inserter(_data));
 
+        // Null-terminate the buffer:
+        _data.resize(_data.size() + sizeof(Character));
+
         _arguments.push_back(UnresolvedVariantArgument(
             Metadata::ElementType::Class,
             valueIndex,
             static_cast<SizeType>(sizeof(value)),
             nameIndex,
-            static_cast<SizeType>(argument.GetTypeName().size() + 1)));
+            static_cast<SizeType>((argument.GetTypeName().size() + 1) * sizeof(Character))));
     }
 
     void VariantArgumentPack::PushArgument(Metadata::ElementType const type,
