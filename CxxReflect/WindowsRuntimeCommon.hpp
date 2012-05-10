@@ -27,13 +27,41 @@ struct IInspectable;
 namespace CxxReflect { namespace WindowsRuntime { namespace Internal {
 
     #ifdef CXXREFLECT_ENABLE_WINDOWS_RUNTIME_CPPCX
-    template <typename T> struct IsHat         { enum { value = false }; };
-    template <typename T> struct IsHat<T^>     { enum { value = true; }; };
+    template <typename T> struct IsHat         { enum { Value = false }; };
+    template <typename T> struct IsHat<T^>     { enum { Value = true; }; };
     template <typename T> struct AddHat        { typedef T^ Type;        };
     template <typename T> struct AddHat<T^>    {                         };
     template <typename T> struct RemoveHat     {                         };
     template <typename T> struct RemoveHat<T^> { typedef T Type;         };
     #endif
+
+    // The IsIterator type trait implemented here is based on the technique described by this answer
+    // on Stack Overflow:  http://stackoverflow.com/a/6051740/151292, contributed by user 'Nim'.
+    template <typename T>
+    struct IsIteratorClass
+    {
+        template <typename U>
+        static std::true_type Test(int, typename U::iterator_category* = nullptr);
+
+        template <typename U1>
+        static std::false_type Test(unsigned long long);
+
+        typedef decltype(Test<T>(0)) Type;
+
+        enum { Value = Type::value };
+    };
+
+    template <typename T>
+	struct IsIterator
+    {
+        enum { Value = IsIteratorClass<T>::Value };
+    };
+
+    template <typename T>
+    struct IsIterator<T*>
+    {
+        enum { Value = true };
+    };
 
 } } }
 

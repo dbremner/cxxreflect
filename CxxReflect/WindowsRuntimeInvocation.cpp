@@ -15,6 +15,38 @@
 
 using Microsoft::WRL::ComPtr;
 
+namespace CxxReflect { namespace WindowsRuntime { namespace {
+
+    /// Calls `callable`, handles all exceptions and rethrows them as `InvocationError`
+    template <typename TCallable>
+    auto CallWithInvocationConvention(TCallable&& callable) -> decltype(callable())
+    {
+        try
+        {
+            return callable();
+        }
+        catch (InvocationError const&)
+        {
+            // Don't mess with exceptions that are already InvocationErrors:
+            throw;
+        }
+        catch (LogicError const&)
+        {
+            // Rethrow logic errors as-is; this is required so that the next block doesn't handle it
+            throw;
+        }
+        catch (Exception const& e)
+        {
+            throw InvocationError(e.GetMessage().c_str());
+        }
+        catch (...)
+        {
+            throw InvocationError(L"An unknown failure occurred during invocation");
+        }
+    }
+
+} } }
+
 namespace CxxReflect { namespace WindowsRuntime { namespace Internal {
 
     UnresolvedVariantArgument::UnresolvedVariantArgument(Metadata::ElementType const type,
@@ -90,10 +122,11 @@ namespace CxxReflect { namespace WindowsRuntime { namespace Internal {
             if (!knownTypeName.empty())
             {
                 Type const type(WindowsRuntime::GetType(knownTypeName));
-                if (type.IsInitialized())
-                    return type;
 
-                // If we failed to resolve the type, we'll fall back to use IInspectable...
+                // If the static type of the object was Platform::Object, we'll instead try to use
+                // its dynamic type for overload resolution:
+                if (type.IsInitialized() && type != WindowsRuntime::GetType(L"Platform", L"Object"))
+                    return type;
             }
 
             // Otherwise, see if we can get the type from the IInspectable argument:
@@ -112,6 +145,9 @@ namespace CxxReflect { namespace WindowsRuntime { namespace Internal {
                 if (type.IsInitialized())
                     return type;
             }
+
+            // TODO For nullptr, we should probably allow conversion to any interface with equal
+            // conversion rank.  How to do this cleanly, though, is a good question.
 
             // Finally, fall back to use Platform::Object^:
             Type const type(WindowsRuntime::GetType(L"Platform", L"Object"));
@@ -1186,39 +1222,42 @@ namespace CxxReflect { namespace WindowsRuntime { namespace Internal {
 
     UniqueInspectable CreateInspectableInstance(Type const& type, VariantArgumentPack const& arguments)
     {
-        Detail::Verify([&]{ return type.IsInitialized() && arguments.GetArity() > 0; });
+        return CallWithInvocationConvention([&]
+        {
+            Detail::Verify([&]{ return type.IsInitialized() && arguments.GetArity() > 0; });
 
-        // Get the activation factory for the type:
-        Type const factoryType(GlobalLoaderContext::Get().GetActivationFactoryType(type));
-        Guid const factoryGuid(GetGuid(factoryType));
+            // Get the activation factory for the type:
+            Type const factoryType(GlobalLoaderContext::Get().GetActivationFactoryType(type));
+            Guid const factoryGuid(GetGuid(factoryType));
 
-        auto const factory(GetActivationFactoryInterface(type.GetFullName(), factoryGuid));
+            auto const factory(GetActivationFactoryInterface(type.GetFullName(), factoryGuid));
 
-        if (factory == nullptr)
-            throw RuntimeError(L"Failed to obtain activation factory for type");
+            if (factory == nullptr)
+                throw RuntimeError(L"Failed to obtain activation factory for type");
 
-        // Enumerate the candidate activation methods and perform overload resolution:
-        auto const candidates(Detail::CreateStaticFilteredRange(
-            factoryType.BeginMethods(BindingAttribute::AllInstance),
-            factoryType.EndMethods(),
-            [&](Method const& m) { return m.GetName() == L"CreateInstance" && m.GetReturnType() == type; }));
+            // Enumerate the candidate activation methods and perform overload resolution:
+            auto const candidates(Detail::CreateStaticFilteredRange(
+                factoryType.BeginMethods(BindingAttribute::AllInstance),
+                factoryType.EndMethods(),
+                [&](Method const& m) { return m.GetName() == L"CreateInstance" && m.GetReturnType() == type; }));
 
-        ConvertingOverloadResolver const overloadResolver(candidates.Begin(), candidates.End(), arguments);
+            ConvertingOverloadResolver const overloadResolver(candidates.Begin(), candidates.End(), arguments);
 
-        if (!overloadResolver.Succeeded())
-            throw RuntimeError(L"Failed to find activation method matching provided arguments");
+            if (!overloadResolver.Succeeded())
+                throw RuntimeError(L"Failed to find activation method matching provided arguments");
 
-        // Invoke the activation method to create the instance:
-        ComPtr<IInspectable> newInstance;
-        HResult result(CallInvoker::Invoke(
-            overloadResolver.GetResult(),
-            factory.get(),
-            reinterpret_cast<void**>(newInstance.ReleaseAndGetAddressOf()),
-            arguments));
+            // Invoke the activation method to create the instance:
+            ComPtr<IInspectable> newInstance;
+            HResult result(CallInvoker::Invoke(
+                overloadResolver.GetResult(),
+                factory.get(),
+                reinterpret_cast<void**>(newInstance.ReleaseAndGetAddressOf()),
+                arguments));
 
-        Detail::VerifySuccess(result, L"Failed to create instance of type");
+            Detail::VerifySuccess(result, L"Failed to create instance of type");
 
-        return WindowsRuntime::UniqueInspectable(newInstance.Detach());
+            return WindowsRuntime::UniqueInspectable(newInstance.Detach());
+        });
     }
 
 } } }

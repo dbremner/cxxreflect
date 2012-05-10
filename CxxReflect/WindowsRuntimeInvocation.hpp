@@ -244,6 +244,17 @@ namespace CxxReflect { namespace WindowsRuntime { namespace Internal {
         return pack;
     }
 
+    template <typename TForIt>
+    VariantArgumentPack PackArgumentRange(TForIt const first, TForIt const last)
+    {
+        VariantArgumentPack pack;
+        std::for_each(first, last, [&](::Platform::Object^ const& a)
+        {
+            pack.PushArgument(PreprocessArgument(a));
+        });
+        return pack;
+    }
+
 
 
 
@@ -533,8 +544,7 @@ namespace CxxReflect { namespace WindowsRuntime { namespace Internal {
     #ifdef CXXREFLECT_ENABLE_WINDOWS_RUNTIME_CPPCX
     inline ::Platform::Object^ CreateObjectInstance(Type const& type, VariantArgumentPack const& arguments)
     {
-        // TODO:  Is this reference counting correct?
-        return reinterpret_cast<::Platform::Object^>(CreateInspectableInstance(type, arguments).release());
+        return reinterpret_cast<::Platform::Object^>(CreateInspectableInstance(type, arguments).get());
     }
 
     template <typename TTarget>
@@ -699,6 +709,14 @@ namespace CxxReflect { namespace WindowsRuntime {
             std::forward<P4>(a4)));
     }
 
+    /// Creates an instance of `type` with the `Platform::Object^` arguments in the range `[first, last)`
+    template <typename TForIt>
+    typename std::enable_if<Internal::IsIterator<TForIt>::Value, UniqueInspectable>::type
+    CreateInspectableInstance(Type const& type, TForIt const first, TForIt const last)
+    {
+        return Internal::CreateInspectableInstance(type, Internal::PackArgumentRange(first, last));
+    }
+    
     #ifdef CXXREFLECT_ENABLE_WINDOWS_RUNTIME_CPPCX
     template <typename P0>
     ::Platform::Object^ CreateObjectInstance(Type const& type, P0&& a0)
@@ -706,7 +724,7 @@ namespace CxxReflect { namespace WindowsRuntime {
         return Internal::CreateObjectInstance(type, Internal::PackArguments(
             std::forward<P0>(a0)));
     }
-
+    
     template <typename P0, typename P1>
     ::Platform::Object^ CreateObjectInstance(Type const& type, P0&& a0, P1&& a1)
     {
@@ -714,7 +732,7 @@ namespace CxxReflect { namespace WindowsRuntime {
             std::forward<P0>(a0), 
             std::forward<P1>(a1)));
     }
-
+    
     template <typename P0, typename P1, typename P2>
     ::Platform::Object^ CreateObjectInstance(Type const& type, P0&& a0, P1&& a1, P2&& a2)
     {
@@ -743,6 +761,13 @@ namespace CxxReflect { namespace WindowsRuntime {
             std::forward<P2>(a2), 
             std::forward<P3>(a3), 
             std::forward<P4>(a4)));
+    }
+
+    template <typename TForIt>
+    typename std::enable_if<Internal::IsIterator<TForIt>::Value, ::Platform::Object^>::type
+    CreateObjectInstance(Type const& type, TForIt const first, TForIt const last)
+    {
+        return Internal::CreateObjectInstance(type, Internal::PackArgumentRange(first, last));
     }
 
     template <typename TTarget, typename P0>
@@ -788,6 +813,13 @@ namespace CxxReflect { namespace WindowsRuntime {
             std::forward<P2>(a2), 
             std::forward<P3>(a3), 
             std::forward<P4>(a4)));
+    }
+
+    template <typename TTarget, typename TForIt>
+    typename std::enable_if<Internal::IsIterator<TForIt>::Value, TTarget^>::type
+    CreateInstance(Type const& type, TForIt const first, TForIt const last)
+    {
+        return Internal::CreateInstance<TTarget>(type, Internal::PackArgumentRange(first, last));
     }
     #endif
 
