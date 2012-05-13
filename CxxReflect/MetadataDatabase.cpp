@@ -205,7 +205,7 @@ namespace CxxReflect { namespace Metadata { namespace { namespace Private {
         PeFileHeader fileHeader = { 0 };
         file.Read(&fileHeader, 1);
         if (fileHeader._sectionCount == 0 || fileHeader._sectionCount > 100)
-            throw MetadataReadError(L"PE section count is out of range");
+            throw MetadataError(L"PE section count is out of range");
 
         PeSectionHeaderSequence sections(fileHeader._sectionCount);
         file.Read(sections.data(), static_cast<SizeType>(sections.size()));
@@ -215,7 +215,7 @@ namespace CxxReflect { namespace Metadata { namespace { namespace Private {
             PeSectionContainsRva(fileHeader._cliHeaderTable._rva)));
 
         if (cliHeaderSectionIt == sections.end())
-            throw MetadataReadError(L"Failed to locate PE file section containing CLI header");
+            throw MetadataError(L"Failed to locate PE file section containing CLI header");
 
         SizeType cliHeaderTableOffset(ComputeOffsetFromRva(
             *cliHeaderSectionIt,
@@ -242,7 +242,7 @@ namespace CxxReflect { namespace Metadata { namespace { namespace Private {
             PeSectionContainsRva(peHeader._cliHeader._metadata._rva)));
 
         if (metadataSectionIt == peHeader._sections.end())
-            throw MetadataReadError(L"Failed to locate PE file section containing CLI metadata");
+            throw MetadataError(L"Failed to locate PE file section containing CLI metadata");
 
         SizeType metadataOffset(ComputeOffsetFromRva(
             *metadataSectionIt,
@@ -253,7 +253,7 @@ namespace CxxReflect { namespace Metadata { namespace { namespace Private {
         std::uint32_t magicSignature(0);
         file.Read(&magicSignature, 1);
         if (magicSignature != 0x424a5342)
-            throw MetadataReadError(L"Magic signature does not match required value 0x424a5342");
+            throw MetadataError(L"Magic signature does not match required value 0x424a5342");
 
         file.Seek(8, Detail::ConstByteCursor::Current);
 
@@ -291,7 +291,7 @@ namespace CxxReflect { namespace Metadata { namespace { namespace Private {
             CXXREFLECT_GENERATE("#GUID",    GuidStream,       -4);
             CXXREFLECT_GENERATE("#~",       TableStream,      -8);
             if (!used)
-                throw MetadataReadError(L"Unknown stream name encountered");
+                throw MetadataError(L"Unknown stream name encountered");
 
             #undef CXXREFLECT_GENERATE
         }
@@ -543,7 +543,7 @@ namespace CxxReflect { namespace Metadata { namespace { namespace Private {
     {
         TableId const tableId(GetTableIdFromCompositeIndexKey(split.first, index));
         if (tableId == static_cast<TableId>(-1))
-            throw MetadataReadError(L"Failed to translate CompositeIndex to TableId");
+            throw MetadataError(L"Failed to translate CompositeIndex to TableId");
 
         return RowReference(tableId, split.second);
     }
@@ -735,7 +735,7 @@ namespace CxxReflect { namespace Metadata { namespace { namespace Private {
             *last)));
 
         if (it == last)
-            throw MetadataReadError(L"Failed to find owning row");
+            throw MetadataError(L"Failed to find owning row");
 
         return CreateRow<TOwningRow>(&ownedDatabase, *it);
     }
@@ -1172,7 +1172,7 @@ namespace CxxReflect { namespace Metadata {
     BlobReference BlobReference::ComputeFromStream(ConstByteIterator const first, ConstByteIterator const last)
     {
         if (first == last)
-            throw MetadataReadError(L"Invalid blob");
+            throw MetadataError(L"Invalid blob");
 
         Byte initialByte(*first);
         SizeType blobSizeBytes(0);
@@ -1199,18 +1199,18 @@ namespace CxxReflect { namespace Metadata {
 
         case 7:
         default:
-            throw MetadataReadError(L"Invalid blob");
+            throw MetadataError(L"Invalid blob");
         }
 
         if (Detail::Distance(first, last) < blobSizeBytes)
-            throw MetadataReadError(L"Invalid blob");
+            throw MetadataError(L"Invalid blob");
 
         SizeType blobSize(initialByte);
         for (unsigned i(1); i < blobSizeBytes; ++ i)
             blobSize = (blobSize << 8) + *(first + i);
 
         if (Detail::Distance(first, last) < blobSizeBytes + blobSize)
-            throw MetadataReadError(L"Invalid blob");
+            throw MetadataError(L"Invalid blob");
 
         return BlobReference(first + blobSizeBytes, first + blobSizeBytes + blobSize);
     }
@@ -1427,12 +1427,12 @@ namespace CxxReflect { namespace Metadata {
         SizeType const metadataStart(metadataOffset + streamOffset);
 
         if (!file.CanSeek(metadataStart, Detail::ConstByteCursor::Begin))
-            throw MetadataReadError(L"Unable to read metadata stream:  start index out of range");
+            throw MetadataError(L"Unable to read metadata stream:  start index out of range");
 
         file.Seek(metadataOffset + streamOffset, Detail::ConstByteCursor::Begin);
 
         if (!file.CanRead(streamSize))
-            throw MetadataReadError(L"Unable to read metadata stream:  end index out of range");
+            throw MetadataError(L"Unable to read metadata stream:  end index out of range");
 
         ConstByteIterator const it(file.GetCurrent());
         _data = ConstByteRange(it, it + streamSize);
@@ -1473,7 +1473,7 @@ namespace CxxReflect { namespace Metadata {
         AssertInitialized();
 
         if (index + size > Size())
-            throw MetadataReadError(L"Attempted to read from beyond the end of the stream");
+            throw MetadataError(L"Attempted to read from beyond the end of the stream");
 
         return _data.Begin() + index;
     }
@@ -1528,7 +1528,7 @@ namespace CxxReflect { namespace Metadata {
         AssertInitialized();
 
         if (index >= GetRowCount())
-            throw MetadataReadError(L"Attempted to read row at index greater than number of rows");
+            throw MetadataError(L"Attempted to read row at index greater than number of rows");
 
         return _data.Get() + _rowSize.Get() * index;
     }
@@ -1569,7 +1569,7 @@ namespace CxxReflect { namespace Metadata {
                 continue;
 
             if (!IsValidTableId(x))
-                throw MetadataReadError(L"Metadata table presence vector has invalid bits set");
+                throw MetadataError(L"Metadata table presence vector has invalid bits set");
 
             _state.Get()._rowCounts[x] = _stream.ReadAs<std::uint32_t>(index);
             index += 4;
@@ -1888,7 +1888,7 @@ namespace CxxReflect { namespace Metadata {
 
             auto const range(_buffer.Allocate(required));
             if (!Externals::ConvertUtf8ToUtf16(pointer, range.Begin(), required))
-                throw MetadataReadError(L"Failed to convert UTF8 to UTF16");
+                throw MetadataError(L"Failed to convert UTF8 to UTF16");
 
             return _index.insert(std::make_pair(
                 index,
@@ -2014,7 +2014,7 @@ namespace CxxReflect { namespace Metadata {
                 break;
 
             default:
-                throw MetadataReadError(L"Unexpected stream kind value");
+                throw MetadataError(L"Unexpected stream kind value");
             }
         }
     }
@@ -2350,7 +2350,7 @@ namespace CxxReflect { namespace Metadata {
     {
         Byte const type(Private::ReadAs<Byte>(GetIterator(), GetColumnOffset(0)));
         if (!IsValidElementType(type))
-            throw MetadataReadError(L"Constant row contains invalid element type.");
+            throw MetadataError(L"Constant row contains invalid element type.");
 
         return static_cast<ElementType>(type);
     }
@@ -2978,7 +2978,7 @@ namespace CxxReflect { namespace Metadata {
         // If a row has a constant, it must have exactly one:
         Table const& constantTable(parent.GetDatabase().GetTables().GetTable(TableId::Constant));
         if (Detail::Distance(range.Begin(), range.End()) != constantTable.GetRowSize())
-            throw MetadataReadError(L"Constant table has non-unique parent index");
+            throw MetadataError(L"Constant table has non-unique parent index");
 
         return CreateRow<ConstantRow>(&parent.GetDatabase(), range.Begin());
     }
@@ -2998,7 +2998,7 @@ namespace CxxReflect { namespace Metadata {
         // If a row has a field layout, it must have exactly one:
         Table const& fieldLayoutTable(parent.GetDatabase().GetTables().GetTable(TableId::FieldLayout));
         if (Detail::Distance(range.Begin(), range.End()) != fieldLayoutTable.GetRowSize())
-            throw MetadataReadError(L"FieldLayout table has non-unique parent index");
+            throw MetadataError(L"FieldLayout table has non-unique parent index");
 
         return CreateRow<FieldLayoutRow>(&parent.GetDatabase(), range.Begin());
     }

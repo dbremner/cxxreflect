@@ -9,6 +9,14 @@
 
 namespace CxxReflect {
 
+    /// \ingroup cxxreflect_public_interface
+    ///
+    /// @{
+
+
+
+
+
     class Event
     {
     public:
@@ -41,8 +49,8 @@ namespace CxxReflect {
         // IsDefined
         // RemoveEventHandler
 
-        friend bool operator==(Event const& lhs, Event const& rhs);
-        friend bool operator< (Event const& lhs, Event const& rhs);
+        friend bool operator==(Event const&, Event const&);
+        friend bool operator< (Event const&, Event const&);
 
         CXXREFLECT_GENERATE_COMPARISON_OPERATORS(Event)
         CXXREFLECT_GENERATE_SAFE_BOOL_CONVERSION(Event)
@@ -61,8 +69,9 @@ namespace CxxReflect {
 
         Detail::TypeHandle                                    _reflectedType;
         Detail::ValueInitialized<Detail::EventContext const*> _context;
-
     };
+
+    /// @}
 
 }
 

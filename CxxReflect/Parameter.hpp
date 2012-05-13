@@ -59,6 +59,14 @@ namespace CxxReflect { namespace Detail {
 
 namespace CxxReflect {
 
+    /// \ingroup cxxreflect_public_interface
+    ///
+    /// @{
+
+
+
+
+
     class Parameter
     {
     public:
@@ -115,6 +123,11 @@ namespace CxxReflect {
                   Detail::ParameterData const& parameterData,
                   InternalKey);
 
+        Parameter(Method                  const& method,
+                  Metadata::RowReference  const& parameter,
+                  Metadata::TypeSignature const& signature,
+                  InternalKey);
+
         Metadata::RowReference  const& GetSelfReference(InternalKey) const;
         Metadata::TypeSignature const& GetSelfSignature(InternalKey) const;
 
@@ -128,6 +141,8 @@ namespace CxxReflect {
         Metadata::RowReference  _parameter;
         Metadata::TypeSignature _signature;
     };
+
+    /// @}
 
 }
 

@@ -356,6 +356,7 @@ namespace
                 || a->Constructor->DeclaringType->Name == L"ComImportAttribute"
                 || a->Constructor->DeclaringType->Name == L"SecurityPermissionAttribute"
                 || a->Constructor->DeclaringType->Name == L"HostProtectionAttribute"
+                || a->Constructor->DeclaringType->Name == L"FileIOPermissionAttribute"
                 || a->Constructor->DeclaringType->Name == L"PermissionSetAttribute";
         }), rAttributes.end());
 
@@ -758,16 +759,17 @@ int main()
 {
     // wchar_t const* const assemblyPath(L"C:\\jm\\CxxReflect\\Build\\Output\\Win32\\Debug\\TestAssemblies\\A0.dat");
     wchar_t const* const assemblyPath(L"C:\\windows\\Microsoft.NET\\Framework\\v4.0.30319\\mscorlib.dll");
+    // wchar_t const* const assemblyPath(L"c:\\jm\\MultiModule\\MyAssembly.exe");
 
     C::Externals::Initialize<CxxReflect::Platform::Win32>();
 
     // Load the assembly using CxxReflect:
-    C::DirectoryBasedAssemblyLocator::DirectorySet directories;
+    C::DirectoryBasedModuleLocator::DirectorySet directories;
     directories.insert(L"C:\\Windows\\Microsoft.NET\\Framework\\v4.0.30319");
     directories.insert(L"C:\\Windows\\Microsoft.NET\\Framework\\v4.0.30319\\wpf");
-    std::auto_ptr<C::IAssemblyLocator> resolver(new C::DirectoryBasedAssemblyLocator(directories));
+    std::auto_ptr<C::IModuleLocator> resolver(new C::DirectoryBasedModuleLocator(directories));
     C::Loader loader(resolver);
-    C::Assembly cAssembly(loader.LoadAssembly(C::AssemblyLocation(assemblyPath)));
+    C::Assembly cAssembly(loader.LoadAssembly(C::ModuleLocation(assemblyPath)));
 
     // Load the assembly using Reflection:
     R::Assembly^ rAssembly(R::Assembly::LoadFrom(gcnew System::String(assemblyPath)));

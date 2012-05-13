@@ -7,6 +7,8 @@
 
 // Public interfaces header.  All clients should include just this header; it pulls in everything.
 
+/// \defgroup cxxreflect_public_interface Public Interface :: Reflection API
+
 #include "CxxReflect/Assembly.hpp"
 #include "CxxReflect/AssemblyName.hpp"
 #include "CxxReflect/Constant.hpp"

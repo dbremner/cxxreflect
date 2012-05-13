@@ -139,11 +139,11 @@ namespace CxxReflect {
     };
 
     /// An exception class to represent a runtime error due to an invalid metadata database.
-    class MetadataReadError : public RuntimeError
+    class MetadataError : public RuntimeError
     {
     public:
 
-        MetadataReadError(String message)
+        MetadataError(String message)
             : RuntimeError(std::move(message))
         {
         }
@@ -1917,138 +1917,7 @@ namespace CxxReflect { namespace Detail {
 
 //
 //
-// STACK ALLOCATOR
-//
-//
-
-namespace CxxReflect { namespace Detail {
-
-    // This allocator is based on the stack_alloc<T, N> implementation by Howard Hinnant, found at
-    // http://home.roadrunner.com/~hinnant/stack_alloc.h.
-    template <typename T, SizeType N> class StackAllocator;
-
-    template <SizeType N>
-    class StackAllocator<void, N>
-    {
-    public:
-
-        typedef void const* const_pointer;
-        typedef void        value_type;
-    };
-
-    template <typename T, SizeType N>
-    class StackAllocator
-    {
-    public:
-
-        typedef SizeType          size_type;
-        typedef T                 value_type;
-        typedef value_type      * pointer;
-        typedef value_type const* const_pointer;
-        typedef value_type      & reference;
-        typedef value_type const& const_reference;
-
-        StackAllocator()
-            : _current(root())
-        {
-        }
-
-        StackAllocator(StackAllocator const&)
-            : _current(root())
-        {
-        }
-
-        template <typename U>
-        StackAllocator(StackAllocator<U, N> const&)
-            : _current(root())
-        {
-        }
-
-        template <typename U>
-        struct rebind
-        {
-            typedef StackAllocator<U, N> other;
-        };
-
-        pointer allocate(size_type const n, typename StackAllocator<void, N>::const_pointer = 0)
-        {
-            if (root() + N - _current >= n)
-            {
-                pointer const r(_current);
-                _current += n;
-                return r;
-            }
-
-            return static_cast<pointer>(::operator new(n * sizeof(value_type)));
-        }
-
-        pointer deallocate(pointer const p, size_type const n)
-        {
-            if (root() <= p && p < root() + N)
-            {
-                if (p + n == _current)
-                    _current = p;
-            }
-            else
-            {
-                ::operator delete(p);
-            }
-        }
-
-        size_type max_size() const
-        {
-            return static_cast<size_type>(-1) / sizeof(value_type);
-        }
-
-        void destroy(pointer const p)
-        {
-            p->~value_type();
-        }
-
-        void construct(pointer const p)
-        {
-            ::new(static_cast<void*>(p)) value_type();
-        }
-
-        template <typename P0>
-        void construct(pointer const p, P0&& a0)
-        {
-            ::new(static_cast<void*>(p)) value_type(a0);
-        }
-
-        friend bool operator==(StackAllocator const& lhs, StackAllocator const& rhs)
-        {
-            return &lhs._storage == &rhs._storage;
-        }
-
-        friend bool operator!=(StackAllocator const& lhs, StackAllocator const& rhs)
-        {
-            return &lhs._storage != &rhs._storage;
-        }
-
-    private:
-
-        typedef typename std::aligned_storage<sizeof(T) * N, 16>::type buffer_type;
-
-        // This class is not assignable:
-        StackAllocator& operator=(StackAllocator const&);
-
-        pointer       root()       { return reinterpret_cast<pointer      >(&_storage); }
-        const_pointer root() const { return reinterpret_cast<const_pointer>(&_storage); }
-
-        buffer_type _storage;
-        pointer     _current;
-    };
-
-} }
-
-
-
-
-
-//
-//
-// INSTANTIATING ITERATOR
+// UTILITY ITERATORS
 //
 //
 
@@ -2066,7 +1935,7 @@ namespace CxxReflect { namespace Detail {
 
     // An iterator that instantiates objects of type TResult from a range pointed to by TCurrent
     // pointers or indices.  Each TResult is constructed by calling its constructor that takes a
-    // TParameter, a TCurrent, and an InternalKey.  The parameter is the value provided when the
+    // TParameter, amd a TCurrent.  The parameter is the value provided when the
     // InstantiatingIterator is constructed; the current is the current value of the iterator.
     template <typename TCurrent,
               typename TResult,
@@ -2084,6 +1953,7 @@ namespace CxxReflect { namespace Detail {
         typedef std::int32_t                    difference_type;
 
         InstantiatingIterator()
+            : _parameter(), _current()
         {
         }
 
@@ -2120,13 +1990,146 @@ namespace CxxReflect { namespace Detail {
         TCurrent   _current;
     };
 
-} }
 
 
 
 
+    /// An iterator that concatenates ranges obtained from iterating over an outer range
+    ///
+    /// This iterator provides convenient a way of iterating over a range of ranges.  The outer
+    /// range is "flattened," yielding what is in effect a concatenation of all of the inner ranges.
+    template <typename TOuterIterator,
+              typename TInnerIterator,
+              typename TOuterValueType,
+              typename TInnerValueType,
+              TInnerIterator (*FBeginInner)(TOuterValueType const&),
+              TInnerIterator (*FEndInner)  (TOuterValueType const&)
+    >
+    class ConcatenatingIterator
+    {
+    public:
 
-namespace CxxReflect { namespace Detail {
+        typedef std::forward_iterator_tag                                 iterator_category;
+        typedef typename std::iterator_traits<TInnerIterator>::value_type value_type;
+        typedef typename std::iterator_traits<TInnerIterator>::reference  reference;
+        typedef typename std::iterator_traits<TInnerIterator>::pointer    pointer;
+        typedef DifferenceType                                            difference_type;
+
+        ConcatenatingIterator()
+        {
+        }
+
+        ConcatenatingIterator(TOuterIterator const outerIt, TOuterIterator const outerEnd)
+            : _outerIt(outerIt), _outerEnd(outerEnd)
+        {
+            ComputeInnerIterators();
+
+            // If the inner range of the initial element of the outer range is empty, we advance,
+            // which will advance either until a nonempty inner range is found or until the end of
+            // the outer range is reached, whichever comes first:
+            if (_innerIt.Get() == _innerEnd.Get())
+                Advance();
+        }
+
+        ConcatenatingIterator(TOuterIterator const outerEnd)
+            : _outerIt(outerEnd), _outerEnd(outerEnd)
+        {
+            ComputeInnerIterators();
+        }
+
+        reference operator*() const
+        {
+            AssertDereferenceable();
+            return _innerIt.Get().operator*();
+        }
+
+        pointer operator->() const
+        {
+            AssertDereferenceable();
+            return _innerIt.Get().operator->();
+        }
+
+        ConcatenatingIterator& operator++()
+        {
+            AssertDereferenceable();
+            Advance();
+            return *this;
+        }
+
+        ConcatenatingIterator operator++(int)
+        {
+            AssertDereferenceable();
+            auto const it(*this);
+            ++*this;
+            return it;
+        }
+
+        friend bool operator==(ConcatenatingIterator const& lhs, ConcatenatingIterator const& rhs)
+        {
+            return (lhs._outerIt.Get() == rhs._outerIt.Get() && lhs._innerIt.Get() == rhs._innerIt.Get())
+                || (!lhs.IsDereferenceable() && !rhs.IsDereferenceable());
+        }
+
+        CXXREFLECT_GENERATE_EQUALITY_OPERATORS(ConcatenatingIterator)
+
+    private:
+
+        void Advance()
+        {
+            if (_innerIt.Get() != _innerEnd.Get())
+            {
+                ++_innerIt.Get();
+                return;
+            }
+
+            if (_outerIt.Get() != _outerEnd.Get())
+            {
+                do
+                {
+                    ++_outerIt.Get();
+                    ComputeInnerIterators();
+                }
+                while (_outerIt.Get() != _outerEnd.Get() && _innerIt.Get() == _innerEnd.Get());
+
+                return;
+            }
+
+            AssertFail(L"Attempted to advance iterator past the end of the sequence");
+        }
+
+        void ComputeInnerIterators()
+        {
+            if (_outerIt.Get() == _outerEnd.Get())
+            {
+                _innerIt.Get()  = TInnerIterator();
+                _innerEnd.Get() = TInnerIterator();
+            }
+            else
+            {
+                _innerIt.Get()  = FBeginInner(*_outerIt.Get());
+                _innerEnd.Get() = FEndInner  (*_outerIt.Get());
+            }
+        }
+
+        bool IsDereferenceable() const
+        {
+             return _outerIt.Get() != _outerEnd.Get() && _innerIt.Get() != _innerEnd.Get();
+        }
+
+        void AssertDereferenceable() const
+        {
+            Assert([&]{ return IsDereferenceable(); });
+        }
+
+        ValueInitialized<TOuterIterator> _outerIt;
+        ValueInitialized<TOuterIterator> _outerEnd;
+        ValueInitialized<TInnerIterator> _innerIt;
+        ValueInitialized<TInnerIterator> _innerEnd;
+    };
+
+
+
+
 
     template <typename TForIt, typename TFilter>
     class StaticFilterIterator

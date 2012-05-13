@@ -11,54 +11,14 @@
 #include "CxxReflect/Method.hpp"
 #include "CxxReflect/Type.hpp"
 
-namespace CxxReflect { namespace Private {
-
-    // A default implementation of ILoaderConfiguration, used if the user does not provide a loader
-    // configuration when she contructs the Loader.
-    class DefaultLoaderConfiguration : public ILoaderConfiguration
-    {
-    public:
-
-        virtual String TransformNamespace(String const& namespaceName)
-        {
-            return namespaceName;
-        }
-    };
-
-} }
-
-namespace CxxReflect { namespace Detail {
-
-    // Note:  In order to prevent deadlocks, please be sure to mind the lock hierarchy.  There are
-    // two locks that may conflict:  (a) the element contexts lock and (b) the loader lock.  When
-    // we build an element context table, we may need to resolve and load other assemblies, so there
-    // is a well-known a->b dependency.  We must therefore ensure that we do not introduce a b->a
-    // dependency anywhere in the code.  This is fairly straightforward, we just have to be sure not
-    // to materialize any of the contexts during assembly loading.
-    class LoaderSynchronizationContext
-    {
-    public:
-
-        std::unique_lock<std::recursive_mutex> Lock() const
-        {
-            return std::unique_lock<std::recursive_mutex>(_lock);
-        }
-
-    private:
-
-        std::recursive_mutex mutable _lock;
-    };
-
-} }
-
 namespace CxxReflect {
 
-    DirectoryBasedAssemblyLocator::DirectoryBasedAssemblyLocator(DirectorySet const& directories)
+    DirectoryBasedModuleLocator::DirectoryBasedModuleLocator(DirectorySet const& directories)
         : _directories(std::move(directories))
     {
     }
 
-    AssemblyLocation DirectoryBasedAssemblyLocator::LocateAssembly(AssemblyName const& name) const
+    ModuleLocation DirectoryBasedModuleLocator::LocateAssembly(AssemblyName const& name) const
     {
         using std::begin;
         using std::end;
@@ -68,320 +28,106 @@ namespace CxxReflect {
         {
             for (auto ext_it(begin(extensions)); ext_it != end(extensions); ++ext_it)
             {
-                std::wstring path(*dir_it + L"/" + name.GetName() + *ext_it);
+                std::wstring path(*dir_it + L"\\" + name.GetName() + *ext_it);
                 if (Externals::FileExists(path.c_str()))
                 {
-                    return AssemblyLocation(path);
+                    return ModuleLocation(path);
                 }
             }
         }
 
-        return AssemblyLocation();
+        return ModuleLocation();
     }
 
-    AssemblyLocation DirectoryBasedAssemblyLocator::LocateAssembly(AssemblyName const& name, String const&) const
+    ModuleLocation DirectoryBasedModuleLocator::LocateAssembly(AssemblyName const& name, String const&) const
     {
         // The directory-based resolver does not utilize namespace-based resolution, so we can
         // defer directly to the assembly-based resolution function.
         return LocateAssembly(name);
     }
 
-    #pragma warning(push)
-    #pragma warning(disable: 4355) // Disables "don't use 'this' in initializer list" warning; I know what I'm doing.
-    Loader::Loader(std::auto_ptr<IAssemblyLocator>     assemblyLocator,
-                   std::auto_ptr<ILoaderConfiguration> loaderConfiguration)
-        : _assemblyLocator    (assemblyLocator.release()),
-          _loaderConfiguration(loaderConfiguration.release()),
-          _contextStorage     (Detail::CreateElementContextTableStorage()),
-          _events             (this, _contextStorage.get()),
-          _fields             (this, _contextStorage.get()),
-          _interfaces         (this, _contextStorage.get()),
-          _methods            (this, _contextStorage.get()),
-          _properties         (this, _contextStorage.get()),
-          _sync               (new Detail::LoaderSynchronizationContext())
+    ModuleLocation DirectoryBasedModuleLocator::LocateModule(AssemblyName const& requestingAssembly,
+                                                             String       const& moduleName) const
     {
-        Detail::AssertNotNull(_assemblyLocator.get());
-        if (_loaderConfiguration == nullptr)
-            _loaderConfiguration.reset(new Private::DefaultLoaderConfiguration());
+        String const& requesting(requestingAssembly.GetPath());
+        auto const rIt(std::find(requesting.rbegin(), requesting.rend(), L'\\'));
+        if (rIt == requesting.rend())
+            return ModuleLocation();
+
+        String path(requesting.begin(), rIt.base());
+        path += moduleName;
+        return ModuleLocation(path);
     }
 
-    Loader::Loader(std::unique_ptr<IAssemblyLocator>     assemblyLocator,
-                   std::unique_ptr<ILoaderConfiguration> loaderConfiguration)
-        : _assemblyLocator    (std::move(assemblyLocator)),
-          _loaderConfiguration(std::move(loaderConfiguration)),
-          _contextStorage     (Detail::CreateElementContextTableStorage()),
-          _events             (this, _contextStorage.get()),
-          _fields             (this, _contextStorage.get()),
-          _interfaces         (this, _contextStorage.get()),
-          _methods            (this, _contextStorage.get()),
-          _properties         (this, _contextStorage.get()),
-          _sync               (new Detail::LoaderSynchronizationContext())
-    {
-        Detail::AssertNotNull(_assemblyLocator.get());
-        if (_loaderConfiguration == nullptr)
-            _loaderConfiguration.reset(new Private::DefaultLoaderConfiguration());
-    }
-    #pragma warning(pop)
 
-    Loader::~Loader()
+
+
+
+
+    Loader::Loader(std::auto_ptr<IModuleLocator> locator, std::auto_ptr<ILoaderConfiguration> configuration)
     {
-        // For completeness
+        UniqueModuleLocator uniqueLocator(locator.release());
+        UniqueLoaderConfiguration uniqueConfiguration(configuration.release());
+
+        _context.reset(new Detail::LoaderContext(std::move(uniqueLocator), std::move(uniqueConfiguration)));
     }
 
-    IAssemblyLocator const& Loader::GetAssemblyLocator(InternalKey) const
+    Loader::Loader(UniqueModuleLocator locator, UniqueLoaderConfiguration configuration)
+        : _context(new Detail::LoaderContext(std::move(locator), std::move(configuration)))
     {
-        return *_assemblyLocator.get();
     }
 
-    Detail::AssemblyContext const& Loader::GetContextForDatabase(Metadata::Database const& database, InternalKey) const
+    Loader::Loader(Loader&& other)
+        : _context(std::move(other._context))
     {
-        auto const lock(_sync->Lock());
-
-        typedef std::pair<String const, Detail::AssemblyContext> ValueType;
-        auto const it(std::find_if(begin(_contexts), end(_contexts), [&](ValueType const& a)
-        {
-            return a.second.GetDatabase() == database;
-        }));
-
-        Detail::Assert([&]{ return it != _contexts.end(); }, L"The database is not owned by this loader");
-
-        return it->second;
+        AssertInitialized();
     }
 
-    Metadata::FullReference Loader::ResolveType(Metadata::FullReference const& type) const
+    Loader& Loader::operator=(Loader&& other)
     {
-        using namespace CxxReflect::Metadata;
-
-        if (!type.IsInitialized() || !type.IsRowReference())
-            throw LogicError(L"The type must be a RowReference and must be initialized");
-
-        // A TypeDef or TypeSpec is already resolved:
-        if (type.AsRowReference().GetTable() == TableId::TypeDef ||
-            type.AsRowReference().GetTable() == TableId::TypeSpec)
-            return type;
-
-        Detail::Assert([&]{ return type.AsRowReference().GetTable() == TableId::TypeRef; });
-
-        // Ok, we have a TypeRef;
-        Database const& referenceDatabase(type.GetDatabase());
-        SizeType const typeRefIndex(type.AsRowReference().GetIndex());
-        TypeRefRow const typeRef(referenceDatabase.GetRow<TableId::TypeRef>(typeRefIndex));
-
-        RowReference const resolutionScope(typeRef.GetResolutionScope());
-
-        // If the resolution scope is null, we look in the ExportedType table for this type.
-        if (!resolutionScope.IsInitialized())
-        {
-            throw LogicError(L"Not yet implemented");
-        }
-
-        switch (resolutionScope.GetTable())
-        {
-        case TableId::Module:
-        {
-            // A Module resolution scope means the target type is defined in the current module:
-            Assembly const definingAssembly(
-                &GetContextForDatabase(type.GetDatabase(), InternalKey()),
-                InternalKey());
-
-            Type const resolvedType(definingAssembly.GetType(typeRef.GetNamespace(), typeRef.GetName()));
-            if (!resolvedType.IsInitialized())
-                throw RuntimeError(L"Failed to resolve type in module");
-
-            return Metadata::FullReference(
-                &definingAssembly.GetContext(InternalKey()).GetDatabase(),
-                RowReference::FromToken(resolvedType.GetMetadataToken()));
-        }
-        case TableId::ModuleRef:
-        {
-            throw LogicError(L"Not yet implemented");
-        }
-        case TableId::AssemblyRef:
-        {
-            AssemblyName const definingAssemblyName(
-                Assembly(&GetContextForDatabase(referenceDatabase, InternalKey()), InternalKey()),
-                resolutionScope,
-                InternalKey());
-
-            String const namespaceName(_loaderConfiguration->TransformNamespace(typeRef.GetNamespace().c_str()));
-
-            // TODO Add a LocateAssembly overload that takes a namespace and simple type name.
-            AssemblyLocation const& location(_assemblyLocator->LocateAssembly(
-                definingAssemblyName,
-                String(namespaceName) + L"." + typeRef.GetName().c_str()));
-
-            Assembly const definingAssembly(LoadAssembly(location));
-            if (!definingAssembly.IsInitialized())
-                throw RuntimeError(L"Failed to resolve assembly reference");
-
-            Type const resolvedType(definingAssembly.GetType(namespaceName.c_str(), typeRef.GetName()));
-            if (!resolvedType.IsInitialized())
-                throw RuntimeError(L"Failed to resolve type in assembly");
-
-            return Metadata::FullReference(
-                &definingAssembly.GetContext(InternalKey()).GetDatabase(),
-                RowReference::FromToken(resolvedType.GetMetadataToken()));
-        }
-        case TableId::TypeRef:
-        {
-            throw LogicError(L"Not yet implemented");
-        }
-        default:
-        {
-            // The resolution scope must be from one of the tables in the switch; if we get here,
-            // something is broken in the MetadataDatabase code.
-            Detail::AssertFail(L"This is unreachable");
-            return Metadata::FullReference();
-        }
-        }
+        _context = std::move(other._context);
+        AssertInitialized();
+        return *this;
     }
 
-    Metadata::FullReference Loader::ResolveFundamentalType(Metadata::ElementType const elementType) const
+    bool Loader::IsInitialized() const
     {
-        // TODO Refactor this so that we don't round-trip through the public interface.
-        Type const type(GetFundamentalType(elementType, InternalKey()));
-
-        Detail::Assert([&]{ return type.GetSelfReference(InternalKey()).IsRowReference(); });
-
-        return Metadata::FullReference(
-            &type.GetAssembly().GetContext(InternalKey()).GetDatabase(),
-            type.GetSelfReference(InternalKey()).AsRowReference());
+        return _context != nullptr;
     }
 
-    Metadata::FullReference Loader::ResolveReplacementType(Metadata::FullReference const& type) const
+    void Loader::AssertInitialized() const
     {
-        // TODO IMPLEMENT
-        return type;
+        Detail::Assert([&]{ return _context != nullptr; });
     }
 
-    Assembly Loader::LoadAssembly(AssemblyLocation const& location) const
+    IModuleLocator const& Loader::GetLocator() const
     {
-        String const canonicalUri(location.IsInFile()
-            ? Externals::ComputeCanonicalUri(location.GetFilePath().c_str())
-            : L"Memory://" + Detail::ToString(location.GetMemoryRange().Begin()));
+        AssertInitialized();
+        return _context->GetLocator();
+    }
 
-        auto const lock(_sync->Lock());
+    Detail::LoaderContext const& Loader::GetContext(InternalKey) const
+    {
+        AssertInitialized();
+        return *_context;
+    }
 
-        auto it(_contexts.find(canonicalUri));
-        if (it == end(_contexts))
-        {
-            if (location.GetKind() == AssemblyLocation::Kind::File)
-            {
-                it = _contexts.insert(std::make_pair(
-                    canonicalUri,
-                    Detail::AssemblyContext(
-                        this,
-                        canonicalUri,
-                        Metadata::Database::CreateFromFile(location.GetFilePath().c_str())))).first;
-            }
-            else if (location.GetKind() == AssemblyLocation::Kind::Memory)
-            {
-                it = _contexts.insert(std::make_pair(
-                    canonicalUri,
-                    Detail::AssemblyContext(
-                        this,
-                        canonicalUri,
-                        Metadata::Database(
-                            Detail::FileRange(
-                                location.GetMemoryRange().Begin(),
-                                location.GetMemoryRange().End(),
-                                nullptr))))).first;
-            }
-            else
-            {
-                throw LogicError(L"Attempted to load assembly from unknown location");
-            }
-        }
+    Assembly Loader::LoadAssembly(String const& pathOrUri) const
+    {
+        AssertInitialized();
+        return LoadAssembly(ModuleLocation(pathOrUri));
+    }
 
-        return Assembly(&it->second, InternalKey());
+    Assembly Loader::LoadAssembly(ModuleLocation const& location) const
+    {
+        AssertInitialized();
+        return Assembly(&_context->GetOrLoadAssembly(location), InternalKey());
     }
 
     Assembly Loader::LoadAssembly(AssemblyName const& name) const
     {
-        return LoadAssembly(_assemblyLocator->LocateAssembly(name));
-    }
-
-    Type Loader::GetFundamentalType(Metadata::ElementType const elementType, InternalKey) const
-    {
-        auto const lock(_sync->Lock());
-
-        Detail::Assert([&]{ return elementType < Metadata::ElementType::ConcreteElementTypeMax; });
-
-        if (_fundamentalTypes[Detail::AsInteger(elementType)].IsInitialized())
-            return _fundamentalTypes[Detail::AsInteger(elementType)].Realize();
-
-        StringReference primitiveTypeName;
-        switch (elementType)
-        {
-        case Metadata::ElementType::Boolean:    primitiveTypeName = L"Boolean";        break;
-        case Metadata::ElementType::Char:       primitiveTypeName = L"Char";           break;
-        case Metadata::ElementType::I1:         primitiveTypeName = L"SByte";          break;
-        case Metadata::ElementType::U1:         primitiveTypeName = L"Byte";           break;
-        case Metadata::ElementType::I2:         primitiveTypeName = L"Int16";          break;
-        case Metadata::ElementType::U2:         primitiveTypeName = L"UInt16";         break;
-        case Metadata::ElementType::I4:         primitiveTypeName = L"Int32";          break;
-        case Metadata::ElementType::U4:         primitiveTypeName = L"UInt32";         break;
-        case Metadata::ElementType::I8:         primitiveTypeName = L"Int64";          break;
-        case Metadata::ElementType::U8:         primitiveTypeName = L"UInt64";         break;
-        case Metadata::ElementType::R4:         primitiveTypeName = L"Single";         break;
-        case Metadata::ElementType::R8:         primitiveTypeName = L"Double";         break;
-        case Metadata::ElementType::I:          primitiveTypeName = L"IntPtr";         break;
-        case Metadata::ElementType::U:          primitiveTypeName = L"UIntPtr";        break;
-        case Metadata::ElementType::Object:     primitiveTypeName = L"Object";         break;
-        case Metadata::ElementType::String:     primitiveTypeName = L"String";         break;
-        case Metadata::ElementType::Array:      primitiveTypeName = L"Array";          break;
-        case Metadata::ElementType::SzArray:    primitiveTypeName = L"Array";          break;
-        case Metadata::ElementType::ValueType:  primitiveTypeName = L"ValueType";      break;
-        case Metadata::ElementType::Void:       primitiveTypeName = L"Void";           break;
-        case Metadata::ElementType::TypedByRef: primitiveTypeName = L"TypedReference"; break;
-        default:
-            Detail::AssertFail(L"Unknown primitive type");
-            break;
-        }
-
-        Detail::Assert([&]{ return !_contexts.empty(); });
-
-        Assembly const referenceAssembly(&_contexts.begin()->second, InternalKey());
-        Assembly const systemAssembly(Detail::GetSystemAssembly(referenceAssembly));
-        Detail::Assert([&]{ return systemAssembly.IsInitialized(); });
-
-        String const namespaceName(_loaderConfiguration->TransformNamespace(L"System"));
-
-        Type const primitiveType(systemAssembly.GetType(namespaceName.c_str(), primitiveTypeName));
-        Detail::Assert([&]{ return primitiveType.IsInitialized(); });
-
-        _fundamentalTypes[Detail::AsInteger(elementType)] = Detail::TypeHandle(primitiveType);
-        return primitiveType;
-    }
-
-    String Loader::TransformNamespace(String const& namespaceName, InternalKey) const
-    {
-        return _loaderConfiguration->TransformNamespace(namespaceName);
-    }
-
-    Detail::EventContextTable Loader::GetOrCreateEventTable(Metadata::FullReference const& typeDef, InternalKey) const
-    {
-        return _events.GetOrCreateTable(typeDef);
-    }
-
-    Detail::FieldContextTable Loader::GetOrCreateFieldTable(Metadata::FullReference const& typeDef, InternalKey) const
-    {
-        return _fields.GetOrCreateTable(typeDef);
-    }
-
-    Detail::InterfaceContextTable Loader::GetOrCreateInterfaceTable(Metadata::FullReference const& typeDef, InternalKey) const
-    {
-        return _interfaces.GetOrCreateTable(typeDef);
-    }
-
-    Detail::MethodContextTable Loader::GetOrCreateMethodTable(Metadata::FullReference const& typeDef, InternalKey) const
-    {
-        return _methods.GetOrCreateTable(typeDef);
-    }
-
-    Detail::PropertyContextTable Loader::GetOrCreatePropertyTable(Metadata::FullReference const& typeDef, InternalKey) const
-    {
-        return _properties.GetOrCreateTable(typeDef);
+        AssertInitialized();
+        return Assembly(&_context->GetOrLoadAssembly(name), InternalKey());
     }
 
 }

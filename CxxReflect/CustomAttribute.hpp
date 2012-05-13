@@ -9,6 +9,14 @@
 
 namespace CxxReflect {
 
+    /// \ingroup cxxreflect_public_interface
+    ///
+    /// @{
+
+
+
+
+
     class CustomAttribute
     {
     public:
@@ -50,10 +58,10 @@ namespace CxxReflect {
 
     public: // Internal Members
 
-        CustomAttribute(Assembly const& assembly, Metadata::RowReference const& customAttribute, InternalKey);
+        CustomAttribute(Module const& module, Metadata::RowReference const& customAttribute, InternalKey);
 
-        static CustomAttributeIterator BeginFor(Assembly const& assembly, Metadata::RowReference const& parent, InternalKey);
-        static CustomAttributeIterator EndFor  (Assembly const& assembly, Metadata::RowReference const& parent, InternalKey);
+        static CustomAttributeIterator BeginFor(Module const& module, Metadata::RowReference const& parent, InternalKey);
+        static CustomAttributeIterator EndFor  (Module const& module, Metadata::RowReference const& parent, InternalKey);
 
     private:
 
@@ -64,6 +72,8 @@ namespace CxxReflect {
         Metadata::RowReference  _attribute;
         Detail::MethodHandle    _constructor;
     };
+
+    /// @}
 
 }
 

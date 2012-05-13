@@ -5,11 +5,11 @@
 
 #include "CxxReflect/PrecompiledHeaders.hpp"
 
-#include "CxxReflect/Assembly.hpp"
 #include "CxxReflect/CoreComponents.hpp"
 #include "CxxReflect/CustomAttribute.hpp"
 #include "CxxReflect/Loader.hpp"
 #include "CxxReflect/Method.hpp"
+#include "CxxReflect/Module.hpp"
 #include "CxxReflect/Parameter.hpp"
 #include "CxxReflect/Type.hpp"
 
@@ -52,12 +52,12 @@ namespace CxxReflect {
     Type Method::GetDeclaringType() const
     {
         AssertInitialized();
-        Loader                  const& loader  (_reflectedType.Realize().GetAssembly().GetContext(InternalKey()).GetLoader());
+        Detail::LoaderContext   const& loader  (_reflectedType.Realize().GetModule().GetContext(InternalKey()).GetAssembly().GetLoader());
         Metadata::Database      const& database(_context.Get()->GetOwningType().GetDatabase());
-        Detail::AssemblyContext const& context (loader.GetContextForDatabase(database, InternalKey()));
-        Assembly                const  assembly(&context, InternalKey());
+        Detail::ModuleContext   const& context (loader.GetContextForDatabase(database));
+        Module                  const  module(&context, InternalKey());
 
-        return Type(assembly, _context.Get()->GetOwningType().AsRowReference(), InternalKey());
+        return Type(module, _context.Get()->GetOwningType().AsRowReference(), InternalKey());
     }
 
     Type Method::GetReflectedType() const
@@ -90,7 +90,7 @@ namespace CxxReflect {
     CallingConvention Method::GetCallingConvention() const
     {
         Metadata::SignatureAttribute const convention(_context.Get()
-            ->GetElementSignature(GetReflectedType().GetAssembly().GetContext(InternalKey()).GetLoader())
+            ->GetElementSignature(GetReflectedType().GetModule().GetContext(InternalKey()).GetAssembly().GetLoader())
             .GetCallingConvention());
         return static_cast<CallingConvention>(static_cast<unsigned>(convention));
     }
@@ -196,7 +196,7 @@ namespace CxxReflect {
 
         // TODO Is this usage of AsRowReference() safe?
         return CustomAttribute::BeginFor(
-            _context.Get()->Resolve(_reflectedType.Realize()).GetDeclaringType().GetAssembly(),
+            _context.Get()->Resolve(_reflectedType.Realize()).GetDeclaringType().GetModule(),
             _context.Get()->GetElement().AsRowReference(),
             InternalKey());
     }
@@ -207,7 +207,7 @@ namespace CxxReflect {
 
         // TODO Is this usage of AsRowReference() safe?
         return CustomAttribute::EndFor(
-            _context.Get()->Resolve(_reflectedType.Realize()).GetDeclaringType().GetAssembly(),
+            _context.Get()->Resolve(_reflectedType.Realize()).GetDeclaringType().GetModule(),
             _context.Get()->GetElement().AsRowReference(),
             InternalKey());
     }
@@ -237,8 +237,9 @@ namespace CxxReflect {
 
         Metadata::ITypeResolver const& typeResolver(_reflectedType
             .Realize()
-            .GetAssembly()
+            .GetModule()
             .GetContext(InternalKey())
+            .GetAssembly()
             .GetLoader());
 
         return ParameterIterator(*this, Detail::ParameterData(
@@ -253,8 +254,9 @@ namespace CxxReflect {
 
         Metadata::ITypeResolver const& typeResolver(_reflectedType
             .Realize()
-            .GetAssembly()
+            .GetModule()
             .GetContext(InternalKey())
+            .GetAssembly()
             .GetLoader());
 
         return ParameterIterator(*this, Detail::ParameterData(
@@ -269,8 +271,9 @@ namespace CxxReflect {
 
         Metadata::ITypeResolver const& typeResolver(_reflectedType
             .Realize()
-            .GetAssembly()
+            .GetModule()
             .GetContext(InternalKey())
+            .GetAssembly()
             .GetLoader());
 
         return _context.Get()->GetElementSignature(typeResolver).GetParameterCount();

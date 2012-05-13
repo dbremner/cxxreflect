@@ -13,6 +13,20 @@
 
 namespace CxxReflect {
 
+    Assembly::InnerTypeIterator Assembly::BeginModuleTypes(Module const& module)
+    {
+        Detail::Assert([&]{ return module.IsInitialized(); });
+
+        return module.BeginTypes();
+    }
+
+    Assembly::InnerTypeIterator Assembly::EndModuleTypes(Module const& module)
+    {
+        Detail::Assert([&]{ return module.IsInitialized(); });
+
+        return module.EndTypes();
+    }
+
     Assembly::Assembly()
     {
     }
@@ -20,7 +34,7 @@ namespace CxxReflect {
     Assembly::Assembly(Detail::AssemblyContext const* const context, InternalKey)
         : _context(context)
     {
-        AssertInitialized();
+        Detail::AssertNotNull(context);
     }
 
     AssemblyName const& Assembly::GetName() const
@@ -29,15 +43,20 @@ namespace CxxReflect {
         return _context.Get()->GetAssemblyName();
     }
 
-    String const& Assembly::GetLocation() const
+    String Assembly::GetLocation() const
     {
         AssertInitialized();
-        return _context.Get()->GetLocation();
+
+        return _context.Get()->GetManifestModule().GetLocation().ToString();
     }
 
     SizeType Assembly::GetReferencedAssemblyCount() const
     {
-        return _context.Get()->GetDatabase().GetTables().GetTable(Metadata::TableId::AssemblyRef).GetRowCount();
+        return _context.Get()->GetManifestModule()
+            .GetDatabase()
+            .GetTables()
+            .GetTable(Metadata::TableId::AssemblyRef)
+            .GetRowCount();
     }
 
     Assembly::AssemblyNameIterator Assembly::BeginReferencedAssemblyNames() const
@@ -49,25 +68,37 @@ namespace CxxReflect {
     {
         return AssemblyNameIterator(*this, Metadata::RowReference(
             Metadata::TableId::AssemblyRef,
-            _context.Get()->GetDatabase().GetTables().GetTable(Metadata::TableId::AssemblyRef).GetRowCount()));
+            _context.Get()->GetManifestModule()
+                .GetDatabase()
+                .GetTables()
+                .GetTable(Metadata::TableId::AssemblyRef)
+                .GetRowCount()));
     }
 
     Assembly::FileIterator Assembly::BeginFiles() const
     {
         AssertInitialized();
+
         return FileIterator(*this, Metadata::RowReference(Metadata::TableId::File, 0));
     }
 
     Assembly::FileIterator Assembly::EndFiles() const
     {
         AssertInitialized();
+
         return FileIterator(*this, Metadata::RowReference(
             Metadata::TableId::File,
-            _context.Get()->GetDatabase().GetTables().GetTable(Metadata::TableId::File).GetRowCount()));
+            _context.Get()->GetManifestModule()
+                .GetDatabase()
+                .GetTables()
+                .GetTable(Metadata::TableId::File)
+                .GetRowCount()));
     }
 
     File Assembly::GetFile(StringReference const name) const
     {
+        AssertInitialized();
+
         FileIterator const it(std::find_if(BeginFiles(), EndFiles(), [&](File const& file)
         {
             return file.GetName() == name;
@@ -78,49 +109,47 @@ namespace CxxReflect {
 
     Assembly::ModuleIterator Assembly::BeginModules() const
     {
-        Detail::AssertFail(L"Not yet implemented");
-        return ModuleIterator();
+        AssertInitialized();
+
+        return ModuleIterator(*this, 0);
     }
 
     Assembly::ModuleIterator Assembly::EndModules() const
     {
-        Detail::AssertFail(L"Not yet implemented");
-        return ModuleIterator();
+        AssertInitialized();
+
+        return ModuleIterator(*this, _context.Get()->GetModules().size());
     }
 
-    Module Assembly::GetModule(StringReference const /*name*/) const
+    Module Assembly::GetModule(StringReference const name) const
     {
-        Detail::AssertFail(L"Not yet implemented");
-        return Module();
+        AssertInitialized();
+
+        ModuleIterator const it(std::find_if(BeginModules(), EndModules(), [&](Module const& module)
+        {
+            return module.GetName() == name;
+        }));
+
+        return it != EndModules() ? *it : Module();
     }
 
     Assembly::TypeIterator Assembly::BeginTypes() const
     {
         AssertInitialized();
-        // We intentionally skip the type at index 0; this isn't a real type, it's the internal
-        // <module> "type" containing module-scope thingies.
-        return TypeIterator(*this, Metadata::RowReference(Metadata::TableId::TypeDef, 1));
+        return TypeIterator(BeginModules(), EndModules());
     }
 
     Assembly::TypeIterator Assembly::EndTypes() const
     {
         AssertInitialized();
-        return TypeIterator(*this, Metadata::RowReference(
-            Metadata::TableId::TypeDef,
-            _context.Get()->GetDatabase().GetTables().GetTable(Metadata::TableId::TypeDef).GetRowCount()));
+        return TypeIterator(EndModules());
     }
 
-    Assembly::TypeSequence Assembly::GetTypes() const
-    {
-        AssertInitialized();
-        return TypeSequence(BeginTypes(), EndTypes());
-    }
-
-    Type Assembly::GetType(StringReference const namespaceQualifiedTypeName) const
+    Type Assembly::GetType(StringReference const fullTypeName) const
     {
         auto const it(std::find_if(BeginTypes(), EndTypes(), [&](Type const& t)
         {
-            return StringReference(t.GetFullName().c_str()) == namespaceQualifiedTypeName;
+            return StringReference(t.GetFullName().c_str()) == fullTypeName;
         }));
 
         return it != EndTypes() ? *it : Type();
@@ -156,7 +185,7 @@ namespace CxxReflect {
     {
         AssertInitialized();
 
-        Metadata::Database const& database(_context.Get()->GetDatabase());
+        Metadata::Database const& database(_context.Get()->GetManifestModule().GetDatabase());
 
         if (database.GetTables().GetTable(Metadata::TableId::Assembly).GetRowCount() == 0)
             throw RuntimeError(L"Metadata for assembly is invalid:  no Assembly record");

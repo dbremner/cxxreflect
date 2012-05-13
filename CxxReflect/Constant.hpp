@@ -9,6 +9,10 @@
 
 namespace CxxReflect {
 
+    /// \ingroup cxxreflect_public_interface
+    ///
+    /// @{
+
     /// A constant value from metadata, usually associated with a field, property, or parameter
     class Constant
     {
@@ -93,6 +97,8 @@ namespace CxxReflect {
         /// A reference to the row for this constant in the **Constant** table
         Metadata::FullReference _constant;
     };
+
+    /// @}
 
 }
 

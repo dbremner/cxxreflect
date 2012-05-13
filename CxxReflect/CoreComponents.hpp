@@ -8,7 +8,6 @@
 #include "CxxReflect/Guid.hpp"
 #include "CxxReflect/ElementContexts.hpp"
 
-
 namespace CxxReflect {
 
     class InternalKey;
@@ -20,7 +19,6 @@ namespace CxxReflect {
     class Event;
     class Field;
     class File;
-    class IAssemblyLocator;
     class Loader;
     class Method;
     class Module;
@@ -30,57 +28,479 @@ namespace CxxReflect {
     class Utility;
     class Version;
 
+
+
+
+
+    /// Represents the location of a module, either on disk (path) or in memory (byte range)
+    class ModuleLocation
+    {
+    public:
+
+        enum class Kind
+        {
+            Uninitialized,
+            File,
+            Memory
+        };
+
+        ModuleLocation();
+        explicit ModuleLocation(ConstByteRange const& memoryRange);
+        explicit ModuleLocation(String const& filePath);
+
+        Kind GetKind()       const;
+        bool IsFile()        const;
+        bool IsMemory()      const;
+        bool IsInitialized() const;
+
+        ConstByteRange const& GetMemoryRange() const;
+        String         const& GetFilePath()    const;
+
+        String ToString() const;
+
+        friend bool operator==(ModuleLocation const&, ModuleLocation const&);
+        friend bool operator< (ModuleLocation const&, ModuleLocation const&);
+
+        CXXREFLECT_GENERATE_COMPARISON_OPERATORS(ModuleLocation)
+
+    private:
+
+        ConstByteRange                 _memoryRange;
+        String                         _filePath;
+        Detail::ValueInitialized<Kind> _kind;
+    };
+
+
+
+
+
+    /// Interface for module and assembly locating
+    ///
+    /// When a loader needs to load a module or assembly by name it queries this interface to find
+    /// the location of the module or assembly.  An implementer must locate the module or assembly
+    /// on disk or in memory and return its location.  If the module or assembly cannot be found via
+    /// the given information, a default-initialized `ModuleLocation` should be returned to indicate
+    /// failure.
+    ///
+    /// An implementer of this interface should throw no exceptions from any member function.
+    class IModuleLocator
+    {
+    public:
+        
+        /// Locates the manifest module of an assembly
+        ///
+        /// This is called whenever an assembly needs to be located by name alone.  If the loader 
+        /// has a reference type in the target assembly, it will call the overload that also takes
+        /// a full type name.
+        ///
+        /// \nothrows
+        virtual ModuleLocation LocateAssembly(AssemblyName const& assemblyName) const = 0;
+
+        /// Locates the manifest module of an assembly
+        ///
+        /// This is called whenever an assembly needs to be located when the loader has both the
+        /// name of the assembly and the full name of a type in the defining assembly.  A locator
+        /// implementation may use the name of the type to resolve the location of the module.
+        ///
+        /// This overload is provided primarily to support the Windows Runtime type system, which
+        /// does not really have assemblies, just metadata files that define types.
+        ///
+        /// \nothrows
+        virtual ModuleLocation LocateAssembly(AssemblyName const& assemblyName,
+                                              String       const& fullTypeName) const = 0;
+
+        /// Locates a non-manifest module of an assembly
+        ///
+        /// When a loader needs to enumerate the modules of a multi-module assembly, it will call
+        /// this member function to resolve all of the modules other than the module bearing the
+        /// assembly manifest.
+        ///
+        /// \nothrows
+        virtual ModuleLocation LocateModule(AssemblyName const& requestingAssembly,
+                                            String       const& moduleName) const = 0;
+
+        virtual ~IModuleLocator();
+    };
+
+    typedef std::unique_ptr<IModuleLocator> UniqueModuleLocator;
+
+
+
+
+
+    /// Interface for loader configuration
+    ///
+    /// This interface allows configuration of the loader.  It allows its behavior to be changed for
+    /// different type systems.
+    class ILoaderConfiguration
+    {
+    public:
+
+        /// Gets the namespace in which the system types are defined
+        ///
+        /// This should be the top-level system namespace.  E.g., for the CLI, this is "System".
+        /// The returned string must be nonempty and must be a valid namespace name.  This is used
+        /// by the loader when it resolves fundamental types (like Int32 or Object) and system
+        /// infrastructure types (like Array or Enum).
+        ///
+        /// \nothrows
+        virtual StringReference GetSystemNamespace() const = 0;
+
+        virtual ~ILoaderConfiguration();
+    };
+
+    typedef std::unique_ptr<ILoaderConfiguration> UniqueLoaderConfiguration;
+
 }
 
 namespace CxxReflect { namespace Detail {
 
-    // Represents all of the permanent information about an Assembly.  This is the implementation of
-    // an 'Assembly' facade and includes parts of the implementation of other facades (e.g., it
-    // stores the method tables for each type in the assembly).  This way, the actual facade types
-    // are uber-fast to copy and we can treat them as "references" into the metadata database.
+    /// \defgroup cxxreflect_detail_corecontexts Implementation Details :: Core Contexts
+    ///
+    /// These types make up the core of the CxxReflect metadata system.  They own all of the
+    /// persistent state and most other types in the library are simply iterator-like references
+    /// into an instance of one of these types.
+    ///
+    ///                         +------------+      +-----------------+
+    ///                     +-->| Assembly 0 |----->| Manifest Module |
+    ///                     |   +------------+      +-----------------+
+    ///      +----------+   |
+    ///      | Loader   |---|
+    ///      +----------+   |
+    ///                     |   +------------+      +-----------------+
+    ///                     +-->| Assembly 1 |--+-->| Manifest Module |
+    ///                         +------------+  |   +-----------------+
+    ///                                         |
+    ///                                         |   +-----------------+
+    ///                                         +-->| Other Module    |
+    ///                                             +-----------------+
+    ///
+    /// * **LoaderContext**:  There is exactly one loader context for a type universe.  It owns all
+    ///   of the assemblies that are loaded through it, and their lifetimes are tied to it.
+    ///
+    /// * **AssemblyContext**:  An assembly context is created for each assembly that is loaded
+    ///   through a loader.  The assembly context is simply a collection of module contexts.  When
+    ///   an assembly is loaded, a single module context is created for its manifest module, which
+    ///   is the module that contains the assembly manifest (and a database with an assembly row).
+    ///   The assembly context will load any other modules for the assembly when they are required.
+    ///
+    /// * **ModuleContext**:  A module context represents a single module.  It creates and owns the
+    ///   metadata database for the module.
+    ///
+    /// There is a 1:N mapping of loader context to assembly context, and a 1:N mapping of assembly
+    /// context to module context.  Most assemblies have exactly one module.
+    ///
+    /// @{
+
+    class AssemblyContext;
+    class LoaderContext;
+    class ModuleContext;
+
+
+
+
+
+    /// Internal data structure to represent a loaded module
+    ///
+    /// This type is neither copyable nor movable.
+    class ModuleContext
+    {
+    public:
+
+        /// Constructs a new `ModuleContext`
+        ///
+        /// \param    assembly A pointer to the `AssemblyContext` that owns this module
+        /// \param    location The location from which this module is to be loaded
+        /// \throws   RuntimeError If the module at the specified location cannot be loaded
+        ModuleContext(AssemblyContext const* assembly, ModuleLocation const& location);
+
+        /// Gets the assembly context that owns this module
+        ///
+        /// \nothrows
+        AssemblyContext const& GetAssembly() const;
+
+        /// Gets the location from which this module was loaded
+        ///
+        /// \nothrows
+        ModuleLocation const& GetLocation() const;
+
+        /// Gets the metadata database for this module
+        ///
+        /// \nothrows
+        Metadata::Database const& GetDatabase() const;
+
+        /// Find the named type definition in this module
+        ///
+        /// If no type by the provided name is defined in this module, this returns an empty row
+        /// reference.  This function does not handle nested types.
+        ///
+        /// \nothrows
+        Metadata::RowReference GetTypeDefByName(StringReference namespaceName, StringReference typeName) const;
+
+    private:
+
+        ModuleContext(ModuleContext const&);
+        ModuleContext& operator=(ModuleContext const&);
+
+        /// Loads the module at the provided location and returns the metadata database for it
+        ///
+        /// \param  location The location from which this module is to be loaded
+        /// \throws RuntimeError If the module at the specified location cannot be loaded
+        static Metadata::Database CreateDatabase(ModuleLocation const& location);
+
+        ValueInitialized<AssemblyContext const*> _assembly;
+        ModuleLocation                           _location;
+        Metadata::Database                       _database;
+    };
+
+    typedef std::unique_ptr<ModuleContext> UniqueModuleContext;
+
+
+
+
+
+    /// Internal data structure to represent an assembly and its loaded modules
+    ///
+    /// This type is neither copyable nor movable.
     class AssemblyContext
     {
     public:
 
-        AssemblyContext(Loader const* loader, String uri, Metadata::Database&& database);
-        AssemblyContext(AssemblyContext&& other);
+        typedef std::vector<UniqueModuleContext> ModuleContextSequence;
 
-        AssemblyContext& operator=(AssemblyContext&& other);
+        /// Constructs a new `AssemblyContext`
+        ///
+        /// \param    loader   A pointer to the loader that loaded and owns this assembly
+        /// \param    location The location of the manifest module of the assembly
+        /// \nothrows
+        AssemblyContext(LoaderContext const* loader, ModuleLocation const& location);
 
-        void Swap(AssemblyContext& other);
+        /// Gets the loader that owns this assembly
+        ///
+        /// \nothrows
+        LoaderContext const& GetLoader() const;
 
-        Loader             const& GetLoader()       const;
-        Metadata::Database const& GetDatabase()     const;
-        String             const& GetLocation()     const;
-        AssemblyName       const& GetAssemblyName() const;
+        /// Gets the context for the manifest module of this assembly
+        ///
+        /// \nothrows
+        ModuleContext const& GetManifestModule() const;
+        
+        /// Gets the modules of this assembly, including the manifest module
+        ///
+        /// If all of the modules for this assembly have not yet been loaded, this will realize them
+        /// before returning.  If realization of any module fails, this function will not return.
+        ///
+        /// \throws RuntimeError If module resolution fails or if any module cannot be loaded.
+        ModuleContextSequence const& GetModules() const;
 
-        bool IsInitialized() const;
+        /// Gets the name of this assembly
+        ///
+        /// \todo throws
+        AssemblyName const& GetAssemblyName() const;
 
     private:
 
         AssemblyContext(AssemblyContext const&);
         AssemblyContext operator=(AssemblyContext const&);
 
-        void AssertInitialized() const;
-
-        enum RealizationState
+        enum class RealizationState
         {
-            RealizedName = 0x01
+            Name    = 0x01,
+            Modules = 0x02
         };
 
-        void RealizeName() const;
+        void RealizeName()    const;
+        void RealizeModules() const;
 
-        ValueInitialized<Loader const*>            _loader;
-        String                                     _uri;
-        Metadata::Database                         _database;
+        ValueInitialized<LoaderContext const*>         _loader;
+        std::vector<UniqueModuleContext>       mutable _modules;
 
-        FlagSet<RealizationState>          mutable _state;
-        std::unique_ptr<AssemblyName>      mutable _name;
+        FlagSet<RealizationState>              mutable _state;
+        std::unique_ptr<AssemblyName>          mutable _name;
     };
 
+    typedef std::unique_ptr<AssemblyContext> UniqueAssemblyContext;
 
 
 
+
+
+    /// Synchronization object used by the `LoaderContext`
+    ///
+    /// This type is pimpl'ed to avoid including `<mutex>` in the public interface headers.
+    class LoaderContextSynchronizer;
+
+    typedef std::unique_ptr<LoaderContextSynchronizer> UniqueLoaderContextSynchronizer;
+
+
+
+
+
+    /// Internal data structure to represent a loader and its infrastructure functionality
+    ///
+    /// This type is neither copyable nor movable.
+    class LoaderContext : public Metadata::ITypeResolver
+    {
+    public:
+
+        /// Constructs a new loader context, using the provided locator and configuration
+        ///
+        /// \param locator       The `IModuleLocator` implementation to use for locating modules and
+        ///                      assemblies.  The argument may not be null.
+        /// \param configuration The `ILoaderConfiguration` implementation with which the loader is
+        ///                      to be configured.  The argument may be null; if it is null, a
+        ///                      default implementation will be used, which is suitable for use in
+        ///                      many cases.
+        /// \nothrows
+        LoaderContext(UniqueModuleLocator locator, UniqueLoaderConfiguration configuration);
+
+        /// A user-declared destructor is required to clean up the `LoaderContextSynchronizer`
+        ///
+        /// \nothrows
+        ~LoaderContext();
+
+        /// Gets or creates an assembly context for the assembly at the specified location
+        ///
+        /// The loader will first search to see whether it has already loaded the assembly from the
+        /// specified location.  If it has, it will return the assembly context that it already
+        /// loaded.  Otherwise, it will attempt to load the assembly's manifest module and create a
+        /// new assembly context for it.
+        ///
+        /// The provided location must be valid; its validity is only checked internally in debug
+        /// builds.
+        ///
+        /// \todo throws 
+        AssemblyContext const& GetOrLoadAssembly(ModuleLocation const& location) const;
+        AssemblyContext const& GetOrLoadAssembly(AssemblyName const& name) const;
+        
+        // ITypeResolver implementation
+        Metadata::FullReference ResolveType(Metadata::FullReference const& typeReference)   const;
+        Metadata::FullReference ResolveFundamentalType(Metadata::ElementType elementType)   const;
+        Metadata::FullReference ResolveReplacementType(Metadata::FullReference const& type) const;
+
+        /// Gets the `IModuleLocator` implementation instance that is used for module locating
+        ///
+        /// \nothrows
+        IModuleLocator const& GetLocator() const;
+
+        /// Finds the module that owns the provided database
+        ///
+        /// The provided database must be owned by one of the modules loaded by this loader.  You
+        /// cannot mix-and-match databases, loaders, assemblies, and modules.  It won't work and
+        /// you'll be sorry.
+        ///
+        /// \throws RuntimeError If the database is not owned by this loader.
+        ModuleContext const& GetContextForDatabase(Metadata::Database const& database) const;
+
+        /// Registers a module so it can be cached for rapid lookup
+        ///
+        /// Any time a new module context is created that is owned by this loader, it must be
+        /// registered by calling this method.  This registration enables the loader to perform
+        /// rapid reverse lookups during type resolution, where we only have a pointer to the 
+        /// database, not to its module or assembly.
+        ///
+        /// This should only be called by the `ModuleContext` constructor.
+        ///
+        /// \param    module The new module to be registered; must not be null
+        /// \nothrows
+        void RegisterModule(ModuleContext const* module) const;
+
+        /// Gets the system module that has been loaded by this loader
+        ///
+        /// This is the manifest module of the assembly that refers to no other assemblies.  In .NET
+        /// this is mscorlib.  In other type universes, this may be some other assembly.  For this
+        /// function to work, at least one assembly must have been loaded.  If it is not the system
+        /// assembly, this function will realize the loaded assembly's dependencies until it finds 
+        /// the system assembly.  It is therefore recommended that you load the system assembly
+        /// yourself, for optimal performance.
+        ///
+        /// \throws RuntimeError If no assemblies have yet been loaded.
+        ModuleContext const& GetSystemModule() const;
+
+        /// Gets the system namespace associated with this loader
+        ///
+        /// The loader gets this value from the `ILoaderConfiguration` implementationwith which it
+        /// was constructed.  For .NET this is `System`.  In other type universes, this may be some
+        /// other namespace (notably, in Windows Runtime, we use `Platform` to match what the C++
+        /// build system does and to avoid limitations of ilasm).
+        ///
+        /// \nothrows
+        StringReference GetSystemNamespace() const;
+
+
+
+
+        EventContextTable     GetOrCreateEventTable    (Metadata::FullReference const& type) const;
+        FieldContextTable     GetOrCreateFieldTable    (Metadata::FullReference const& type) const;
+        InterfaceContextTable GetOrCreateInterfaceTable(Metadata::FullReference const& type) const;
+        MethodContextTable    GetOrCreateMethodTable   (Metadata::FullReference const& type) const;
+        PropertyContextTable  GetOrCreatePropertyTable (Metadata::FullReference const& type) const;
+
+        static LoaderContext const& From(AssemblyContext const&);
+        static LoaderContext const& From(ModuleContext   const&);
+        static LoaderContext const& From(Assembly        const&);
+        static LoaderContext const& From(Module          const&);
+        static LoaderContext const& From(Type            const&);
+
+    private:
+
+        enum
+        {
+            FundamentalTypeCount = static_cast<SizeType>(Metadata::ElementType::ConcreteElementTypeMax)
+        };
+
+        typedef std::map<String, UniqueAssemblyContext>                   AssemblyMap;
+        typedef AssemblyMap::value_type                                   AssemblyMapEntry;
+        typedef std::map<Metadata::Database const*, ModuleContext const*> ModuleMap;
+        typedef ModuleMap::value_type                                     ModuleMapEntry;
+
+        LoaderContext(LoaderContext const&);
+        LoaderContext& operator=(LoaderContext const&);
+
+        UniqueModuleLocator       _locator;
+        UniqueLoaderConfiguration _configuration;
+
+        /// The set of loaded assemblies, mapped by Absolute URI
+        AssemblyMap mutable _assemblies;
+
+        /// A map of each database to the module that owns it, used for rapid reverse lookup
+        ModuleMap mutable _moduleMap;
+
+        std::array<Metadata::FullReference, FundamentalTypeCount> _fundamentalTypes;
+
+        ValueInitialized<ModuleContext const*> mutable _systemModule;
+
+        ElementContextTableStorageInstance     mutable _contextStorage;
+        EventContextTableCollection            mutable _events;
+        FieldContextTableCollection            mutable _fields;
+        InterfaceContextTableCollection        mutable _interfaces;
+        MethodContextTableCollection           mutable _methods;
+        PropertyContextTableCollection         mutable _properties;
+
+        UniqueLoaderContextSynchronizer        mutable _sync;
+    };
+
+    typedef std::unique_ptr<LoaderContext> UniqueLoaderContext;
+
+
+    /// @}
+
+
+
+
+
+    /// \defgroup cxxreflect_detail_handles Implementation Details :: Interface Handles
+    ///
+    /// These handle types encapsulate all of the information required to instantiate the
+    /// corresponding public interface types, but without being size- or layout-dependent on the 
+    /// public interface types.
+    ///
+    /// This allows us to represent the public interface types without including the actual public
+    /// interface headers.  This is important to avoid recursive dependencies between the headers,
+    /// and effectively allows us to avoid having to include most of the public interface headers
+    /// in other interface headers.
+    ///
+    /// @{
 
     class AssemblyHandle
     {
@@ -111,8 +531,8 @@ namespace CxxReflect { namespace Detail {
     public:
 
         MethodHandle();
-        MethodHandle(AssemblyContext            const* reflectedTypeAssemblyContext,
-                     Metadata::ElementReference const& reflectedTypeReference,
+        MethodHandle(ModuleContext              const* reflectedTypeModule,
+                     Metadata::ElementReference const& reflectedType,
                      MethodContext              const* context);
         MethodHandle(Method const& method);
 
@@ -129,9 +549,34 @@ namespace CxxReflect { namespace Detail {
 
         void AssertInitialized() const;
 
-        ValueInitialized<AssemblyContext const*> _reflectedTypeAssemblyContext;
-        Metadata::ElementReference               _reflectedTypeReference;
-        ValueInitialized<MethodContext const*>   _context;
+        ValueInitialized<ModuleContext const*> _reflectedTypeModule;
+        Metadata::ElementReference             _reflectedType;
+        ValueInitialized<MethodContext const*> _context;
+    };
+
+    class ModuleHandle
+    {
+    public:
+
+        ModuleHandle();
+        ModuleHandle(ModuleContext const* context);
+        ModuleHandle(Module const& module);
+
+        Module Realize() const;
+        ModuleContext const& GetContext() const;
+
+        bool IsInitialized() const;
+
+        friend bool operator==(ModuleHandle const&, ModuleHandle const&);
+        friend bool operator< (ModuleHandle const&, ModuleHandle const&);
+
+        CXXREFLECT_GENERATE_COMPARISON_OPERATORS(ModuleHandle)
+
+    private:
+
+        void AssertInitialized() const;
+
+        ValueInitialized<ModuleContext const*> _context;
     };
 
     class ParameterHandle
@@ -139,8 +584,8 @@ namespace CxxReflect { namespace Detail {
     public:
 
         ParameterHandle();
-        ParameterHandle(AssemblyContext            const* reflectedTypeAssemblyContext,
-                        Metadata::ElementReference const& reflectedTypeReference,
+        ParameterHandle(ModuleContext              const* reflectedTypeModule,
+                        Metadata::ElementReference const& reflectedType,
                         MethodContext              const* context,
                         Metadata::RowReference     const& parameterReference,
                         Metadata::TypeSignature    const& parameterSignature);
@@ -159,8 +604,8 @@ namespace CxxReflect { namespace Detail {
 
         void AssertInitialized() const;
 
-        ValueInitialized<AssemblyContext const*> _reflectedTypeAssemblyContext;
-        Metadata::ElementReference               _reflectedTypeReference;
+        ValueInitialized<ModuleContext const*>   _reflectedTypeModule;
+        Metadata::ElementReference               _reflectedType;
         ValueInitialized<MethodContext const*>   _context;
 
         Metadata::RowReference                   _parameterReference;
@@ -172,8 +617,7 @@ namespace CxxReflect { namespace Detail {
     public:
 
         TypeHandle();
-        TypeHandle(AssemblyContext            const* assemblyContext,
-                   Metadata::ElementReference const& typeReference);
+        TypeHandle(ModuleContext const* module, Metadata::ElementReference const& type);
         TypeHandle(Type const& type);
 
         Type Realize() const;
@@ -189,9 +633,11 @@ namespace CxxReflect { namespace Detail {
 
         void AssertInitialized() const;
 
-        ValueInitialized<AssemblyContext const*> _assemblyContext;
-        Metadata::ElementReference               _typeReference;
+        ValueInitialized<ModuleContext const*> _module;
+        Metadata::ElementReference             _type;
     };
+
+    /// @}
 
 
 
@@ -261,11 +707,45 @@ namespace CxxReflect { namespace Detail {
                                  StringReference const& systemTypeSimpleName,
                                  bool                   includeSelf);
 
-    Assembly GetSystemAssembly(Type const& referenceType);
-    Assembly GetSystemAssembly(Assembly const& referenceAssembly);
 
-    Type GetSystemObjectType(Type const& referenceType);
-    Type GetSystemObjectType(Assembly const& referenceAssembly);
+
+
+
+    class MetadataTokenDefaultGetter
+    {
+    public:
+
+        template <typename TMember>
+        SizeType operator()(TMember const& member) const
+        {
+            return member.GetMetadataToken();
+        }
+    };
+
+
+
+
+
+    template <typename TTokenGetter>
+    class MetadataTokenStrictWeakOrderingImplementation
+    {
+    public:
+
+        MetadataTokenStrictWeakOrderingImplementation(TTokenGetter const& getToken = TTokenGetter())
+            : _getToken(getToken)
+        {
+        }
+
+        template <typename TMember>
+        bool operator()(TMember const& lhs, TMember const& rhs) const
+        {
+            return _getToken(lhs) < _getToken(rhs);
+        }
+
+    private:
+
+        TTokenGetter _getToken;
+    };
 
 } }
 
@@ -284,53 +764,17 @@ namespace CxxReflect {
         }
     };
 
-
-
-
-
-    template <typename TTokenGetter>
-    class MetadataTokenStrictWeakOrderingImpl
-    {
-    public:
-
-        MetadataTokenStrictWeakOrderingImpl(TTokenGetter const& getToken)
-            : _getToken(getToken)
-        {
-        }
-
-        template <typename TMember>
-        bool operator()(TMember const& lhs, TMember const& rhs) const
-        {
-            return _getToken(lhs) < _getToken(rhs);
-        }
-
-    private:
-
-        TTokenGetter _getToken;
-    };
-
-    class MetadataTokenDefaultGetter
-    {
-    public:
-
-        template <typename TMember>
-        SizeType operator()(TMember const& member) const
-        {
-            return member.GetMetadataToken();
-        }
-    };
-
-    MetadataTokenStrictWeakOrderingImpl<MetadataTokenDefaultGetter>
+    Detail::MetadataTokenStrictWeakOrderingImplementation<Detail::MetadataTokenDefaultGetter>
     inline MetadataTokenStrictWeakOrdering()
     {
-        return MetadataTokenStrictWeakOrderingImpl<MetadataTokenDefaultGetter>(MetadataTokenDefaultGetter());
+        return Detail::MetadataTokenStrictWeakOrderingImplementation<Detail::MetadataTokenDefaultGetter>();
     }
 
     template <typename TTokenGetter>
-    MetadataTokenStrictWeakOrderingImpl<TTokenGetter>
+    Detail::MetadataTokenStrictWeakOrderingImplementation<TTokenGetter>
     MetadataTokenStrictWeakOrdering(TTokenGetter const& getToken)
     {
-        return MetadataTokenStrictWeakOrderingImpl<TTokenGetter>(getToken);
+        return Detail::MetadataTokenStrictWeakOrderingImplementation<TTokenGetter>(getToken);
     }
 
 
@@ -339,124 +783,20 @@ namespace CxxReflect {
     <
         Metadata::RowReference,
         CustomAttribute,
-        Assembly
+        Module
     > CustomAttributeIterator;
 
 
 
 
 
-    /// Represents an assembly location, as returned by an IAssemblyLocator implementation.
-    class AssemblyLocation
-    {
-    public:
-
-        enum class Kind
-        {
-            Uninitialized,
-            File,
-            Memory
-        };
-
-        AssemblyLocation();
-        explicit AssemblyLocation(ConstByteRange const& memoryRange);
-        explicit AssemblyLocation(String const& filePath);
-
-        Kind GetKind()    const;
-        bool IsInFile()   const;
-        bool IsInMemory() const;
-
-        ConstByteRange const& GetMemoryRange() const;
-        String         const& GetFilePath()    const;
-
-    private:
-
-        ConstByteRange                 _memoryRange;
-        String                         _filePath;
-        Detail::ValueInitialized<Kind> _kind;
-
-    };
-
-
-
-
-    /// Interface for assembly location.
+    /// Key type for internal member functions
     ///
-    /// An assembly locator is responsible for locating an assembly given an assembly name or a
-    /// reference type.  This interface allows different assembly resolution logic to be plugged
-    /// into a `Loader`.
-    class IAssemblyLocator
-    {
-    public:
-
-        /// Called to locate an assembly by name.
-        ///
-        /// When a `Loader` attempts to read metadata from an assembly it has not yet loaded, it
-        /// calls this member function to locate the assembly file on disk so it can be loaded.  An
-        /// implementer should return an empty string if it cannot find the named assembly.
-        ///
-        /// \param assemblyName The name of the assembly that needs to be loaded.
-        ///
-        /// \returns The resolved path to the named assembly, or an empty string if the assembly
-        /// could not be located by the assembly locator.
-        ///
-        /// \nothrows
-        virtual AssemblyLocation LocateAssembly(AssemblyName const& assemblyName) const = 0;
-        
-        /// Called to locate an assembly by name, with a known reference type.
-        ///
-        /// If the `Loader` knows the name of a type from an assembly that it needs to load, it
-        /// will call this member function instead of the assembly name-only `LocateAssembly()`.
-        /// This allows type resolution by name, which is used e.g. by the Windows Runtime
-        /// integration, which uses metadata files but does not have logical assemblies.
-        ///
-        /// \param assemblyName The name of the assembly that needs to be loaded.
-        /// \param fullTypeName The full name (namespace-qualified name) of a reference type from
-        /// the assembly that needs to be loaded.  If the assembly locator supports type resolution
-        /// by name, it should use this reference type to resolve the assembly.
-        ///
-        /// \returns The resolved path to the named assembly, or an empty string if the assembly
-        /// could not be located by the assembly locator.
-        ///
-        /// \nothrows
-        virtual AssemblyLocation LocateAssembly(AssemblyName const& assemblyName, String const& fullTypeName) const = 0;
-
-        /// The destructor is virtual, to ensure correct interface semantics.
-        virtual ~IAssemblyLocator();
-    };
-
-
-
-
-
-    /// Interface for loader configuration functionality
-    ///
-    /// The functions of this interface allow different types system implementations to configure
-    /// the loader differently (notably, we need special handling of a few Windows Runtime types).
-    class ILoaderConfiguration
-    {
-    public:
-
-        /// Transforms a namespace prior to resolution of a system type
-        ///
-        /// Prior to resolving a system type, the Loader will call this function to transform the
-        /// namespace of the system type.  It should return the original namespace unchanged if it
-        /// does not need to be transformed.  This allows us to transform, e.g., System -> Platform.
-        ///
-        /// \todo This could be better implemented as GetSystemNamespace() or something like that.
-        virtual String TransformNamespace(String const& namespaceName) = 0;
-
-        virtual ~ILoaderConfiguration();
-    };
-
-
-
-
-
-    // This class is used to identify member functions (or functions) that are considered "internal"
-    // and are not really part of the public interface of the library.  A user of the library should
-    // not call internal methods.  However, other libraries or utilities built atop CxxReflect might
-    // want to use these internal members, e.g. as we have done in the Windows Runtime integrations.
+    /// This class type is the type of the last parameter of any public member functions of public
+    /// interface types that expose internal implementation details.  These functions are not really
+    /// part of the public interface of the library.  A user of the library should not call these
+    /// internal methods.  However, libraries or utilities that build atop CxxReflect might want to
+    /// use these internal members, e.g. as we have done in the Windows Runtime integration.
     class InternalKey
     {
     };

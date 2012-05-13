@@ -243,5 +243,8 @@
     <ClCompile Include="WindowsRuntimeInternals.cpp">
       <Filter>Sources\WindowsRuntime</Filter>
     </ClCompile>
+    <ClCompile Include="Module.cpp">
+      <Filter>Sources\Interface</Filter>
+    </ClCompile>
   </ItemGroup>
 </Project>

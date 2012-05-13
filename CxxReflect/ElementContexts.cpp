@@ -166,8 +166,7 @@ namespace CxxReflect { namespace Detail { namespace { namespace Private {
         }
 
         default:
-            AssertFail(L"Not yet implemented");
-            return TypeDefAndSignature();
+            throw LogicError(L"Not yet implemented");
         }
 
     }

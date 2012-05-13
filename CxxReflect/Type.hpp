@@ -163,9 +163,14 @@ namespace CxxReflect { namespace Detail {
 
 namespace CxxReflect {
 
-    /// Represents a Type in a type universe.
+    /// \ingroup cxxreflect_public_interface
     ///
-    /// 
+    /// @{
+
+
+
+
+
     class Type
     {
     private:
@@ -186,6 +191,7 @@ namespace CxxReflect {
 
         Type();
 
+        Module   GetModule()   const;
         Assembly GetAssembly() const;
 
         SizeType  GetMetadataToken() const;
@@ -296,9 +302,10 @@ namespace CxxReflect {
 
     public: // Internal Members
 
-        Type(Assembly const& assembly, Metadata::RowReference  const& type, InternalKey);
-        Type(Assembly const& assembly, Metadata::BlobReference const& type, InternalKey);
+        Type(Module const& module, Metadata::RowReference  const& type, InternalKey);
+        Type(Module const& module, Metadata::BlobReference const& type, InternalKey);
 
+        Type(Detail::LoaderContext const& loader, Metadata::FullReference const& type, InternalKey);
         Type(Type const& reflectedType, Detail::InterfaceContext const* context, InternalKey);
 
         Metadata::ElementReference GetSelfReference(InternalKey) const;
@@ -342,9 +349,11 @@ namespace CxxReflect {
 
         #undef CXXREFLECT_GENERATE
 
-        Detail::AssemblyHandle     _assembly;
+        Detail::ModuleHandle       _module;
         Metadata::ElementReference _type;
     };
+
+    /// @}
 
 }
 

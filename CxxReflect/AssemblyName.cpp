@@ -62,11 +62,63 @@ namespace CxxReflect { namespace { namespace Private {
 
 namespace CxxReflect {
 
+    Version::Version()
+        : _major(0), _minor(0), _build(0), _revision(0)
+    {
+    }
+
     Version::Version(String const& version)
     {
         std::wistringstream iss(version.c_str());
         if (!(iss >> *this >> std::ws) || !iss.eof())
             throw RuntimeError(L"Failed to parse version");
+    }
+
+    Version::Version(std::uint16_t const major,
+                     std::uint16_t const minor,
+                     std::uint16_t const build,
+                     std::uint16_t const revision)
+        : _major(major), _minor(minor), _build(build), _revision(revision)
+    {
+    }
+
+    std::int16_t Version::GetMajor() const
+    {
+        return _major;
+    }
+
+    std::int16_t Version::GetMinor() const
+    {
+        return _minor;
+    }
+    
+    std::int16_t Version::GetBuild() const
+    {
+        return _build;
+    }
+    std::int16_t Version::GetRevision() const
+    {
+        return _revision;
+    }
+
+    bool operator==(Version const& lhs, Version const& rhs)
+    {
+        return lhs.GetMajor()    == rhs.GetMajor()
+            && lhs.GetMinor()    == rhs.GetMinor()
+            && lhs.GetBuild()    == rhs.GetBuild()
+            && lhs.GetRevision() == rhs.GetRevision();
+    }
+
+    bool operator<(Version const& lhs, Version const& rhs)
+    {
+        if (lhs.GetMajor()    < rhs.GetMajor())    { return true;  }
+        if (lhs.GetMajor()    > rhs.GetMajor())    { return false; }
+        if (lhs.GetMinor()    < rhs.GetMinor())    { return true;  }
+        if (lhs.GetMinor()    > rhs.GetMinor())    { return false; }
+        if (lhs.GetBuild()    < rhs.GetBuild())    { return true;  }
+        if (lhs.GetBuild()    > rhs.GetBuild())    { return false; }
+        if (lhs.GetRevision() < rhs.GetRevision()) { return true;  }
+        return false;
     }
 
     std::wostream& operator<<(std::wostream& os, Version const& v)
@@ -96,14 +148,25 @@ namespace CxxReflect {
         return is;
     }
 
+
+
+
+
+    AssemblyName::AssemblyName()
+    {
+    }
+
     AssemblyName::AssemblyName(Assembly const& assembly, Metadata::RowReference const& reference, InternalKey)
     {
-        Metadata::Database const& database(assembly.GetContext(InternalKey()).GetDatabase());
+        Detail::Assert([&]{ return assembly.IsInitialized();  });
+        Detail::Assert([&]{ return reference.IsInitialized(); });
+
+        Metadata::Database const& database(assembly.GetContext(InternalKey()).GetManifestModule().GetDatabase());
         switch (reference.GetTable())
         {
         case Metadata::TableId::Assembly:
             Private::BuildAssemblyName<Metadata::TableId::Assembly>(*this, database, reference.GetIndex());
-            // TODO _path = assembly.GetPath();
+            _path = assembly.GetLocation();
             break;
 
         case Metadata::TableId::AssemblyRef:
@@ -122,12 +185,60 @@ namespace CxxReflect {
             throw RuntimeError(L"Failed to parse AssemblyName");
     }
 
+    AssemblyName::AssemblyName(String const& simpleName, Version const& version, String const& path)
+        : _simpleName(simpleName), _version(version), _path(path)
+    {
+    }
+
+    AssemblyName::AssemblyName(String         const& simpleName,
+                               Version        const  version,
+                               String         const& cultureInfo,
+                               PublicKeyToken const  publicKeyToken,
+                               AssemblyFlags  const  flags,
+                               String         const& path)
+        : _simpleName(simpleName),
+          _version(version),
+          _cultureInfo(cultureInfo),
+          _publicKeyToken(publicKeyToken),
+          _flags(flags),
+          _path(path)
+    {
+    }
+
+    String const& AssemblyName::GetName() const
+    {
+        return _simpleName;
+    }
+
+    Version const& AssemblyName::GetVersion() const
+    {
+        return _version;
+    }
+
+    String const& AssemblyName::GetCultureInfo() const
+    {
+        return _cultureInfo;
+    }
+    PublicKeyToken const& AssemblyName::GetPublicKeyToken() const
+    {
+        return _publicKeyToken.Get();
+    }
+
+    AssemblyFlags AssemblyName::GetFlags() const
+    {
+        return _flags;
+    }
+
+    String const& AssemblyName::GetPath() const
+    {
+        return _path;
+    }
+
     String const& AssemblyName::GetFullName() const
     {
         if (_fullName.size() > 0)
-            return _fullName; // TODO CHECK FOR VALIDITY OF NAME FIRST
+            return _fullName;
 
-        // TODO MAKE SURE THIS WORKS FOR NULL AND NONEXISTENT COMPONENTS
         std::wostringstream buffer;
         buffer << _simpleName << L", Version=" << _version;
 
@@ -158,8 +269,30 @@ namespace CxxReflect {
             buffer << L"null";
         }
 
+        // TODO ContentType
+
         _fullName = buffer.str();
         return _fullName;
+    }
+
+    bool operator==(AssemblyName const& lhs, AssemblyName const& rhs)
+    {
+        return lhs.GetName()           == rhs.GetName()
+            && lhs.GetVersion()        == rhs.GetVersion()
+            && lhs.GetCultureInfo()    == rhs.GetCultureInfo()
+            && lhs.GetPublicKeyToken() == rhs.GetPublicKeyToken();
+    }
+
+    bool operator<(AssemblyName const& lhs, AssemblyName const& rhs)
+    {
+        if (lhs.GetName()           < rhs.GetName())           { return true;  }
+        if (rhs.GetName()           < lhs.GetName())           { return false; }
+        if (lhs.GetVersion()        < rhs.GetVersion())        { return true;  }
+        if (rhs.GetVersion()        < lhs.GetVersion())        { return false; }
+        if (lhs.GetCultureInfo()    < rhs.GetCultureInfo())    { return true;  }
+        if (rhs.GetCultureInfo()    < lhs.GetCultureInfo())    { return false; }
+        if (lhs.GetPublicKeyToken() < rhs.GetPublicKeyToken()) { return true;  }
+        return false;
     }
 
     std::wostream& operator<<(std::wostream& os, AssemblyName const& an)

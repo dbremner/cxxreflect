@@ -9,6 +9,14 @@
 
 namespace CxxReflect {
 
+    /// \ingroup cxxreflect_public_interface
+    ///
+    /// @{
+
+
+
+
+
     class Method
     {
     public:
@@ -77,8 +85,8 @@ namespace CxxReflect {
         //
         // Invoke()
 
-        friend bool operator==(Method const& lhs, Method const& rhs);
-        friend bool operator< (Method const& lhs, Method const& rhs);
+        friend bool operator==(Method const&, Method const&);
+        friend bool operator< (Method const&, Method const&);
 
         CXXREFLECT_GENERATE_COMPARISON_OPERATORS(Method)
         CXXREFLECT_GENERATE_SAFE_BOOL_CONVERSION(Method)
@@ -98,6 +106,9 @@ namespace CxxReflect {
         Detail::TypeHandle                                     _reflectedType;
         Detail::ValueInitialized<Detail::MethodContext const*> _context;
     };
+
+    /// @}
+
 }
 
 #endif

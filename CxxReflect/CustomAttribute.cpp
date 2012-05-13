@@ -9,6 +9,7 @@
 #include "CxxReflect/CustomAttribute.hpp"
 #include "CxxReflect/Loader.hpp"
 #include "CxxReflect/Method.hpp"
+#include "CxxReflect/Module.hpp"
 #include "CxxReflect/Type.hpp"
 
 namespace CxxReflect {
@@ -17,14 +18,14 @@ namespace CxxReflect {
     {
     }
 
-    CustomAttribute::CustomAttribute(Assembly               const& assembly,
+    CustomAttribute::CustomAttribute(Module                 const& module,
                                      Metadata::RowReference const& customAttribute,
                                      InternalKey)
     {
-        Detail::Assert([&]{ return assembly.IsInitialized();        });
+        Detail::Assert([&]{ return module.IsInitialized();          });
         Detail::Assert([&]{ return customAttribute.IsInitialized(); });
 
-        Metadata::Database const& parentDatabase(assembly.GetContext(InternalKey()).GetDatabase());
+        Metadata::Database const& parentDatabase(module.GetContext(InternalKey()).GetDatabase());
         Metadata::CustomAttributeRow const customAttributeRow(parentDatabase
             .GetRow<Metadata::TableId::CustomAttribute>(customAttribute));
 
@@ -39,7 +40,7 @@ namespace CxxReflect {
 
             Metadata::TypeDefRow const& typeDefRow(Metadata::GetOwnerOfMethodDef(methodDefRow));
 
-            Type const type(assembly, typeDefRow.GetSelfReference(), InternalKey());
+            Type const type(module, typeDefRow.GetSelfReference(), InternalKey());
 
             BindingFlags const flags(
                 BindingAttribute::Public    |
@@ -66,7 +67,7 @@ namespace CxxReflect {
             Metadata::RowReference const memberRefClassRef(memberRefRow.GetClass());
             if (memberRefClassRef.GetTable() == Metadata::TableId::TypeRef)
             {
-                Type const type(assembly, memberRefClassRef, InternalKey());
+                Type const type(module, memberRefClassRef, InternalKey());
                 if (memberRefRow.GetName() == L".ctor")
                 {
                     BindingFlags const flags(
@@ -75,14 +76,17 @@ namespace CxxReflect {
                         BindingAttribute::Instance);
 
                     if (type.BeginConstructors(flags) == type.EndConstructors())
-                        Detail::AssertFail(L"Not yet implemented");
+                        throw LogicError(L"Not yet implemented");
 
-                    Metadata::ITypeResolver const& typeResolver(assembly.GetContext(InternalKey()).GetLoader());
+                    Metadata::ITypeResolver const& typeResolver(module
+                        .GetContext(InternalKey())
+                        .GetAssembly()
+                        .GetLoader());
 
                     Metadata::SignatureComparer const comparer(
                         &typeResolver,
                         &parentDatabase,
-                        &type.GetAssembly().GetContext(InternalKey()).GetDatabase());
+                        &type.GetModule().GetContext(InternalKey()).GetDatabase());
 
                     auto const constructorIt(std::find_if(type.BeginConstructors(flags),
                                  type.EndConstructors(),
@@ -99,12 +103,12 @@ namespace CxxReflect {
                 }
                 else
                 {
-                    Detail::AssertFail(L"Not yet implemented");
+                    throw LogicError(L"Not yet implemented");
                 }
             }
             else
             {
-                Detail::AssertFail(L"Not yet implemented");
+                throw LogicError(L"Not yet implemented");
             }
         }
         else
@@ -119,24 +123,24 @@ namespace CxxReflect {
         return _attribute.GetToken();
     }
 
-    CustomAttributeIterator CustomAttribute::BeginFor(Assembly               const& assembly,
+    CustomAttributeIterator CustomAttribute::BeginFor(Module                 const& module,
                                                       Metadata::RowReference const& parent,
                                                       InternalKey)
     {
         return CustomAttributeIterator(
-            assembly,
-            Metadata::GetCustomAttributesRange(
-                Metadata::FullReference(&assembly.GetContext(InternalKey()).GetDatabase(), parent)).first.GetReference());
+            module,
+            Metadata::GetCustomAttributesRange(Metadata::FullReference(
+                &module.GetContext(InternalKey()).GetDatabase(), parent)).first.GetReference());
     }
 
-    CustomAttributeIterator CustomAttribute::EndFor(Assembly               const& assembly,
+    CustomAttributeIterator CustomAttribute::EndFor(Module                 const& module,
                                                     Metadata::RowReference const& parent,
                                                     InternalKey)
     {
         return CustomAttributeIterator(
-            assembly,
-            Metadata::GetCustomAttributesRange(
-                Metadata::FullReference(&assembly.GetContext(InternalKey()).GetDatabase(), parent)).second.GetReference());
+            module,
+            Metadata::GetCustomAttributesRange(Metadata::FullReference(
+                &module.GetContext(InternalKey()).GetDatabase(), parent)).second.GetReference());
     }
 
     bool CustomAttribute::IsInitialized() const

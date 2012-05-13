@@ -71,6 +71,7 @@
     <ClCompile Include="Loader.cpp" />
     <ClCompile Include="Method.cpp" />
     <ClCompile Include="ElementContexts.cpp" />
+    <ClCompile Include="Module.cpp" />
     <ClCompile Include="Parameter.cpp" />
     <ClCompile Include="PrecompiledHeaders.cpp">
       <PrecompiledHeader>Create</PrecompiledHeader>

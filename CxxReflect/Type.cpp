@@ -10,6 +10,7 @@
 #include "CxxReflect/CustomAttribute.hpp"
 #include "CxxReflect/Loader.hpp"
 #include "CxxReflect/Method.hpp"
+#include "CxxReflect/Module.hpp"
 #include "CxxReflect/Type.hpp"
 
 namespace CxxReflect { namespace { namespace Private {
@@ -68,7 +69,7 @@ namespace CxxReflect { namespace { namespace Private {
         return false;
     }
 
-    Metadata::FullReference Resolve(Assembly               const& assembly,
+    Metadata::FullReference Resolve(Module                 const& module,
                                     Metadata::RowReference const& type,
                                     InternalKey            const  key)
     {
@@ -77,14 +78,14 @@ namespace CxxReflect { namespace { namespace Private {
         case Metadata::TableId::TypeDef:
         {
             // Good news, everyone!  We have a TypeDef and we don't need to do any further work.
-            return Metadata::FullReference(&assembly.GetContext(key).GetDatabase(), type);
+            return Metadata::FullReference(&module.GetContext(key).GetDatabase(), type);
         }
 
         case Metadata::TableId::TypeRef:
         {
             // Resolve the TypeRef into a TypeDef, throwing on failure:
-            Loader             const& loader(assembly.GetContext(key).GetLoader());
-            Metadata::Database const& database(assembly.GetContext(key).GetDatabase());
+            Detail::LoaderContext const& loader(module.GetContext(key).GetAssembly().GetLoader());
+            Metadata::Database    const& database(module.GetContext(key).GetDatabase());
 
             Metadata::FullReference const resolvedType(
                 loader.ResolveType(Metadata::FullReference(&database, type)));
@@ -97,7 +98,7 @@ namespace CxxReflect { namespace { namespace Private {
         case Metadata::TableId::TypeSpec:
         {
             // Get the signature for the TypeSpec token and use that instead:
-            Metadata::Database const& database(assembly.GetContext(key).GetDatabase());
+            Metadata::Database const& database(module.GetContext(key).GetDatabase());
             Metadata::TypeSpecRow const typeSpec(database.GetRow<Metadata::TableId::TypeSpec>(type.GetIndex()));
             return Metadata::FullReference(&database, typeSpec.GetSignature());
         }
@@ -141,18 +142,13 @@ namespace CxxReflect { namespace { namespace Private {
     };
 
     template <typename TTable>
-    TTable GetOrCreateTable(TTable (CxxReflect::Loader::*getOrCreate)(Metadata::FullReference const&, InternalKey) const,
-                            Detail::AssemblyHandle     const& assembly,
-                            Metadata::ElementReference const& type,
-                            InternalKey key)
+    TTable GetOrCreateTable(TTable (Detail::LoaderContext::*getOrCreate)(Metadata::FullReference const&) const,
+                            Detail::ModuleHandle       const& module,
+                            Metadata::ElementReference const& type)
     {
-        Metadata::FullReference const typeReference(&assembly.Realize().GetContext(key).GetDatabase(), type);
+        Metadata::FullReference const typeReference(&module.Realize().GetContext(InternalKey()).GetDatabase(), type);
 
-        TTable const& table((assembly
-            .Realize()
-            .GetContext(key)
-            .GetLoader()
-            .*getOrCreate)(typeReference, key));
+        TTable const& table((Detail::LoaderContext::From(module.Realize()).*getOrCreate)(typeReference));
 
         return table; 
     }
@@ -251,8 +247,7 @@ namespace CxxReflect { namespace Detail {
         Assert([&]{ return type.GetTypeSpecSignature().IsKind(Metadata::TypeSignature::Kind::Array); });
 
         // TODO We need to figure out how to write the general array form:
-        AssertFail(L"General array not yet implemented");
-        return false;
+        throw LogicError(L"Not yet implemented");
     }
 
     bool TypeNameBuilder::AccumulateClassTypeSpecName(Type const& type, Mode const mode)
@@ -261,13 +256,9 @@ namespace CxxReflect { namespace Detail {
 
         Metadata::Database const* const database(type.GetTypeSpecSignature().GetTypeReferenceScope());
 
-        Assembly const assembly(database != nullptr
-            ? Assembly(&type
-                .GetAssembly()
-                .GetContext(InternalKey())
-                .GetLoader()
-                .GetContextForDatabase(*database, InternalKey()), InternalKey())
-            : type.GetAssembly());
+        Module const assembly(database != nullptr
+            ? Module(&LoaderContext::From(type).GetContextForDatabase(*database), InternalKey())
+            : type.GetModule());
 
         Type const classType(
             assembly,
@@ -289,8 +280,7 @@ namespace CxxReflect { namespace Detail {
         Assert([&]{ return type.GetTypeSpecSignature().IsKind(Metadata::TypeSignature::Kind::FnPtr); });
 
         // TODO We need to figure out how to write the function pointer form:
-        AssertFail(L"Function pointer not yet implemented");
-        return false;
+        throw LogicError(L"Not yet implemented");
     }
 
     bool TypeNameBuilder::AccumulateGenericInstTypeSpecName(Type const& type, Mode const mode)
@@ -298,7 +288,7 @@ namespace CxxReflect { namespace Detail {
         Assert([&]{ return type.GetTypeSpecSignature().IsKind(Metadata::TypeSignature::Kind::GenericInst); });
 
         Type const genericType(
-            type.GetAssembly(),
+            type.GetModule(),
             type.GetTypeSpecSignature().GetGenericTypeReference(),
             InternalKey());
 
@@ -328,7 +318,7 @@ namespace CxxReflect { namespace Detail {
 
             _buffer.push_back(L'[');
 
-            Type const argumentType(type.GetAssembly(), Metadata::BlobReference(argumentSignature), InternalKey());
+            Type const argumentType(type.GetModule(), Metadata::BlobReference(argumentSignature), InternalKey());
             if (!AccumulateTypeName(argumentType, Mode::AssemblyQualifiedName))
                 return false;
 
@@ -352,11 +342,17 @@ namespace CxxReflect { namespace Detail {
     {
         Assert([&]{ return type.GetTypeSpecSignature().IsKind(Metadata::TypeSignature::Kind::Primitive); });
 
-        Type const primitiveType(type
-            .GetAssembly()
-            .GetContext(InternalKey())
-            .GetLoader()
-            .GetFundamentalType(type.GetTypeSpecSignature().GetPrimitiveElementType(), InternalKey()));
+        Metadata::ElementType const elementType(type.GetTypeSpecSignature().GetPrimitiveElementType());
+
+        Detail::LoaderContext const& loader(type.GetAssembly().GetContext(InternalKey()).GetLoader());
+
+        Metadata::FullReference const typeDef(loader.ResolveFundamentalType(elementType));
+
+
+        Type const primitiveType(
+            Module(&loader.GetContextForDatabase(typeDef.GetDatabase()), InternalKey()),
+            typeDef.AsRowReference(),
+            InternalKey());
 
         if (!AccumulateTypeName(primitiveType, WithoutAssemblyQualification(mode)))
             return false;
@@ -373,7 +369,7 @@ namespace CxxReflect { namespace Detail {
         Assert([&]{ return type.GetTypeSpecSignature().IsKind(Metadata::TypeSignature::Kind::Ptr); });
 
         Type const pointerType(
-            type.GetAssembly(),
+            type.GetModule(),
             Metadata::BlobReference(type.GetTypeSpecSignature().GetPointerTypeSignature()),
             InternalKey());
 
@@ -394,7 +390,7 @@ namespace CxxReflect { namespace Detail {
         Assert([&]{ return type.GetTypeSpecSignature().IsKind(Metadata::TypeSignature::Kind::SzArray); });
 
         Type const arrayType(
-            type.GetAssembly(),
+            type.GetModule(),
             Metadata::BlobReference(type.GetTypeSpecSignature().GetArrayType()),
             InternalKey());
 
@@ -445,55 +441,64 @@ namespace CxxReflect {
     {
     }
 
-    Type::Type(Assembly const& assembly, Metadata::RowReference const& type, InternalKey)
+    Type::Type(Module const& module, Metadata::RowReference const& type, InternalKey)
     {
-        Detail::Assert([&] { return assembly.IsInitialized(); });
+        Detail::Assert([&] { return module.IsInitialized(); });
 
         // If we were initialized with an empty type, do not attempt to do any type resolution.
         if (!type.IsInitialized())
             return;
 
-        Metadata::FullReference const resolvedType(Private::Resolve(assembly, type, InternalKey()));
-        _assembly = Assembly(&assembly
+        Metadata::FullReference const resolvedType(Private::Resolve(module, type, InternalKey()));
+        _module = Module(&module
             .GetContext(InternalKey())
+            .GetAssembly()
             .GetLoader()
-            .GetContextForDatabase(resolvedType.GetDatabase(), InternalKey()), InternalKey());
+            .GetContextForDatabase(resolvedType.GetDatabase()), InternalKey());
 
         _type = resolvedType.IsRowReference()
             ? Metadata::ElementReference(resolvedType.AsRowReference())
             : Metadata::ElementReference(resolvedType.AsBlobReference());
     }
 
-    Type::Type(Assembly const& assembly, Metadata::BlobReference const& type, InternalKey)
-        : _assembly(assembly), _type(Metadata::ElementReference(type))
+    Type::Type(Module const& module, Metadata::BlobReference const& type, InternalKey)
+        : _module(module), _type(Metadata::ElementReference(type))
     {
-        Detail::Assert([&]{ return assembly.IsInitialized(); });
-        Detail::Assert([&]{ return type.IsInitialized();     });
+        Detail::Assert([&]{ return module.IsInitialized(); });
+        Detail::Assert([&]{ return type.IsInitialized();   });
 
         Metadata::TypeSignature const signature(type.As<Metadata::TypeSignature>());
 
         if (!signature.IsByRef() && signature.GetKind() == Metadata::TypeSignature::Kind::Primitive)
         {
-            Type const primitiveType(assembly
-                .GetContext(InternalKey())
-                .GetLoader()
-                .GetFundamentalType(signature.GetPrimitiveElementType(), InternalKey()));
+            Detail::LoaderContext const& loader(module.GetContext(InternalKey()).GetAssembly().GetLoader());
+
+            Metadata::FullReference const primitiveType(loader
+                .ResolveFundamentalType(signature.GetPrimitiveElementType()));
+
             Detail::Assert([&]{ return primitiveType.IsInitialized(); });
 
-            _assembly = primitiveType.GetAssembly();
-            _type = Metadata::RowReference::FromToken(primitiveType.GetMetadataToken());
+            _module = &loader.GetContextForDatabase(primitiveType.GetDatabase());
+            _type = primitiveType.AsRowReference();
         }
+    }
+
+    Type::Type(Detail::LoaderContext const& loader, Metadata::FullReference const& type, InternalKey)
+    {
+        Detail::Assert([&]{ return type.IsInitialized(); });
+
+        Detail::ModuleContext const& module(loader.GetContextForDatabase(type.GetDatabase()));
+
+        *this = type.IsRowReference()
+            ? Type(Module(&module, InternalKey()), type.AsRowReference(),  InternalKey())
+            : Type(Module(&module, InternalKey()), type.AsBlobReference(), InternalKey());
     }
 
     Type::Type(Type const& reflectedType, Detail::InterfaceContext const* const context, InternalKey)
     {
-        Loader const& loader(reflectedType.GetAssembly().GetContext(InternalKey()).GetLoader());
+        Detail::LoaderContext const& loader(reflectedType.GetAssembly().GetContext(InternalKey()).GetLoader());
 
-        _assembly = Assembly(&reflectedType
-                .GetAssembly()
-                .GetContext(InternalKey())
-                .GetLoader()
-                .GetContextForDatabase(context->GetElement().GetDatabase(), InternalKey()), InternalKey());
+        _module = Module(&loader.GetContextForDatabase(context->GetElement().GetDatabase()), InternalKey());
 
         if (context->GetElementSignature(loader).IsInitialized())
         {
@@ -503,15 +508,11 @@ namespace CxxReflect {
         else
         {
             Metadata::FullReference const resolvedType(Private::Resolve(
-                _assembly.Realize(),
+                _module.Realize(),
                 context->GetElementRow().GetInterface(),
                 InternalKey()));
 
-            _assembly = Assembly(&_assembly
-                .Realize()
-                .GetContext(InternalKey())
-                .GetLoader()
-                .GetContextForDatabase(resolvedType.GetDatabase(), InternalKey()), InternalKey());
+            _module = Module(&loader.GetContextForDatabase(resolvedType.GetDatabase()), InternalKey());
             _type = resolvedType.AsRowReference();
         }
 
@@ -520,7 +521,7 @@ namespace CxxReflect {
 
     bool Type::IsInitialized() const
     {
-        return _assembly.IsInitialized() && _type.IsInitialized();
+        return _module.IsInitialized() && _type.IsInitialized();
     }
 
     bool Type::operator!() const
@@ -552,16 +553,21 @@ namespace CxxReflect {
         return _type.IsBlobReference();
     }
 
+    Module Type::GetModule() const
+    {
+        return _module.Realize();
+    }
+
     Assembly Type::GetAssembly() const
     {
-        return _assembly.Realize();
+        return _module.Realize().GetAssembly();
     }
 
     Metadata::TypeDefRow Type::GetTypeDefRow() const
     {
         Detail::Assert([&]{ return IsTypeDef(); });
 
-        return _assembly
+        return _module
             .Realize()
             .GetContext(InternalKey())
             .GetDatabase()
@@ -588,13 +594,13 @@ namespace CxxReflect {
         // the full member table like we compute now, and one for declared members only.  This would
         // allow for much faster constructor resolution (and this is one of our core use cases).  We
         // still need to build a table, though, because we need to instantiate generic members.
-        Detail::MethodContextTable const& table(_assembly
+        Detail::MethodContextTable const& table(_module
             .Realize()
             .GetContext(InternalKey())
+            .GetAssembly()
             .GetLoader()
             .GetOrCreateMethodTable(
-                Metadata::FullReference(&_assembly.Realize().GetContext(InternalKey()).GetDatabase(), _type),
-                InternalKey()));
+                Metadata::FullReference(&_module.Realize().GetContext(InternalKey()).GetDatabase(), _type)));
 
         return MethodIterator(*this, table.Begin(), table.End(), flags);
     }
@@ -630,7 +636,7 @@ namespace CxxReflect {
         AssertInitialized();
         Detail::Assert([&]{ return !flags.IsSet(BindingAttribute::InternalUseOnlyMask); });
 
-        auto const& table(Private::GetOrCreateTable(&Loader::GetOrCreateFieldTable, _assembly, _type, InternalKey()));
+        auto const& table(Private::GetOrCreateTable(&Detail::LoaderContext::GetOrCreateFieldTable, _module, _type));
 
         return FieldIterator(*this, table.Begin(), table.End(), flags);
     }
@@ -652,7 +658,10 @@ namespace CxxReflect {
         
         Detail::Assert([&]{ return !flags.IsSet(BindingAttribute::InternalUseOnlyMask); });
 
-        auto const& table(Private::GetOrCreateTable(&Loader::GetOrCreateMethodTable, _assembly, _type, InternalKey()));
+        auto const& table(Private::GetOrCreateTable(
+            &Detail::LoaderContext::GetOrCreateMethodTable,
+            _module,
+            _type));
 
         return MethodIterator(*this, table.Begin(), table.End(), flags);
     }
@@ -709,7 +718,7 @@ namespace CxxReflect {
 
         return ResolveTypeDefTypeAndCall([&](Type const& t)
         {
-            return CustomAttribute::BeginFor(t.GetAssembly(), t.GetTypeDefRow().GetSelfReference(), InternalKey());
+            return CustomAttribute::BeginFor(t.GetModule(), t.GetTypeDefRow().GetSelfReference(), InternalKey());
         });
     }
 
@@ -730,7 +739,7 @@ namespace CxxReflect {
 
         return ResolveTypeDefTypeAndCall([&](Type const& t)
         {
-            return CustomAttribute::EndFor(t.GetAssembly(), t.GetTypeDefRow().GetSelfReference(), InternalKey());
+            return CustomAttribute::EndFor(t.GetModule(), t.GetTypeDefRow().GetSelfReference(), InternalKey());
         });
     }
 
@@ -744,7 +753,10 @@ namespace CxxReflect {
                 return InterfaceIterator();
         }
 
-        auto const& table(Private::GetOrCreateTable(&Loader::GetOrCreateInterfaceTable, _assembly, _type, InternalKey()));
+        auto const& table(Private::GetOrCreateTable(
+            &Detail::LoaderContext::GetOrCreateInterfaceTable,
+            _module,
+            _type));
 
         return InterfaceIterator(*this, table.Begin(), table.End(), BindingFlags());
     }
@@ -767,7 +779,12 @@ namespace CxxReflect {
             // All arrays are derived directly from System.Array:
             case Metadata::TypeSignature::Kind::Array:
             case Metadata::TypeSignature::Kind::SzArray:
-                return Detail::GetSystemAssembly(GetAssembly()).GetType(L"System", L"Array");
+            {
+                auto const& loader(GetAssembly().GetContext(InternalKey()).GetLoader());
+                auto const& typeDef(loader.GetSystemModule().GetTypeDefByName(loader.GetSystemNamespace(), L"Array"));
+
+                return Type(Module(&loader.GetSystemModule(), InternalKey()), typeDef, InternalKey());
+            }
 
             case Metadata::TypeSignature::Kind::Ptr:
                 return Type();
@@ -779,7 +796,7 @@ namespace CxxReflect {
             case Metadata::TypeSignature::Kind::Var:
             default:
                 ;
-            //    Detail::AssertFail(L"Not yet implemented");
+            //    throw LogicError(L"Not yet implemented");
             }
         }
 
@@ -794,7 +811,7 @@ namespace CxxReflect {
             case Metadata::TableId::TypeDef:
             case Metadata::TableId::TypeRef:
             case Metadata::TableId::TypeSpec:
-                return Type(t.GetAssembly(), extends, InternalKey());
+                return Type(t.GetModule(), extends, InternalKey());
 
             default:
                 Detail::AssertFail(L"Unreachable Code");
@@ -812,7 +829,7 @@ namespace CxxReflect {
                 >  TypeAttribute::Public;
         }))
         {
-            Metadata::Database const& database(_assembly.Realize().GetContext(InternalKey()).GetDatabase());
+            Metadata::Database const& database(_module.Realize().GetContext(InternalKey()).GetDatabase());
             auto const it(std::lower_bound(
                 database.Begin<Metadata::TableId::NestedClass>(),
                 database.End<Metadata::TableId::NestedClass>(),
@@ -823,7 +840,7 @@ namespace CxxReflect {
             }));
 
             if (it == database.End<Metadata::TableId::NestedClass>())
-                throw MetadataReadError(L"Type was identified as nested but had no row in the NestedClass table.");
+                throw MetadataError(L"Type was identified as nested but had no row in the NestedClass table.");
 
             // An assertion is sufficient here; if the assertion fails, BinarySearch is broken.
             Detail::Assert([&]() -> bool
@@ -836,9 +853,9 @@ namespace CxxReflect {
 
             Metadata::RowReference const enclosingType(it->GetEnclosingClass());
             if (enclosingType.GetTable() != Metadata::TableId::TypeDef)
-                throw MetadataReadError(L"Enclosing type was expected to be a TypeDef; it was not.");
+                throw MetadataError(L"Enclosing type was expected to be a TypeDef; it was not.");
 
-            return Type(_assembly.Realize(), enclosingType, InternalKey());
+            return Type(_module.Realize(), enclosingType, InternalKey());
         }
 
         // TODO Handle other kinds of declaring types
@@ -852,8 +869,7 @@ namespace CxxReflect {
             return Type();
 
         // TODO
-        Detail::AssertFail(L"Not yet implemented");
-        return Type();
+        throw LogicError(L"Not yet implemented");
     }
 
     String Type::GetAssemblyQualifiedName() const
@@ -1455,7 +1471,7 @@ namespace CxxReflect {
         if (!IsTypeDef())
             return false;
 
-        if (!Detail::IsSystemAssembly(_assembly.Realize()))
+        if (!Detail::IsSystemAssembly(_module.Realize().GetAssembly()))
             return false;
 
         if (GetTypeDefRow().GetNamespace() != L"System")
@@ -1623,7 +1639,7 @@ namespace CxxReflect {
                                  [&](Metadata::TypeSignature const argumentSignature) -> bool
                 {
                     Type const argumentType(
-                        _assembly.Realize(),
+                        _module.Realize(),
                         Metadata::BlobReference(argumentSignature),
                         InternalKey());
 
@@ -1730,7 +1746,7 @@ namespace CxxReflect {
         if (!type.IsInitialized() || type.IsTypeDef())
             return type;
 
-        auto const& database(type.GetAssembly().GetContext(InternalKey()).GetDatabase());
+        auto const& database(type.GetModule().GetContext(InternalKey()).GetDatabase());
         auto const signature(type.GetTypeSpecSignature());
 
         Metadata::FullReference nextType;
@@ -1746,19 +1762,20 @@ namespace CxxReflect {
 
         case Metadata::TypeSignature::Kind::FnPtr:
             // TODO FnPtr Not Yet Implemented (is there anything to implement here?)
-            Detail::AssertFail(L"FnPtr TypeDef Resolution Not Yet Implemented");
-            return Type();
+            throw LogicError(L"Not yet implemented");
 
         case Metadata::TypeSignature::Kind::GenericInst:
             nextType = Metadata::FullReference(&database, signature.GetGenericTypeReference());
             break;
 
         case Metadata::TypeSignature::Kind::Primitive:
-            return ResolveTypeDef(type
-                .GetAssembly()
-                .GetContext(InternalKey())
-                .GetLoader()
-                .GetFundamentalType(signature.GetPrimitiveElementType(), InternalKey()));
+        {
+            Detail::LoaderContext const& loader(type.GetAssembly().GetContext(InternalKey()).GetLoader());
+            Metadata::FullReference const typeDef(loader.ResolveFundamentalType(signature.GetPrimitiveElementType()));
+            Module const module(&loader.GetContextForDatabase(typeDef.GetDatabase()), InternalKey());
+
+            return ResolveTypeDef(Type(module, typeDef.AsRowReference(), InternalKey()));
+        }
 
         case Metadata::TypeSignature::Kind::Ptr:
             nextType = Metadata::FullReference(
@@ -1781,11 +1798,11 @@ namespace CxxReflect {
         // same assembly because we haven't yet resolved the 'nextType' into another assembly:
         if (nextType.IsRowReference())
         {
-            return ResolveTypeDef(Type(type.GetAssembly(), nextType.AsRowReference(), InternalKey()));
+            return ResolveTypeDef(Type(type.GetModule(), nextType.AsRowReference(), InternalKey()));
         }
         else
         {
-            return ResolveTypeDef(Type(type.GetAssembly(), nextType.AsBlobReference(), InternalKey()));
+            return ResolveTypeDef(Type(type.GetModule(), nextType.AsBlobReference(), InternalKey()));
         }
     }
 }

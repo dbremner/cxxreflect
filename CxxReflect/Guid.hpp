@@ -9,6 +9,14 @@
 
 namespace CxxReflect {
 
+    /// \ingroup cxxreflect_public_interface
+    ///
+    /// @{
+
+
+
+
+
     class Guid
     {
     public:
@@ -32,10 +40,15 @@ namespace CxxReflect {
         Guid(Element0 m0, Element1 m1, Element2 m2);
         Guid(U4 m0, U2 m1a, U2 m1b, U1 m2a, U1 m2b, U1 m2c, U1 m2d, U1 m2e, U1 m2f, U1 m2g, U1 m2h);
 
-        ByteArray const& AsByteArray() const
-        {
-            return _data;
-        }
+        ByteArray const& AsByteArray() const;
+
+        friend bool operator==(Guid const&, Guid const&);
+        friend bool operator< (Guid const&, Guid const&);
+
+        CXXREFLECT_GENERATE_COMPARISON_OPERATORS(Guid)
+
+        friend std::wostream& operator<<(std::wostream&, Guid const&);
+        friend std::wistream& operator>>(std::wistream&, Guid&);
 
         static Guid Empty;
 
@@ -46,16 +59,7 @@ namespace CxxReflect {
 
     static_assert(sizeof(Guid) == sizeof(Guid::ByteArray), "Guid should have no unnamed padding bytes");
 
-    inline bool operator==(Guid const& lhs, Guid const& rhs) { return lhs.AsByteArray() == rhs.AsByteArray(); }
-    inline bool operator< (Guid const& lhs, Guid const& rhs) { return lhs.AsByteArray() <  rhs.AsByteArray(); }
-
-    inline bool operator!=(Guid const& lhs, Guid const& rhs) { return !(lhs == rhs); }
-    inline bool operator> (Guid const& lhs, Guid const& rhs) { return  (rhs <  lhs); }
-    inline bool operator>=(Guid const& lhs, Guid const& rhs) { return !(lhs <  rhs); }
-    inline bool operator<=(Guid const& lhs, Guid const& rhs) { return !(rhs <  lhs); }
-
-    std::wostream& operator<<(std::wostream&, Guid const&);
-    std::wistream& operator>>(std::wistream&, Guid&);
+    /// @}
 
 }
 

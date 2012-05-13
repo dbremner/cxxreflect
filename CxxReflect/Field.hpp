@@ -9,6 +9,14 @@
 
 namespace CxxReflect {
 
+    /// \ingroup cxxreflect_public_interface
+    ///
+    /// @{
+
+
+
+
+
     class Field
     {
     public:
@@ -20,6 +28,7 @@ namespace CxxReflect {
 
         FieldFlags GetAttributes()       const;
         Type       GetType()             const;
+        Module     GetModule()           const;
 
         bool       IsAssembly()          const;
         bool       IsFamily()            const;
@@ -43,8 +52,6 @@ namespace CxxReflect {
         bool IsInitialized() const;
         bool operator!()     const;
 
-        // Module
-
         // GetCustomAttributes
         // GetOptionalCustomModifiers
         // GetRawConstantValue
@@ -66,8 +73,8 @@ namespace CxxReflect {
         //
         // The 'FieldType' property has been named 'Type'
 
-        friend bool operator==(Field const& lhs, Field const& rhs);
-        friend bool operator< (Field const& lhs, Field const& rhs);
+        friend bool operator==(Field const&, Field const&);
+        friend bool operator< (Field const&, Field const&);
 
         CXXREFLECT_GENERATE_COMPARISON_OPERATORS(Field)
         CXXREFLECT_GENERATE_SAFE_BOOL_CONVERSION(Field)
@@ -87,6 +94,8 @@ namespace CxxReflect {
         Detail::TypeHandle                                    _reflectedType;
         Detail::ValueInitialized<Detail::FieldContext const*> _context;
     };
+
+    /// @}
 
 }
 

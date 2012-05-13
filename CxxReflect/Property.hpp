@@ -9,6 +9,14 @@
 
 namespace CxxReflect {
 
+    /// \ingroup cxxreflect_public_interface
+    ///
+    /// @{
+
+
+
+
+
     class Property
     {
     public:
@@ -48,8 +56,8 @@ namespace CxxReflect {
 
         // -- The following members of System.Reflection.PropertyInfo are not implemented --
 
-        friend bool operator==(Property const& lhs, Property const& rhs);
-        friend bool operator< (Property const& lhs, Property const& rhs);
+        friend bool operator==(Property const&, Property const&);
+        friend bool operator< (Property const&, Property const&);
 
         CXXREFLECT_GENERATE_COMPARISON_OPERATORS(Property)
         CXXREFLECT_GENERATE_SAFE_BOOL_CONVERSION(Property)
@@ -69,6 +77,8 @@ namespace CxxReflect {
         Detail::TypeHandle                                       _reflectedType;
         Detail::ValueInitialized<Detail::PropertyContext const*> _context;
     };
+
+    /// @}
 
 }
 

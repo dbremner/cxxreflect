@@ -89,7 +89,7 @@ namespace CxxReflect { namespace Metadata {
     // Raw signature reading functions.  We use these both here for reading metadata signatures and
     // in the CustomAttribute processing where we read arguments to the attribute.  The functions
     // that Read an element take the iterator by reference and advance it past the element that is
-    // read.  The elements that Peek can be used to peek at the next element.  A MetadataReadError
+    // read.  The elements that Peek can be used to peek at the next element.  A MetadataError
     // is thrown if an attempt is made to read past the end of the range.
 
     /// Reads the next byte in a signature and advances the iterator.

@@ -9,6 +9,14 @@
 
 namespace CxxReflect {
 
+    /// \ingroup cxxreflect_public_interface
+    ///
+    /// @{
+
+
+
+
+
     class File
     {
     public:
@@ -19,9 +27,7 @@ namespace CxxReflect {
         StringReference GetName()          const;
         Assembly        GetAssembly()      const;
         bool            ContainsMetadata() const;
-
-        // TODO GetHashValue()?
-        // TODO Consider providing interface to locate and open the file
+        Sha1Hash        GetHashValue()     const;
 
         bool IsInitialized() const;
         bool operator!()     const;
@@ -45,6 +51,8 @@ namespace CxxReflect {
         Detail::AssemblyHandle _assembly;
         Metadata::RowReference _file;
     };
+
+    /// @}
 
 }
 

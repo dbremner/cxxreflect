@@ -357,7 +357,7 @@ namespace CxxReflect { namespace Metadata {
         /// \param last  A pointer to the end of the blob heap (not to the end of the blob)
         /// \returns     A `BlobReference` that refers to the decoded blob sequence
         ///
-        /// \throws MetadataReadError If an error occurs when reading the blob length.  Notably, if
+        /// \throws MetadataError If an error occurs when reading the blob length.  Notably, if
         ///         `first == last`, or if the encoded length is malformed, or if the encoded length
         ///         yields a blob that is larger than the stream, this exception will be thrown.
         static BlobReference ComputeFromStream(ConstByteIterator first, ConstByteIterator last);
@@ -682,7 +682,7 @@ namespace CxxReflect { namespace Metadata {
         /// \param streamOffset   The offset in the metadata at which the stream begins
         /// \param streamSize     The size of the stream, in bytes
         ///
-        /// \throws MetadataReadError If the stream cannot be read from the file (notably, out-of-
+        /// \throws MetadataError If the stream cannot be read from the file (notably, out-of-
         ///         range errors, where the stream offsets are past the end of the file or the 
         ///         stream size extends the stream beyond the end of the file will throw).
         Stream(Detail::ConstByteCursor file, SizeType metadataOffset, SizeType streamOffset, SizeType streamSize);
@@ -715,12 +715,12 @@ namespace CxxReflect { namespace Metadata {
 
         /// Gets an iterator to the byte at index `index` in the stream
         ///
-        /// \throws MetadataReadError if `index > Size()`
+        /// \throws MetadataError if `index > Size()`
         ConstByteIterator At(SizeType index) const;
 
         /// Reads an element of type `T` from `index` and returns a reference to it
         ///
-        /// \throws MetadataReadError If the operation would attempt to read past the stream's end
+        /// \throws MetadataError If the operation would attempt to read past the stream's end
         template <typename T>
         T const& ReadAs(SizeType const index) const
         {
@@ -729,7 +729,7 @@ namespace CxxReflect { namespace Metadata {
 
         /// Reinterprets an element of type `T` from `index` and returns a pointer to it
         ///
-        /// \throws MetadataReadError If the operation would attempt to read past the stream's end
+        /// \throws MetadataError If the operation would attempt to read past the stream's end
         template <typename T>
         T const* ReinterpretAs(SizeType const index) const
         {
@@ -882,7 +882,7 @@ namespace CxxReflect { namespace Metadata {
 
         /// Gets an iterator to the initial byte of the row at the specified index in the table
         ///
-        /// \throws MetadataReadError If the `index` is out of range
+        /// \throws MetadataError If the `index` is out of range
         ConstByteIterator At(SizeType index) const;
 
         /// Tests whether the `Table` is initialized
@@ -1910,7 +1910,7 @@ namespace CxxReflect { namespace Metadata {
     /// \param   eventRow The **Event** row for whom we wish to get the owning **TypeDef**.  This
     ///          must be a valid row object; it is only checked for validity in debug builds.
     /// \returns The **TypeDef** row that owns the **Event**
-    /// \throws  MetadataReadError If the metadata is invalid and the owner cannot be computed
+    /// \throws  MetadataError If the metadata is invalid and the owner cannot be computed
     TypeDefRow GetOwnerOfEvent(EventRow const& eventRow);
     
     /// Gets the **TypeDef** that owns a **Field**
@@ -1918,7 +1918,7 @@ namespace CxxReflect { namespace Metadata {
     /// \param   field The **Field** row for whom we wish to get the owning **TypeDef**.  This must
     ///          be a valid row object; it is only checked for validity in debug builds.
     /// \returns The **TypeDef** row that owns the **Field**
-    /// \throws  MetadataReadError If the metadata is invalid and the owner cannot be computed
+    /// \throws  MetadataError If the metadata is invalid and the owner cannot be computed
     TypeDefRow GetOwnerOfField(FieldRow const& field);
     
     /// Gets the **TypeDef** that owns a **MethodDef**
@@ -1926,7 +1926,7 @@ namespace CxxReflect { namespace Metadata {
     /// \param   methodDef The **MethodDef** row for whom we wish to get the owning **TypeDef**.
     ///          This must be a valid row object; it is only checked for validity in debug builds.
     /// \returns The **TypeDef** row that owns the **MethodDef**
-    /// \throws  MetadataReadError If the metadata is invalid and the owner cannot be computed
+    /// \throws  MetadataError If the metadata is invalid and the owner cannot be computed
     TypeDefRow GetOwnerOfMethodDef(MethodDefRow const& methodDef);
 
     /// Gets the **TypeDef** that owns a **Property**
@@ -1934,7 +1934,7 @@ namespace CxxReflect { namespace Metadata {
     /// \param   propertyRow The **Property** row for whom we wish to get the owning **TypeDef**.
     ///          This must be a valid row object; it is only checked for validity in debug builds.
     /// \returns The **TypeDef** row that owns the **Property**
-    /// \throws  MetadataReadError If the metadata is invalid and the owner cannot be computed
+    /// \throws  MetadataError If the metadata is invalid and the owner cannot be computed
     TypeDefRow GetOwnerOfProperty(PropertyRow const& propertyRow);
 
     /// Gets the **MethodDef** that owns a **Param**
@@ -1942,7 +1942,7 @@ namespace CxxReflect { namespace Metadata {
     /// \param   param The **Param** row for whom we wish to get the owning **MethodDef**.  This
     ///          must be a valid row object; it is only checked for validity in debug builds.
     /// \returns The **MethodDef** row that owns the **Param**
-    /// \throws  MetadataReadError If the metadata is invalid and the owner cannot be computed
+    /// \throws  MetadataError If the metadata is invalid and the owner cannot be computed
     MethodDefRow GetOwnerOfParam(ParamRow const& param);
 
 
@@ -1959,7 +1959,7 @@ namespace CxxReflect { namespace Metadata {
     ///          valid row in one of the aforementioned tables.  The argument is only checked for
     ///          validity in debug builds.
     /// \returns The constant for the parent row, if there is one; otherwise an empty `ConstantRow`
-    /// \throws  MetadataReadError If the metadata is invalid and the constant cannot be computed
+    /// \throws  MetadataError If the metadata is invalid and the constant cannot be computed
     ConstantRow GetConstant(FullReference const& parent);
 
     /// Gets the **FieldLayout** for a given **Field**
@@ -1973,7 +1973,7 @@ namespace CxxReflect { namespace Metadata {
     ///          validity in debug builds, however, an invalid argument in a release build will
     ///          yield an uninitialized `FieldLayoutRow`.
     /// \returns The field layout of the parent row, if there is one, otherwise an empty row
-    /// \throws  MetadataReadError If the metadata is invalid and the result cannot be computed
+    /// \throws  MetadataError If the metadata is invalid and the result cannot be computed
     FieldLayoutRow GetFieldLayout(FullReference const& parent);
 
 
@@ -1989,17 +1989,17 @@ namespace CxxReflect { namespace Metadata {
     ///          can have an associated CustomAttribute.  This constraint is only checked in debug
     ///          builds.
     /// \returns The range of **CustomAttribute** rows owned by the parent row as `[first, second)`
-    /// \throws  MetadataReadError If the metadata is invalid and the range cannot be computed
+    /// \throws  MetadataError If the metadata is invalid and the range cannot be computed
     CustomAttributeRowIteratorPair GetCustomAttributesRange(FullReference const& parent);
 
     /// Gets an iterator to the initial **CustomAttribute** owned by `parent`
     ///
-    /// \throws MetadataReadError If the metadata is invalid and the iterator cannot be computed
+    /// \throws MetadataError If the metadata is invalid and the iterator cannot be computed
     CustomAttributeRowIterator BeginCustomAttributes(FullReference const& parent);
 
     /// Gets an iterator to one-past-the-end of the **CustomAttributes** owned by `parent`
     ///
-    /// \throws MetadataReadError If the metadata is invalid and the iterator cannot be computed
+    /// \throws MetadataError If the metadata is invalid and the iterator cannot be computed
     CustomAttributeRowIterator EndCustomAttributes(FullReference const& parent);
 
 
@@ -2014,17 +2014,17 @@ namespace CxxReflect { namespace Metadata {
     /// \param   parent A reference to the parent row; this must be a row in the **TypeDef** table.
     ///          This constraint is only checked in debug builds.
     /// \returns The range of **MethodImpl** owned by the parent row as `[first, second)`
-    /// \throws  MetadataReadError If the metadata is invalid and the range cannot be computed
+    /// \throws  MetadataError If the metadata is invalid and the range cannot be computed
     MethodImplRowIteratorPair GetMethodImplsRange(FullReference const& parent);
 
     /// Gets an iterator to the initial **MethodImpl** owned by `parent`
     ///
-    /// \throws MetadataReadError If the metadata is invalid and the iterator cannot be computed
+    /// \throws MetadataError If the metadata is invalid and the iterator cannot be computed
     MethodImplRowIterator BeginMethodImpls(FullReference const& parent);
 
     /// Gets an iterator to one-past-the-end of the **MethodImpls** owned by `parent`
     ///
-    /// \throws MetadataReadError If the metadata is invalid and the iterator cannot be computed
+    /// \throws MetadataError If the metadata is invalid and the iterator cannot be computed
     MethodImplRowIterator EndMethodImpls(FullReference const& parent);
 
 
@@ -2039,17 +2039,17 @@ namespace CxxReflect { namespace Metadata {
     /// \param   parent A reference to the parent row; this msut refer either to the **Event** table
     ///          or to the **Property** table.  This constraint is only checked in debug builds.
     /// \returns The range of **MethodSemantics** owned by the parent row as `[first, second)`
-    /// \throws  MetadataReadError If the metadata is invalid and the range cannot be computed
+    /// \throws  MetadataError If the metadata is invalid and the range cannot be computed
     MethodSemanticsRowIteratorPair GetMethodSemanticsRange(FullReference const& parent);
 
     /// Gets an iterator to the initial **MethodSemantics** owned by `parent`
     ///
-    /// \throws MetadataReadError If the metadata is invalid and the iterator cannot be computed
+    /// \throws MetadataError If the metadata is invalid and the iterator cannot be computed
     MethodSemanticsRowIterator BeginMethodSemantics(FullReference const& parent);
 
     /// Gets an iterator to one-past-the-end of the **MethodSemantics** owned by `parent`
     ///
-    /// \throws MetadataReadError If the metadata is invalid and the iterator cannot be computed
+    /// \throws MetadataError If the metadata is invalid and the iterator cannot be computed
     MethodSemanticsRowIterator EndMethodSemantics(FullReference const& parent);
 
 

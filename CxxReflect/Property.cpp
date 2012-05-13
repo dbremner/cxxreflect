@@ -5,8 +5,8 @@
 
 #include "CxxReflect/PrecompiledHeaders.hpp"
 
-#include "CxxReflect/Assembly.hpp"
 #include "CxxReflect/Loader.hpp"
+#include "CxxReflect/Module.hpp"
 #include "CxxReflect/Property.hpp"
 #include "CxxReflect/Type.hpp"
 
@@ -49,12 +49,12 @@ namespace CxxReflect {
     Type Property::GetDeclaringType() const
     {
         AssertInitialized();
-        Loader                  const& loader  (_reflectedType.Realize().GetAssembly().GetContext(InternalKey()).GetLoader());
+        Detail::LoaderContext   const& loader  (_reflectedType.Realize().GetModule().GetContext(InternalKey()).GetAssembly().GetLoader());
         Metadata::Database      const& database(_context.Get()->GetOwningType().GetDatabase());
-        Detail::AssemblyContext const& context (loader.GetContextForDatabase(database, InternalKey()));
-        Assembly                const  assembly(&context, InternalKey());
+        Detail::ModuleContext   const& context (loader.GetContextForDatabase(database));
+        Module                  const  module  (&context, InternalKey());
 
-        return Type(assembly, _context.Get()->GetOwningType().AsRowReference(), InternalKey());
+        return Type(module, _context.Get()->GetOwningType().AsRowReference(), InternalKey());
     }
 
     Type Property::GetReflectedType() const

@@ -9,21 +9,43 @@
 
 namespace CxxReflect {
 
+    /// \ingroup cxxreflect_public_interface
+    ///
+    /// @{
+
+
+
+
+
     class Assembly
     {
+    private:
+
+        typedef Detail::InstantiatingIterator<Metadata::RowReference, Type, Module> InnerTypeIterator;
+
+        static InnerTypeIterator BeginModuleTypes(Module const& module);
+        static InnerTypeIterator EndModuleTypes  (Module const& module);
+
     public:
+
+        typedef Detail::InstantiatingIterator<SizeType, Module, Assembly> ModuleIterator;
+
+        typedef Detail::ConcatenatingIterator<
+            ModuleIterator,
+            InnerTypeIterator,
+            Module,
+            Type,
+            &Assembly::BeginModuleTypes,
+            &Assembly::EndModuleTypes
+        > TypeIterator;
 
         Assembly();
 
         AssemblyName const& GetName()     const;
-        String       const& GetLocation() const;
+        String              GetLocation() const;
 
         typedef Detail::InstantiatingIterator<Metadata::RowReference, File,         Assembly> FileIterator;
-        typedef Detail::InstantiatingIterator<Metadata::RowReference, Module,       Assembly> ModuleIterator;
-        typedef Detail::InstantiatingIterator<Metadata::RowReference, Type,         Assembly> TypeIterator;
         typedef Detail::InstantiatingIterator<Metadata::RowReference, AssemblyName, Assembly> AssemblyNameIterator;
-
-        typedef Detail::RandomAccessSequence<TypeIterator> TypeSequence;
 
         SizeType             GetReferencedAssemblyCount()   const;
         AssemblyNameIterator BeginReferencedAssemblyNames() const;
@@ -32,6 +54,9 @@ namespace CxxReflect {
         FileIterator BeginFiles() const;
         FileIterator EndFiles()   const;
 
+        /// Gets the file named `name`, or a default-constructed `File` if no such file exists
+        ///
+        /// \nothrows
         File GetFile(StringReference name) const;
 
         ModuleIterator BeginModules() const;
@@ -41,9 +66,8 @@ namespace CxxReflect {
 
         TypeIterator BeginTypes() const;
         TypeIterator EndTypes()   const;
-        TypeSequence GetTypes()   const;
 
-        Type GetType(StringReference namespaceQualifiedTypeName) const;
+        Type GetType(StringReference fullTypeName) const;
 
         // The namespace and name of a type are stored separately; this function is far more
         // efficient than the GetType() that takes a namespace-qualified type name.
@@ -95,8 +119,8 @@ namespace CxxReflect {
         bool IsInitialized() const;
         bool operator!()     const;
 
-        friend bool operator==(Assembly const& lhs, Assembly const& rhs);
-        friend bool operator< (Assembly const& lhs, Assembly const& rhs);
+        friend bool operator==(Assembly const&, Assembly const&);
+        friend bool operator< (Assembly const&, Assembly const&);
 
         CXXREFLECT_GENERATE_COMPARISON_OPERATORS(Assembly)
         CXXREFLECT_GENERATE_SAFE_BOOL_CONVERSION(Assembly)
@@ -115,6 +139,8 @@ namespace CxxReflect {
 
         Detail::ValueInitialized<Detail::AssemblyContext const*> _context;
     };
+
+    /// @}
 
 }
 

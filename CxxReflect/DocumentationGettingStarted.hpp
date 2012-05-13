@@ -452,6 +452,17 @@
 /// if you hit one of these assertions or if you find a bug, please report it on the CodePlex site,
 /// with a project or binary that demonstrates the problem, if possible.
 ///
+/// **A Note on Exception Safety:**  Many functions list the exceptions that they may throw, and
+/// many functions state that they do not throw exceptions.  There are two classes of exceptions
+/// that are *not included in these lists*:
+///
+///  * **Exogenous exceptions,** like `std::bad_alloc`, may be thrown at any time from any function;
+///    the CxxReflect library makes no attempt to handle these exceptions.  The library will remain
+///    in a consistent state even if such an exception is thrown.
+///
+///  * **Logic errors,** which are all derived from `CxxReflect::LogicError`.  If one of these is
+///    thrown, it means that there is a bug either in CxxReflect or in your usage of the library.
+///
 /// **Why can't I do _________?**  If you have feature requests, please open an issue on the
 /// CodePlex site.  Feature requests get top priority (after fixing known bugs, of course).
 ///

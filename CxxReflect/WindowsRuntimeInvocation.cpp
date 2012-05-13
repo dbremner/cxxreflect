@@ -13,6 +13,9 @@
 #include <inspectable.h>
 #include <wrl/client.h>
 
+// I hate Windows.h.
+#undef GetMessage
+
 using Microsoft::WRL::ComPtr;
 
 namespace CxxReflect { namespace WindowsRuntime { namespace {
@@ -160,7 +163,11 @@ namespace CxxReflect { namespace WindowsRuntime { namespace Internal {
         }
         else
         {
-            return GlobalLoaderContext::Get().GetLoader().GetFundamentalType(_type.Get(), InternalKey());
+            Detail::LoaderContext const& loader(WindowsRuntime::GlobalLoaderContext::Get()
+                .GetLoader()
+                .GetContext(InternalKey()));
+
+            return Type(loader, loader.ResolveFundamentalType(_type.Get()), InternalKey());
         }
     }
 
@@ -494,8 +501,8 @@ namespace CxxReflect { namespace WindowsRuntime { namespace Internal {
             return ComputeNumericConversionRank(pType, aType);
         }
 
-        Detail::AssertFail(L"Not yet implemented");
-        return ConversionRank::NoMatch;
+        throw LogicError(L"Not yet implemented");
+        // return ConversionRank::NoMatch;
     }
 
     ConvertingOverloadResolver::ConversionRank
@@ -591,12 +598,12 @@ namespace CxxReflect { namespace WindowsRuntime { namespace Internal {
         if (!Detail::IsSystemAssembly(type.GetAssembly()))
             return type.IsValueType() ? Metadata::ElementType::ValueType : Metadata::ElementType::Class;
 
-        Loader const& loader(type.GetAssembly().GetContext(InternalKey()).GetLoader());
+        Detail::LoaderContext const& loader(type.GetAssembly().GetContext(InternalKey()).GetLoader());
 
-        #define CXXREFLECT_GENERATE(A)                                                         \
-            if (loader.GetFundamentalType(Metadata::ElementType::A, InternalKey()) == type)    \
-            {                                                                                  \
-                return Metadata::ElementType::A;                                               \
+        #define CXXREFLECT_GENERATE(A)                                                                        \
+            if (Type(loader, loader.ResolveFundamentalType(Metadata::ElementType::A), InternalKey()) == type) \
+            {                                                                                                 \
+                return Metadata::ElementType::A;                                                              \
             }
 
         CXXREFLECT_GENERATE(Boolean)

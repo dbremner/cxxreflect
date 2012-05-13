@@ -5,8 +5,8 @@
 
 #include "CxxReflect/PrecompiledHeaders.hpp"
 
-#include "CxxReflect/Assembly.hpp"
 #include "CxxReflect/Method.hpp"
+#include "CxxReflect/Module.hpp"
 #include "CxxReflect/Parameter.hpp"
 #include "CxxReflect/Type.hpp"
 
@@ -24,6 +24,15 @@ namespace CxxReflect {
         AssertInitialized();
     }
 
+    Parameter::Parameter(Method                  const& method,
+                         Metadata::RowReference  const& parameter,
+                         Metadata::TypeSignature const& signature,
+                         InternalKey)
+        : _method(method), _parameter(parameter), _signature(signature)
+    {
+        AssertInitialized();
+    }
+
     ParameterFlags Parameter::GetAttributes() const
     {
         return GetParamRow().GetFlags();
@@ -36,8 +45,7 @@ namespace CxxReflect {
 
     bool Parameter::IsLcid() const
     {
-        Detail::AssertFail(L"NYI");
-        return false;
+        throw LogicError(L"Not yet implemented");
     }
 
     bool Parameter::IsOptional() const
@@ -52,8 +60,7 @@ namespace CxxReflect {
 
     bool Parameter::IsRetVal() const
     {
-        Detail::AssertFail(L"NYI");
-        return false;
+        throw LogicError(L"Not yet implemented");
     }
 
     Method Parameter::GetDeclaringMethod() const
@@ -78,7 +85,7 @@ namespace CxxReflect {
         AssertInitialized();
 
         return Type(
-            _method.Realize().GetDeclaringType().GetAssembly(),
+            _method.Realize().GetDeclaringType().GetModule(),
             Metadata::BlobReference(_signature),
             InternalKey());
     }
@@ -105,7 +112,7 @@ namespace CxxReflect {
         AssertInitialized();
         return _method.Realize()
             .GetDeclaringType()
-            .GetAssembly()
+            .GetModule()
             .GetContext(InternalKey())
             .GetDatabase()
             .GetRow<Metadata::TableId::Param>(_parameter);

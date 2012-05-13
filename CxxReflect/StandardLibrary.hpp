@@ -78,7 +78,7 @@ namespace CxxReflect {
     /// in a 64-bit process.
     typedef std::uint32_t                                 SizeType;
 
-    /// Represents a difference between two sizes, pointers, or iterators in the CxxReflect library.
+    /// Represents a difference between two sizes, pointers, or iterators in the CxxReflect library
     ///
     /// This is the signed type corresponding to the unsigned `SizeType`.
     typedef std::int32_t                                  DifferenceType;

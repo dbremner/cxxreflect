@@ -23,11 +23,28 @@ namespace CxxReflect {
 
 namespace CxxReflect { namespace Detail {
 
-    // Tag types used to identify the different instantiations of ElementContext and related classes
+    /// \defgroup cxxreflect_detail_elementcontexts Implementation Details :: Element Contexts
+    ///
+    /// These element contexts represent elements that are owned by types:  events, fields, methods,
+    /// properties, and interfaces.
+    ///
+    /// \todo
+    ///
+    /// @{
+
+    /// Tag for specializing the context types for events
     struct EventContextTag     { };
+
+    /// Tag for specializing the context types for fields
     struct FieldContextTag     { };
+
+    /// Tag for specializing the context types for interfaces
     struct InterfaceContextTag { };
+
+    /// Tag for specializing the context types for methods
     struct MethodContextTag    { };
+
+    /// Tag for specializing the context types for properties
     struct PropertyContextTag  { };
 
     template <typename TContextTag>
@@ -352,6 +369,8 @@ namespace CxxReflect { namespace Detail {
     typedef ElementContextTableCollection<InterfaceContextTag> InterfaceContextTableCollection;
     typedef ElementContextTableCollection<MethodContextTag   > MethodContextTableCollection;
     typedef ElementContextTableCollection<PropertyContextTag > PropertyContextTableCollection;
+
+    /// @}
 
 } }
 

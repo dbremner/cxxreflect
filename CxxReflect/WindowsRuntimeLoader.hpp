@@ -20,7 +20,7 @@ namespace CxxReflect { namespace WindowsRuntime {
 
     // An IAssemblyLocator that finds assemblies in the current package.  Assemblies are resolved
     // using RoResolveNamespace, and system types are redirected to our faux platform metadata.
-    class PackageAssemblyLocator : public IAssemblyLocator
+    class PackageAssemblyLocator : public IModuleLocator
     {
     public:
 
@@ -28,15 +28,17 @@ namespace CxxReflect { namespace WindowsRuntime {
 
         PackageAssemblyLocator(String const& packageRoot);
 
-        virtual AssemblyLocation LocateAssembly(AssemblyName const& assemblyName) const;
-        virtual AssemblyLocation LocateAssembly(AssemblyName const& assemblyName, String const& fullTypeName) const;
+        virtual ModuleLocation LocateAssembly(AssemblyName const& assemblyName) const;
+        virtual ModuleLocation LocateAssembly(AssemblyName const& assemblyName, String const& fullTypeName) const;
+
+        virtual ModuleLocation LocateModule(AssemblyName const& requestingAssembly, String const& moduleName) const;
 
         // TODO We should replace this with something a bit less expensive.  Since we need to sync
         // to access _metadataFiles, direct iterator access is a bit tricky.  This will suffice for
         // the moment.
         PathMap GetMetadataFiles() const;
 
-        AssemblyLocation FindMetadataForNamespace(String const& namespaceName) const;
+        ModuleLocation FindMetadataForNamespace(String const& namespaceName) const;
 
     private:
 
@@ -57,7 +59,7 @@ namespace CxxReflect { namespace WindowsRuntime {
     {
     public:
 
-        virtual String TransformNamespace(String const& namespaceName);
+        virtual StringReference GetSystemNamespace() const;
     };
 
 

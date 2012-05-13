@@ -18,6 +18,7 @@
 #include "CxxReflect/File.hpp"
 #include "CxxReflect/Loader.hpp"
 #include "CxxReflect/Method.hpp"
+#include "CxxReflect/Module.hpp"
 #include "CxxReflect/Parameter.hpp"
 #include "CxxReflect/Property.hpp"
 #include "CxxReflect/Type.hpp"

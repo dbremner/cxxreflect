@@ -32,7 +32,7 @@ namespace CxxReflect { namespace Metadata { namespace { namespace Private {
         CompressedIntBytes result;
 
         if (it == last)
-            throw MetadataReadError(Private::IteratorReadUnexpectedEnd);
+            throw MetadataError(Private::IteratorReadUnexpectedEnd);
 
         // Note:  we've manually unrolled this for performance.  Thank you, Mr. Profiler.
         result.Bytes[0] = *it++;
@@ -48,7 +48,7 @@ namespace CxxReflect { namespace Metadata { namespace { namespace Private {
             result.Bytes[1] ^= 0x80;
 
             if (last - it < 1)
-                throw MetadataReadError(Private::IteratorReadUnexpectedEnd);
+                throw MetadataError(Private::IteratorReadUnexpectedEnd);
 
             result.Bytes[0] = *it++;
             return result;
@@ -60,7 +60,7 @@ namespace CxxReflect { namespace Metadata { namespace { namespace Private {
             result.Bytes[3] ^= 0xC0;
 
             if (last - it < 3)
-                throw MetadataReadError(Private::IteratorReadUnexpectedEnd);
+                throw MetadataError(Private::IteratorReadUnexpectedEnd);
 
             result.Bytes[2] = *it++;
             result.Bytes[1] = *it++;
@@ -69,7 +69,7 @@ namespace CxxReflect { namespace Metadata { namespace { namespace Private {
         }
         else
         {
-            throw MetadataReadError(Private::IteratorReadUnexpectedEnd);
+            throw MetadataError(Private::IteratorReadUnexpectedEnd);
         }
     }
 
@@ -178,7 +178,7 @@ namespace CxxReflect { namespace Metadata {
     Byte ReadByte(ConstByteIterator& it, ConstByteIterator const last)
     {
         if (it == last)
-            throw MetadataReadError(Private::IteratorReadUnexpectedEnd);
+            throw MetadataError(Private::IteratorReadUnexpectedEnd);
 
         return *it++;
     }
@@ -258,7 +258,7 @@ namespace CxxReflect { namespace Metadata {
         case 0x00: return (tokenValue >> 2) | (Detail::AsInteger(TableId::TypeDef)  << 24);
         case 0x01: return (tokenValue >> 2) | (Detail::AsInteger(TableId::TypeRef)  << 24);
         case 0x02: return (tokenValue >> 2) | (Detail::AsInteger(TableId::TypeSpec) << 24);
-        default:   throw MetadataReadError(L"Unexpected table id in TypeDefOrRefOrSpecEncoded");
+        default:   throw MetadataError(L"Unexpected table id in TypeDefOrRefOrSpecEncoded");
         }
     }
 
@@ -271,7 +271,7 @@ namespace CxxReflect { namespace Metadata {
     {
         Byte const value(ReadByte(it, last));
         if (!IsValidElementType(value))
-            throw MetadataReadError(L"Unexpected element type");
+            throw MetadataError(L"Unexpected element type");
 
         return static_cast<ElementType>(value);
     }
@@ -284,7 +284,7 @@ namespace CxxReflect { namespace Metadata {
     std::uintptr_t ReadPointer(ConstByteIterator& it, ConstByteIterator const last)
     {
         if (std::distance(it, last) < sizeof(std::uintptr_t))
-            throw MetadataReadError(Private::IteratorReadUnexpectedEnd);
+            throw MetadataError(Private::IteratorReadUnexpectedEnd);
 
         std::uintptr_t value(0);
         Detail::RangeCheckedCopy(it, it + sizeof(std::uintptr_t), Detail::BeginBytes(value), Detail::EndBytes(value));

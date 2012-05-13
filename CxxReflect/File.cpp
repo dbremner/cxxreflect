@@ -18,16 +18,19 @@ namespace CxxReflect {
     File::File(Assembly const assembly, Metadata::RowReference const file, InternalKey)
         : _assembly(assembly), _file(file)
     {
-        AssertInitialized();
+        Detail::Assert([&]{ return assembly.IsInitialized(); });
+        Detail::Assert([&]{ return file.IsInitialized() && file.GetTable() == Metadata::TableId::File; });
     }
 
     FileFlags File::GetAttributes() const
     {
+        AssertInitialized();
         return GetFileRow().GetFlags();
     }
 
     StringReference File::GetName() const
     {
+        AssertInitialized();
         return GetFileRow().GetName();
     }
 
@@ -37,11 +40,28 @@ namespace CxxReflect {
         return _assembly.Realize();
     }
 
+    bool File::ContainsMetadata() const
+    {
+        AssertInitialized();
+        return !GetFileRow().GetFlags().IsSet(FileAttribute::ContainsNoMetadata);
+    }
+
+    Sha1Hash File::GetHashValue() const
+    {
+        AssertInitialized();
+        Metadata::BlobReference const value(GetFileRow().GetHashValue());
+
+        Sha1Hash result((Sha1Hash()));
+        Detail::RangeCheckedCopy(value.Begin(), value.End(), Detail::BeginBytes(result), Detail::EndBytes(result));
+        return result;
+    }
+
     Metadata::FileRow File::GetFileRow() const
     {
         AssertInitialized();
         return _assembly.Realize()
             .GetContext(InternalKey())
+            .GetManifestModule()
             .GetDatabase()
             .GetRow<Metadata::TableId::File>(_file);
     }
@@ -63,8 +83,7 @@ namespace CxxReflect {
 
     bool operator==(File const& lhs, File const& rhs)
     {
-        return lhs._assembly == rhs._assembly
-            && lhs._file == rhs._file;
+        return lhs._assembly == rhs._assembly && lhs._file == rhs._file;
     }
 
     bool operator<(File const& lhs, File const& rhs)

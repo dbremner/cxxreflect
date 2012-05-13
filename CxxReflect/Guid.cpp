@@ -42,6 +42,21 @@ namespace CxxReflect {
         _data[0xC] = m2e; _data[0xD] = m2f; _data[0xE] = m2g; _data[0xF] = m2h;
     }
 
+    Guid::ByteArray const& Guid::AsByteArray() const
+    {
+        return _data;
+    }
+
+    bool operator==(Guid const& lhs, Guid const& rhs)
+    {
+        return lhs.AsByteArray() == rhs.AsByteArray();
+    }
+
+    bool operator<(Guid const& lhs, Guid const& rhs)
+    {
+        return lhs.AsByteArray() <  rhs.AsByteArray();
+    }
+
     std::wostream& operator<<(std::wostream& os, Guid const& x)
     {
         Guid::ByteArray const& bytes(x.AsByteArray());

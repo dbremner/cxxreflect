@@ -5,9 +5,9 @@
 
 #include "CxxReflect/PrecompiledHeaders.hpp"
 
-#include "CxxReflect/Assembly.hpp"
 #include "CxxReflect/Constant.hpp"
 #include "CxxReflect/Loader.hpp"
+#include "CxxReflect/Module.hpp"
 #include "CxxReflect/Field.hpp"
 #include "CxxReflect/Type.hpp"
 
@@ -50,12 +50,12 @@ namespace CxxReflect {
     Type Field::GetDeclaringType() const
     {
         AssertInitialized();
-        Loader                  const& loader  (_reflectedType.Realize().GetAssembly().GetContext(InternalKey()).GetLoader());
+        Detail::LoaderContext   const& loader  (_reflectedType.Realize().GetModule().GetContext(InternalKey()).GetAssembly().GetLoader());
         Metadata::Database      const& database(_context.Get()->GetOwningType().GetDatabase());
-        Detail::AssemblyContext const& context (loader.GetContextForDatabase(database, InternalKey()));
-        Assembly                const  assembly(&context, InternalKey());
+        Detail::ModuleContext   const& context (loader.GetContextForDatabase(database));
+        Module                  const  module(&context, InternalKey());
 
-        return Type(assembly, _context.Get()->GetOwningType().AsRowReference(), InternalKey());
+        return Type(module, _context.Get()->GetOwningType().AsRowReference(), InternalKey());
     }
 
     Type Field::GetReflectedType() const
@@ -72,9 +72,14 @@ namespace CxxReflect {
     Type Field::GetType() const
     {
         return Type(
-            GetDeclaringType().GetAssembly(),
+            GetDeclaringType().GetModule(),
             GetContext(InternalKey()).GetElementRow().GetSignature(),
             InternalKey());
+    }
+
+    Module Field::GetModule() const
+    {
+        return GetDeclaringType().GetModule();
     }
 
     SizeType Field::GetMetadataToken() const
