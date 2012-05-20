@@ -54,9 +54,13 @@
 
 
 // If iterator debugging is disabled, we do not need to use our own unchecked debug operations:
-#if _ITERATOR_DEBUG_LEVEL != 2
+#if !defined(_MSC_VER) || _ITERATOR_DEBUG_LEVEL != 2
 #undef CXXREFLECT_ENABLE_UNCHECKED_DEBUG_ALGORITHMS
 #endif
+
+
+
+
 
 // Determine the target architecture for which we are being built.  This is primarily used in the
 // Windows Runtime integration to select the correct calling convention for function invocations.
@@ -64,19 +68,64 @@
 #define CXXREFLECT_ARCHITECTURE_X64 2
 #define CXXREFLECT_ARCHITECTURE_ARM 3
 
-#if defined(_M_IX86)
+#if defined(_MSC_VER)
+#    if defined(_M_IX86)
+#        define CXXREFLECT_ARCHITECTURE CXXREFLECT_ARCHITECTURE_X86
+#    elif defined (_M_X64)
+#        define CXXREFLECT_ARCHITECTURE CXXREFLECT_ARCHITECTURE_X64
+#    elif false // TODO ARM
+#        define CXXREFLECT_ARCHITECTURE_ARM
+#    else
+#        error Compiling for an unknown platform
+#    endif
+#elif defined(__MINGW32__)
 #    define CXXREFLECT_ARCHITECTURE CXXREFLECT_ARCHITECTURE_X86
-#elif defined (_M_X64)
-#    define CXXREFLECT_ARCHITECTURE CXXREFLECT_ARCHITECTURE_X64
-#elif false // TODO ARM
-#    define CXXREFLECT_ARCHITECTURE_ARM
+// TODO There are other MinGW conditions we need to handle here.
 #else
-#    error Compiling for an unknown platform
+#    error Compiling for an unknown target
 #endif
+
+
+
+
+
+// Determine whether we support multithreaded use of the APIs.  Basically, in MinGW, we can't
+// support multithreading because it doesn't support <thread>.
+#define CXXREFLECT_THREADING_SINGLETHREADED     1
+#define CXXREFLECT_THREADING_STDCPPSYNCHRONIZED 2
+
+#if defined(_MSC_VER)
+#    define CXXREFLECT_THREADING CXXREFLECT_THREADING_STDCPPSYNCHRONIZED
+#elif defined (__MINGW32__)
+#    define CXXREFLECT_THREADING CXXREFLECT_THREADING_SINGLETHREADED
+#endif
+
+
+
+
+
+#if defined(_MSC_VER)
+#    define CXXREFLECT_STDLIB_HAS_UNDERLYING_TYPE
+#elif defined (__MINGW32__)
+#    undef CXXREFLECT_STDLIB_HAS_UNDERLYING_TYPE
+#else
+#    error Compiling for an unknown target
+#endif
+
+#define CXXREFLECT_COMPILER_VISUALCPP 1
+#define CXXREFLECT_COMPILER_OTHER     2
+
+#if defined (_MSC_VER)
+#    define CXXREFLECT_COMPILER CXXREFLECT_COMPILER_VISUALCPP
+#else
+#    define CXXREFLECT_COMPILER CXXREFLECT_COMPILER_OTHER
+#endif
+
+
 
 // Windows Runtime and C++/CLI are mutually exclusive, so if we are being built in a C++/CLI
 // translation unit, we disable support for Windows Runtime:
-#if defined (__cplusplus_cli)
+#if defined(__cplusplus_cli) || !defined(_MSC_VER)
 #   undef CXXREFLECT_ENABLE_WINDOWS_RUNTIME_INTEGRATION
 #endif
 

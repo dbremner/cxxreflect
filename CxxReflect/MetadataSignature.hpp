@@ -751,8 +751,8 @@ namespace CxxReflect { namespace Metadata {
             std::transform(firstArgument, lastArgument, std::back_inserter(_arguments),
                            [&](TypeSignature const& s) -> TypeSignature
             {
-                _argumentSignatures.resize(_argumentSignatures.size() + 1);
-                InstantiateInto(_argumentSignatures.back(), s);
+                this->_argumentSignatures.resize(this->_argumentSignatures.size() + 1);
+                InstantiateInto(this->_argumentSignatures.back(), s);
                 return TypeSignature(
                     &*_argumentSignatures.back().begin(),
                     &*_argumentSignatures.back().begin() + _argumentSignatures.back().size());

@@ -19,7 +19,7 @@ namespace CxxReflect { namespace { namespace Private {
 
         if (isFullPublicKey)
         {
-            Sha1Hash const hash(Externals::ComputeSha1Hash(blob.Begin(), blob.End()));
+            Sha1Hash const hash(Detail::ComputeSha1Hash(blob.Begin(), blob.End()));
             std::copy(hash.rbegin(), hash.rbegin() + 8, result.begin());
         }
         else if (Detail::Distance(blob.Begin(), blob.End()) > 0) // TODO Why would this be zero?
@@ -129,7 +129,7 @@ namespace CxxReflect {
 
     std::wistream& operator>>(std::wistream& is, Version& v)
     {
-        std::array<std::int16_t, 4> components = { 0 };
+        std::array<std::int16_t, 4> components = { { 0 } };
         unsigned componentsRead(0);
         bool TrueValueToSuppressC4127(true);
         while (TrueValueToSuppressC4127)
@@ -257,10 +257,10 @@ namespace CxxReflect {
 
         if (!publicKeyIsNull)
         {
-            std::array<Character, 17> publicKeyString = { 0 };
+            std::array<Character, 17> publicKeyString = { { 0 } };
             for (SizeType n(0); n < _publicKeyToken.Get().size(); n += 1)
             {
-                std::swprintf(publicKeyString.data() + (n * 2), 3, L"%02x", _publicKeyToken.Get()[n]);
+                // TODO std::swprintf(publicKeyString.data() + (n * 2), 3, L"%02x", _publicKeyToken.Get()[n]);
             }
             buffer << publicKeyString.data();
         }

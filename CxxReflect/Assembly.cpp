@@ -118,7 +118,7 @@ namespace CxxReflect {
     {
         AssertInitialized();
 
-        return ModuleIterator(*this, _context.Get()->GetModules().size());
+        return ModuleIterator(*this, Detail::ConvertInteger(_context.Get()->GetModules().size()));
     }
 
     Module Assembly::GetModule(StringReference const name) const

@@ -81,8 +81,10 @@ namespace CxxReflect { namespace Metadata {
         /// values that are not used for any `TableId`.  However, this is a number that is large
         /// enough that it may be used to define an array `a` large enough so that the expression
         /// `a[TableId::{Enumerator}]` is a valid indexing expression for any `TableId` enumerator.
-        TableIdCount = 0x2d
+        TableIdCount   = 0x2d
     };
+
+    static TableId const InvalidTableId = static_cast<TableId>(-1);
 
     typedef std::array<SizeType, TableIdCount> TableIdSizeArray;
 
@@ -173,8 +175,8 @@ namespace CxxReflect { namespace Metadata {
 
         enum : SizeType
         {
-            InvalidValue     = static_cast<SizeType>(-1),
-            InvalidIndex     = static_cast<SizeType>(-1),
+            InvalidValue     = Detail::MaxSizeType,
+            InvalidIndex     = Detail::MaxSizeType,
 
             ValueTableIdMask = 0xff000000,
             ValueIndexMask   = 0x00ffffff,
@@ -397,7 +399,7 @@ namespace CxxReflect { namespace Metadata {
 
         enum : SizeType
         {
-            InvalidElementSentinel = static_cast<SizeType>(-1)
+            InvalidElementSentinel = Detail::MaxSizeType
         };
 
         /// Constructs a new, uninitialized `BaseElementReference`
@@ -733,7 +735,7 @@ namespace CxxReflect { namespace Metadata {
         template <typename T>
         T const* ReinterpretAs(SizeType const index) const
         {
-            return reinterpret_cast<T const*>(RangeCheckedAt(index, static_cast<SizeType>(sizeof(T))));
+            return reinterpret_cast<T const*>(RangeCheckedAt(index, Detail::ConvertInteger(sizeof(T))));
         }
 
     private:
@@ -772,7 +774,7 @@ namespace CxxReflect { namespace Metadata {
     template <>                                                                 \
     struct RowTypeToTableId<t ## Row>                                           \
     {                                                                           \
-        enum { Value = TableId::t };                                            \
+        enum : SizeType { Value = static_cast<SizeType>(TableId::t) };          \
     };                                                                          \
                                                                                 \
     template <>                                                                 \
@@ -1171,7 +1173,7 @@ namespace CxxReflect { namespace Metadata {
         friend DifferenceType operator-(StrideIterator const& lhs, StrideIterator const& rhs)
         {
             AssertComparable(lhs, rhs);
-            return (lhs._current.Get() - rhs._current.Get()) / lhs._stride.Get();
+            return static_cast<DifferenceType>((lhs._current.Get() - rhs._current.Get()) / lhs._stride.Get());
         }
 
         friend bool operator==(StrideIterator const& lhs, StrideIterator const& rhs)
@@ -1227,7 +1229,7 @@ namespace CxxReflect { namespace Metadata {
     {
     public:
 
-        enum { TableId = TId };
+        enum { TableId = static_cast<SizeType>(TId) };
 
         typedef std::random_access_iterator_tag          iterator_category;
         typedef DifferenceType                           difference_type;
@@ -1255,7 +1257,7 @@ namespace CxxReflect { namespace Metadata {
             Detail::AssertNotNull(database);
 
             auto const& table(database->GetTables().GetTable(TId));
-            return RowIterator(database, (iterator - table.Begin()) / table.GetRowSize());
+            return RowIterator(database, Detail::ConvertInteger((iterator - table.Begin()) / table.GetRowSize()));
         }
 
         RowReference GetReference()  const { AssertInitialized(); return RowReference(TId, _index.Get()); } 
@@ -1273,20 +1275,20 @@ namespace CxxReflect { namespace Metadata {
         RowIterator& operator+=(DifferenceType const n)
         {
             AssertInitialized();
-            _index.Get() = static_cast<SizeType>(static_cast<DifferenceType>(_index.Get()) + n);
+            _index.Get() = Detail::ConvertInteger(static_cast<DifferenceType>(_index.Get()) + n);
             return *this;
         }
         RowIterator& operator-=(DifferenceType const n)
         {
             AssertInitialized();
-            _index.Get() = static_cast<SizeType>(static_cast<DifferenceType>(_index.Get()) - n);
+            _index.Get() = Detail::ConvertInteger(static_cast<DifferenceType>(_index.Get()) - n);
             return *this;
         }
 
         Reference operator[](DifferenceType const n) const
         {
             AssertInitialized();
-            return _database->GetRow<ValueType>(_index.Get() + n);
+            return _database.Get()->template GetRow<ValueType>(_index.Get() + n);
         }
 
         friend RowIterator operator+(RowIterator it, DifferenceType const n) { return it +=  n; }
@@ -1330,7 +1332,7 @@ namespace CxxReflect { namespace Metadata {
         Reference GetValue() const
         {
             AssertInitialized();
-            return _database.Get()->GetRow<TId>(_index.Get());
+            return _database.Get()->template GetRow<TId>(_index.Get());
         }
 
         Detail::ValueInitialized<Database const*> _database;
@@ -1403,7 +1405,7 @@ namespace CxxReflect { namespace Metadata {
             AssertInitialized();
 
             Table    const& table(GetDatabase().GetTables().GetTable(TTableId));
-            SizeType const  index(static_cast<SizeType>((GetIterator() - table.Begin()) / table.GetRowSize()));
+            SizeType const  index(Detail::ConvertInteger((GetIterator() - table.Begin()) / table.GetRowSize()));
             return RowReference(TTableId, index);
         }
 
@@ -1437,7 +1439,7 @@ namespace CxxReflect { namespace Metadata {
 
         void AssertInitialized() const
         {
-            Detail::Assert([&]{ return IsInitialized(); });
+            Detail::Assert([&]{ return this->IsInitialized(); });
         }
 
         /// Gets the offset of a particular row, in bytes, from the initial byte of this row.
@@ -1463,7 +1465,7 @@ namespace CxxReflect { namespace Metadata {
         {
             Detail::AssertNotNull(database);
             Detail::AssertNotNull(data);
-            Detail::Assert([&]{ return !IsInitialized(); });
+            Detail::Assert([&]{ return !this->IsInitialized(); });
 
             _database.Get() = database;
             _data.Get()     = data;

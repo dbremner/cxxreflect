@@ -20,7 +20,7 @@ namespace CxxReflect { namespace WindowsRuntime {
 
     // An IAssemblyLocator that finds assemblies in the current package.  Assemblies are resolved
     // using RoResolveNamespace, and system types are redirected to our faux platform metadata.
-    class PackageAssemblyLocator : public IModuleLocator
+    class PackageAssemblyLocator
     {
     public:
 
@@ -28,10 +28,13 @@ namespace CxxReflect { namespace WindowsRuntime {
 
         PackageAssemblyLocator(String const& packageRoot);
 
-        virtual ModuleLocation LocateAssembly(AssemblyName const& assemblyName) const;
-        virtual ModuleLocation LocateAssembly(AssemblyName const& assemblyName, String const& fullTypeName) const;
+        PackageAssemblyLocator(PackageAssemblyLocator const&);
+        PackageAssemblyLocator& operator=(PackageAssemblyLocator);
 
-        virtual ModuleLocation LocateModule(AssemblyName const& requestingAssembly, String const& moduleName) const;
+        ModuleLocation LocateAssembly(AssemblyName const& assemblyName) const;
+        ModuleLocation LocateAssembly(AssemblyName const& assemblyName, String const& fullTypeName) const;
+
+        ModuleLocation LocateModule(AssemblyName const& requestingAssembly, String const& moduleName) const;
 
         // TODO We should replace this with something a bit less expensive.  Since we need to sync
         // to access _metadataFiles, direct iterator access is a bit tricky.  This will suffice for
@@ -42,8 +45,8 @@ namespace CxxReflect { namespace WindowsRuntime {
 
     private:
 
-        typedef std::recursive_mutex    Mutex;
-        typedef std::unique_lock<Mutex> Lock;
+        typedef Detail::RecursiveMutex     Mutex;
+        typedef Detail::RecursiveMutexLock Lock;
 
         String          _packageRoot;
         PathMap mutable _metadataFiles;
@@ -55,25 +58,24 @@ namespace CxxReflect { namespace WindowsRuntime {
 
 
     // Implementation of ILoaderConfiguration used by the Windows Runtime bindings.
-    class LoaderConfiguration : public ILoaderConfiguration
+    class LoaderConfiguration
     {
     public:
 
-        virtual StringReference GetSystemNamespace() const;
+        StringReference GetSystemNamespace() const;
     };
 
 
 
 
 
-    // TODO Documentation
     class LoaderContext
     {
     public:
 
-        typedef PackageAssemblyLocator  Locator;
+        typedef PackageAssemblyLocator Locator;
 
-        LoaderContext(std::unique_ptr<Loader>&& loader);
+        LoaderContext(Locator const& locator, std::unique_ptr<Loader> loader);
 
         Loader  const& GetLoader()  const;
         Locator const& GetLocator() const;
@@ -106,12 +108,13 @@ namespace CxxReflect { namespace WindowsRuntime {
 
     private:
 
-        typedef std::recursive_mutex    Mutex;
-        typedef std::unique_lock<Mutex> Lock;
+        typedef Detail::RecursiveMutex     Mutex;
+        typedef Detail::RecursiveMutexLock Lock;
 
         LoaderContext(LoaderContext const&);
         LoaderContext& operator=(LoaderContext const&);
 
+        Locator                         _locator;
         std::unique_ptr<Loader>         _loader;
         Mutex                   mutable _sync;
     };

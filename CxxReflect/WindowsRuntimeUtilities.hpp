@@ -12,6 +12,8 @@
 #include "CxxReflect/FundamentalUtilities.hpp"
 #endif
 
+#if defined(CXXREFLECT_WINDOWSRUNTIME_UTILITIES_STANDALONE) || defined(CXXREFLECT_ENABLE_WINDOWS_RUNTIME_INTEGRATION)
+
 #include <algorithm>
 #include <cstdint>
 #include <limits>
@@ -93,7 +95,7 @@ namespace CxxReflect { namespace WindowsRuntime { namespace Utility {
 
 		explicit SmartHString(const_pointer const s)
 		{
-			ThrowOnFailure(WindowsCreateString(s, static_cast<UINT32>(::wcslen(s)), &_value));
+			ThrowOnFailure(WindowsCreateString(s, Detail::ConvertInteger(::wcslen(s)), &_value));
 		}
 
 		SmartHString(SmartHString const& other)
@@ -611,7 +613,7 @@ namespace CxxReflect { namespace WindowsRuntime { namespace Utility {
                 argument,
                 buffer.first.data(),
                 buffer.second.data(),
-                buffer.first.size(),
+                static_cast<ULONG>(buffer.first.size()),
                 &count));
 			return count;
 		}
@@ -681,7 +683,7 @@ namespace CxxReflect { namespace WindowsRuntime { namespace Utility {
                 argument.first,
                 argument.second,
                 buffer.data(),
-                buffer.size(),
+                static_cast<ULONG>(buffer.size()),
                 &count));
 			return count;
 		}
@@ -834,5 +836,7 @@ namespace CxxReflect { namespace WindowsRuntime { namespace Utility {
 	typedef CorEnumIterator<ManifestResourceCorEnumIteratorPolicy>         ManifestResourceCorEnumIterator;
 
 } } }
+
+#endif // #if defined(CXXREFLECT_WINDOWSRUNTIME_UTILITIES_STANDALONE) || defined(CXXREFLECT_ENABLE_WINDOWS_RUNTIME_INTEGRATION)
 
 #endif

@@ -7,6 +7,8 @@
 
 #include "CxxReflect/WindowsRuntimeCommon.hpp"
 
+#ifdef CXXREFLECT_ENABLE_WINDOWS_RUNTIME_INTEGRATION
+
 #include <inspectable.h>
 
 namespace CxxReflect { namespace WindowsRuntime {
@@ -61,3 +63,5 @@ namespace CxxReflect { namespace WindowsRuntime {
     }
 
 } }
+
+#endif

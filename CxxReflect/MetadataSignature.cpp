@@ -14,7 +14,7 @@
 
 namespace CxxReflect { namespace Metadata { namespace { namespace Private {
 
-    CharacterIterator const IteratorReadUnexpectedEnd(L"Unexpectedly reached end of range");
+    ConstCharacterIterator const IteratorReadUnexpectedEnd(L"Unexpectedly reached end of range");
 
     struct CompressedIntBytes
     {
@@ -88,14 +88,14 @@ namespace CxxReflect { namespace Metadata {
     bool IsValidElementType(Byte const id)
     {
         static std::array<Byte, 0x60> const mask =
-        {
+        { {
             1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
             1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 0, 1, 1, 1, 1, 1,
             1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
             0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
             1, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
             1, 1, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1
-        };
+        } };
 
         return id < mask.size() && mask[id] == 1;
     }
@@ -104,10 +104,10 @@ namespace CxxReflect { namespace Metadata {
     bool IsTypeElementType(Byte const id)
     {
         static std::array<Byte, 0x20> const mask =
-        {
+        { {
             0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
             0, 1, 1, 1, 1, 1, 0, 0, 1, 1, 0, 1, 1, 1, 1, 0
-        };
+        } };
 
         return id < mask.size() && mask[id] == 1;
     }
@@ -557,8 +557,8 @@ namespace CxxReflect { namespace Metadata {
     }
 
     ClassVariableSignatureInstantiator::ClassVariableSignatureInstantiator(ClassVariableSignatureInstantiator&& other)
-        : _scope             (std::move(other._scope             )),
-          _arguments         (std::move(other._arguments         )),
+        : _arguments         (std::move(other._arguments         )),
+          _scope             (std::move(other._scope             )),
           _argumentSignatures(std::move(other._argumentSignatures)),
           _buffer            (std::move(other._buffer            ))
     {
@@ -567,8 +567,8 @@ namespace CxxReflect { namespace Metadata {
     ClassVariableSignatureInstantiator& 
     ClassVariableSignatureInstantiator::operator=(ClassVariableSignatureInstantiator&& other)
     {
-        _scope              = std::move(other._scope             );
         _arguments          = std::move(other._arguments         );
+        _scope              = std::move(other._scope             );
         _argumentSignatures = std::move(other._argumentSignatures);
         _buffer             = std::move(other._buffer            );
         return *this;
@@ -749,7 +749,7 @@ namespace CxxReflect { namespace Metadata {
                                                                   TForIt         const  first,
                                                                   TForIt         const  last) const
     {
-        std::for_each(first, last, [&](decltype(*first) const& s) { InstantiateInto(buffer, s); });
+        std::for_each(first, last, [&](decltype(*first) s) { InstantiateInto(buffer, s); });
     }
 
     bool ClassVariableSignatureInstantiator::RequiresInstantiationInternal(ArrayShape const&)
@@ -819,7 +819,7 @@ namespace CxxReflect { namespace Metadata {
     template <typename TForIt>
     bool ClassVariableSignatureInstantiator::AnyRequiresInstantiationInternal(TForIt const first, TForIt const last)
     {
-        return std::any_of(first, last, [&](decltype(*first) const& s)
+        return std::any_of(first, last, [&](decltype(*first) s)
         {
             return RequiresInstantiationInternal(s);
         });
@@ -946,7 +946,7 @@ namespace CxxReflect { namespace Metadata {
     {
         AssertInitialized();
 
-        return static_cast<SizeType>(SeekTo(Part::End) - BeginBytes());
+        return Detail::ConvertInteger(SeekTo(Part::End) - BeginBytes());
     }
 
     ConstByteIterator ArrayShape::SeekTo(Part const part) const
@@ -980,7 +980,7 @@ namespace CxxReflect { namespace Metadata {
 
         if (part > Part::FirstLowBound)
         {
-            for (unsigned i(0); i < numSizes; ++i)
+            for (unsigned i(0); i < numLowBounds; ++i)
                 ReadCompressedUInt32(current, EndBytes());
         }
 
@@ -1039,7 +1039,7 @@ namespace CxxReflect { namespace Metadata {
     {
         AssertInitialized();
 
-        return static_cast<SizeType>(SeekTo(Part::End) - BeginBytes());
+        return Detail::ConvertInteger(SeekTo(Part::End) - BeginBytes());
     }
 
     ConstByteIterator CustomModifier::SeekTo(Part const part) const
@@ -1094,7 +1094,7 @@ namespace CxxReflect { namespace Metadata {
     {
         AssertInitialized();
 
-        return static_cast<SizeType>(SeekTo(Part::End) - BeginBytes());
+        return Detail::ConvertInteger(SeekTo(Part::End) - BeginBytes());
     }
 
     ConstByteIterator FieldSignature::SeekTo(Part const part) const
@@ -1181,7 +1181,7 @@ namespace CxxReflect { namespace Metadata {
     {
         AssertInitialized();
 
-        return static_cast<SizeType>(SeekTo(Part::End) - BeginBytes());
+        return Detail::ConvertInteger(SeekTo(Part::End) - BeginBytes());
     }
 
     ConstByteIterator PropertySignature::SeekTo(Part const part) const
@@ -1378,7 +1378,7 @@ namespace CxxReflect { namespace Metadata {
         AssertInitialized();
 
         SizeType const parameterCount(GetParameterCount());
-        SizeType const actualParameters(static_cast<SizeType>(std::distance(BeginParameters(), EndParameters())));
+        SizeType const actualParameters(Detail::ConvertInteger(std::distance(BeginParameters(), EndParameters())));
         SizeType const varArgParameters(parameterCount - actualParameters);
 
         return ParameterIterator(SeekTo(Part::FirstVarargParam), EndBytes(), 0, varArgParameters);
@@ -1389,7 +1389,7 @@ namespace CxxReflect { namespace Metadata {
         AssertInitialized();
 
         SizeType const parameterCount(GetParameterCount());
-        SizeType const actualParameters(static_cast<SizeType>(std::distance(BeginParameters(), EndParameters())));
+        SizeType const actualParameters(Detail::ConvertInteger(std::distance(BeginParameters(), EndParameters())));
         SizeType const varArgParameters(parameterCount - actualParameters);
 
         return ParameterIterator(nullptr, nullptr, varArgParameters, varArgParameters);
@@ -1399,7 +1399,7 @@ namespace CxxReflect { namespace Metadata {
     {
         AssertInitialized();
 
-        return static_cast<SizeType>(SeekTo(Part::End) - BeginBytes());
+        return Detail::ConvertInteger(SeekTo(Part::End) - BeginBytes());
     }
 
     ConstByteIterator MethodSignature::SeekTo(Part const part) const
@@ -1485,7 +1485,7 @@ namespace CxxReflect { namespace Metadata {
     {
         AssertInitialized();
 
-        return static_cast<SizeType>(SeekTo(Part::End) - BeginBytes());
+        return Detail::ConvertInteger(SeekTo(Part::End) - BeginBytes());
     }
 
     TypeSignature::Kind TypeSignature::GetKind() const

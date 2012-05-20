@@ -13,11 +13,11 @@
 #include <array>
 #include <bitset>
 #include <cctype>
+#include <cerrno>
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
 #include <cwchar>
-#include <filesystem>
 #include <functional>
 #include <iostream>
 #include <iterator>
@@ -33,19 +33,6 @@
 #include <utility>
 #include <vector>
 
-// The C++ Standard Library threading and synchronization headers cannot be included in C++/CLI
-// translation units.  We can use these headers in CxxReflect translation units and in the Windows
-// Runtime integration headers, but we cannot include them in the CxxReflect library's public
-// interface headers.
-#ifndef __cplusplus_cli
-
-#include <atomic>
-#include <future>
-#include <mutex>
-#include <thread>
-
-#endif
-
 namespace CxxReflect {
 
     typedef std::uint8_t                                  Byte;
@@ -57,16 +44,10 @@ namespace CxxReflect {
     typedef wchar_t                                       Character;
     typedef wchar_t*                                      CharacterIterator;
     typedef wchar_t const*                                ConstCharacterIterator;
-    typedef std::reverse_iterator<CharacterIterator>      ReverseCharacterIterator;
-    typedef std::reverse_iterator<ConstCharacterIterator> ConstReverseCharacterIterator;
 
     typedef std::basic_string<wchar_t>                    String;
     typedef std::basic_istream<wchar_t>                   InputStream;
     typedef std::wostringstream                           OutputStream;
-
-    typedef std::basic_string<char>                       NarrowString;
-    typedef std::basic_istream<char>                      NarrowInputStream;
-    typedef std::basic_ostream<char>                      NarrowOutputStream;
 
     typedef long                                          HResult;
 
@@ -84,5 +65,11 @@ namespace CxxReflect {
     typedef std::int32_t                                  DifferenceType;
 
 }
+
+namespace CxxReflect { namespace Detail {
+
+    enum : SizeType { MaxSizeType = static_cast<SizeType>(-1) };
+
+} }
 
 #endif

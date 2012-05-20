@@ -23,6 +23,10 @@
 #include "CxxReflect/Property.hpp"
 #include "CxxReflect/Type.hpp"
 
+#include <atomic>
+#include <future>
+#include <thread>
+
 struct IInspectable;
 
 namespace CxxReflect { namespace WindowsRuntime { namespace Internal {
@@ -117,7 +121,7 @@ namespace CxxReflect { namespace WindowsRuntime {
         template <typename T>
         typename std::enable_if<std::is_enum<T>::value, T>::type GetValueAs() const
         {
-            return static_cast<T>(GetValueAs<typename std::underlying_type<T>::type>());
+            return static_cast<T>(GetValueAs<typename Detail::UnderlyingType<T>::Type>());
         }
 
     private:

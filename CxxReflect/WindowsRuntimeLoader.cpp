@@ -5,9 +5,12 @@
 
 #include "CxxReflect/PrecompiledHeaders.hpp"
 
+#include "CxxReflect/WindowsRuntimeCommon.hpp"
+
+#ifdef CXXREFLECT_ENABLE_WINDOWS_RUNTIME_INTEGRATION
+
 #include "CxxReflect/WindowsRuntimeLoader.hpp"
 #include "CxxReflect/WindowsRuntimeInternals.hpp"
-
 
 namespace CxxReflect { namespace WindowsRuntime {
 
@@ -28,6 +31,21 @@ namespace CxxReflect { namespace WindowsRuntime {
 
             return std::make_pair(Detail::MakeLowercase(simpleName), Detail::MakeLowercase(fileName));
         });
+    }
+
+    PackageAssemblyLocator::PackageAssemblyLocator(PackageAssemblyLocator const& other)
+    {
+        Lock const lock(other._sync);
+
+        _packageRoot   = other._packageRoot;
+        _metadataFiles = other._metadataFiles;
+    }
+
+    PackageAssemblyLocator& PackageAssemblyLocator::operator=(PackageAssemblyLocator other)
+    {
+        std::swap(other._packageRoot,   _packageRoot);
+        std::swap(other._metadataFiles, _metadataFiles);
+        return *this;
     }
 
     ModuleLocation PackageAssemblyLocator::LocateAssembly(AssemblyName const& assemblyName) const
@@ -153,8 +171,8 @@ namespace CxxReflect { namespace WindowsRuntime {
 
 
 
-    LoaderContext::LoaderContext(std::unique_ptr<Loader>&& loader)
-        : _loader(std::move(loader))
+    LoaderContext::LoaderContext(Locator const& locator, std::unique_ptr<Loader> loader)
+        : _locator(locator), _loader(std::move(loader))
     {
         Detail::Verify([&]{ return _loader != nullptr; });
     }
@@ -166,12 +184,7 @@ namespace CxxReflect { namespace WindowsRuntime {
 
     LoaderContext::Locator const& LoaderContext::GetLocator() const
     {
-        Loader const& loader(GetLoader());
-
-        IModuleLocator const& locator(loader.GetLocator());
-
-        Detail::Assert([&]{ return dynamic_cast<Locator const*>(&locator) != nullptr; });
-        return *static_cast<Locator const*>(&locator);
+        return _locator;
     }
 
     Type LoaderContext::GetType(StringReference const typeFullName) const
@@ -259,14 +272,14 @@ namespace CxxReflect { namespace WindowsRuntime {
             std::uint64_t value(0);
             switch (constant.GetKind())
             {
-            case Constant::Kind::Int8:   value = static_cast<uint64_t>(constant.AsInt8());   break;
-            case Constant::Kind::UInt8:  value = static_cast<uint64_t>(constant.AsUInt8());  break;
-            case Constant::Kind::Int16:  value = static_cast<uint64_t>(constant.AsInt16());  break;
-            case Constant::Kind::UInt16: value = static_cast<uint64_t>(constant.AsUInt16()); break;
-            case Constant::Kind::Int32:  value = static_cast<uint64_t>(constant.AsInt32());  break;
-            case Constant::Kind::UInt32: value = static_cast<uint64_t>(constant.AsUInt32()); break;
-            case Constant::Kind::Int64:  value = static_cast<uint64_t>(constant.AsInt64());  break;
-            case Constant::Kind::UInt64: value = static_cast<uint64_t>(constant.AsUInt64()); break;
+            case Constant::Kind::Int8:   value = Detail::ConvertInteger(constant.AsInt8());   break;
+            case Constant::Kind::UInt8:  value = Detail::ConvertInteger(constant.AsUInt8());  break;
+            case Constant::Kind::Int16:  value = Detail::ConvertInteger(constant.AsInt16());  break;
+            case Constant::Kind::UInt16: value = Detail::ConvertInteger(constant.AsUInt16()); break;
+            case Constant::Kind::Int32:  value = Detail::ConvertInteger(constant.AsInt32());  break;
+            case Constant::Kind::UInt32: value = Detail::ConvertInteger(constant.AsUInt32()); break;
+            case Constant::Kind::Int64:  value = Detail::ConvertInteger(constant.AsInt64());  break;
+            case Constant::Kind::UInt64: value = Detail::ConvertInteger(constant.AsUInt64()); break;
             default:                     throw RuntimeError(L"Invalid enumerator type encountered");
             }
 
@@ -421,23 +434,20 @@ namespace CxxReflect { namespace WindowsRuntime {
         {
             String const currentPackageRoot(Internal::GetCurrentPackageRoot());
 
-            std::unique_ptr<PackageAssemblyLocator> resolver(new PackageAssemblyLocator(currentPackageRoot));
-            PackageAssemblyLocator const& rawResolver(*resolver.get());
+            PackageAssemblyLocator locator(currentPackageRoot);
 
-            std::unique_ptr<ILoaderConfiguration> configuration(new LoaderConfiguration());
-
-            std::unique_ptr<Loader> loader(new Loader(std::move(resolver), std::move(configuration)));
+            std::unique_ptr<Loader> loader(new Loader(locator, LoaderConfiguration()));
 
             typedef PackageAssemblyLocator::PathMap             Sequence;
             typedef PackageAssemblyLocator::PathMap::value_type Element;
 
-            Sequence const metadataFiles(rawResolver.GetMetadataFiles());
+            Sequence const metadataFiles(locator.GetMetadataFiles());
             std::for_each(begin(metadataFiles), end(metadataFiles), [&](Element const& e)
             {
                 loader->LoadAssembly(ModuleLocation(e.second));
             });
 
-            std::unique_ptr<LoaderContext> context(new LoaderContext(std::move(loader)));
+            std::unique_ptr<LoaderContext> context(new LoaderContext(locator, std::move(loader)));
             return context;
         }));
     }
@@ -458,3 +468,5 @@ namespace CxxReflect { namespace WindowsRuntime {
     }
 
 } }
+
+#endif

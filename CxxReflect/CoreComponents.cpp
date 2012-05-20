@@ -17,20 +17,6 @@
 #include "CxxReflect/Property.hpp"
 #include "CxxReflect/Type.hpp"
 
-namespace CxxReflect { namespace { namespace Private {
-
-    class DefaultLoaderConfiguration : public ILoaderConfiguration
-    {
-    public:
-
-        virtual StringReference GetSystemNamespace() const
-        {
-            return L"System";
-        }
-    };
-
-} } }
-
 namespace CxxReflect {
 
     ModuleLocation::ModuleLocation()
@@ -39,13 +25,13 @@ namespace CxxReflect {
     }
 
     ModuleLocation::ModuleLocation(ConstByteRange const& memoryRange)
-        : _kind(Kind::Memory), _memoryRange(memoryRange)
+        : _memoryRange(memoryRange), _kind(Kind::Memory)
     {
         Detail::Assert([&]{ return memoryRange.IsInitialized(); });
     }
 
     ModuleLocation::ModuleLocation(String const& filePath)
-        : _kind(Kind::File), _filePath(filePath.c_str())
+        : _filePath(filePath.c_str()), _kind(Kind::File)
     {
         Detail::Assert([&]{ return !filePath.empty(); });
     }
@@ -143,17 +129,125 @@ namespace CxxReflect {
 
 
 
-    IModuleLocator::~IModuleLocator()
+    ModuleLocator::ModuleLocator()
     {
     }
 
-    ILoaderConfiguration::~ILoaderConfiguration()
+    ModuleLocator::ModuleLocator(ModuleLocator const& other)
+        : _x(other.IsInitialized() ? other._x->Copy() : nullptr)
     {
+    }
+
+    ModuleLocator::ModuleLocator(ModuleLocator&& other)
+        : _x(std::move(other._x))
+    {
+    }
+
+    ModuleLocator& ModuleLocator::operator=(ModuleLocator const& other)
+    {
+        _x = other.IsInitialized() ? other._x->Copy() : nullptr;
+        return *this;
+    }
+
+    ModuleLocator& ModuleLocator::operator=(ModuleLocator&& other)
+    {
+        _x = std::move(other._x);
+        return *this;
+    }
+
+    ModuleLocation ModuleLocator::LocateAssembly(AssemblyName const& assemblyName) const
+    {
+        AssertInitialized();
+        return _x->LocateAssembly(assemblyName);
+    }
+
+    ModuleLocation ModuleLocator::LocateAssembly(AssemblyName const& assemblyName, String const& fullTypeName) const
+    {
+        AssertInitialized();
+        return _x->LocateAssembly(assemblyName, fullTypeName);
+    }
+
+    ModuleLocation ModuleLocator::LocateModule(AssemblyName const& requestingAssembly, String const& moduleName) const
+    {
+        AssertInitialized();
+        return _x->LocateModule(requestingAssembly, moduleName);
+    }
+
+    bool ModuleLocator::IsInitialized() const
+    {
+         return _x != nullptr;
+    }
+
+    void ModuleLocator::AssertInitialized() const
+    {
+        Detail::Assert([&]{ return IsInitialized(); });
+    }
+
+
+
+
+
+    LoaderConfiguration::LoaderConfiguration()
+    {
+    }
+
+    LoaderConfiguration::LoaderConfiguration(LoaderConfiguration const& other)
+        : _x(other.IsInitialized() ? other._x->Copy() : nullptr)
+    {
+    }
+
+    LoaderConfiguration::LoaderConfiguration(LoaderConfiguration&& other)
+        : _x(std::move(other._x))
+    {
+    }
+
+    LoaderConfiguration& LoaderConfiguration::operator=(LoaderConfiguration const& other)
+    {
+        _x = other.IsInitialized() ? other._x->Copy() : nullptr;
+        return *this;
+    }
+
+    LoaderConfiguration& LoaderConfiguration::operator=(LoaderConfiguration&& other)
+    {
+        _x = std::move(other._x);
+        return *this;
+    }
+
+    StringReference LoaderConfiguration::GetSystemNamespace() const
+    {
+        return _x->GetSystemNamespace();
+    }
+
+    bool LoaderConfiguration::IsInitialized() const
+    {
+         return _x != nullptr;
+    }
+
+    void LoaderConfiguration::AssertInitialized() const
+    {
+        Detail::Assert([&]{ return IsInitialized(); });
     }
 
 }
 
 namespace CxxReflect { namespace Detail {
+
+    BaseModuleLocator::~BaseModuleLocator()
+    {
+    }
+
+    BaseLoaderConfiguration::~BaseLoaderConfiguration()
+    {
+    }
+
+    StringReference DefaultLoaderConfiguration::GetSystemNamespace() const
+    {
+        return L"System";
+    }
+
+
+
+
 
     ModuleContext::ModuleContext(AssemblyContext const* const assembly, ModuleLocation const& location)
         : _assembly(assembly), _location(location), _database(CreateDatabase(location))
@@ -299,53 +393,14 @@ namespace CxxReflect { namespace Detail {
 
 
 
-    class LoaderContextSynchronizer
-    {
-    public:
-
-        std::unique_lock<std::recursive_mutex> Lock() const
-        {
-            return std::unique_lock<std::recursive_mutex>(_lock);
-        }
-
-    private:
-
-        std::recursive_mutex mutable _lock;
-    };
-
-
-
-
-
-    // Disable the "don't use this in initializer list" warning; we know what we're doing! ;-)
-    #pragma warning(push)
-    #pragma warning(disable: 4355)
-    LoaderContext::LoaderContext(UniqueModuleLocator locator, UniqueLoaderConfiguration configuration)
-        : _locator(std::move(locator)),
-          _configuration(std::move(configuration)),
-
-          _contextStorage(CreateElementContextTableStorage()),
-          _events    (this, _contextStorage.get()),
-          _fields    (this, _contextStorage.get()),
-          _interfaces(this, _contextStorage.get()),
-          _methods   (this, _contextStorage.get()),
-          _properties(this, _contextStorage.get()),
-
-          _sync(new LoaderContextSynchronizer())
-    {
-        if (_configuration == nullptr)
-            _configuration.reset(new Private::DefaultLoaderConfiguration());
-    }
-    #pragma warning(pop)
-
     LoaderContext::~LoaderContext()
     {
         // Destructor required for std::unique_ptr completeness
     }
 
-    IModuleLocator const& LoaderContext::GetLocator() const
+    ModuleLocator const& LoaderContext::GetLocator() const
     {
-        return *_locator;
+        return _locator;
     }
 
     AssemblyContext const& LoaderContext::GetOrLoadAssembly(ModuleLocation const& location) const
@@ -356,7 +411,7 @@ namespace CxxReflect { namespace Detail {
             ? Externals::ComputeCanonicalUri(location.GetFilePath().c_str())
             : L"memory://" + ToString(location.GetMemoryRange().Begin()));
 
-        auto const lock(_sync->Lock());
+        auto const lock(_sync.Acquire());
         
         auto const it0(_assemblies.find(canonicalUri));
         if (it0 != end(_assemblies))
@@ -370,7 +425,7 @@ namespace CxxReflect { namespace Detail {
 
     AssemblyContext const& LoaderContext::GetOrLoadAssembly(AssemblyName const& name) const
     {
-        return GetOrLoadAssembly(_locator->LocateAssembly(name));
+        return GetOrLoadAssembly(_locator.LocateAssembly(name));
     }
 
     Metadata::FullReference LoaderContext::ResolveType(Metadata::FullReference const& typeReference) const
@@ -430,7 +485,7 @@ namespace CxxReflect { namespace Detail {
                 ? String(typeRefName.c_str())
                 : String(typeRefNamespace.c_str()) + L"." + typeRefName.c_str());
 
-            ModuleLocation const& location(_locator->LocateAssembly(definingAssemblyName, typeRefFullName));
+            ModuleLocation const& location(_locator.LocateAssembly(definingAssemblyName, typeRefFullName));
 
             AssemblyContext const& definingAssembly(GetOrLoadAssembly(location));
             ModuleContext   const& definingModule(definingAssembly.GetManifestModule());
@@ -460,7 +515,7 @@ namespace CxxReflect { namespace Detail {
     {
         Assert([&]{ return elementType < Metadata::ElementType::ConcreteElementTypeMax; });
 
-        auto const lock(_sync->Lock());
+        auto const lock(_sync.Acquire());
 
         if (_fundamentalTypes[Detail::AsInteger(elementType)].IsInitialized())
             return _fundamentalTypes[Detail::AsInteger(elementType)];
@@ -527,7 +582,7 @@ namespace CxxReflect { namespace Detail {
     ModuleContext const& LoaderContext::GetSystemModule() const
     {
         {
-            auto const lock(_sync->Lock());
+            auto const lock(_sync.Acquire());
             if (_systemModule.Get() != nullptr)
                 return *_systemModule.Get();
         }
@@ -548,7 +603,7 @@ namespace CxxReflect { namespace Detail {
 
         if (it0 != end(_assemblies))
         {
-            auto const lock(_sync->Lock());
+            auto const lock(_sync.Acquire());
             _systemModule.Get() = &it0->second->GetManifestModule();
             return *_systemModule.Get();
         }
@@ -583,14 +638,14 @@ namespace CxxReflect { namespace Detail {
 
         Assert([&]{ return referenceType.GetName() == L"Object"; });
 
-        auto const lock(_sync->Lock());
+        auto const lock(_sync.Acquire());
         _systemModule.Get() = &referenceType.GetModule().GetContext(InternalKey());
         return *_systemModule.Get();
     }
 
     StringReference LoaderContext::GetSystemNamespace() const
     {
-        return _configuration->GetSystemNamespace();
+        return _configuration.GetSystemNamespace();
     }
 
     EventContextTable LoaderContext::GetOrCreateEventTable(Metadata::FullReference const& type) const

@@ -118,7 +118,7 @@ namespace CxxReflect {
     {
     public:
 
-        explicit FileIOError(CharacterIterator const message, int const error = errno)
+        explicit FileIOError(ConstCharacterIterator const message, int const error = errno)
             : RuntimeError(message), _error(error)
         {
         }
@@ -155,7 +155,7 @@ namespace CxxReflect { namespace Detail {
 
     #ifdef CXXREFLECT_ENABLE_DEBUG_ASSERTIONS
 
-    inline void AssertFail(CharacterIterator const message = L"")
+    inline void AssertFail(ConstCharacterIterator const message = L"")
     {
         throw LogicError(message);
     }
@@ -167,13 +167,13 @@ namespace CxxReflect { namespace Detail {
     }
 
     template <typename TCallable>
-    void Assert(TCallable&& callable, CharacterIterator const message = L"")
+    void Assert(TCallable&& callable, ConstCharacterIterator const message = L"")
     {
         if (!callable())
              throw LogicError(message);
     }
 
-    inline void AssertSuccess(HResult const hresult, CharacterIterator const message = L"")
+    inline void AssertSuccess(HResult const hresult, ConstCharacterIterator const message = L"")
     {
         if (hresult < 0)
             throw HResultRuntimeError(hresult, message);
@@ -181,14 +181,14 @@ namespace CxxReflect { namespace Detail {
 
     #else
 
-    inline void AssertFail(CharacterIterator = L"") { }
+    inline void AssertFail(ConstCharacterIterator = L"") { }
 
     inline void AssertNotNull(void const*) { }
 
     template <typename TCallable>
-    void Assert(TCallable&&, CharacterIterator = L"") { }
+    void Assert(TCallable&&, ConstCharacterIterator = L"") { }
 
-    inline void AssertSuccess(HResult, CharacterIterator = L"") { }
+    inline void AssertSuccess(HResult, ConstCharacterIterator = L"") { }
 
     #endif
 
@@ -199,13 +199,13 @@ namespace CxxReflect { namespace Detail {
     }
 
     template <typename TCallable>
-    void Verify(TCallable&& callable, CharacterIterator const message = L"")
+    void Verify(TCallable&& callable, ConstCharacterIterator const message = L"")
     {
         if (!callable())
              throw RuntimeError(message);
     }
 
-    inline void VerifySuccess(HResult const hresult, CharacterIterator const message = L"")
+    inline void VerifySuccess(HResult const hresult, ConstCharacterIterator const message = L"")
     {
         if (hresult < 0)
             throw HResultRuntimeError(hresult, message);
@@ -493,50 +493,70 @@ namespace CxxReflect { namespace Detail {
 
 namespace CxxReflect { namespace Detail {
 
+    // A basic underlying type implementation for enumerations; at this time, the libstdc++ we have
+    // for MinGW does not include underlying_type; to work around this, we provide our own.  This
+    // assumes that all of our enumerations have an unsigned underlying type, which is true for all
+    // of the enumerations in CxxReflect.
+    template <SizeType N> struct UnderlyingTypeImpl;
+    template <> struct UnderlyingTypeImpl<1> { typedef std::uint8_t  Type; };
+    template <> struct UnderlyingTypeImpl<2> { typedef std::uint16_t Type; };
+    template <> struct UnderlyingTypeImpl<4> { typedef std::uint32_t Type; };
+    template <> struct UnderlyingTypeImpl<8> { typedef std::uint64_t Type; };
+
     template <typename TEnumeration>
-    typename std::underlying_type<TEnumeration>::type AsInteger(TEnumeration value)
+    struct UnderlyingType
     {
-        return static_cast<typename std::underlying_type<TEnumeration>::type>(value);
+        #ifdef CXXREFLECT_STDLIB_HAS_UNDERLYING_TYPE
+        typedef typename std::underlying_type<TEnumeration>::type Type;
+        #else
+        typedef typename UnderlyingTypeImpl<sizeof(TEnumeration)>::Type Type;
+        #endif
+    };
+
+    template <typename TEnumeration>
+    typename UnderlyingType<TEnumeration>::Type AsInteger(TEnumeration value)
+    {
+        return static_cast<typename UnderlyingType<TEnumeration>::Type>(value);
     }
 
-    #define CXXREFLECT_GENERATE_SCOPED_ENUM_OPERATORS_BINARY_EVAL_EVAL(E, Op)               \
-        inline E operator Op(E const lhs, E const rhs)                                      \
-        {                                                                                   \
-            return static_cast<E>(::CxxReflect::Detail::AsInteger(lhs)                      \
-                               Op ::CxxReflect::Detail::AsInteger(rhs));                    \
+    #define CXXREFLECT_GENERATE_SCOPED_ENUM_OPERATORS_BINARY_EVAL_EVAL(E, Op)                           \
+        inline E operator Op(E const lhs, E const rhs)                                                  \
+        {                                                                                               \
+            return static_cast<E>(::CxxReflect::Detail::AsInteger(lhs)                                  \
+                               Op ::CxxReflect::Detail::AsInteger(rhs));                                \
         }
 
-    #define CXXREFLECT_GENERATE_SCOPED_ENUM_OPERATORS_BINARY_EREF_EVAL(E, Op)               \
-        inline E& operator Op##=(E& lhs, E const rhs)                                       \
-        {                                                                                   \
-            lhs = static_cast<E>(::CxxReflect::Detail::AsInteger(lhs)                       \
-                              Op ::CxxReflect::Detail::AsInteger(rhs));                     \
-            return lhs;                                                                     \
+    #define CXXREFLECT_GENERATE_SCOPED_ENUM_OPERATORS_BINARY_EREF_EVAL(E, Op)                           \
+        inline E& operator Op##=(E& lhs, E const rhs)                                                   \
+        {                                                                                               \
+            lhs = static_cast<E>(::CxxReflect::Detail::AsInteger(lhs)                                   \
+                              Op ::CxxReflect::Detail::AsInteger(rhs));                                 \
+            return lhs;                                                                                 \
         }
 
-    #define CXXREFLECT_GENERATE_SCOPED_ENUM_OPERATORS_BINARY_COMPARE(E, Op)                 \
-        inline bool operator Op(E const lhs, std::underlying_type<E>::type rhs)             \
-        {                                                                                   \
-            return ::CxxReflect::Detail::AsInteger(lhs) Op rhs;                             \
-        }                                                                                   \
-                                                                                            \
-        inline bool operator Op(std::underlying_type<E>::type const lhs, E const rhs)       \
-        {                                                                                   \
-            return lhs Op ::CxxReflect::Detail::AsInteger(rhs);                             \
+    #define CXXREFLECT_GENERATE_SCOPED_ENUM_OPERATORS_BINARY_COMPARE(E, Op)                             \
+        inline bool operator Op(E const lhs, ::CxxReflect::Detail::UnderlyingType<E>::Type rhs)         \
+        {                                                                                               \
+            return ::CxxReflect::Detail::AsInteger(lhs) Op rhs;                                         \
+        }                                                                                               \
+                                                                                                        \
+        inline bool operator Op(::CxxReflect::Detail::UnderlyingType<E>::Type const lhs, E const rhs)   \
+        {                                                                                               \
+            return lhs Op ::CxxReflect::Detail::AsInteger(rhs);                                         \
         }
 
-    #define CXXREFLECT_GENERATE_SCOPED_ENUM_OPERATORS(E)                                    \
-        CXXREFLECT_GENERATE_SCOPED_ENUM_OPERATORS_BINARY_EVAL_EVAL(E, |)                    \
-        CXXREFLECT_GENERATE_SCOPED_ENUM_OPERATORS_BINARY_EVAL_EVAL(E, &)                    \
-        CXXREFLECT_GENERATE_SCOPED_ENUM_OPERATORS_BINARY_EVAL_EVAL(E, ^)                    \
-        CXXREFLECT_GENERATE_SCOPED_ENUM_OPERATORS_BINARY_EREF_EVAL(E, |)                    \
-        CXXREFLECT_GENERATE_SCOPED_ENUM_OPERATORS_BINARY_EREF_EVAL(E, &)                    \
-        CXXREFLECT_GENERATE_SCOPED_ENUM_OPERATORS_BINARY_EREF_EVAL(E, ^)                    \
-        CXXREFLECT_GENERATE_SCOPED_ENUM_OPERATORS_BINARY_COMPARE  (E, ==)                   \
-        CXXREFLECT_GENERATE_SCOPED_ENUM_OPERATORS_BINARY_COMPARE  (E, !=)                   \
-        CXXREFLECT_GENERATE_SCOPED_ENUM_OPERATORS_BINARY_COMPARE  (E, < )                   \
-        CXXREFLECT_GENERATE_SCOPED_ENUM_OPERATORS_BINARY_COMPARE  (E, > )                   \
-        CXXREFLECT_GENERATE_SCOPED_ENUM_OPERATORS_BINARY_COMPARE  (E, <=)                   \
+    #define CXXREFLECT_GENERATE_SCOPED_ENUM_OPERATORS(E)                                                \
+        CXXREFLECT_GENERATE_SCOPED_ENUM_OPERATORS_BINARY_EVAL_EVAL(E, |)                                \
+        CXXREFLECT_GENERATE_SCOPED_ENUM_OPERATORS_BINARY_EVAL_EVAL(E, &)                                \
+        CXXREFLECT_GENERATE_SCOPED_ENUM_OPERATORS_BINARY_EVAL_EVAL(E, ^)                                \
+        CXXREFLECT_GENERATE_SCOPED_ENUM_OPERATORS_BINARY_EREF_EVAL(E, |)                                \
+        CXXREFLECT_GENERATE_SCOPED_ENUM_OPERATORS_BINARY_EREF_EVAL(E, &)                                \
+        CXXREFLECT_GENERATE_SCOPED_ENUM_OPERATORS_BINARY_EREF_EVAL(E, ^)                                \
+        CXXREFLECT_GENERATE_SCOPED_ENUM_OPERATORS_BINARY_COMPARE  (E, ==)                               \
+        CXXREFLECT_GENERATE_SCOPED_ENUM_OPERATORS_BINARY_COMPARE  (E, !=)                               \
+        CXXREFLECT_GENERATE_SCOPED_ENUM_OPERATORS_BINARY_COMPARE  (E, < )                               \
+        CXXREFLECT_GENERATE_SCOPED_ENUM_OPERATORS_BINARY_COMPARE  (E, > )                               \
+        CXXREFLECT_GENERATE_SCOPED_ENUM_OPERATORS_BINARY_COMPARE  (E, <=)                               \
         CXXREFLECT_GENERATE_SCOPED_ENUM_OPERATORS_BINARY_COMPARE  (E, >=)
 
 } }
@@ -579,41 +599,45 @@ namespace CxxReflect { namespace Detail {
     // Generators for addition and subtraction operators for types that are pointer-like (i.e. types
     // that use indices or pointers of some kind to point to elements in a sequence).  These are a
     // bit flakey and we abuse them for types that don't support all of them, but they work well.
-    #define CXXREFLECT_GENERATE_ADDITION_OPERATORS(the_type, get_value, difference)         \
-        the_type& operator++()    { ++(*this).get_value; return *this;              }       \
-        the_type  operator++(int) { auto const it(*this); ++*this; return *this;    }       \
-                                                                                            \
-        the_type& operator+=(difference const n)                                            \
-        {                                                                                   \
-            typedef std::remove_reference<decltype((*this).get_value)>::type ValueType;     \
-            (*this).get_value = static_cast<ValueType>((*this).get_value + n);              \
-            return *this;                                                                   \
-        }                                                                                   \
-                                                                                            \
-        friend the_type operator+(the_type it, difference n) { return it += n; }            \
+    #define CXXREFLECT_GENERATE_ADDITION_OPERATORS(the_type, get_value, difference, opt_t)       \
+        the_type& operator++()    { ++(*this).get_value; return *this;              }            \
+        the_type  operator++(int) { auto const it(*this); ++*this; return it;       }            \
+                                                                                                 \
+        the_type& operator+=(difference const n)                                                 \
+        {                                                                                        \
+            typedef opt_t std::remove_reference<decltype((*this).get_value)>::type ValueType;    \
+            (*this).get_value = static_cast<ValueType>((*this).get_value + n);                   \
+            return *this;                                                                        \
+        }                                                                                        \
+                                                                                                 \
+        friend the_type operator+(the_type it, difference n) { return it += n; }                 \
         friend the_type operator+(difference n, the_type it) { return it += n; }
 
-    #define CXXREFLECT_GENERATE_SUBTRACTION_OPERATORS(the_type, get_value, difference)      \
-        the_type& operator--()    { --(*this).get_value; return *this;              }       \
-        the_type  operator--(int) { auto const it(*this); --*this; return *this;    }       \
-                                                                                            \
-        the_type& operator-=(difference const n)                                            \
-        {                                                                                   \
-            typedef std::remove_reference<decltype((*this).get_value)>::type ValueType;     \
-            (*this).get_value = static_cast<ValueType>((*this).get_value - n);              \
-            return *this;                                                                   \
-        }                                                                                   \
-                                                                                            \
-        friend the_type operator-(the_type it, difference n) { return it -= n; }            \
-                                                                                            \
-        friend difference operator-(the_type lhs, the_type rhs)                             \
-        {                                                                                   \
-            return static_cast<difference>(lhs.get_value - rhs.get_value);                  \
+    #define CXXREFLECT_GENERATE_SUBTRACTION_OPERATORS(the_type, get_value, difference, opt_t)    \
+        the_type& operator--()    { --(*this).get_value; return *this;              }            \
+        the_type  operator--(int) { auto const it(*this); --*this; return it;       }            \
+                                                                                                 \
+        the_type& operator-=(difference const n)                                                 \
+        {                                                                                        \
+            typedef opt_t std::remove_reference<decltype((*this).get_value)>::type ValueType;    \
+            (*this).get_value = static_cast<ValueType>((*this).get_value - n);                   \
+            return *this;                                                                        \
+        }                                                                                        \
+                                                                                                 \
+        friend the_type operator-(the_type it, difference n) { return it -= n; }                 \
+                                                                                                 \
+        friend difference operator-(the_type lhs, the_type rhs)                                  \
+        {                                                                                        \
+            return static_cast<difference>(lhs.get_value - rhs.get_value);                       \
         }
 
-    #define CXXREFLECT_GENERATE_ADDITION_SUBTRACTION_OPERATORS(type, get_value, difference) \
-        CXXREFLECT_GENERATE_ADDITION_OPERATORS(type, get_value, difference)                 \
-        CXXREFLECT_GENERATE_SUBTRACTION_OPERATORS(type, get_value, difference)
+    #define CXXREFLECT_GENERATE_ADDITION_SUBTRACTION_OPERATORS(type, get_value, difference)          \
+        CXXREFLECT_GENERATE_ADDITION_OPERATORS(type, get_value, difference,)                         \
+        CXXREFLECT_GENERATE_SUBTRACTION_OPERATORS(type, get_value, difference,)
+
+    #define CXXREFLECT_GENERATE_ADDITION_SUBTRACTION_OPERATORS_TEMPLATE(type, get_value, difference) \
+        CXXREFLECT_GENERATE_ADDITION_OPERATORS(type, get_value, difference, typename)                \
+        CXXREFLECT_GENERATE_SUBTRACTION_OPERATORS(type, get_value, difference, typename)
 
 
 
@@ -959,6 +983,22 @@ namespace CxxReflect { namespace Detail {
 
 
 
+namespace CxxReflect {
+
+     typedef std::array<Byte, 20> Sha1Hash;
+
+}
+
+namespace CxxReflect { namespace Detail {
+
+    Sha1Hash ComputeSha1Hash(ConstByteIterator first, ConstByteIterator last);
+
+} }
+
+
+
+
+
 //
 //
 // MISCELLANEOUS UTILITY CLASSES (ScopeGuard, FlagSet, Dereferenceable, ValueInitialized)
@@ -966,6 +1006,38 @@ namespace CxxReflect { namespace Detail {
 //
 
 namespace CxxReflect { namespace Detail {
+
+    template <typename T>
+    std::unique_ptr<T> MakeUnique()
+    {
+        std::unique_ptr<T> p(new T());
+        return p;
+    }
+
+    template <typename T, typename P0>
+    std::unique_ptr<T> MakeUnique(P0&& a0)
+    {
+        std::unique_ptr<T> p(new T(std::forward<P0>(a0)));
+        return p;
+    }
+
+    template <typename T, typename P0, typename P1>
+    std::unique_ptr<T> MakeUnique(P0&& a0, P1&& a1)
+    {
+        std::unique_ptr<T> p(new T(std::forward<P0>(a0), std::forward<P1>(a1)));
+        return p;
+    }
+
+    template <typename T, typename P0, typename P1, typename P2>
+    std::unique_ptr<T> MakeUnique(P0&& a0, P1&& a1, P2&& a2)
+    {
+        std::unique_ptr<T> p(new T(std::forward<P0>(a0), std::forward<P1>(a1), std::forward<P2>(a2)));
+        return p;
+    }
+
+
+
+
 
     /// A class that is convertible to a value-initialized instance of any type.
     class Default
@@ -978,6 +1050,74 @@ namespace CxxReflect { namespace Detail {
             return T();
         }
     };
+
+
+
+
+
+    template <typename T>
+    class IntegerConverter
+    {
+    public:
+
+        IntegerConverter(T const x)
+            : _x(x)
+        {
+        }
+
+        template <typename U>
+        operator U() const
+        {
+            CheckRange<T, U>(_x);
+            return static_cast<U>(_x);
+        }
+
+    private:
+
+        #if CXXREFLECT_COMPILER == CXXREFLECT_COMPILER_VISUALCPP
+        #    pragma warning(push)
+        #    pragma warning(disable: 4018)
+        #endif
+        template <typename T0, typename T1>
+        static typename std::enable_if<
+            std::is_unsigned<T0>::value && std::is_unsigned<T1>::value, void
+        >::type
+        CheckRange(T0 const x)
+        {
+            Assert([&]
+            {
+                return std::numeric_limits<T1>::max() >= x;
+            });
+        }
+
+        template <typename T0, typename T1>
+        static typename std::enable_if<
+            !std::is_unsigned<T0>::value || !std::is_unsigned<T1>::value, void
+        >::type
+        CheckRange(T0 const x)
+        {
+            Assert([&]
+            {
+                return std::numeric_limits<T1>::max() >= x
+                    && std::numeric_limits<T1>::min() <= x;
+            });
+        }
+
+        #if CXXREFLECT_COMPILER == CXXREFLECT_COMPILER_VISUALCPP
+        #    pragma warning(pop)
+        #endif
+
+        T _x;
+    };
+
+    template <typename T>
+    typename std::enable_if<
+        std::is_integral<T>::value,
+        IntegerConverter<T>
+    >::type ConvertInteger(T const x)
+    {
+        return IntegerConverter<T>(x);
+    }
 
 
 
@@ -1039,8 +1179,8 @@ namespace CxxReflect { namespace Detail {
 
         static_assert(std::is_enum<TEnumeration>::value, "TEnumeration must be an enumeration");
 
-        typedef TEnumeration                                      EnumerationType;
-        typedef typename std::underlying_type<TEnumeration>::type IntegralType;
+        typedef TEnumeration                                EnumerationType;
+        typedef typename UnderlyingType<TEnumeration>::Type IntegralType;
 
         FlagSet()
             : _value()
@@ -1248,7 +1388,7 @@ namespace CxxReflect { namespace Detail {
         unsigned int _value;
     };
 
-    enum class FileMode : std::uint8_t
+    enum class FileMode : Byte
     {
         ReadWriteAppendMask = 0x03,
         Read                = 0x01, // r
@@ -1299,9 +1439,6 @@ namespace CxxReflect { namespace Detail {
     class FileHandle
     {
     public:
-
-        typedef std::int64_t PositionType;
-        typedef std::size_t  SizeType;
 
         // This is the mapping of <cstdio> functions to FileHandle member functions:
         // fclose    Close
@@ -1435,11 +1572,10 @@ namespace CxxReflect { namespace Detail {
             return this->Read(buffer, sizeof *buffer, count);
         }
 
-        void Seek(PositionType const position, OriginType const origin)
+        void Seek(DifferenceType const position, OriginType const origin)
         {
             AssertInitialized();
-            // TODO PORTABILITY
-            if (::_fseeki64(_handle, position, origin) != 0)
+            if (::fseek(_handle, position, origin) != 0)
                 throw FileIOError();
         }
 
@@ -1450,11 +1586,10 @@ namespace CxxReflect { namespace Detail {
                 throw FileIOError();
         }
 
-        PositionType Tell() const
+        DifferenceType Tell() const
         {
             AssertInitialized();
-            // TODO PORTABILITY
-            return ::_ftelli64(_handle);
+            return ::ftell(_handle);
         }
 
         void UngetChar(unsigned char character)
@@ -1503,12 +1638,12 @@ namespace CxxReflect { namespace Detail {
         FileHandle(FileHandle const&);
         FileHandle& operator=(FileHandle const&);
 
-        static wchar_t const* TranslateMode(FileModeFlags const mode)
+        static ConstCharacterIterator TranslateMode(FileModeFlags const mode)
         {
             #define CXXREFLECT_GENERATE(x, y, z)                                 \
-                static_cast<std::underlying_type<FileMode>::type>(FileMode::x) | \
-                static_cast<std::underlying_type<FileMode>::type>(FileMode::y) | \
-                static_cast<std::underlying_type<FileMode>::type>(FileMode::z)
+                static_cast<UnderlyingType<FileMode>::Type>(FileMode::x) | \
+                static_cast<UnderlyingType<FileMode>::Type>(FileMode::y) | \
+                static_cast<UnderlyingType<FileMode>::Type>(FileMode::z)
 
             switch (mode.GetIntegral())
             {
@@ -1688,9 +1823,68 @@ namespace CxxReflect { namespace Detail {
         ValueInitialized<ConstByteIterator> _current;
     };
 
+} }
 
 
 
+
+
+
+//
+//
+// CONCURRENCY
+//
+//
+
+namespace CxxReflect { namespace Detail {
+
+    class RecursiveMutex;
+    class RecursiveMutexContext;
+
+    class RecursiveMutexLock
+    {
+    public:
+
+        RecursiveMutexLock(RecursiveMutex&);
+
+        RecursiveMutexLock(RecursiveMutexLock&&);
+        RecursiveMutexLock& operator=(RecursiveMutexLock&&);
+
+        void Release();
+
+        ~RecursiveMutexLock();
+
+    private:
+
+        // This type is noncopyable
+        RecursiveMutexLock(RecursiveMutexLock const&);
+        RecursiveMutexLock& operator=(RecursiveMutexLock const&);
+
+        ValueInitialized<RecursiveMutex*> _mutex;
+    };
+
+    class RecursiveMutex
+    {
+    public:
+
+        RecursiveMutex();
+        ~RecursiveMutex();
+
+        void Lock();
+        void Unlock();
+
+        RecursiveMutexLock Acquire();
+
+    private:
+
+        // This type is noncopyable
+        RecursiveMutex(RecursiveMutex const&);
+        RecursiveMutex& operator=(RecursiveMutex const&);
+
+        std::unique_ptr<RecursiveMutexContext> _mutex;
+    };
+
+    
 
 } }
 
@@ -1752,7 +1946,7 @@ namespace CxxReflect { namespace Detail {
 
     private:
 
-        void AssertInitialized() const { Assert([&]{ return IsInitialized(); }); }
+        void AssertInitialized() const { Assert([&]{ return this->IsInitialized(); }); }
 
         ValueInitialized<Pointer> _begin;
         ValueInitialized<Pointer> _end;
@@ -1780,10 +1974,9 @@ namespace CxxReflect { namespace Detail {
         typedef std::size_t SizeType;
         typedef T           ValueType;
         typedef T*          Pointer;
+        typedef Range<T>    RangeType;
 
         enum { BlockSize = NBlockSize };
-
-        typedef Range<T> Range;
 
         LinearArrayAllocator()
         {
@@ -1819,11 +2012,11 @@ namespace CxxReflect { namespace Detail {
         /// \todo Rather than throwing `RuntimeError` when `n` is larger than `NBlockSize`, we should
         /// allocate that array independently.  This will require us to keep a list of independent
         /// allocations.  This should not happen often, though.
-        Range Allocate(SizeType const n)
+        RangeType Allocate(SizeType const n)
         {
             EnsureAvailable(n);
 
-            Range const r(&*_current, &*_current + n);
+            RangeType const r(&*_current, &*_current + n);
             _current += n;
             return r;
         }
@@ -1845,7 +2038,7 @@ namespace CxxReflect { namespace Detail {
 
             if (_blocks.size() > 0)
             {
-                if (static_cast<SizeType>(std::distance(_current, _blocks.back()->end())) >= n)
+                if (Distance(_current, _blocks.back()->end()) >= n)
                     return;
             }
 
@@ -1921,6 +2114,21 @@ namespace CxxReflect { namespace Detail {
 //
 //
 
+namespace CxxReflect {
+
+    /// Key type for internal member functions
+    ///
+    /// This class type is the type of the last parameter of any public member functions of public
+    /// interface types that expose internal implementation details.  These functions are not really
+    /// part of the public interface of the library.  A user of the library should not call these
+    /// internal methods.  However, libraries or utilities that build atop CxxReflect might want to
+    /// use these internal members, e.g. as we have done in the Windows Runtime integration.
+    class InternalKey
+    {
+    };
+
+}
+
 namespace CxxReflect { namespace Detail {
 
     // A functor that always returns a copy of the object that it is given as an argument.
@@ -1982,7 +2190,7 @@ namespace CxxReflect { namespace Detail {
         }
 
         CXXREFLECT_GENERATE_COMPARISON_OPERATORS(InstantiatingIterator)
-        CXXREFLECT_GENERATE_ADDITION_SUBTRACTION_OPERATORS(InstantiatingIterator, _current, difference_type)
+        CXXREFLECT_GENERATE_ADDITION_SUBTRACTION_OPERATORS_TEMPLATE(InstantiatingIterator, _current, difference_type)
 
     private:
 
@@ -2118,7 +2326,7 @@ namespace CxxReflect { namespace Detail {
 
         void AssertDereferenceable() const
         {
-            Assert([&]{ return IsDereferenceable(); });
+            Assert([&]{ return this->IsDereferenceable(); });
         }
 
         ValueInitialized<TOuterIterator> _outerIt;
@@ -2185,7 +2393,7 @@ namespace CxxReflect { namespace Detail {
 
         friend bool operator==(StaticFilterIterator const& lhs, StaticFilterIterator const& rhs)
         {
-            return !lhs.IsDereferenceable() && !rhs.IsDereferenceable()
+            return (!lhs.IsDereferenceable() && !rhs.IsDereferenceable())
                 || lhs._current.Get() == rhs._current.Get();
         }
 

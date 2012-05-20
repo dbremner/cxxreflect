@@ -42,7 +42,7 @@ namespace CxxReflect {
     /// This assembly locator is constructed with a set of directories in which it is to search for
     /// assemblies.  It requires that the file name of an assembly matches its simple name, with an
     /// added .dll or .exe extension.
-    class DirectoryBasedModuleLocator : public IModuleLocator
+    class DirectoryBasedModuleLocator
     {
     public:
 
@@ -55,10 +55,10 @@ namespace CxxReflect {
         /// is located in only one of the provided directories.
         DirectoryBasedModuleLocator(DirectorySet const& directories);
 
-        virtual ModuleLocation LocateAssembly(AssemblyName const& assemblyName) const;
-        virtual ModuleLocation LocateAssembly(AssemblyName const& assemblyName, String const& fullTypeName) const;
+        ModuleLocation LocateAssembly(AssemblyName const& assemblyName) const;
+        ModuleLocation LocateAssembly(AssemblyName const& assemblyName, String const& fullTypeName) const;
 
-        virtual ModuleLocation LocateModule(AssemblyName const& requestingAssembly, String const& moduleName) const;
+        ModuleLocation LocateModule(AssemblyName const& requestingAssembly, String const& moduleName) const;
 
     private:
 
@@ -75,14 +75,20 @@ namespace CxxReflect {
     public:
 
         /// Constructs a new `Loader` instance
-        ///
-        /// This overload is identical to the overload that has unique_ptr paramters.  This overload
-        /// is provided for use in C++/CLI only, because C++/CLI does not support move-only types
-        /// like unique_ptr.  If you are not using C++/CLI, do not call this overload.
-        explicit Loader(std::auto_ptr<IModuleLocator>       locator,
-                        std::auto_ptr<ILoaderConfiguration> configuration = std::auto_ptr<ILoaderConfiguration>(nullptr));
+        template <typename TLocator>
+        explicit Loader(TLocator&& locator)
+            : _context(new Detail::LoaderContext(std::forward<TLocator>(locator)))
+        {
+        }
 
-        explicit Loader(UniqueModuleLocator locator, UniqueLoaderConfiguration configuration = nullptr);
+        /// Constructs a new `Loader` instance
+        template <typename TLocator, typename TConfiguration>
+        Loader(TLocator&& locator, TConfiguration&& configuration)
+            : _context(new Detail::LoaderContext(
+                std::forward<TLocator>(locator),
+                std::forward<TConfiguration>(configuration)))
+        {
+        }
 
         Loader(Loader&& other);
         Loader& operator=(Loader&& other);
@@ -94,7 +100,7 @@ namespace CxxReflect {
         /// Gets the `IModuleLocator` implementation instance that is used for module locating
         ///
         /// \nothrows
-        IModuleLocator const& GetLocator() const;
+        ModuleLocator const& GetLocator() const;
 
         /// Tests whether this `Loader` is initialized
         ///

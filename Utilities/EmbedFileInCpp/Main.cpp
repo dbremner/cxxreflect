@@ -75,7 +75,7 @@ namespace
 
         file.seekg(0, std::ios::beg);
         
-        ByteVector data(static_cast<SizeType>(endPosition));
+        ByteVector data(Detail::ConvertInteger(endPosition));
         if (!file.read(reinterpret_cast<char*>(data.data()), data.size()))
             throw std::runtime_error("Failed to read from file.");
 

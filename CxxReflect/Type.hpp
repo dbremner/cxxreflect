@@ -39,7 +39,7 @@ namespace CxxReflect { namespace Detail {
                        InnerIterator const  current,
                        InnerIterator const  last,
                        BindingFlags  const  filter)
-            : _reflectedType(reflectedType), _current(current), _last(last), _filter(filter)
+            : _current(current), _last(last), _reflectedType(reflectedType), _filter(filter)
         {
             Assert([&]{ return reflectedType.IsInitialized(); });
             AssertNotNull(current);
@@ -86,7 +86,7 @@ namespace CxxReflect { namespace Detail {
 
         friend bool operator==(MemberIterator const& lhs, MemberIterator const& rhs)
         {
-            return !lhs.IsDereferenceable() && !rhs.IsDereferenceable()
+            return (!lhs.IsDereferenceable() && !rhs.IsDereferenceable())
                 || lhs._current.Get() == rhs._current.Get();
         }
 
@@ -94,8 +94,8 @@ namespace CxxReflect { namespace Detail {
 
     private:
 
-        void AssertInitialized()     const { Assert([&]{ return IsInitialized();     }); }
-        void AssertDereferenceable() const { Assert([&]{ return IsDereferenceable(); }); }
+        void AssertInitialized()     const { Assert([&]{ return this->IsInitialized();     }); }
+        void AssertDereferenceable() const { Assert([&]{ return this->IsDereferenceable(); }); }
 
         void FilterAdvance()
         {
@@ -335,7 +335,7 @@ namespace CxxReflect {
         template <typename TCallback>
         auto ResolveTypeDefTypeAndCall(
             TCallback callback,
-            CXXREFLECT_GENERATE defaultResult = Detail::Identity<CXXREFLECT_GENERATE>::Type()
+            CXXREFLECT_GENERATE defaultResult = typename Detail::Identity<CXXREFLECT_GENERATE>::Type()
         ) const -> CXXREFLECT_GENERATE
         {
             AssertInitialized();

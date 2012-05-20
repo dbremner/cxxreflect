@@ -5,6 +5,10 @@
 
 #include "CxxReflect/PrecompiledHeaders.hpp"
 
+#include "CxxReflect/WindowsRuntimeCommon.hpp"
+
+#ifdef CXXREFLECT_ENABLE_WINDOWS_RUNTIME_INTEGRATION
+
 #include "CxxReflect/WindowsRuntimeInspection.hpp"
 #include "CxxReflect/WindowsRuntimeInvocation.hpp"
 #include "CxxReflect/WindowsRuntimeLoader.hpp"
@@ -222,7 +226,7 @@ namespace CxxReflect { namespace WindowsRuntime { namespace Internal {
 
     SizeType VariantArgumentPack::GetArity() const
     {
-        return static_cast<SizeType>(_arguments.size());
+        return Detail::ConvertInteger(_arguments.size());
     }
 
     VariantArgumentPack::UnresolvedArgumentIterator VariantArgumentPack::Begin() const
@@ -327,10 +331,10 @@ namespace CxxReflect { namespace WindowsRuntime { namespace Internal {
     {
         IInspectable* const value(argument.GetInspectable());
 
-        SizeType const valueIndex(static_cast<SizeType>(_data.size()));
+        SizeType const valueIndex(Detail::ConvertInteger(_data.size()));
         std::copy(Detail::BeginBytes(value), Detail::EndBytes(value), std::back_inserter(_data));
 
-        SizeType const nameIndex(static_cast<SizeType>(_data.size()));
+        SizeType const nameIndex(Detail::ConvertInteger(_data.size()));
         std::copy(reinterpret_cast<ConstByteIterator>(argument.GetTypeName().begin()),
                   reinterpret_cast<ConstByteIterator>(argument.GetTypeName().end()),
                   std::back_inserter(_data));
@@ -341,16 +345,16 @@ namespace CxxReflect { namespace WindowsRuntime { namespace Internal {
         _arguments.push_back(UnresolvedVariantArgument(
             Metadata::ElementType::Class,
             valueIndex,
-            static_cast<SizeType>(sizeof(value)),
+            Detail::ConvertInteger(sizeof(value)),
             nameIndex,
-            static_cast<SizeType>((argument.GetTypeName().size() + 1) * sizeof(Character))));
+            Detail::ConvertInteger((argument.GetTypeName().size() + 1) * sizeof(Character))));
     }
 
     void VariantArgumentPack::PushArgument(Metadata::ElementType const type,
                                            ConstByteIterator     const first,
                                            ConstByteIterator     const last)
     {
-        SizeType const index(static_cast<SizeType>(_data.size()));
+        SizeType const index(Detail::ConvertInteger(_data.size()));
 
         std::copy(first, last, std::back_inserter(_data));
         _arguments.push_back(UnresolvedVariantArgument(type, index, Detail::Distance(first, last)));
@@ -774,7 +778,7 @@ namespace CxxReflect { namespace WindowsRuntime { namespace Internal {
 
     SizeType X86ArgumentFrame::GetSize() const
     {
-        return static_cast<SizeType>(_data.size());
+        return Detail::ConvertInteger(_data.size());
     }
 
     // Aligns the end of the frame to an index evenly divisible by 'alignment'.
@@ -1301,3 +1305,5 @@ namespace CxxReflect { namespace WindowsRuntime {
     }
 
 } }
+
+#endif

@@ -5,6 +5,10 @@
 
 #include "CxxReflect/PrecompiledHeaders.hpp"
 
+#include "CxxReflect/WindowsRuntimeCommon.hpp"
+
+#ifdef CXXREFLECT_ENABLE_WINDOWS_RUNTIME_INTEGRATION
+
 #include "CxxReflect/WindowsRuntimeInspection.hpp"
 #include "CxxReflect/WindowsRuntimeInternals.hpp"
 
@@ -236,3 +240,5 @@ namespace CxxReflect { namespace WindowsRuntime { namespace Internal {
     }
 
 } } }
+
+#endif

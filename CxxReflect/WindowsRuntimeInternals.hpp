@@ -10,6 +10,9 @@
 // push upon our users.
 
 #include "CxxReflect/WindowsRuntimeCommon.hpp"
+
+#ifdef CXXREFLECT_ENABLE_WINDOWS_RUNTIME_INTEGRATION
+
 #include "CxxReflect/WindowsRuntimeUtilities.hpp"
 
 #include <guiddef.h>
@@ -71,5 +74,7 @@ namespace CxxReflect { namespace WindowsRuntime { namespace Internal {
     String ComputeCanonicalUri(String path);
 
 } } }
+
+#endif // #ifdef CXXREFLECT_ENABLE_WINDOWS_RUNTIME_INTEGRATION
 
 #endif

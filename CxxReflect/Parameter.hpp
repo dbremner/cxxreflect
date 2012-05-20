@@ -9,6 +9,7 @@
 
 namespace CxxReflect { namespace Detail {
 
+    /*
     template <bool (Metadata::TypeSignature::CustomModifierIterator::*FFilter)()>
     class CustomModifierIterator
     {
@@ -54,6 +55,7 @@ namespace CxxReflect { namespace Detail {
         ValueInitialized<Kind> _kind;
         InnerIterator          _current;
     };
+    */
 
 } }
 

@@ -12,8 +12,6 @@
 #include "CxxReflect/Property.hpp"
 #include "CxxReflect/Type.hpp"
 
-#include <mutex>
-
 namespace CxxReflect { namespace Detail { namespace { namespace Private {
 
     // A helper function which, given a TypeSpec, returns its TypeSignature.
@@ -765,7 +763,7 @@ namespace CxxReflect { namespace Detail {
     typename ElementContext<T>::RowType ElementContext<T>::GetElementRow() const
     {
         AssertInitialized();
-        return _element.GetDatabase().GetRow<TraitsType::RowTableId>(_element);
+        return _element.GetDatabase().template GetRow<TraitsType::RowTableId>(_element);
     }
 
     template <typename T>
@@ -797,7 +795,7 @@ namespace CxxReflect { namespace Detail {
     template <typename T>
     Metadata::FullReference ElementContext<T>::GetInstantiatingType() const
     {
-        Assert([&]{ return HasInstantiatingType(); });
+        Assert([&]{ return this->HasInstantiatingType(); });
         return _instantiatingType;
     }
 
@@ -811,7 +809,7 @@ namespace CxxReflect { namespace Detail {
     template <typename T>
     ConstByteRange ElementContext<T>::GetInstantiatedSignature() const
     {
-        Assert([&]{ return HasInstantiatedSignature(); });
+        Assert([&]{ return this->HasInstantiatedSignature(); });
         return _instantiatedSignature;
     }
 
@@ -824,7 +822,7 @@ namespace CxxReflect { namespace Detail {
     template <typename T>
     void ElementContext<T>::AssertInitialized() const
     {
-        Assert([&]{ return IsInitialized(); });
+        Assert([&]{ return this->IsInitialized(); });
     }
 
 
@@ -845,8 +843,8 @@ namespace CxxReflect { namespace Detail {
     {
     public:
         
-        typedef std::recursive_mutex        MutexType;
-        typedef std::unique_lock<MutexType> LockType;
+        typedef RecursiveMutex     MutexType;
+        typedef RecursiveMutexLock LockType;
 
         typedef LinearArrayAllocator<Byte,             (1 << 16)> SignatureStorage;
 
@@ -877,6 +875,7 @@ namespace CxxReflect { namespace Detail {
                 _lock = std::move(other._lock);
                 _storage = other._storage;
                 other._storage.Get() = nullptr;
+                return *this;
             }
 
             ConstByteRange AllocateSignature(ConstByteIterator const first, ConstByteIterator const last) const
@@ -1048,7 +1047,7 @@ namespace CxxReflect { namespace Detail {
     template <typename T>
     void ElementContextTableCollection<T>::AssertInitialized() const
     {
-        Assert([&]{ return IsInitialized(); });
+        Assert([&]{ return this->IsInitialized(); });
     }
 
     template <typename T>
@@ -1105,7 +1104,7 @@ namespace CxxReflect { namespace Detail {
             });
         }
 
-        SizeType const inheritedElementCount(static_cast<SizeType>(newTable.size()));
+        SizeType const inheritedElementCount(Detail::ConvertInteger(newTable.size()));
 
         auto const createElement([&](RowType const& elementDef) -> ContextType
         {

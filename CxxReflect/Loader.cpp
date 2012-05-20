@@ -63,20 +63,6 @@ namespace CxxReflect {
 
 
 
-
-    Loader::Loader(std::auto_ptr<IModuleLocator> locator, std::auto_ptr<ILoaderConfiguration> configuration)
-    {
-        UniqueModuleLocator uniqueLocator(locator.release());
-        UniqueLoaderConfiguration uniqueConfiguration(configuration.release());
-
-        _context.reset(new Detail::LoaderContext(std::move(uniqueLocator), std::move(uniqueConfiguration)));
-    }
-
-    Loader::Loader(UniqueModuleLocator locator, UniqueLoaderConfiguration configuration)
-        : _context(new Detail::LoaderContext(std::move(locator), std::move(configuration)))
-    {
-    }
-
     Loader::Loader(Loader&& other)
         : _context(std::move(other._context))
     {
@@ -100,7 +86,7 @@ namespace CxxReflect {
         Detail::Assert([&]{ return _context != nullptr; });
     }
 
-    IModuleLocator const& Loader::GetLocator() const
+    ModuleLocator const& Loader::GetLocator() const
     {
         AssertInitialized();
         return _context->GetLocator();

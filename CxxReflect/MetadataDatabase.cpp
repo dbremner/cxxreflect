@@ -208,7 +208,7 @@ namespace CxxReflect { namespace Metadata { namespace { namespace Private {
             throw MetadataError(L"PE section count is out of range");
 
         PeSectionHeaderSequence sections(fileHeader._sectionCount);
-        file.Read(sections.data(), static_cast<SizeType>(sections.size()));
+        file.Read(sections.data(), Detail::ConvertInteger(sections.size()));
 
         auto cliHeaderSectionIt(std::find_if(
             sections.begin(), sections.end(),
@@ -264,7 +264,7 @@ namespace CxxReflect { namespace Metadata { namespace { namespace Private {
         std::uint16_t streamCount(0);
         file.Read(&streamCount, 1);
 
-        PeCliStreamHeaderSequence streamHeaders = { 0 };
+        PeCliStreamHeaderSequence streamHeaders((PeCliStreamHeaderSequence()));
         for (std::uint16_t i(0); i < streamCount; ++i)
         {
             PeCliStreamHeader header;
@@ -272,8 +272,8 @@ namespace CxxReflect { namespace Metadata { namespace { namespace Private {
             file.Read(&header._streamOffset, 1);
             file.Read(&header._streamSize,   1);
 
-            std::array<char, 12> currentName = { 0 };
-            file.Read(currentName.data(), static_cast<SizeType>(currentName.size()));
+            std::array<char, 12> currentName((std::array<char, 12>()));
+            file.Read(currentName.data(), Detail::ConvertInteger(currentName.size()));
 
             #define CXXREFLECT_GENERATE(name, id, reset)                                        \
                 if (std::strcmp(currentName.data(), name) == 0 &&                               \
@@ -569,7 +569,7 @@ namespace CxxReflect { namespace Metadata { namespace { namespace Private {
                                          ConstByteIterator const  data,
                                          TFirstFunction    const  first)
     {
-        SizeType const byteOffset(static_cast<SizeType>(data - database.GetTables().GetTable(TSourceId).Begin()));
+        SizeType const byteOffset(Detail::ConvertInteger(data - database.GetTables().GetTable(TSourceId).Begin()));
         SizeType const rowSize(database.GetTables().GetTable(TSourceId).GetRowSize());
         SizeType const logicalIndex(byteOffset / rowSize);
 
@@ -747,12 +747,12 @@ namespace CxxReflect { namespace Metadata {
     bool IsValidTableId(SizeType const value)
     {
         static std::array<Byte, 0x40> const mask =
-        {
+        { {
             1, 1, 1, 0, 1, 0, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1,
             1, 1, 1, 0, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 0, 0,
             1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0,
             0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
-        };
+        } };
 
         return value < mask.size() && mask[value] == 1;
     }
@@ -770,7 +770,7 @@ namespace CxxReflect { namespace Metadata {
             {
             case 2:  return TableId::MethodDef;
             case 3:  return TableId::MemberRef;
-            default: return static_cast<TableId>(-1);
+            default: return InvalidTableId;
             }
 
         case CompositeIndex::HasConstant:
@@ -779,7 +779,7 @@ namespace CxxReflect { namespace Metadata {
             case 0:  return TableId::Field;
             case 1:  return TableId::Param;
             case 2:  return TableId::Property;
-            default: return static_cast<TableId>(-1);
+            default: return InvalidTableId;
             }
 
         case CompositeIndex::HasCustomAttribute:
@@ -807,7 +807,7 @@ namespace CxxReflect { namespace Metadata {
             case 19:  return TableId::GenericParam;
             case 20:  return TableId::GenericParamConstraint;
             case 21:  return TableId::MethodSpec;
-            default:  return static_cast<TableId>(-1);
+            default:  return InvalidTableId;
             }
 
         case CompositeIndex::HasDeclSecurity:
@@ -816,7 +816,7 @@ namespace CxxReflect { namespace Metadata {
             case 0:  return TableId::TypeDef;
             case 1:  return TableId::MethodDef;
             case 2:  return TableId::Assembly;
-            default: return static_cast<TableId>(-1);
+            default: return InvalidTableId;
             }
 
         case CompositeIndex::HasFieldMarshal:
@@ -824,7 +824,7 @@ namespace CxxReflect { namespace Metadata {
             {
             case 0:  return TableId::Field;
             case 1:  return TableId::Param;
-            default: return static_cast<TableId>(-1);
+            default: return InvalidTableId;
             }
 
         case CompositeIndex::HasSemantics:
@@ -832,7 +832,7 @@ namespace CxxReflect { namespace Metadata {
             {
             case 0:  return TableId::Event;
             case 1:  return TableId::Property;
-            default: return static_cast<TableId>(-1);
+            default: return InvalidTableId;
             }
 
         case CompositeIndex::Implementation:
@@ -841,7 +841,7 @@ namespace CxxReflect { namespace Metadata {
             case 0:  return TableId::File;
             case 1:  return TableId::AssemblyRef;
             case 2:  return TableId::ExportedType;
-            default: return static_cast<TableId>(-1);
+            default: return InvalidTableId;
             }
 
         case CompositeIndex::MemberForwarded:
@@ -849,7 +849,7 @@ namespace CxxReflect { namespace Metadata {
             {
             case 0:  return TableId::Field;
             case 1:  return TableId::MethodDef;
-            default: return static_cast<TableId>(-1);
+            default: return InvalidTableId;
             }
 
         case CompositeIndex::MemberRefParent:
@@ -860,7 +860,7 @@ namespace CxxReflect { namespace Metadata {
             case 2:  return TableId::ModuleRef;
             case 3:  return TableId::MethodDef;
             case 4:  return TableId::TypeSpec;
-            default: return static_cast<TableId>(-1);
+            default: return InvalidTableId;
             }
 
         case CompositeIndex::MethodDefOrRef:
@@ -878,7 +878,7 @@ namespace CxxReflect { namespace Metadata {
             case 1:  return TableId::ModuleRef;
             case 2:  return TableId::AssemblyRef;
             case 3:  return TableId::TypeRef;
-            default: return static_cast<TableId>(-1);
+            default: return InvalidTableId;
             }
 
         case CompositeIndex::TypeDefOrRef:
@@ -887,7 +887,7 @@ namespace CxxReflect { namespace Metadata {
             case 0:  return TableId::TypeDef;
             case 1:  return TableId::TypeRef;
             case 2:  return TableId::TypeSpec;
-            default: return static_cast<TableId>(-1);
+            default: return InvalidTableId;
             }
 
         case CompositeIndex::TypeOrMethodDef:
@@ -895,11 +895,11 @@ namespace CxxReflect { namespace Metadata {
             {
             case 0:  return TableId::TypeDef;
             case 1:  return TableId::MethodDef;
-            default: return static_cast<TableId>(-1);
+            default: return InvalidTableId;
             }
 
         default:
-            return static_cast<TableId>(-1);
+            return InvalidTableId;
         }
     }
 
@@ -912,7 +912,7 @@ namespace CxxReflect { namespace Metadata {
             {
             case TableId::MethodDef: return 2;
             case TableId::MemberRef: return 3;
-            default:                 return static_cast<SizeType>(-1);
+            default:                 return Detail::MaxSizeType;
             }
 
         case CompositeIndex::HasConstant:
@@ -921,7 +921,7 @@ namespace CxxReflect { namespace Metadata {
             case TableId::Field:    return 0;
             case TableId::Param:    return 1;
             case TableId::Property: return 2;
-            default:                return static_cast<SizeType>(-1);
+            default:                return Detail::MaxSizeType;
             }
 
         case CompositeIndex::HasCustomAttribute:
@@ -949,7 +949,7 @@ namespace CxxReflect { namespace Metadata {
             case TableId::GenericParam:           return 19;
             case TableId::GenericParamConstraint: return 20;
             case TableId::MethodSpec:             return 21;
-            default:                              return static_cast<SizeType>(-1);
+            default:                              return Detail::MaxSizeType;
             }
 
         case CompositeIndex::HasDeclSecurity:
@@ -958,7 +958,7 @@ namespace CxxReflect { namespace Metadata {
             case TableId::TypeDef:   return 0;
             case TableId::MethodDef: return 1;
             case TableId::Assembly:  return 2;
-            default:                 return static_cast<SizeType>(-1);
+            default:                 return Detail::MaxSizeType;
             }
 
         case CompositeIndex::HasFieldMarshal:
@@ -966,7 +966,7 @@ namespace CxxReflect { namespace Metadata {
             {
             case TableId::Field: return 0;
             case TableId::Param: return 1;
-            default:             return static_cast<SizeType>(-1);
+            default:             return Detail::MaxSizeType;
             }
 
         case CompositeIndex::HasSemantics:
@@ -974,7 +974,7 @@ namespace CxxReflect { namespace Metadata {
             {
             case TableId::Event:    return 0;
             case TableId::Property: return 1;
-            default:                return static_cast<SizeType>(-1);
+            default:                return Detail::MaxSizeType;
             }
 
         case CompositeIndex::Implementation:
@@ -983,7 +983,7 @@ namespace CxxReflect { namespace Metadata {
             case TableId::File:         return 0;
             case TableId::AssemblyRef:  return 1;
             case TableId::ExportedType: return 2;
-            default:                    return static_cast<SizeType>(-1);
+            default:                    return Detail::MaxSizeType;
             }
 
         case CompositeIndex::MemberForwarded:
@@ -991,7 +991,7 @@ namespace CxxReflect { namespace Metadata {
             {
             case TableId::Field:     return 0;
             case TableId::MethodDef: return 1;
-            default:                 return static_cast<SizeType>(-1);
+            default:                 return Detail::MaxSizeType;
             }
 
         case CompositeIndex::MemberRefParent:
@@ -1002,7 +1002,7 @@ namespace CxxReflect { namespace Metadata {
             case TableId::ModuleRef: return 2;
             case TableId::MethodDef: return 3;
             case TableId::TypeSpec:  return 4;
-            default:                 return static_cast<SizeType>(-1);
+            default:                 return Detail::MaxSizeType;
             }
 
         case CompositeIndex::MethodDefOrRef:
@@ -1010,7 +1010,7 @@ namespace CxxReflect { namespace Metadata {
             {
             case TableId::MethodDef: return 0;
             case TableId::MemberRef: return 1;
-            default:                 return static_cast<SizeType>(-1);
+            default:                 return Detail::MaxSizeType;
             }
 
         case CompositeIndex::ResolutionScope:
@@ -1020,7 +1020,7 @@ namespace CxxReflect { namespace Metadata {
             case TableId::ModuleRef:   return 1;
             case TableId::AssemblyRef: return 2;
             case TableId::TypeRef:     return 3;
-            default:                   return static_cast<SizeType>(-1);
+            default:                   return Detail::MaxSizeType;
             }
 
         case CompositeIndex::TypeDefOrRef:
@@ -1029,7 +1029,7 @@ namespace CxxReflect { namespace Metadata {
             case TableId::TypeDef:  return 0;
             case TableId::TypeRef:  return 1;
             case TableId::TypeSpec: return 2;
-            default:                return static_cast<SizeType>(-1);
+            default:                return Detail::MaxSizeType;
             }
 
         case CompositeIndex::TypeOrMethodDef:
@@ -1037,11 +1037,11 @@ namespace CxxReflect { namespace Metadata {
             {
             case TableId::TypeDef:   return 0;
             case TableId::MethodDef: return 1;
-            default:                 return static_cast<SizeType>(-1);
+            default:                 return Detail::MaxSizeType;
             }
 
         default:
-            return static_cast<SizeType>(-1);
+            return Detail::MaxSizeType;
         }
     }
 
@@ -1905,8 +1905,8 @@ namespace CxxReflect { namespace Metadata {
 
         typedef Detail::LinearArrayAllocator<Character, (1 << 16)> Allocator;
         typedef std::map<SizeType, StringReference>                StringMap;
-        typedef std::mutex                                         Mutex;
-        typedef std::lock_guard<Mutex>                             Lock;
+        typedef Detail::RecursiveMutex                             Mutex;
+        typedef Detail::RecursiveMutexLock                         Lock;
 
         StringCollectionCache(StringCollectionCache const&);
         StringCollectionCache& operator=(StringCollectionCache const&);

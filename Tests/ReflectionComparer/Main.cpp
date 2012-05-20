@@ -767,8 +767,7 @@ int main()
     C::DirectoryBasedModuleLocator::DirectorySet directories;
     directories.insert(L"C:\\Windows\\Microsoft.NET\\Framework\\v4.0.30319");
     directories.insert(L"C:\\Windows\\Microsoft.NET\\Framework\\v4.0.30319\\wpf");
-    std::auto_ptr<C::IModuleLocator> resolver(new C::DirectoryBasedModuleLocator(directories));
-    C::Loader loader(resolver);
+    C::Loader loader((C::DirectoryBasedModuleLocator(directories)));
     C::Assembly cAssembly(loader.LoadAssembly(C::ModuleLocation(assemblyPath)));
 
     // Load the assembly using Reflection:

@@ -29,22 +29,12 @@ namespace CxxReflect {
         WinRT
     };
 
-    /// Represents a 20-byte SHA1 hash.
-    typedef std::array<Byte, 20> Sha1Hash;
-
     /// An interface used to isolate platform dependencies.
     ///
     /// All platform dependencies are isolated through this interface.
     class IExternalFunctions
     {
     public:
-
-        /// Computes the SHA1 hash of the data in the range [first, last).
-        ///
-        /// \param    first, last The range of bytes for which to compute a SHA1 hash.
-        /// \returns  The SHA1 hash.
-        /// \nothrows
-        virtual Sha1Hash ComputeSha1Hash(ConstByteIterator first, ConstByteIterator last) const = 0;
 
         /// Given a UTF-8 string, computes its length in characters when represented in UTF-16.
         ///
@@ -107,12 +97,6 @@ namespace CxxReflect { namespace Detail {
     public:
 
         //
-        // CRYPTOGRAPHIC SERVICES
-        //
-
-        virtual Sha1Hash ComputeSha1Hash(ConstByteIterator first, ConstByteIterator last) const;
-
-        //
         // STRING MANIPULATION AND CONVERSION
         //
 
@@ -134,12 +118,6 @@ namespace CxxReflect { namespace Detail {
     class WinRTExternalFunctions : public IExternalFunctions
     {
     public:
-
-        //
-        // CRYPTOGRAPHIC SERVICES
-        //
-
-        virtual Sha1Hash ComputeSha1Hash(ConstByteIterator first, ConstByteIterator last) const;
 
         //
         // STRING MANIPULATION AND CONVERSION
@@ -202,9 +180,6 @@ namespace CxxReflect {
             std::auto_ptr<IExternalFunctions> instance(new ExternalFunctionsType());
             Initialize(std::auto_ptr<IExternalFunctions>(instance));
         }
-
-        /// \copydoc IExternalFunctions::ComputeSha1Hash()
-        static Sha1Hash ComputeSha1Hash(ConstByteIterator first, ConstByteIterator last);
 
         /// \copydoc IExternalFunctions::ComputeUtf16LengthOfUtf8String()
         static unsigned ComputeUtf16LengthOfUtf8String(char const* source);

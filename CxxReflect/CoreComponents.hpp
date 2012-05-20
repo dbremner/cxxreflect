@@ -70,86 +70,180 @@ namespace CxxReflect {
         Detail::ValueInitialized<Kind> _kind;
     };
 
+}
 
+namespace CxxReflect { namespace Detail {
 
+    typedef std::unique_ptr<class BaseModuleLocator> UniqueBaseModuleLocator;
 
-
-    /// Interface for module and assembly locating
-    ///
-    /// When a loader needs to load a module or assembly by name it queries this interface to find
-    /// the location of the module or assembly.  An implementer must locate the module or assembly
-    /// on disk or in memory and return its location.  If the module or assembly cannot be found via
-    /// the given information, a default-initialized `ModuleLocation` should be returned to indicate
-    /// failure.
-    ///
-    /// An implementer of this interface should throw no exceptions from any member function.
-    class IModuleLocator
+    class BaseModuleLocator
     {
     public:
-        
-        /// Locates the manifest module of an assembly
-        ///
-        /// This is called whenever an assembly needs to be located by name alone.  If the loader 
-        /// has a reference type in the target assembly, it will call the overload that also takes
-        /// a full type name.
-        ///
-        /// \nothrows
+
         virtual ModuleLocation LocateAssembly(AssemblyName const& assemblyName) const = 0;
 
-        /// Locates the manifest module of an assembly
-        ///
-        /// This is called whenever an assembly needs to be located when the loader has both the
-        /// name of the assembly and the full name of a type in the defining assembly.  A locator
-        /// implementation may use the name of the type to resolve the location of the module.
-        ///
-        /// This overload is provided primarily to support the Windows Runtime type system, which
-        /// does not really have assemblies, just metadata files that define types.
-        ///
-        /// \nothrows
         virtual ModuleLocation LocateAssembly(AssemblyName const& assemblyName,
                                               String       const& fullTypeName) const = 0;
 
-        /// Locates a non-manifest module of an assembly
-        ///
-        /// When a loader needs to enumerate the modules of a multi-module assembly, it will call
-        /// this member function to resolve all of the modules other than the module bearing the
-        /// assembly manifest.
-        ///
-        /// \nothrows
         virtual ModuleLocation LocateModule(AssemblyName const& requestingAssembly,
                                             String       const& moduleName) const = 0;
 
-        virtual ~IModuleLocator();
+        virtual UniqueBaseModuleLocator Copy() const = 0;
+
+        virtual ~BaseModuleLocator();
     };
 
-    typedef std::unique_ptr<IModuleLocator> UniqueModuleLocator;
-
-
-
-
-
-    /// Interface for loader configuration
-    ///
-    /// This interface allows configuration of the loader.  It allows its behavior to be changed for
-    /// different type systems.
-    class ILoaderConfiguration
+    template <typename T>
+    class DerivedModuleLocator : public BaseModuleLocator
     {
     public:
 
-        /// Gets the namespace in which the system types are defined
-        ///
-        /// This should be the top-level system namespace.  E.g., for the CLI, this is "System".
-        /// The returned string must be nonempty and must be a valid namespace name.  This is used
-        /// by the loader when it resolves fundamental types (like Int32 or Object) and system
-        /// infrastructure types (like Array or Enum).
-        ///
-        /// \nothrows
-        virtual StringReference GetSystemNamespace() const = 0;
+        template <typename U>
+        DerivedModuleLocator(U&& x)
+            : _x(std::forward<U>(x))
+        {
+        }
 
-        virtual ~ILoaderConfiguration();
+        virtual ModuleLocation LocateAssembly(AssemblyName const& assemblyName) const
+        {
+            return _x.LocateAssembly(assemblyName);
+        }
+
+        virtual ModuleLocation LocateAssembly(AssemblyName const& assemblyName,
+                                              String       const& fullTypeName) const
+        {
+            return _x.LocateAssembly(assemblyName, fullTypeName);
+        }
+
+        virtual ModuleLocation LocateModule(AssemblyName const& requestingAssembly,
+                                            String       const& moduleName) const
+        {
+            return _x.LocateModule(requestingAssembly, moduleName);
+        }
+
+        virtual UniqueBaseModuleLocator Copy() const
+        {
+            return Detail::MakeUnique<DerivedModuleLocator>(_x);
+        }
+
+    private:
+
+        T _x;
     };
 
-    typedef std::unique_ptr<ILoaderConfiguration> UniqueLoaderConfiguration;
+    
+
+
+
+    typedef std::unique_ptr<class BaseLoaderConfiguration> UniqueBaseLoaderConfiguration;
+
+    class BaseLoaderConfiguration
+    {
+    public:
+
+        virtual StringReference GetSystemNamespace() const = 0;
+
+        virtual UniqueBaseLoaderConfiguration Copy() const = 0;
+
+        virtual ~BaseLoaderConfiguration();
+    };
+
+    template <typename T>
+    class DerivedLoaderConfiguration : public BaseLoaderConfiguration
+    {
+    public:
+
+        template <typename U>
+        DerivedLoaderConfiguration(U&& x)
+            : _x(std::forward<U>(x))
+        {
+        }
+
+        virtual StringReference GetSystemNamespace() const
+        {
+            return _x.GetSystemNamespace();
+        }
+
+        virtual UniqueBaseLoaderConfiguration Copy() const
+        {
+            return Detail::MakeUnique<DerivedLoaderConfiguration>(_x);
+        }
+
+    private:
+
+        T _x;
+    };
+
+    class DefaultLoaderConfiguration
+    {
+    public:
+
+        StringReference GetSystemNamespace() const;
+    };
+
+} }
+
+namespace CxxReflect {
+
+    class ModuleLocator
+    {
+    public:
+
+        ModuleLocator();
+
+        template <typename T>
+        ModuleLocator(T x)
+            : _x(Detail::MakeUnique<Detail::DerivedModuleLocator<T>>(x))
+        {
+        }
+
+        ModuleLocator(ModuleLocator const&);
+        ModuleLocator(ModuleLocator&&);
+
+        ModuleLocator& operator=(ModuleLocator const&);
+        ModuleLocator& operator=(ModuleLocator&&);
+
+        ModuleLocation LocateAssembly(AssemblyName const& assemblyName) const;
+        ModuleLocation LocateAssembly(AssemblyName const& assemblyName, String const& fullTypeName) const;
+        ModuleLocation LocateModule(AssemblyName const& requestingAssembly, String const& moduleName) const;
+
+        bool IsInitialized() const;
+
+    private:
+
+        void AssertInitialized() const;
+
+        Detail::UniqueBaseModuleLocator _x;
+    };
+
+    class LoaderConfiguration
+    {
+    public:
+
+        LoaderConfiguration();
+
+        template <typename T>
+        LoaderConfiguration(T x)
+            : _x(Detail::MakeUnique<Detail::DerivedLoaderConfiguration<T>>(x))
+        {
+        }
+
+        LoaderConfiguration(LoaderConfiguration const&);
+        LoaderConfiguration(LoaderConfiguration&&);
+
+        LoaderConfiguration& operator=(LoaderConfiguration const&);
+        LoaderConfiguration& operator=(LoaderConfiguration&&);
+
+        StringReference GetSystemNamespace() const;
+
+        bool IsInitialized() const;
+
+    private:
+
+        void AssertInitialized() const;
+
+        Detail::UniqueBaseLoaderConfiguration _x;
+    };
 
 }
 
@@ -325,17 +419,6 @@ namespace CxxReflect { namespace Detail {
 
 
 
-    /// Synchronization object used by the `LoaderContext`
-    ///
-    /// This type is pimpl'ed to avoid including `<mutex>` in the public interface headers.
-    class LoaderContextSynchronizer;
-
-    typedef std::unique_ptr<LoaderContextSynchronizer> UniqueLoaderContextSynchronizer;
-
-
-
-
-
     /// Internal data structure to represent a loader and its infrastructure functionality
     ///
     /// This type is neither copyable nor movable.
@@ -343,16 +426,43 @@ namespace CxxReflect { namespace Detail {
     {
     public:
 
-        /// Constructs a new loader context, using the provided locator and configuration
-        ///
-        /// \param locator       The `IModuleLocator` implementation to use for locating modules and
-        ///                      assemblies.  The argument may not be null.
-        /// \param configuration The `ILoaderConfiguration` implementation with which the loader is
-        ///                      to be configured.  The argument may be null; if it is null, a
-        ///                      default implementation will be used, which is suitable for use in
-        ///                      many cases.
-        /// \nothrows
-        LoaderContext(UniqueModuleLocator locator, UniqueLoaderConfiguration configuration);
+        // Disable "'this' : used in base member initializer list"
+        #if CXXREFLECT_COMPILER == CXXREFLECT_COMPILER_VISUALCPP
+        #    pragma warning(push)
+        #    pragma warning(disable: 4355)
+        #endif
+
+        template <typename TLocator>
+        LoaderContext(TLocator locator)
+            : _locator      (std::forward<TLocator>(locator)),
+              _configuration(DefaultLoaderConfiguration()),
+
+              _contextStorage(CreateElementContextTableStorage()),
+              _events    (this, _contextStorage.get()),
+              _fields    (this, _contextStorage.get()),
+              _interfaces(this, _contextStorage.get()),
+              _methods   (this, _contextStorage.get()),
+              _properties(this, _contextStorage.get())
+        {
+        }
+
+        template <typename TLocator, typename TConfiguration>
+        LoaderContext(TLocator locator, TConfiguration configuration)
+            : _locator      (std::forward<TLocator>(locator)            ),
+              _configuration(std::forward<TConfiguration>(configuration)),
+
+              _contextStorage(CreateElementContextTableStorage()),
+              _events    (this, _contextStorage.get()),
+              _fields    (this, _contextStorage.get()),
+              _interfaces(this, _contextStorage.get()),
+              _methods   (this, _contextStorage.get()),
+              _properties(this, _contextStorage.get())
+        {
+        }
+
+        #if CXXREFLECT_COMPILER == CXXREFLECT_COMPILER_VISUALCPP
+        #    pragma warning(pop)
+        #endif
 
         /// A user-declared destructor is required to clean up the `LoaderContextSynchronizer`
         ///
@@ -381,7 +491,7 @@ namespace CxxReflect { namespace Detail {
         /// Gets the `IModuleLocator` implementation instance that is used for module locating
         ///
         /// \nothrows
-        IModuleLocator const& GetLocator() const;
+        ModuleLocator const& GetLocator() const;
 
         /// Finds the module that owns the provided database
         ///
@@ -444,7 +554,7 @@ namespace CxxReflect { namespace Detail {
 
     private:
 
-        enum
+        enum : SizeType
         {
             FundamentalTypeCount = static_cast<SizeType>(Metadata::ElementType::ConcreteElementTypeMax)
         };
@@ -457,8 +567,8 @@ namespace CxxReflect { namespace Detail {
         LoaderContext(LoaderContext const&);
         LoaderContext& operator=(LoaderContext const&);
 
-        UniqueModuleLocator       _locator;
-        UniqueLoaderConfiguration _configuration;
+        ModuleLocator       _locator;
+        LoaderConfiguration _configuration;
 
         /// The set of loaded assemblies, mapped by Absolute URI
         AssemblyMap mutable _assemblies;
@@ -477,7 +587,7 @@ namespace CxxReflect { namespace Detail {
         MethodContextTableCollection           mutable _methods;
         PropertyContextTableCollection         mutable _properties;
 
-        UniqueLoaderContextSynchronizer        mutable _sync;
+        RecursiveMutex                         mutable _sync;
     };
 
     typedef std::unique_ptr<LoaderContext> UniqueLoaderContext;
@@ -785,21 +895,6 @@ namespace CxxReflect {
         CustomAttribute,
         Module
     > CustomAttributeIterator;
-
-
-
-
-
-    /// Key type for internal member functions
-    ///
-    /// This class type is the type of the last parameter of any public member functions of public
-    /// interface types that expose internal implementation details.  These functions are not really
-    /// part of the public interface of the library.  A user of the library should not call these
-    /// internal methods.  However, libraries or utilities that build atop CxxReflect might want to
-    /// use these internal members, e.g. as we have done in the Windows Runtime integration.
-    class InternalKey
-    {
-    };
 }
 
 #endif

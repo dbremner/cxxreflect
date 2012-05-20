@@ -185,9 +185,7 @@ int main()
     DirectoryBasedModuleLocator::DirectorySet directories;
     directories.insert(L"C:\\Windows\\Microsoft.NET\\Framework\\v4.0.30319");
 
-    std::unique_ptr<IModuleLocator> resolver(new DirectoryBasedModuleLocator(directories));
-
-    Loader loader(std::move(resolver));
+    Loader loader((DirectoryBasedModuleLocator(directories)));
 
     Assembly a(loader.LoadAssembly(L"C:\\Windows\\Microsoft.NET\\Framework\\v4.0.30319\\mscorlib.dll"));
     /*

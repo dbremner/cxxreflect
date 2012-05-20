@@ -49,11 +49,6 @@ namespace CxxReflect {
 
 
 
-    Sha1Hash Externals::ComputeSha1Hash(ConstByteIterator const first, ConstByteIterator const last)
-    {
-        return Get().ComputeSha1Hash(first, last);
-    }
-
     unsigned Externals::ComputeUtf16LengthOfUtf8String(char const* const source)
     {
         return Get().ComputeUtf16LengthOfUtf8String(source);
@@ -254,33 +249,6 @@ namespace CxxReflect { namespace Detail { namespace { namespace Private {
 
 namespace CxxReflect { namespace Detail {
 
-    Sha1Hash Win32ExternalFunctions::ComputeSha1Hash(ConstByteIterator const first,
-                                                     ConstByteIterator const last) const
-    {
-        Detail::AssertNotNull(first);
-        Detail::AssertNotNull(last);
-
-        HCRYPTPROV provider(0);
-        Detail::ScopeGuard cleanupProvider([&](){ if (provider) { CryptReleaseContext(provider, 0); } });
-        if (!CryptAcquireContext(&provider, nullptr, nullptr, PROV_RSA_FULL, CRYPT_VERIFYCONTEXT))
-            return Sha1Hash();
-
-        HCRYPTHASH hash(0);
-        Detail::ScopeGuard cleanupHash([&](){ if (hash) { CryptDestroyHash(hash); } });
-        if (!CryptCreateHash(provider, CALG_SHA1, 0, 0, &hash))
-            return Sha1Hash();
-
-        if (!CryptHashData(hash, first, static_cast<DWORD>(last - first), 0))
-            return Sha1Hash();
-
-        Sha1Hash result = { 0 };
-        DWORD resultLength(static_cast<DWORD>(result.size()));
-        if (!CryptGetHashParam(hash, HP_HASHVAL, result.data(), &resultLength, 0) || resultLength != 20)
-            return Sha1Hash();
-
-        return result;
-    }
-
     unsigned Win32ExternalFunctions::ComputeUtf16LengthOfUtf8String(char const* const source) const
     {
         return Private::ComputeUtf16LengthOfUtf8String(source);
@@ -297,7 +265,7 @@ namespace CxxReflect { namespace Detail {
     {
         ValueInitialized<std::array<wchar_t, 2048>> buffer;
 
-        DWORD length(static_cast<DWORD>(buffer.Get().size()));
+        DWORD length(Detail::ConvertInteger(buffer.Get().size()));
         Detail::VerifySuccess(UrlCanonicalize(pathOrUri, buffer.Get().data(), &length, 0));
 
         return String(buffer.Get().data());
@@ -326,12 +294,7 @@ namespace CxxReflect { namespace Detail {
 
 
 
-
-    Sha1Hash WinRTExternalFunctions::ComputeSha1Hash(ConstByteIterator const first,
-                                                     ConstByteIterator const last) const
-    {
-        return Sha1Hash(); // TODO Implement
-    }
+    #ifdef CXXREFLECT_ENABLE_WINDOWS_RUNTIME_INTEGRATION
 
     unsigned WinRTExternalFunctions::ComputeUtf16LengthOfUtf8String(char const* const source) const
     {
@@ -380,5 +343,7 @@ namespace CxxReflect { namespace Detail {
     WinRTExternalFunctions::~WinRTExternalFunctions()
     {
     }
+
+    #endif
 
 } }
