@@ -9,7 +9,6 @@
     <ClCompile Include="MetadataDatabase_CoreFunctionalityTest.cpp">
       <Filter>Tests</Filter>
     </ClCompile>
-    <ClCompile Include="Context.cpp" />
     <ClCompile Include="Main.cpp" />
     <ClCompile Include="X64FastCallThunk.cpp">
       <Filter>Tests</Filter>

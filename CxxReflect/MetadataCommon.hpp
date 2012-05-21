@@ -354,6 +354,14 @@ namespace CxxReflect { namespace Metadata {
     class TypeSignature;
     class SignatureComparer;
 
+    /// \defgroup cxxreflect_metadata_common Metadata :: Common
+    ///
+    /// This is a set of enumerations, interfaces, classes, and functions that are shared by both
+    /// the MetadataDatabase and MetadataSignature functionality.
+    ///
+    /// @{
+
+    /// Identifiers for each of the CLI element types
     enum class ElementType : std::uint8_t
     {
         End                        = 0x00,
@@ -443,7 +451,6 @@ namespace CxxReflect { namespace Metadata {
         ///
         /// \param   type A reference to the TypeDef, TypeRef, or TypeSpec to be resolved
         /// \returns A reference to the resolved TypeDef or TypeSpec, with its resolution scope
-        /// \throws LogicError If `type` is not initialized or if `type` is not a row reference
         ///
         /// \todo Finish documentation of exceptions
         virtual FullReference ResolveType(FullReference const& type) const = 0;
@@ -481,6 +488,8 @@ namespace CxxReflect { namespace Metadata {
 
         virtual ~ITypeResolver();
     };
+
+    /// @}
 
 } }
 

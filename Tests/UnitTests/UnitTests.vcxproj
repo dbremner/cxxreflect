@@ -13,7 +13,6 @@
   </PropertyGroup>
   <Import Project="$(SolutionDir)CxxReflect\CxxReflect.props" />
   <ItemGroup>
-    <ClCompile Include="Context.cpp" />
     <ClCompile Include="Main.cpp" />
     <ClCompile Include="MetadataDatabase_CoreFunctionalityTest.cpp" />
     <ClCompile Include="X64FastCallThunk.cpp" />

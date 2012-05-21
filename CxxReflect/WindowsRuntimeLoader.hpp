@@ -11,15 +11,19 @@
 
 namespace CxxReflect { namespace Detail {
 
-    std::uint8_t const* BeginWindowsRuntimeTypeSystemSupportEmbedded();
-    std::uint8_t const* EndWindowsRuntimeTypeSystemSupportEmbedded();
+    ConstByteIterator BeginWindowsRuntimeTypeSystemSupportEmbedded();
+    ConstByteIterator EndWindowsRuntimeTypeSystemSupportEmbedded();
 
 } }
 
 namespace CxxReflect { namespace WindowsRuntime {
 
-    // An IAssemblyLocator that finds assemblies in the current package.  Assemblies are resolved
-    // using RoResolveNamespace, and system types are redirected to our faux platform metadata.
+    /// An module locator that finds metadata files (WinMD files) in the current app package.
+    ///
+    /// Modules are resolved using RoResolveNamespace, with fallback logic to grovel the package
+    /// root directory if RoResolveNamespace fails to locate a metadata file (this can happen if we
+    /// do not create an Application in the process, e.g. in unit tests).  There is also logic to
+    /// redirect resolution of the system assembly to the embedded system module.
     class PackageAssemblyLocator
     {
     public:
@@ -45,12 +49,9 @@ namespace CxxReflect { namespace WindowsRuntime {
 
     private:
 
-        typedef Detail::RecursiveMutex     Mutex;
-        typedef Detail::RecursiveMutexLock Lock;
-
-        String          _packageRoot;
-        PathMap mutable _metadataFiles;
-        Mutex   mutable _sync;
+        String                           _packageRoot;
+        PathMap                  mutable _metadataFiles;
+        Detail::RecursiveMutex   mutable _sync;
     };
 
 

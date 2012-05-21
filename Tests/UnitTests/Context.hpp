@@ -7,6 +7,8 @@
 
 #include <algorithm>
 #include <functional>
+#include <iomanip>
+#include <iostream>
 #include <map>
 #include <stdexcept>
 #include <string>
@@ -106,15 +108,44 @@ namespace CxxReflectTest {
     {
     public:
 
-        static int RegisterTest(String const& name, TestFunction const& function);
+        static int Index::RegisterTest(String const& name, TestFunction const& function)
+        {
+            if (!GetOrCreateRegistry().insert(std::make_pair(name, function)).second)
+                throw TestError(L"Test name already registered");
 
-        static void RunAllTests();
+            return 0;
+        }
+
+        static void Index::RunAllTests()
+        {
+            typedef TestRegistry::const_reference Reference;
+
+            TestRegistry const& registry(GetOrCreateRegistry());
+            std::for_each(begin(registry), end(registry), [&](Reference test)
+            {
+                std::wcout << L"Running test [" << std::setw(40) << std::left << test.first << L"]:  ";
+                Context context;
+                try
+                {
+                    test.second(context);
+                    std::wcout << L"PASSED" << std::endl;
+                }
+                catch (CxxReflectTest::TestError const&)
+                {
+                    throw; // TODO Report error on console instead.
+                }
+            });
+        }
 
     private:
 
         typedef std::map<String, TestFunction> TestRegistry;
 
-        static TestRegistry& GetOrCreateRegistry();
+        static TestRegistry& Index::GetOrCreateRegistry()
+        {
+            static TestRegistry registry;
+            return registry;
+        }
     };
 
 

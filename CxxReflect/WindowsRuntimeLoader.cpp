@@ -35,7 +35,7 @@ namespace CxxReflect { namespace WindowsRuntime {
 
     PackageAssemblyLocator::PackageAssemblyLocator(PackageAssemblyLocator const& other)
     {
-        Lock const lock(other._sync);
+        auto const lock(other._sync.Lock());
 
         _packageRoot   = other._packageRoot;
         _metadataFiles = other._metadataFiles;
@@ -104,7 +104,7 @@ namespace CxxReflect { namespace WindowsRuntime {
 
     PackageAssemblyLocator::PathMap PackageAssemblyLocator::GetMetadataFiles() const
     {
-        Lock const lock(_sync);
+        auto const lock(_sync.Lock());
         return _metadataFiles;
     }
 
@@ -114,7 +114,7 @@ namespace CxxReflect { namespace WindowsRuntime {
 
         // First, search the metadata files we got from RoResolveNamespace:
         {
-            Lock const lock(_sync);
+            auto const lock(_sync.Lock());
 
             String enclosingNamespaceName(lowercaseNamespaceName);
             while (!enclosingNamespaceName.empty())
@@ -130,20 +130,20 @@ namespace CxxReflect { namespace WindowsRuntime {
         // WORKAROUND:  If the above failed, we can try to search in the package root.  However,
         // this should not be necessary.  RoResolveNamespace should return all of the resolvable
         // metadata files.
-        // String enclosingNamespaceName(lowercaseNamespaceName);
-        // while (!enclosingNamespaceName.empty())
-        // {
-        //     String const winmdPath(Detail::MakeLowercase(_packageRoot + enclosingNamespaceName + L".winmd"));
-        //     if (Externals::FileExists(winmdPath.c_str()))
-        //     {
-        //         Lock const lock(_sync);
-        //
-        //         _metadataFiles.insert(std::make_pair(enclosingNamespaceName, winmdPath));
-        //         return winmdPath;
-        //     }
-        // 
-        //     Internal::RemoveRightmostTypeNameComponent(enclosingNamespaceName);
-        // }
+        String enclosingNamespaceName(lowercaseNamespaceName);
+        while (!enclosingNamespaceName.empty())
+        {
+            String const winmdPath(Detail::MakeLowercase(_packageRoot + enclosingNamespaceName + L".winmd"));
+            if (Externals::FileExists(winmdPath.c_str()))
+            {
+                auto const lock(_sync.Lock());
+                
+                _metadataFiles.insert(std::make_pair(enclosingNamespaceName, winmdPath));
+                return ModuleLocation(winmdPath);
+            }
+        
+            Internal::RemoveRightmostTypeNameComponent(enclosingNamespaceName);
+        }
 
         // If the type is in the 'Platform' or 'System' namespace, we special case it and use our
         // Platform metadata.  This heuristic isn't perfect, but it should be sufficient for non-
@@ -164,7 +164,7 @@ namespace CxxReflect { namespace WindowsRuntime {
 
     StringReference LoaderConfiguration::GetSystemNamespace() const
     {
-        return L"System";
+        return L"Platform";
     }
 
 

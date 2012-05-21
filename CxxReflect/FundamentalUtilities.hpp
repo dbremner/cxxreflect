@@ -1836,11 +1836,25 @@ namespace CxxReflect { namespace Detail {
 //
 //
 
+/// \defgroup cxxreflect_detail_concurrency Implementation Details :: Concurrency
+///
+/// These types provide an abstraction over the threading and synchronization functionality provided
+/// by the C++ Standard Library.  These are required for two reasons:  first, the threading-related
+/// libraries are not supported yet by libstdc++ under MinGW; second, we'd like to be able to allow
+/// single-threaded use of CxxReflect.
+///
+/// \warning When compiling under MinGW, CxxReflect only supports single-threaded use.
+///
+/// @{
+
 namespace CxxReflect { namespace Detail {
 
     class RecursiveMutex;
     class RecursiveMutexContext;
 
+    /// An RAII container that owns a lock of a `RecursiveMutex`
+    ///
+    /// This type is moveable but not copyable.
     class RecursiveMutexLock
     {
     public:
@@ -1850,19 +1864,29 @@ namespace CxxReflect { namespace Detail {
         RecursiveMutexLock(RecursiveMutexLock&&);
         RecursiveMutexLock& operator=(RecursiveMutexLock&&);
 
+        /// Releases the held lock; the destructor also calls this member function
+        ///
+        /// If the lock has already been released, this function is a no-op.
         void Release();
 
+        /// Destroys the lock object and unlocks the mutex if it is currently locked by this thread
         ~RecursiveMutexLock();
 
     private:
 
-        // This type is noncopyable
         RecursiveMutexLock(RecursiveMutexLock const&);
         RecursiveMutexLock& operator=(RecursiveMutexLock const&);
 
         ValueInitialized<RecursiveMutex*> _mutex;
     };
 
+    /// A recursive mutex that can be locked multiple times by a single thread
+    ///
+    /// The behavior of this class is roughly equivalent to that of `std::recursive_mutex`.  Note
+    /// that this class dynamically allocates the underlying mutex, so one should not expect to be
+    /// able to create these rapidly.
+    ///
+    /// This type is neither copyable nor moveable.
     class RecursiveMutex
     {
     public:
@@ -1870,23 +1894,27 @@ namespace CxxReflect { namespace Detail {
         RecursiveMutex();
         ~RecursiveMutex();
 
-        void Lock();
-        void Unlock();
-
-        RecursiveMutexLock Acquire();
+        /// Causes the calling thread to acquire the mutex, or block and wait for it to be available
+        ///
+        /// To unlock the mutex, destroy the returned lock or call its `Release()` member function.
+        RecursiveMutexLock Lock();
 
     private:
 
-        // This type is noncopyable
+        friend RecursiveMutexLock;
+
         RecursiveMutex(RecursiveMutex const&);
         RecursiveMutex& operator=(RecursiveMutex const&);
+
+        void PrivateLock();
+        void PrivateUnlock();
 
         std::unique_ptr<RecursiveMutexContext> _mutex;
     };
 
-    
-
 } }
+
+/// @}
 
 
 

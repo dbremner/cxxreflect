@@ -341,17 +341,17 @@ namespace CxxReflect { namespace Detail {
         // For completeness
     }
 
-    void RecursiveMutex::Lock()
+    void RecursiveMutex::PrivateLock()
     {
         _mutex->Lock();
     }
 
-    void RecursiveMutex::Unlock()
+    void RecursiveMutex::PrivateUnlock()
     {
         _mutex->Unlock();
     }
 
-    RecursiveMutexLock RecursiveMutex::Acquire()
+    RecursiveMutexLock RecursiveMutex::Lock()
     {
         return RecursiveMutexLock(*this);
     }
@@ -359,7 +359,7 @@ namespace CxxReflect { namespace Detail {
     RecursiveMutexLock::RecursiveMutexLock(RecursiveMutex& mutex)
         : _mutex(&mutex)
     {
-        _mutex.Get()->Lock();
+        _mutex.Get()->PrivateLock();
     }
 
     RecursiveMutexLock::RecursiveMutexLock(RecursiveMutexLock&& other)
@@ -379,7 +379,7 @@ namespace CxxReflect { namespace Detail {
     {
         if (_mutex.Get() != nullptr)
         {
-            _mutex.Get()->Unlock();
+            _mutex.Get()->PrivateUnlock();
             _mutex.Get() = nullptr;
         }
     }

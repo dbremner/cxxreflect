@@ -411,7 +411,7 @@ namespace CxxReflect { namespace Detail {
             ? Externals::ComputeCanonicalUri(location.GetFilePath().c_str())
             : L"memory://" + ToString(location.GetMemoryRange().Begin()));
 
-        auto const lock(_sync.Acquire());
+        auto const lock(_sync.Lock());
         
         auto const it0(_assemblies.find(canonicalUri));
         if (it0 != end(_assemblies))
@@ -481,9 +481,13 @@ namespace CxxReflect { namespace Detail {
                 typeRefScope,
                 InternalKey());
 
-            String const typeRefFullName(typeRefNamespace.empty()
+            StringReference const namespaceName(typeRefNamespace == L"System"
+                ? GetSystemNamespace()
+                : typeRefNamespace);
+
+            String const typeRefFullName(namespaceName.empty()
                 ? String(typeRefName.c_str())
-                : String(typeRefNamespace.c_str()) + L"." + typeRefName.c_str());
+                : String(namespaceName.c_str()) + L"." + typeRefName.c_str());
 
             ModuleLocation const& location(_locator.LocateAssembly(definingAssemblyName, typeRefFullName));
 
@@ -491,7 +495,7 @@ namespace CxxReflect { namespace Detail {
             ModuleContext   const& definingModule(definingAssembly.GetManifestModule());
             Database        const& definingDatabase(definingModule.GetDatabase());
 
-            RowReference const typeDef(definingModule.GetTypeDefByName(typeRefNamespace, typeRefName));
+            RowReference const typeDef(definingModule.GetTypeDefByName(namespaceName, typeRefName));
             if (!typeDef.IsInitialized())
                 throw RuntimeError(L"Failed to resolve type in assembly");
 
@@ -515,7 +519,7 @@ namespace CxxReflect { namespace Detail {
     {
         Assert([&]{ return elementType < Metadata::ElementType::ConcreteElementTypeMax; });
 
-        auto const lock(_sync.Acquire());
+        auto const lock(_sync.Lock());
 
         if (_fundamentalTypes[Detail::AsInteger(elementType)].IsInitialized())
             return _fundamentalTypes[Detail::AsInteger(elementType)];
@@ -582,7 +586,7 @@ namespace CxxReflect { namespace Detail {
     ModuleContext const& LoaderContext::GetSystemModule() const
     {
         {
-            auto const lock(_sync.Acquire());
+            auto const lock(_sync.Lock());
             if (_systemModule.Get() != nullptr)
                 return *_systemModule.Get();
         }
@@ -603,7 +607,7 @@ namespace CxxReflect { namespace Detail {
 
         if (it0 != end(_assemblies))
         {
-            auto const lock(_sync.Acquire());
+            auto const lock(_sync.Lock());
             _systemModule.Get() = &it0->second->GetManifestModule();
             return *_systemModule.Get();
         }
@@ -638,7 +642,7 @@ namespace CxxReflect { namespace Detail {
 
         Assert([&]{ return referenceType.GetName() == L"Object"; });
 
-        auto const lock(_sync.Acquire());
+        auto const lock(_sync.Lock());
         _systemModule.Get() = &referenceType.GetModule().GetContext(InternalKey());
         return *_systemModule.Get();
     }
