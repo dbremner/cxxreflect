@@ -976,17 +976,6 @@ namespace CxxReflect { namespace Metadata {
 
 
 
-    /// A cache used internally by the StringCollection.
-    ///
-    /// The StringColection has a mutable cache that requires internal synchronization.  Because
-    /// C++/CLI translation units do not support the C++11 threading headers, we use this pimpl'ed
-    /// class to own both the mutex and the cache.
-    class StringCollectionCache;
-
-
-
-
-
     // Encapsulates the strings stream, providing conversion from the raw UTF-8 strings to the
     // more convenient UTF-16 used by Windows.  It caches the transformed strings so that we can
     // just use references to the strings everywhere and not have to copy tons of data.
@@ -1008,9 +997,18 @@ namespace CxxReflect { namespace Metadata {
 
     private:
 
+        typedef Detail::LinearArrayAllocator<Character, (1 << 16)> Allocator;
+        typedef std::map<SizeType, StringReference>                StringMap;
+
+        StringCollection(StringCollection const&);
+        StringCollection& operator=(StringCollection const&);
+
         void AssertInitialized() const;
 
-        std::unique_ptr<StringCollectionCache> _cache;
+        Stream                         _stream;
+        Allocator              mutable _buffer;  // Stores the transformed UTF-16 strings
+        StringMap              mutable _index;   // Maps string heap indices into indices in the buffer
+        Detail::RecursiveMutex mutable _sync;
     };
 
 
