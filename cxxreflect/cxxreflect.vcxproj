@@ -1,0 +1,46 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<!--
+
+//                            Copyright James P. McNellis 2011 - 2012.                            //
+//                   Distributed under the Boost Software License, Version 1.0.                   //
+//     (See accompanying file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)    //
+
+-->
+<Project DefaultTargets="Build" ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <ProjectGuid>{1323C7D0-55D3-2A4A-EC85-6693FC4678FE}</ProjectGuid>
+  </PropertyGroup>
+  <ItemDefinitionGroup>
+    <Lib>
+      <AdditionalOptions>cxxreflect_core.lib cxxreflect_metadata.lib cxxreflect_reflection.lib cxxreflect_windows_runtime.lib</AdditionalOptions>
+    </Lib>
+  </ItemDefinitionGroup>
+  <Import Project="cxxreflect.props" />
+  <ItemGroup>
+    <ClInclude Include="cxxreflect.hpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="cxxreflect.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="cxxreflect.props">
+      <SubType>Designer</SubType>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="core\cxxreflect_core.vcxproj">
+      <Project>{53b02afa-1600-49b3-bc8a-6949c77f74f4}</Project>
+    </ProjectReference>
+    <ProjectReference Include="metadata\cxxreflect_metadata.vcxproj">
+      <Project>{035dcfc2-3bad-4b6a-adbc-90647a9675eb}</Project>
+    </ProjectReference>
+    <ProjectReference Include="reflection\cxxreflect_reflection.vcxproj">
+      <Project>{f615a647-5914-4701-9be2-b15dbde54501}</Project>
+    </ProjectReference>
+    <ProjectReference Include="windows_runtime\cxxreflect_windows_runtime.vcxproj">
+      <Project>{fd75e829-fe31-4cec-acd3-294dab75ae9f}</Project>
+    </ProjectReference>
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+</Project>

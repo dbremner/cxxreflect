@@ -1,0 +1,31 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<!--
+
+//                            Copyright James P. McNellis 2011 - 2012.                            //
+//                   Distributed under the Boost Software License, Version 1.0.                   //
+//     (See accompanying file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)    //
+
+-->
+<Project DefaultTargets="Build" ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <AppContainerApplication>true</AppContainerApplication>
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <DefaultLanguage>en-US</DefaultLanguage>
+    <GenerateManifest>false</GenerateManifest>
+    <ProjectGuid>{c340a193-b0dc-45b2-8975-73081d1b6784}</ProjectGuid>
+    <ProjectName>TestComponents.Alpha</ProjectName>
+    <RootNamespace>TestComponents.Alpha</RootNamespace>
+  </PropertyGroup>
+  <Import Project="$(SolutionDir)\cxxreflect\cxxreflect.props" />
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <PreprocessorDefinitions>_WINRT_DLL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="IProvideANumber.cpp" />
+    <ClCompile Include="Types.cpp" />
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+</Project>

@@ -1,0 +1,75 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="headers">
+      <UniqueIdentifier>{f042a1d7-19b5-40af-a1d8-d76627add441}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="sources">
+      <UniqueIdentifier>{34107b2e-40db-4015-8349-3d4f6e21fa0b}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="headers\externals">
+      <UniqueIdentifier>{588ad304-3038-4fe6-ba3b-b874390899eb}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="sources\externals">
+      <UniqueIdentifier>{a9962420-fbed-44c0-b4f2-647fb2dc03f6}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="concurrency.cpp">
+      <Filter>sources</Filter>
+    </ClCompile>
+    <ClCompile Include="precompiled_headers.cpp">
+      <Filter>sources</Filter>
+    </ClCompile>
+    <ClCompile Include="externals\win32_externals.cpp">
+      <Filter>sources\externals</Filter>
+    </ClCompile>
+    <ClCompile Include="utility.cpp">
+      <Filter>sources</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="algorithm.hpp">
+      <Filter>headers</Filter>
+    </ClInclude>
+    <ClInclude Include="concurrency.hpp">
+      <Filter>headers</Filter>
+    </ClInclude>
+    <ClInclude Include="configuration.hpp">
+      <Filter>headers</Filter>
+    </ClInclude>
+    <ClInclude Include="core.hpp">
+      <Filter>headers</Filter>
+    </ClInclude>
+    <ClInclude Include="diagnostic.hpp">
+      <Filter>headers</Filter>
+    </ClInclude>
+    <ClInclude Include="enumeration.hpp">
+      <Filter>headers</Filter>
+    </ClInclude>
+    <ClInclude Include="external.hpp">
+      <Filter>headers</Filter>
+    </ClInclude>
+    <ClInclude Include="file_io.hpp">
+      <Filter>headers</Filter>
+    </ClInclude>
+    <ClInclude Include="iterator.hpp">
+      <Filter>headers</Filter>
+    </ClInclude>
+    <ClInclude Include="precompiled_headers.hpp">
+      <Filter>headers</Filter>
+    </ClInclude>
+    <ClInclude Include="standard_library.hpp">
+      <Filter>headers</Filter>
+    </ClInclude>
+    <ClInclude Include="string.hpp">
+      <Filter>headers</Filter>
+    </ClInclude>
+    <ClInclude Include="utility.hpp">
+      <Filter>headers</Filter>
+    </ClInclude>
+    <ClInclude Include="externals\win32_externals.hpp">
+      <Filter>headers\externals</Filter>
+    </ClInclude>
+  </ItemGroup>
+</Project>

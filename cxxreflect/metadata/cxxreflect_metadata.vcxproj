@@ -1,0 +1,48 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<!--
+
+//                            Copyright James P. McNellis 2011 - 2012.                            //
+//                   Distributed under the Boost Software License, Version 1.0.                   //
+//     (See accompanying file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)    //
+
+-->
+<Project DefaultTargets="Build" ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <ProjectGuid>{035DCFC2-3BAD-4B6A-ADBC-90647A9675EB}</ProjectGuid>
+  </PropertyGroup>
+  <Import Project="..\cxxreflect.props" />
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <PrecompiledHeader>Use</PrecompiledHeader>
+      <PrecompiledHeaderFile>cxxreflect/metadata/precompiled_headers.hpp</PrecompiledHeaderFile>
+      <PrecompiledHeaderOutputFile>$(IntDir)$(TargetName).pch</PrecompiledHeaderOutputFile>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClInclude Include="constants.hpp" />
+    <ClInclude Include="database.hpp" />
+    <ClInclude Include="metadata.hpp" />
+    <ClInclude Include="precompiled_headers.hpp" />
+    <ClInclude Include="relationships.hpp" />
+    <ClInclude Include="rows.hpp" />
+    <ClInclude Include="signatures.hpp" />
+    <ClInclude Include="tokens.hpp" />
+    <ClInclude Include="type_resolver.hpp" />
+    <ClInclude Include="utility.hpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="constants.cpp" />
+    <ClCompile Include="database.cpp" />
+    <ClCompile Include="utility.cpp" />
+    <ClCompile Include="precompiled_headers.cpp">
+      <PrecompiledHeader>Create</PrecompiledHeader>
+    </ClCompile>
+    <ClCompile Include="relationships.cpp" />
+    <ClCompile Include="rows.cpp" />
+    <ClCompile Include="signatures.cpp" />
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>

@@ -1,0 +1,26 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<!--
+
+//                            Copyright James P. McNellis 2011 - 2012.                            //
+//                   Distributed under the Boost Software License, Version 1.0.                   //
+//     (See accompanying file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)    //
+
+-->
+<Project DefaultTargets="Build" ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <ConfigurationType>Application</ConfigurationType>
+    <CxxReflectIsStandalone>true</CxxReflectIsStandalone>
+    <ProjectGuid>{D9E97E25-93C7-4CBB-9767-CDB6522B6EC8}</ProjectGuid>
+  </PropertyGroup>
+  <Import Project="$(SolutionDir)cxxreflect\cxxreflect.props" />
+  <ItemGroup>
+    <ClCompile Include="main.cpp" />
+  </ItemGroup>
+  <ItemDefinitionGroup>
+    <PostBuildEvent>
+      <Command>copy $(TargetPath) $(ProjectDir)..\</Command>
+      <Message>Copying $(TargetName) to utility\</Message>
+    </PostBuildEvent>
+  </ItemDefinitionGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+</Project>

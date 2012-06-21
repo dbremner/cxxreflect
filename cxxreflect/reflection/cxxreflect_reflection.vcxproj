@@ -1,0 +1,91 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<!--
+
+//                            Copyright James P. McNellis 2011 - 2012.                            //
+//                   Distributed under the Boost Software License, Version 1.0.                   //
+//     (See accompanying file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)    //
+
+-->
+<Project DefaultTargets="Build" ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <ProjectGuid>{F615A647-5914-4701-9BE2-B15DBDE54501}</ProjectGuid>
+  </PropertyGroup>
+  <Import Project="..\cxxreflect.props" />
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <PrecompiledHeader>Use</PrecompiledHeader>
+      <PrecompiledHeaderFile>cxxreflect/reflection/precompiled_headers.hpp</PrecompiledHeaderFile>
+      <PrecompiledHeaderOutputFile>$(IntDir)$(TargetName).pch</PrecompiledHeaderOutputFile>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClInclude Include="assembly.hpp" />
+    <ClInclude Include="assembly_name.hpp" />
+    <ClInclude Include="constant.hpp" />
+    <ClInclude Include="custom_attribute.hpp" />
+    <ClInclude Include="detail\element_contexts.hpp" />
+    <ClInclude Include="detail\forward_declarations.hpp" />
+    <ClInclude Include="detail\independent_handles.hpp" />
+    <ClInclude Include="detail\loader_contexts.hpp" />
+    <ClInclude Include="detail\member_iterator.hpp" />
+    <ClInclude Include="detail\type_policy_definition.hpp" />
+    <ClInclude Include="detail\type_policy_unknown.hpp" />
+    <ClInclude Include="detail\type_hierarchy_utility.hpp" />
+    <ClInclude Include="detail\type_policy.hpp" />
+    <ClInclude Include="detail\type_name_builder.hpp" />
+    <ClInclude Include="detail\type_policy_array.hpp" />
+    <ClInclude Include="detail\type_policy_by_ref.hpp" />
+    <ClInclude Include="detail\type_policy_generic_instance.hpp" />
+    <ClInclude Include="detail\type_policy_pointer.hpp" />
+    <ClInclude Include="detail\type_policy_specialization.hpp" />
+    <ClInclude Include="event.hpp" />
+    <ClInclude Include="field.hpp" />
+    <ClInclude Include="file.hpp" />
+    <ClInclude Include="guid.hpp" />
+    <ClInclude Include="loader.hpp" />
+    <ClInclude Include="loader_configuration.hpp" />
+    <ClInclude Include="method.hpp" />
+    <ClInclude Include="module.hpp" />
+    <ClInclude Include="module_locator.hpp" />
+    <ClInclude Include="parameter.hpp" />
+    <ClInclude Include="precompiled_headers.hpp" />
+    <ClInclude Include="property.hpp" />
+    <ClInclude Include="reflection.hpp" />
+    <ClInclude Include="type.hpp" />
+    <ClInclude Include="utility.hpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="assembly.cpp" />
+    <ClCompile Include="assembly_name.cpp" />
+    <ClCompile Include="constant.cpp" />
+    <ClCompile Include="custom_attribute.cpp" />
+    <ClCompile Include="detail\element_contexts.cpp" />
+    <ClCompile Include="detail\independent_handles.cpp" />
+    <ClCompile Include="detail\loader_contexts.cpp" />
+    <ClCompile Include="detail\type_policy.cpp" />
+    <ClCompile Include="detail\type_policy_unknown.cpp" />
+    <ClCompile Include="detail\type_hierarchy_utility.cpp" />
+    <ClCompile Include="detail\type_name_builder.cpp" />
+    <ClCompile Include="detail\type_policy_array.cpp" />
+    <ClCompile Include="detail\type_policy_by_ref.cpp" />
+    <ClCompile Include="detail\type_policy_definition.cpp" />
+    <ClCompile Include="detail\type_policy_generic_instance.cpp" />
+    <ClCompile Include="detail\type_policy_pointer.cpp" />
+    <ClCompile Include="detail\type_policy_specialization.cpp" />
+    <ClCompile Include="field.cpp" />
+    <ClCompile Include="file.cpp" />
+    <ClCompile Include="guid.cpp" />
+    <ClCompile Include="loader_configuration.cpp" />
+    <ClCompile Include="method.cpp" />
+    <ClCompile Include="module.cpp" />
+    <ClCompile Include="module_locator.cpp" />
+    <ClCompile Include="parameter.cpp" />
+    <ClCompile Include="precompiled_headers.cpp">
+      <PrecompiledHeader>Create</PrecompiledHeader>
+    </ClCompile>
+    <ClCompile Include="reflection_loader.cpp" />
+    <ClCompile Include="type.cpp" />
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+</Project>

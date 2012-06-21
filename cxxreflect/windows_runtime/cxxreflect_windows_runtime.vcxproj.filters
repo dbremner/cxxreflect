@@ -1,0 +1,142 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="sources">
+      <UniqueIdentifier>{d33cbe61-e73f-4e2b-b904-c53d376890c6}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="headers">
+      <UniqueIdentifier>{a302c3df-9ed1-4810-8a04-7c43fe7ce685}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="headers\detail">
+      <UniqueIdentifier>{56f1b162-d6c3-49f6-be6b-f9f5e174cda7}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="sources\detail">
+      <UniqueIdentifier>{e560fafc-70c4-4f71-bbca-407aa7d345da}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="assembly">
+      <UniqueIdentifier>{54f4a563-050b-43cf-b5b7-f8bb8e25b7a4}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="assembly\detail">
+      <UniqueIdentifier>{38dc2a39-e970-4e3d-9e03-877d60c25cc8}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="sources\generated">
+      <UniqueIdentifier>{a64ea150-5caf-4578-9bab-6fcfcfe8de91}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="sources\externals">
+      <UniqueIdentifier>{78bdd5d5-d305-4242-8c65-ead5e8b1da53}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="headers\externals">
+      <UniqueIdentifier>{e1e06507-ab8b-4bcb-bb92-9f9e9d817d8d}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="detail\argument_handling.cpp">
+      <Filter>sources\detail</Filter>
+    </ClCompile>
+    <ClCompile Include="detail\call_invoker_x64.cpp">
+      <Filter>sources\detail</Filter>
+    </ClCompile>
+    <ClCompile Include="detail\overload_resolution.cpp">
+      <Filter>sources\detail</Filter>
+    </ClCompile>
+    <ClCompile Include="common.cpp">
+      <Filter>sources</Filter>
+    </ClCompile>
+    <ClCompile Include="precompiled_headers.cpp">
+      <Filter>sources</Filter>
+    </ClCompile>
+    <ClCompile Include="detail\call_invoker_x86.cpp">
+      <Filter>sources\detail</Filter>
+    </ClCompile>
+    <ClCompile Include="loader.cpp">
+      <Filter>sources</Filter>
+    </ClCompile>
+    <ClCompile Include="generated\platform_types_embedded.cpp">
+      <Filter>sources\generated</Filter>
+    </ClCompile>
+    <ClCompile Include="detail\runtime_utility.cpp">
+      <Filter>sources\detail</Filter>
+    </ClCompile>
+    <ClCompile Include="detail\call_invoker_utility.cpp">
+      <Filter>sources\detail</Filter>
+    </ClCompile>
+    <ClCompile Include="inspection.cpp">
+      <Filter>sources</Filter>
+    </ClCompile>
+    <ClCompile Include="initialization.cpp">
+      <Filter>sources</Filter>
+    </ClCompile>
+    <ClCompile Include="externals\winrt_externals.cpp">
+      <Filter>sources\externals</Filter>
+    </ClCompile>
+    <ClCompile Include="enumerator.cpp">
+      <Filter>sources</Filter>
+    </ClCompile>
+    <ClCompile Include="instantiation.cpp">
+      <Filter>sources</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="detail\argument_handling.hpp">
+      <Filter>headers\detail</Filter>
+    </ClInclude>
+    <ClInclude Include="detail\call_invoker_utility.hpp">
+      <Filter>headers\detail</Filter>
+    </ClInclude>
+    <ClInclude Include="detail\call_invoker_x64.hpp">
+      <Filter>headers\detail</Filter>
+    </ClInclude>
+    <ClInclude Include="detail\call_invoker_x86.hpp">
+      <Filter>headers\detail</Filter>
+    </ClInclude>
+    <ClInclude Include="detail\overload_resolution.hpp">
+      <Filter>headers\detail</Filter>
+    </ClInclude>
+    <ClInclude Include="common.hpp">
+      <Filter>headers</Filter>
+    </ClInclude>
+    <ClInclude Include="enumerator.hpp">
+      <Filter>headers</Filter>
+    </ClInclude>
+    <ClInclude Include="initialization.hpp">
+      <Filter>headers</Filter>
+    </ClInclude>
+    <ClInclude Include="inspection.hpp">
+      <Filter>headers</Filter>
+    </ClInclude>
+    <ClInclude Include="instantiation.hpp">
+      <Filter>headers</Filter>
+    </ClInclude>
+    <ClInclude Include="invocation.hpp">
+      <Filter>headers</Filter>
+    </ClInclude>
+    <ClInclude Include="loader.hpp">
+      <Filter>headers</Filter>
+    </ClInclude>
+    <ClInclude Include="utility.hpp">
+      <Filter>headers</Filter>
+    </ClInclude>
+    <ClInclude Include="precompiled_headers.hpp">
+      <Filter>headers</Filter>
+    </ClInclude>
+    <ClInclude Include="detail\runtime_utility.hpp">
+      <Filter>headers\detail</Filter>
+    </ClInclude>
+    <ClInclude Include="windows_runtime.hpp">
+      <Filter>headers</Filter>
+    </ClInclude>
+    <ClInclude Include="externals\winrt_externals.hpp">
+      <Filter>headers\externals</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="detail\x64_fastcall_thunk.asm">
+      <Filter>assembly\detail</Filter>
+    </CustomBuild>
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="detail\platform_types.il">
+      <Filter>assembly\detail</Filter>
+    </CustomBuild>
+  </ItemGroup>
+</Project>

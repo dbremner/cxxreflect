@@ -1,0 +1,26 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Include="main.cpp" />
+    <ClCompile Include="metadata\database_correctness.cpp">
+      <Filter>metadata</Filter>
+    </ClCompile>
+    <ClCompile Include="metadata\tokens.cpp">
+      <Filter>metadata</Filter>
+    </ClCompile>
+    <ClCompile Include="reflection\basic_alpha.cpp">
+      <Filter>reflection</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="test_driver.hpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="metadata">
+      <UniqueIdentifier>{2008dd2e-9ffb-4b72-945e-3a499a54e882}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="reflection">
+      <UniqueIdentifier>{ff12c346-3359-45a0-b6b0-df58d2eb021a}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+</Project>

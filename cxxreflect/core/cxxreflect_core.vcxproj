@@ -1,0 +1,47 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<!--
+
+//                            Copyright James P. McNellis 2011 - 2012.                            //
+//                   Distributed under the Boost Software License, Version 1.0.                   //
+//     (See accompanying file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)    //
+
+-->
+<Project DefaultTargets="Build" ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <ProjectGuid>{53B02AFA-1600-49B3-BC8A-6949C77F74F4}</ProjectGuid>
+  </PropertyGroup>
+  <Import Project="..\cxxreflect.props" />
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <PrecompiledHeader>Use</PrecompiledHeader>
+      <PrecompiledHeaderFile>cxxreflect/core/precompiled_headers.hpp</PrecompiledHeaderFile>
+      <PrecompiledHeaderOutputFile>$(IntDir)$(TargetName).pch</PrecompiledHeaderOutputFile>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="concurrency.cpp" />
+    <ClCompile Include="utility.cpp" />
+    <ClCompile Include="externals\win32_externals.cpp" />
+    <ClCompile Include="precompiled_headers.cpp">
+      <PrecompiledHeader>Create</PrecompiledHeader>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="algorithm.hpp" />
+    <ClInclude Include="concurrency.hpp" />
+    <ClInclude Include="configuration.hpp" />
+    <ClInclude Include="core.hpp" />
+    <ClInclude Include="diagnostic.hpp" />
+    <ClInclude Include="enumeration.hpp" />
+    <ClInclude Include="external.hpp" />
+    <ClInclude Include="externals\win32_externals.hpp" />
+    <ClInclude Include="file_io.hpp" />
+    <ClInclude Include="iterator.hpp" />
+    <ClInclude Include="precompiled_headers.hpp" />
+    <ClInclude Include="standard_library.hpp" />
+    <ClInclude Include="string.hpp" />
+    <ClInclude Include="utility.hpp" />
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+</Project>

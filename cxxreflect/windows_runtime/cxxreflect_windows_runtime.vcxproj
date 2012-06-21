@@ -1,0 +1,78 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<!--
+
+//                            Copyright James P. McNellis 2011 - 2012.                            //
+//                   Distributed under the Boost Software License, Version 1.0.                   //
+//     (See accompanying file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)    //
+
+-->
+<Project DefaultTargets="Build" ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <ProjectGuid>{FD75E829-FE31-4CEC-ACD3-294DAB75AE9F}</ProjectGuid>
+  </PropertyGroup>
+  <Import Project="..\cxxreflect.props" />
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <PrecompiledHeader>Use</PrecompiledHeader>
+      <PrecompiledHeaderFile>cxxreflect/windows_runtime/precompiled_headers.hpp</PrecompiledHeaderFile>
+      <PrecompiledHeaderOutputFile>$(IntDir)$(TargetName).pch</PrecompiledHeaderOutputFile>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="common.cpp" />
+    <ClCompile Include="detail\argument_handling.cpp" />
+    <ClCompile Include="detail\call_invoker_utility.cpp" />
+    <ClCompile Include="detail\call_invoker_x64.cpp" />
+    <ClCompile Include="detail\call_invoker_x86.cpp" />
+    <ClCompile Include="detail\overload_resolution.cpp" />
+    <ClCompile Include="detail\runtime_utility.cpp" />
+    <ClCompile Include="enumerator.cpp" />
+    <ClCompile Include="externals\winrt_externals.cpp" />
+    <ClCompile Include="generated\platform_types_embedded.cpp">
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+    </ClCompile>
+    <ClCompile Include="initialization.cpp" />
+    <ClCompile Include="inspection.cpp" />
+    <ClCompile Include="instantiation.cpp" />
+    <ClCompile Include="loader.cpp" />
+    <ClCompile Include="precompiled_headers.cpp">
+      <PrecompiledHeader>Create</PrecompiledHeader>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="common.hpp" />
+    <ClInclude Include="detail\argument_handling.hpp" />
+    <ClInclude Include="detail\call_invoker_utility.hpp" />
+    <ClInclude Include="detail\call_invoker_x64.hpp" />
+    <ClInclude Include="detail\call_invoker_x86.hpp" />
+    <ClInclude Include="detail\overload_resolution.hpp" />
+    <ClInclude Include="detail\runtime_utility.hpp" />
+    <ClInclude Include="enumerator.hpp" />
+    <ClInclude Include="externals\winrt_externals.hpp" />
+    <ClInclude Include="initialization.hpp" />
+    <ClInclude Include="inspection.hpp" />
+    <ClInclude Include="instantiation.hpp" />
+    <ClInclude Include="invocation.hpp" />
+    <ClInclude Include="loader.hpp" />
+    <ClInclude Include="precompiled_headers.hpp" />
+    <ClInclude Include="utility.hpp" />
+    <ClInclude Include="windows_runtime.hpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="detail\x64_fastcall_thunk.asm">
+      <FileType>Document</FileType>
+      <Command Condition="'$(Platform)'=='x64'">ml64 /Fo $(IntDir)\%(Filename).obj /c %(Identity)</Command>
+      <Message Condition="'$(Platform)'=='x64'">Assembling %(Identity)...</Message>
+      <Outputs Condition="'$(Platform)'=='x64'">$(IntDir)\%(Filename).obj</Outputs>
+    </CustomBuild>
+    <CustomBuild Include="detail\platform_types.il">
+      <Command>call $(ProjectDir)..\..\utility\ilasm_and_embed.bat %(FullPath) $(OutDir)%(FileName).dll $(ProjectDir)generated\%(FileName)_embedded.cpp $(ProjectDir)..\..\utility\embed_binary_in_cpp.exe cxxreflect::windows_runtime::generated::%(FileName)_embedded</Command>
+      <DeploymentContent>false</DeploymentContent>
+      <ExcludedFromBuild>false</ExcludedFromBuild>
+      <FileType>Document</FileType>
+      <Outputs>$(OutDir)platform_types.dll;$(ProjectDir)generated\%(FileName)_embedded.cpp</Outputs>
+    </CustomBuild>
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+</Project>
