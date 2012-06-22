@@ -667,11 +667,6 @@ namespace
 
         auto frame(state.push(r_type));
 
-        if (r_type->Name == L"ValueType")
-        {
-            int x = 42;
-        }
-
         // TODO Assembly
         verify_string_equals(state, L"AssemblyQualifiedName", r_type->AssemblyQualifiedName, c_type.assembly_qualified_name());
         verify_integer_equals(state, L"Attributes", r_type->Attributes, c_type.attributes().integer());
@@ -793,7 +788,7 @@ namespace
 
 auto main() -> int
 {
-    wchar_t const* const mscorlib_path(L"C:\\windows\\Microsoft.NET\\Framework\\v4.0.30319\\mscorlib.dll");
+    // wchar_t const* const mscorlib_path(L"C:\\windows\\Microsoft.NET\\Framework\\v4.0.30319\\mscorlib.dll");
     wchar_t const* const assembly_path(L"c:\\jm\\cxxreflect\\build\\output\\Win32\\Debug\\test_assemblies\\alpha.dll");
 
     C::externals::initialize(cxxreflect::externals::win32_externals());
@@ -804,8 +799,8 @@ auto main() -> int
     directories.insert(L"C:\\Windows\\Microsoft.NET\\Framework\\v4.0.30319\\wpf");
     C::loader root((C::directory_based_module_locator(directories)));
 
-    C::assembly  c_mscorlib(root.load_assembly(C::module_location(mscorlib_path)));
-    R::Assembly^ r_mscorlib(R::Assembly::LoadFrom(gcnew System::String(mscorlib_path)));
+    // C::assembly  c_mscorlib(root.load_assembly(C::module_location(mscorlib_path)));
+    // R::Assembly^ r_mscorlib(R::Assembly::LoadFrom(gcnew System::String(mscorlib_path)));
 
     C::assembly  c_assembly(root.load_assembly(C::module_location(assembly_path)));
     R::Assembly^ r_assembly(R::Assembly::LoadFrom(gcnew System::String(assembly_path)));

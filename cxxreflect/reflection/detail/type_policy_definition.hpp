@@ -57,25 +57,6 @@ namespace cxxreflect { namespace reflection { namespace detail {
         virtual auto visibility   (type_def_or_signature_with_module const&) const -> type_attribute_visibility;
     };
 
-    
-
-
-
-    /// Resolves a type to its primary TypeDef and calls a function on `definition_type_policy`
-    ///
-    /// `f` must be a pointer to a member function of `definition_type_policy`.  This function calls
-    /// `type_policy::resolve_type_def` to resolve the primary TypeDef from the provided TypeSpec.
-    /// If that returns a valid TypeDef, it then calls the function `f`.  If it does not return a
-    /// valid type, this function returns a default-constructed value of the return type of `f`.
-    template <typename MemberFunction>
-    auto resolve_and_defer_to_definition(type_def_or_signature_with_module const& t, MemberFunction const f)
-        -> decltype((definition_type_policy().*f)(t))
-    {
-        return type_policy::resolve_type_def_and_call(t, [&](type_def_with_module const& x)
-        {
-            return (definition_type_policy().*f)(x);
-        });
-    }
 
 
 

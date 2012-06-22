@@ -22,19 +22,19 @@ namespace cxxreflect { namespace reflection { namespace detail {
     auto specialization_type_policy::base_type(type_def_or_signature_with_module const& t) const -> type_def_or_signature_with_module
     {
         assert_blob(t);
-        return resolve_and_defer_to_definition(t, &definition_type_policy::base_type);
+        return resolve_element_type_and_call(t, &type_policy::base_type);
     }
 
     auto specialization_type_policy::declaring_type(type_def_or_signature_with_module const& t) const -> type_def_or_signature_with_module
     {
         assert_blob(t);
-        return resolve_and_defer_to_definition(t, &definition_type_policy::declaring_type);
+        return resolve_element_type_and_call(t, &type_policy::declaring_type);
     }
 
     auto specialization_type_policy::is_abstract(type_def_or_signature_with_module const& t) const -> bool
     {
         assert_blob(t);
-        return resolve_and_defer_to_definition(t, &definition_type_policy::is_abstract);
+        return resolve_element_type_and_call(t, &type_policy::is_abstract);
     }
 
     auto specialization_type_policy::is_array(type_def_or_signature_with_module const& t) const -> bool
@@ -52,19 +52,19 @@ namespace cxxreflect { namespace reflection { namespace detail {
     auto specialization_type_policy::is_com_object(type_def_or_signature_with_module const& t) const -> bool
     {
         assert_blob(t);
-        return resolve_and_defer_to_definition(t, &definition_type_policy::is_com_object);
+        return resolve_element_type_and_call(t, &type_policy::is_com_object);
     }
     
     auto specialization_type_policy::is_contextful(type_def_or_signature_with_module const& t) const -> bool
     {
         assert_blob(t);
-        return resolve_and_defer_to_definition(t, &definition_type_policy::is_contextful);
+        return resolve_element_type_and_call(t, &type_policy::is_contextful);
     }
     
     auto specialization_type_policy::is_enum(type_def_or_signature_with_module const& t) const -> bool
     {
         assert_blob(t);
-        return resolve_and_defer_to_definition(t, &definition_type_policy::is_enum);
+        return resolve_element_type_and_call(t, &type_policy::is_enum);
     }
 
     auto specialization_type_policy::is_generic_parameter(type_def_or_signature_with_module const& t) const -> bool
@@ -98,25 +98,25 @@ namespace cxxreflect { namespace reflection { namespace detail {
     auto specialization_type_policy::is_import(type_def_or_signature_with_module const& t) const -> bool
     {
         assert_blob(t);
-        return resolve_and_defer_to_definition(t, &definition_type_policy::is_import);
+        return resolve_element_type_and_call(t, &type_policy::is_import);
     }
 
     auto specialization_type_policy::is_interface(type_def_or_signature_with_module const& t) const -> bool
     {
         assert_blob(t);
-        return resolve_and_defer_to_definition(t, &definition_type_policy::is_interface);
+        return resolve_element_type_and_call(t, &type_policy::is_interface);
     }
     
     auto specialization_type_policy::is_marshal_by_ref(type_def_or_signature_with_module const& t) const -> bool
     {
         assert_blob(t);
-        return resolve_and_defer_to_definition(t, &definition_type_policy::is_marshal_by_ref);
+        return resolve_element_type_and_call(t, &type_policy::is_marshal_by_ref);
     }
 
     auto specialization_type_policy::is_nested(type_def_or_signature_with_module const& t) const -> bool
     {
         assert_blob(t);
-        return resolve_and_defer_to_definition(t, &definition_type_policy::is_nested);
+        return resolve_element_type_and_call(t, &type_policy::is_nested);
     }
 
     auto specialization_type_policy::is_pointer(type_def_or_signature_with_module const& t) const -> bool
@@ -137,49 +137,49 @@ namespace cxxreflect { namespace reflection { namespace detail {
     auto specialization_type_policy::is_sealed(type_def_or_signature_with_module const& t) const -> bool
     {
         assert_blob(t);
-        return resolve_and_defer_to_definition(t, &definition_type_policy::is_sealed);
+        return resolve_element_type_and_call(t, &type_policy::is_sealed);
     }
 
     auto specialization_type_policy::is_serializable(type_def_or_signature_with_module const& t) const -> bool
     {
         assert_blob(t);
-        return resolve_and_defer_to_definition(t, &definition_type_policy::is_serializable);
+        return resolve_element_type_and_call(t, &type_policy::is_serializable);
     }
     
     auto specialization_type_policy::is_special_name(type_def_or_signature_with_module const& t) const -> bool
     {
         assert_blob(t);
-        return resolve_and_defer_to_definition(t, &definition_type_policy::is_special_name);
+        return resolve_element_type_and_call(t, &type_policy::is_special_name);
     }
     
     auto specialization_type_policy::is_value_type(type_def_or_signature_with_module const& t) const -> bool
     {
         assert_blob(t);
-        return resolve_and_defer_to_definition(t, &definition_type_policy::is_value_type);
+        return resolve_element_type_and_call(t, &type_policy::is_value_type);
     }
     
     auto specialization_type_policy::is_visible(type_def_or_signature_with_module const& t) const -> bool
     {
         assert_blob(t);
-        return resolve_and_defer_to_definition(t, &definition_type_policy::is_visible);
+        return resolve_element_type_and_call(t, &type_policy::is_visible);
     }
 
     auto specialization_type_policy::layout(type_def_or_signature_with_module const& t) const -> type_attribute_layout
     {
         assert_blob(t);
-        return resolve_and_defer_to_definition(t, &definition_type_policy::layout);
+        return resolve_element_type_and_call(t, &type_policy::layout);
     }
 
     auto specialization_type_policy::string_format(type_def_or_signature_with_module const& t) const -> type_attribute_string_format
     {
         assert_blob(t);
-        return resolve_and_defer_to_definition(t, &definition_type_policy::string_format);
+        return resolve_element_type_and_call(t, &type_policy::string_format);
     }
     
     auto specialization_type_policy::visibility(type_def_or_signature_with_module const& t) const -> type_attribute_visibility
     {
         assert_blob(t);
-        return resolve_and_defer_to_definition(t, &definition_type_policy::visibility);
+        return resolve_element_type_and_call(t, &type_policy::visibility);
     }
     
 } } }

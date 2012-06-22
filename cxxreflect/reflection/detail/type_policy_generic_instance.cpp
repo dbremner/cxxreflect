@@ -46,7 +46,7 @@ namespace cxxreflect { namespace reflection { namespace detail {
             return false;
 
         // All of the arguments are visible; now let's check the type definition:
-        return resolve_and_defer_to_definition(t, &definition_type_policy::is_visible);
+        return resolve_element_type_and_call(t, &type_policy::is_visible);
     }
     
 } } }

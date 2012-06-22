@@ -96,9 +96,6 @@
     <ClInclude Include="detail\type_policy.hpp">
       <Filter>headers\detail</Filter>
     </ClInclude>
-    <ClInclude Include="detail\type_policy_unknown.hpp">
-      <Filter>headers\detail</Filter>
-    </ClInclude>
     <ClInclude Include="detail\type_policy_definition.hpp">
       <Filter>headers\detail</Filter>
     </ClInclude>
@@ -178,9 +175,6 @@
     </ClCompile>
     <ClCompile Include="precompiled_headers.cpp">
       <Filter>sources</Filter>
-    </ClCompile>
-    <ClCompile Include="detail\type_policy_unknown.cpp">
-      <Filter>sources\detail</Filter>
     </ClCompile>
     <ClCompile Include="detail\type_policy.cpp">
       <Filter>sources\detail</Filter>

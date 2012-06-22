@@ -30,7 +30,6 @@
     <ClInclude Include="detail\loader_contexts.hpp" />
     <ClInclude Include="detail\member_iterator.hpp" />
     <ClInclude Include="detail\type_policy_definition.hpp" />
-    <ClInclude Include="detail\type_policy_unknown.hpp" />
     <ClInclude Include="detail\type_hierarchy_utility.hpp" />
     <ClInclude Include="detail\type_policy.hpp" />
     <ClInclude Include="detail\type_name_builder.hpp" />
@@ -64,7 +63,6 @@
     <ClCompile Include="detail\independent_handles.cpp" />
     <ClCompile Include="detail\loader_contexts.cpp" />
     <ClCompile Include="detail\type_policy.cpp" />
-    <ClCompile Include="detail\type_policy_unknown.cpp" />
     <ClCompile Include="detail\type_hierarchy_utility.cpp" />
     <ClCompile Include="detail\type_name_builder.cpp" />
     <ClCompile Include="detail\type_policy_array.cpp" />

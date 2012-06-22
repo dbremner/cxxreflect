@@ -214,52 +214,6 @@ namespace cxxreflect { namespace reflection { namespace detail {
         virtual auto is_visible                (type_def_or_signature_with_module const&) const -> bool = 0;
 
         virtual ~type_policy();
-
-
-
-
-
-        /// Resolves the primary TypeDef from a type token (TypeDef or TypeSpec)
-        ///
-        /// If the provided type is a TypeDef, it is returned unmodified.  If it is a TypeSpec, then
-        /// this function attempts to compute the primary TypeDef from the TypeSpec.  For example,
-        /// given a generic instance, this will return the TypeDef for the generic type definition
-        /// from which the generic instance was instantiated.
-        ///
-        /// Note that this may return an uninitialized type.  For example, if the provided type is a
-        /// generic type variable, it has no corresponding TypeDef and thus an uninitialized type is
-        /// returned.
-        static auto resolve_type_def(type_def_or_signature_with_module const&) -> type_def_with_module;
-
-        #define CXXREFLECT_GENERATE decltype(std::declval<Callback>()(std::declval<type_def_with_module>()))
-
-        /// Resolves the primary TypeDef corresponding to the type and calls a callback with it
-        ///
-        /// This function template is equivalent to the following, commonly used logic:
-        ///
-        ///     type_def_with_module const type_def(resolve_type_def(source_type));
-        ///     if (!type_def.is_initialized())
-        ///         return default_result;
-        ///
-        ///     return callback(type_def);
-        ///
-        template <typename Callback>
-        static auto resolve_type_def_and_call(
-            type_def_or_signature_with_module const& source_type,
-            Callback callback,
-            CXXREFLECT_GENERATE default_result = typename core::identity<CXXREFLECT_GENERATE>::type()
-        ) -> CXXREFLECT_GENERATE
-        {
-            core::assert_initialized(source_type);
-
-            auto const type_def(resolve_type_def(source_type));
-            if (!type_def.is_initialized())
-                return default_result;
-
-            return callback(type_def);
-        }
-
-        #undef CXXREFLECT_GENERATE
     };
 
 
@@ -287,6 +241,41 @@ namespace cxxreflect { namespace reflection { namespace detail {
 
         core::value_initialized<type_policy const*> _policy;
     };
+
+
+
+
+
+    /// Resolves the primary TypeDef from a type token (TypeDef or TypeSpec)
+    ///
+    /// If the provided type is a TypeDef, it is returned unmodified.  If it is a TypeSpec, then
+    /// this function attempts to compute the primary TypeDef from the TypeSpec.  For example,
+    /// given a generic instance, this will return the TypeDef for the generic type definition from
+    /// which the generic instance was instantiated.
+    ///
+    /// Note that this may return an uninitialized type.  For example, if the provided type is a
+    /// generic type variable, it has no corresponding TypeDef and thus an uninitialized type is
+    /// returned.
+    auto resolve_type_def(type_def_or_signature_with_module const&) -> type_def_with_module;
+
+    /// Resolves the element type of a TypeSpec
+    ///
+    /// If the provided type is a TypeDef, the return value is uninitialized.  If the provided type
+    /// has no element type, the return value is uninitialized.  Otherwise, this function returns
+    /// the nested element type in the TypeSpec
+    auto resolve_element_type(type_def_or_signature_with_module const&) -> type_def_or_signature_with_module;
+
+    /// Resolves a type to its next nested element type and calls a function on its type policy
+    template <typename MemberFunction>
+    auto resolve_element_type_and_call(type_def_or_signature_with_module const& t, MemberFunction const f)
+        -> decltype((std::declval<type_policy>().*f)(t))
+    {
+        type_def_or_signature_with_module const element_type(resolve_element_type(t));
+        if (!element_type.is_initialized())
+            return decltype((std::declval<type_policy>().*f)(t))();
+
+        return (type_policy::get_for(element_type).operator->()->*f)(element_type);
+    }
 
 
 

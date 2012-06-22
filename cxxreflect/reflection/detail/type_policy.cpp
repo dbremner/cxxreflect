@@ -9,7 +9,6 @@
 #include "cxxreflect/reflection/detail/type_policy_by_ref.hpp"
 #include "cxxreflect/reflection/detail/type_policy_definition.hpp"
 #include "cxxreflect/reflection/detail/type_policy_pointer.hpp"
-#include "cxxreflect/reflection/detail/type_policy_unknown.hpp"
 
 namespace cxxreflect { namespace reflection { namespace detail {
 
@@ -88,11 +87,11 @@ namespace cxxreflect { namespace reflection { namespace detail {
 
     auto type_policy::get_for(type_def_or_signature_with_module const& t) -> type_policy_handle
     {
-        static array_type_policy      const array_instance;
-        static by_ref_type_policy     const by_ref_instance;
-        static definition_type_policy const definition_instance;
-        static pointer_type_policy    const pointer_instance;
-        static unknown_type_policy    const unknown_instance;
+        static array_type_policy          const array_instance;
+        static by_ref_type_policy         const by_ref_instance;
+        static definition_type_policy     const definition_instance;
+        static pointer_type_policy        const pointer_instance;
+        static specialization_type_policy const specialization_instance;
 
         if (t.type().is_token())
             return &definition_instance;
@@ -109,7 +108,7 @@ namespace cxxreflect { namespace reflection { namespace detail {
         if (signature.is_pointer())
             return &pointer_instance;
 
-        return &unknown_instance;
+        return &specialization_instance; // Oh :'(
     }
 
     type_policy::~type_policy()
@@ -117,17 +116,64 @@ namespace cxxreflect { namespace reflection { namespace detail {
         // Virtual destructor required for polymorphic base class
     }
 
-    auto type_policy::resolve_type_def(type_def_or_signature_with_module const& t) -> type_def_with_module
+
+
+
+
+    type_policy_handle::type_policy_handle()
+    {
+    }
+
+    type_policy_handle::type_policy_handle(type_policy const* const policy)
+        : _policy(policy)
+    {
+        core::assert_not_null(policy);
+    }
+
+    auto type_policy_handle::operator->() const -> type_policy const*
+    {
+        core::assert_initialized(*this);
+        return _policy.get();
+    }
+
+    auto type_policy_handle::is_initialized() const -> bool
+    {
+        return _policy.get() != nullptr;
+    }
+
+
+
+
+
+    auto resolve_type_def(type_def_or_signature_with_module const& t) -> type_def_with_module
     {
         core::assert_initialized(t);
 
-        
-
         // First, if the type is not initialized or if we already have a TypeDef, just return it:
-        if (!t.is_initialized() || t.type().is_token())
+        if (t.type().is_token())
             return type_def_with_module(t.module(), t.type().as_token());
 
-        // Ok, we have a TypeSpec; let's get its signature and resolve the next type to be checked:
+        type_def_or_signature_with_module next(t);
+        while (next.is_initialized() && !t.type().is_token())
+        {
+            next = resolve_element_type(next);
+        }
+
+        if (!next.is_initialized())
+            return type_def_with_module();
+
+        core::assert_true([&]{ return next.type().is_token(); });
+
+        return type_def_with_module(next.module(), next.type().as_token());
+    }
+
+    auto resolve_element_type(type_def_or_signature_with_module const& t) -> type_def_or_signature_with_module
+    {
+        core::assert_initialized(t);
+
+        if (!t.is_initialized() || t.type().is_token())
+            return type_def_or_signature_with_module();
+
         metadata::type_signature const signature(t.type().as_blob().as<metadata::type_signature>());
 
         metadata::type_def_ref_spec_or_signature const next_type([&]() -> metadata::type_def_ref_spec_or_signature
@@ -167,35 +213,8 @@ namespace cxxreflect { namespace reflection { namespace detail {
         if (!next_type.is_initialized())
             return type_def_with_module();
 
-        // Recursively resolve the next type. Note that 'type' and 'next_type' will always be in the
-        // same assembly because we haven't yet resolved the 'next_type' into another assembly:
         type_def_ref_spec_or_signature_with_module const next_type_with_module(t.module(), next_type);
-        return resolve_type_def(resolve_type_for_construction(next_type_with_module));
-    }
-
-
-
-
-
-    type_policy_handle::type_policy_handle()
-    {
-    }
-
-    type_policy_handle::type_policy_handle(type_policy const* const policy)
-        : _policy(policy)
-    {
-        core::assert_not_null(policy);
-    }
-
-    auto type_policy_handle::operator->() const -> type_policy const*
-    {
-        core::assert_initialized(*this);
-        return _policy.get();
-    }
-
-    auto type_policy_handle::is_initialized() const -> bool
-    {
-        return _policy.get() != nullptr;
+        return resolve_type_for_construction(next_type_with_module);
     }
 
 

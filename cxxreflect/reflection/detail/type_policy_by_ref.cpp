@@ -13,16 +13,6 @@ namespace cxxreflect { namespace reflection { namespace detail { namespace {
         core::assert_true([&]{ return t.type().as_blob().as<metadata::type_signature>().is_by_ref(); });
     }
 
-    template <typename MemberFunction>
-    auto resolve_and_defer_to_definition(type_def_or_signature_with_module const& t, MemberFunction const f)
-        -> decltype((definition_type_policy().*f)(t))
-    {
-        return type_policy::resolve_type_def_and_call(t, [&](type_def_with_module const& x)
-        {
-            return (definition_type_policy().*f)(x);
-        });
-    }
-
 } } } }
 
 namespace cxxreflect { namespace reflection { namespace detail {
