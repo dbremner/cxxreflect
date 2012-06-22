@@ -19,6 +19,7 @@
     <ClCompile Include="metadata\database_correctness.cpp" />
     <ClCompile Include="metadata\tokens.cpp" />
     <ClCompile Include="reflection\basic_alpha.cpp" />
+    <ClCompile Include="windows_runtime\x64_fastcall_thunk.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="test_driver.hpp" />

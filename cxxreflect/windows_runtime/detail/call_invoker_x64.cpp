@@ -67,7 +67,7 @@ namespace cxxreflect { namespace windows_runtime { namespace detail {
             throw core::runtime_error(L"attempted to call a void-returning function with a result pointer");
         }
             
-        return cxxreflect_x64_fastcall_thunk(fp, frame.arguments(), frame.types(), frame.count());
+        return cxxreflect_windows_runtime_x64_fastcall_thunk(fp, frame.arguments(), frame.types(), frame.count());
     }
 
     auto x64_fastcall_invoker::convert_and_insert(reflection::type          const& parameter_type,

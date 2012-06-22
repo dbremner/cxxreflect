@@ -38,6 +38,12 @@ namespace cxxreflect { namespace reflection { namespace detail {
         virtual auto visibility(type_def_or_signature_with_module const&) const -> type_attribute_visibility;
     };
 
+
+
+
+
+    /// @}
+
 } } }
 
 #endif

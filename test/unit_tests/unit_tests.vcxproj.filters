@@ -11,6 +11,9 @@
     <ClCompile Include="reflection\basic_alpha.cpp">
       <Filter>reflection</Filter>
     </ClCompile>
+    <ClCompile Include="windows_runtime\x64_fastcall_thunk.cpp">
+      <Filter>windows_runtime</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="test_driver.hpp" />
@@ -21,6 +24,9 @@
     </Filter>
     <Filter Include="reflection">
       <UniqueIdentifier>{ff12c346-3359-45a0-b6b0-df58d2eb021a}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="windows_runtime">
+      <UniqueIdentifier>{ff89e878-2ce6-4341-97e1-d62d54c57a8f}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
 </Project>

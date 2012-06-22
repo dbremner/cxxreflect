@@ -23,7 +23,7 @@ namespace cxxreflect { namespace windows_runtime { namespace detail {
         /// described in the .asm file that defines the procedure.
         ///
         /// Be very, very careful when calling this.  :-O
-        int cxxreflect_x64_fastcall_thunk(void const* fp, void const* args, void const* types, std::uint64_t count);
+        int cxxreflect_windows_runtime_x64_fastcall_thunk(void const* fp, void const* args, void const* types, std::uint64_t count);
     }
 
 
