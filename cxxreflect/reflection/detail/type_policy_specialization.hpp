@@ -10,6 +10,14 @@
 
 namespace cxxreflect { namespace reflection { namespace detail {
 
+    /// \ingroup cxxreflect_reflection_type_policies
+    ///
+    /// @{
+
+
+
+
+
     /// A base type policy for type specializations (TypeSpec types)
     ///
     /// This implementation is straightforward:  it simply resolves the primary TypeDef from the
@@ -24,16 +32,16 @@ namespace cxxreflect { namespace reflection { namespace detail {
     ///
     /// This implementation is, however, concrete.  It implements all of the abstract virtual member
     /// functions declared by the base `type_policy`.
+    ///
+    /// \todo This behavior is probably incorrect; we should walk each level of the nested type
+    ///       specialization to check each layer.  E.g., for a ByRef GenericInst, we should first
+    ///       check the ByRef, then the GenericInst, then the primary TypeDef!
     class specialization_type_policy : public type_policy
     {
     public:
 
         virtual auto base_type     (type_def_or_signature_with_module const&) const -> type_def_or_signature_with_module;
         virtual auto declaring_type(type_def_or_signature_with_module const&) const -> type_def_or_signature_with_module;
-
-        virtual auto layout       (type_def_or_signature_with_module const&) const -> type_attribute_layout;
-        virtual auto string_format(type_def_or_signature_with_module const&) const -> type_attribute_string_format;
-        virtual auto visibility   (type_def_or_signature_with_module const&) const -> type_attribute_visibility;
         
         virtual auto is_abstract               (type_def_or_signature_with_module const&) const -> bool;
         virtual auto is_array                  (type_def_or_signature_with_module const&) const -> bool;
@@ -55,7 +63,17 @@ namespace cxxreflect { namespace reflection { namespace detail {
         virtual auto is_special_name           (type_def_or_signature_with_module const&) const -> bool;
         virtual auto is_value_type             (type_def_or_signature_with_module const&) const -> bool;
         virtual auto is_visible                (type_def_or_signature_with_module const&) const -> bool;
+
+        virtual auto layout       (type_def_or_signature_with_module const&) const -> type_attribute_layout;
+        virtual auto string_format(type_def_or_signature_with_module const&) const -> type_attribute_string_format;
+        virtual auto visibility   (type_def_or_signature_with_module const&) const -> type_attribute_visibility;
     };
+
+
+
+
+
+    /// @}
 
 } } }
 

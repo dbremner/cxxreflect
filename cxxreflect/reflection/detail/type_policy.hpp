@@ -17,6 +17,16 @@ namespace cxxreflect { namespace reflection { namespace detail {
 
 
 
+    /// \ingroup cxxreflect_reflection_type_policies Reflection -> Detail -> Type Policies
+    ///
+    /// Policy classes that implement the fundamental logic used by the `type` class
+    ///
+    /// @{
+
+
+
+
+
     /// A pair containing a module handle and some sort of type token and/or signature
     /// 
     /// This is provided for convenience, to make passing around a type with its module easier.
@@ -277,6 +287,12 @@ namespace cxxreflect { namespace reflection { namespace detail {
 
         core::value_initialized<type_policy const*> _policy;
     };
+
+
+
+
+
+    /// @}
 
 } } }
 

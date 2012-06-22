@@ -31,24 +31,6 @@ namespace cxxreflect { namespace reflection { namespace detail {
         return resolve_and_defer_to_definition(t, &definition_type_policy::declaring_type);
     }
 
-    auto specialization_type_policy::layout(type_def_or_signature_with_module const& t) const -> type_attribute_layout
-    {
-        assert_blob(t);
-        return resolve_and_defer_to_definition(t, &definition_type_policy::layout);
-    }
-
-    auto specialization_type_policy::string_format(type_def_or_signature_with_module const& t) const -> type_attribute_string_format
-    {
-        assert_blob(t);
-        return resolve_and_defer_to_definition(t, &definition_type_policy::string_format);
-    }
-    
-    auto specialization_type_policy::visibility(type_def_or_signature_with_module const& t) const -> type_attribute_visibility
-    {
-        assert_blob(t);
-        return resolve_and_defer_to_definition(t, &definition_type_policy::visibility);
-    }
-
     auto specialization_type_policy::is_abstract(type_def_or_signature_with_module const& t) const -> bool
     {
         assert_blob(t);
@@ -180,6 +162,24 @@ namespace cxxreflect { namespace reflection { namespace detail {
     {
         assert_blob(t);
         return resolve_and_defer_to_definition(t, &definition_type_policy::is_visible);
+    }
+
+    auto specialization_type_policy::layout(type_def_or_signature_with_module const& t) const -> type_attribute_layout
+    {
+        assert_blob(t);
+        return resolve_and_defer_to_definition(t, &definition_type_policy::layout);
+    }
+
+    auto specialization_type_policy::string_format(type_def_or_signature_with_module const& t) const -> type_attribute_string_format
+    {
+        assert_blob(t);
+        return resolve_and_defer_to_definition(t, &definition_type_policy::string_format);
+    }
+    
+    auto specialization_type_policy::visibility(type_def_or_signature_with_module const& t) const -> type_attribute_visibility
+    {
+        assert_blob(t);
+        return resolve_and_defer_to_definition(t, &definition_type_policy::visibility);
     }
     
 } } }

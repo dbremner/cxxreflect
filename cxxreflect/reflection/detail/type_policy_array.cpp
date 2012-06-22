@@ -33,18 +33,6 @@ namespace cxxreflect { namespace reflection { namespace detail {
         return type_def_or_signature_with_module(&root.module_from_scope(array_type.scope()), array_type);
     }
 
-    auto array_type_policy::layout(type_def_or_signature_with_module const& t) const -> type_attribute_layout
-    {
-        assert_array(t);
-        return type_attribute_layout::auto_layout;
-    }
-    
-    auto array_type_policy::visibility(type_def_or_signature_with_module const& t) const -> type_attribute_visibility
-    {
-        assert_array(t);
-        return type_attribute_visibility::public_;
-    }
-
     auto array_type_policy::is_abstract(type_def_or_signature_with_module const& t) const -> bool
     {
         assert_array(t);
@@ -91,7 +79,19 @@ namespace cxxreflect { namespace reflection { namespace detail {
     {
         assert_array(t);
         return false;
-    }    
+    }
+
+    auto array_type_policy::layout(type_def_or_signature_with_module const& t) const -> type_attribute_layout
+    {
+        assert_array(t);
+        return type_attribute_layout::auto_layout;
+    }
+    
+    auto array_type_policy::visibility(type_def_or_signature_with_module const& t) const -> type_attribute_visibility
+    {
+        assert_array(t);
+        return type_attribute_visibility::public_;
+    }
 
 } } }
 

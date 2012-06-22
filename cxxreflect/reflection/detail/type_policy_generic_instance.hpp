@@ -10,6 +10,15 @@
 
 namespace cxxreflect { namespace reflection { namespace detail {
 
+    /// \ingroup cxxreflect_reflection_type_policies
+    ///
+    /// @{
+
+
+
+
+
+    /// A type policy for generic instance type specializations (TypeSpec GenericInst types)
     class generic_instance_type_policy : public specialization_type_policy
     {
     public:
@@ -17,6 +26,12 @@ namespace cxxreflect { namespace reflection { namespace detail {
         virtual auto is_generic_type(type_def_or_signature_with_module const&) const -> bool;
         virtual auto is_visible     (type_def_or_signature_with_module const&) const -> bool;
     };
+
+
+
+
+
+    /// @}
 
 } } }
 
