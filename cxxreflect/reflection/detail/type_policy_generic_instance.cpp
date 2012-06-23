@@ -48,6 +48,12 @@ namespace cxxreflect { namespace reflection { namespace detail {
         // All of the arguments are visible; now let's check the type definition:
         return resolve_element_type_and_call(t, &type_policy::is_visible);
     }
+
+    auto generic_instance_type_policy::metadata_token(type_def_or_signature_with_module const& t) const -> core::size_type
+    {
+        assert_generic_instance(t);
+        return resolve_type_def_and_call(t, &type_policy::metadata_token);
+    }
     
 } } }
 

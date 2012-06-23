@@ -82,8 +82,6 @@ namespace cxxreflect { namespace reflection { namespace detail {
                                    context_sequence_type        & element_table,
                                    context_type            const& new_element,
                                    core::size_type         const  inherited_element_count) -> void;
-
-        static auto should_recurse(metadata::type_def_token const& type) -> bool;
     };
 
     template <>
@@ -113,8 +111,6 @@ namespace cxxreflect { namespace reflection { namespace detail {
                                    context_sequence_type        & element_table,
                                    context_type            const& new_element,
                                    core::size_type         const  inherited_element_count) -> void;
-
-        static auto should_recurse(metadata::type_def_token const& type) -> bool;
     };
 
     template <>
@@ -144,8 +140,6 @@ namespace cxxreflect { namespace reflection { namespace detail {
                                    context_sequence_type        & element_table,
                                    context_type            const& new_element,
                                    core::size_type         const  inherited_element_count) -> void;
-
-        static auto should_recurse(metadata::type_def_token const& type) -> bool;
     };
 
     template <>
@@ -175,8 +169,6 @@ namespace cxxreflect { namespace reflection { namespace detail {
                                    context_sequence_type        & element_table,
                                    context_type            const& new_element,
                                    core::size_type         const  inherited_element_count) -> void;
-
-        static auto should_recurse(metadata::type_def_token const& type) -> bool;
     };
 
     template <>
@@ -206,8 +198,6 @@ namespace cxxreflect { namespace reflection { namespace detail {
                                    context_sequence_type        & element_table,
                                    context_type            const& new_element,
                                    core::size_type         const  inherited_element_count) -> void;
-
-        static auto should_recurse(metadata::type_def_token const& type) -> bool;
     };
 
 

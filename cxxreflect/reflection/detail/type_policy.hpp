@@ -48,9 +48,12 @@ namespace cxxreflect { namespace reflection { namespace detail {
 
         template <typename OtherType>
         type_with_module(type_with_module<OtherType> const& other)
-            : _module(other.module()), _type(other.type())
         {
-            core::assert_initialized(other);
+            if (other.is_initialized())
+            {
+                _module = other.module();
+                _type   = other.type();
+            }
         }
 
         auto module() const -> module_handle const&
@@ -188,10 +191,6 @@ namespace cxxreflect { namespace reflection { namespace detail {
         virtual auto base_type     (type_def_or_signature_with_module const&) const -> type_def_or_signature_with_module = 0;
         virtual auto declaring_type(type_def_or_signature_with_module const&) const -> type_def_or_signature_with_module = 0;
 
-        virtual auto layout       (type_def_or_signature_with_module const&) const -> type_attribute_layout        = 0;
-        virtual auto string_format(type_def_or_signature_with_module const&) const -> type_attribute_string_format = 0;
-        virtual auto visibility   (type_def_or_signature_with_module const&) const -> type_attribute_visibility    = 0;
-
         virtual auto is_abstract               (type_def_or_signature_with_module const&) const -> bool = 0;
         virtual auto is_array                  (type_def_or_signature_with_module const&) const -> bool = 0;
         virtual auto is_by_ref                 (type_def_or_signature_with_module const&) const -> bool = 0;
@@ -212,6 +211,11 @@ namespace cxxreflect { namespace reflection { namespace detail {
         virtual auto is_special_name           (type_def_or_signature_with_module const&) const -> bool = 0;
         virtual auto is_value_type             (type_def_or_signature_with_module const&) const -> bool = 0;
         virtual auto is_visible                (type_def_or_signature_with_module const&) const -> bool = 0;
+
+        virtual auto layout        (type_def_or_signature_with_module const&) const -> type_attribute_layout        = 0;
+        virtual auto metadata_token(type_def_or_signature_with_module const&) const -> core::size_type              = 0;
+        virtual auto string_format (type_def_or_signature_with_module const&) const -> type_attribute_string_format = 0;
+        virtual auto visibility    (type_def_or_signature_with_module const&) const -> type_attribute_visibility    = 0;
 
         virtual ~type_policy();
     };
@@ -257,6 +261,18 @@ namespace cxxreflect { namespace reflection { namespace detail {
     /// generic type variable, it has no corresponding TypeDef and thus an uninitialized type is
     /// returned.
     auto resolve_type_def(type_def_or_signature_with_module const&) -> type_def_with_module;
+
+    /// Resolves a type to its primary type definition and calls a function on its type policy
+    template <typename MemberFunction>
+    auto resolve_type_def_and_call(type_def_or_signature_with_module const& t, MemberFunction const f)
+        -> decltype((std::declval<type_policy>().*f)(t))
+    {
+        type_def_or_signature_with_module const type_def(resolve_type_def(t));
+        if (!type_def.is_initialized())
+            return decltype((std::declval<type_policy>().*f)(t))();
+
+        return (type_policy::get_for(type_def).operator->()->*f)(type_def);
+    }
 
     /// Resolves the element type of a TypeSpec
     ///

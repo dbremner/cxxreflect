@@ -8,6 +8,7 @@
 #include "cxxreflect/reflection/detail/type_policy_array.hpp"
 #include "cxxreflect/reflection/detail/type_policy_by_ref.hpp"
 #include "cxxreflect/reflection/detail/type_policy_definition.hpp"
+#include "cxxreflect/reflection/detail/type_policy_generic_instance.hpp"
 #include "cxxreflect/reflection/detail/type_policy_pointer.hpp"
 
 namespace cxxreflect { namespace reflection { namespace detail {
@@ -87,11 +88,12 @@ namespace cxxreflect { namespace reflection { namespace detail {
 
     auto type_policy::get_for(type_def_or_signature_with_module const& t) -> type_policy_handle
     {
-        static array_type_policy          const array_instance;
-        static by_ref_type_policy         const by_ref_instance;
-        static definition_type_policy     const definition_instance;
-        static pointer_type_policy        const pointer_instance;
-        static specialization_type_policy const specialization_instance;
+        static array_type_policy            const array_instance;
+        static by_ref_type_policy           const by_ref_instance;
+        static definition_type_policy       const definition_instance;
+        static generic_instance_type_policy const generic_instance_instance;
+        static pointer_type_policy          const pointer_instance;
+        static specialization_type_policy   const specialization_instance;
 
         if (t.type().is_token())
             return &definition_instance;
@@ -104,6 +106,9 @@ namespace cxxreflect { namespace reflection { namespace detail {
 
         if (signature.is_simple_array() || signature.is_general_array())
             return &array_instance;
+
+        if (signature.is_generic_instance())
+            return &generic_instance_instance;
 
         if (signature.is_pointer())
             return &pointer_instance;
@@ -156,10 +161,14 @@ namespace cxxreflect { namespace reflection { namespace detail {
         type_def_or_signature_with_module next(t);
         while (next.is_initialized() && !t.type().is_token())
         {
-            next = resolve_element_type(next);
+            type_def_or_signature_with_module const next_next(resolve_element_type(next));
+            if (!next_next.is_initialized())
+                break;
+
+            next = next_next;
         }
 
-        if (!next.is_initialized())
+        if (!next.is_initialized() || !next.type().is_token())
             return type_def_with_module();
 
         core::assert_true([&]{ return next.type().is_token(); });

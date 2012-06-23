@@ -193,8 +193,6 @@ namespace cxxreflect { namespace reflection {
         auto get_type_def_row()        const -> metadata::type_def_row;
         auto get_type_spec_signature() const -> metadata::type_signature;
 
-        auto private_is_nested() const -> bool;
-
         #define CXXREFLECT_GENERATE decltype(std::declval<Callback>()(std::declval<type>()))
 
         static auto resolve_type_def(type const&) -> type;

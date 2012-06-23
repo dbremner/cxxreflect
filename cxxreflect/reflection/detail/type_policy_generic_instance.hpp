@@ -25,6 +25,8 @@ namespace cxxreflect { namespace reflection { namespace detail {
 
         virtual auto is_generic_type(type_def_or_signature_with_module const&) const -> bool;
         virtual auto is_visible     (type_def_or_signature_with_module const&) const -> bool;
+        
+        virtual auto metadata_token(type_def_or_signature_with_module const&) const -> core::size_type;
     };
 
 

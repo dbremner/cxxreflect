@@ -194,30 +194,19 @@ namespace cxxreflect { namespace reflection {
     auto type::defining_module() const -> module
     {
         core::assert_initialized(*this);
-
         return _type.module().realize();
     }
 
     auto type::defining_assembly() const -> assembly
     {
         core::assert_initialized(*this);
-
         return _type.module().realize().defining_assembly();
     }
 
     auto type::metadata_token() const -> core::size_type
     {
         core::assert_initialized(*this);
-
-        if (_type.type().is_token())
-        {
-            return _type.type().as_token().value();
-        }
-        else
-        {
-            // TODO Verify that this is correct for all TypeSpecs
-            return 0x20000000;
-        }
+        return _policy->metadata_token(_type);
     }
 
     auto type::attributes() const -> metadata::type_flags
@@ -315,7 +304,7 @@ namespace cxxreflect { namespace reflection {
     {
         core::assert_initialized(*this);
 
-        if (private_is_nested())
+        if (detail::resolve_type_def_and_call(_type, &detail::type_policy::is_nested))
         {
             return resolve_type_def_and_call([](type const& t)
             {
@@ -410,21 +399,13 @@ namespace cxxreflect { namespace reflection {
     auto type::is_generic_type() const -> bool
     {
         core::assert_initialized(*this);
-
-        // TODO Generic type detection here is incorrect, though it works most of the time.
-        if (is_nested() && declaring_type().is_generic_type())
-            return true;
-
-        core::string_reference const name(basic_name());
-        return std::find(begin(name), end(name), L'`') != end(name) && !is_by_ref();
+        return _policy->is_generic_type(_type);
     }
 
     auto type::is_generic_type_definition() const -> bool
     {
         core::assert_initialized(*this);
-
-        // TODO Generic type detection here is incorrect, though it works most of the time.
-        return is_type_def() && is_generic_type();
+        return _policy->is_generic_type_definition(_type);
     }
 
     auto type::is_import() const -> bool
@@ -572,7 +553,6 @@ namespace cxxreflect { namespace reflection {
     auto type::end_interfaces() const -> interface_iterator
     {
         core::assert_initialized(*this);
-
         return interface_iterator();
     }
 
@@ -606,7 +586,6 @@ namespace cxxreflect { namespace reflection {
     auto type::end_constructors() const -> method_iterator
     {
         core::assert_initialized(*this);
-
         return method_iterator();
     }
 
@@ -624,7 +603,6 @@ namespace cxxreflect { namespace reflection {
     auto type::end_fields() const -> field_iterator
     {
         core::assert_initialized(*this);
-
         return field_iterator();
     }
 
@@ -647,14 +625,12 @@ namespace cxxreflect { namespace reflection {
     auto type::end_methods() const -> method_iterator
     {
         core::assert_initialized(*this);
-
         return method_iterator();
     }
 
     auto type::find_method(core::string_reference name, metadata::binding_flags) const -> method
     {
         core::assert_initialized(*this);
-
         throw core::logic_error(L"not yet implemented");
     }
 
@@ -751,21 +727,18 @@ namespace cxxreflect { namespace reflection {
     auto type::self_reference(core::internal_key) const -> metadata::type_def_or_signature
     {
         core::assert_initialized(*this);
-
         return _type.type();
     }
 
     auto type::is_type_def() const -> bool
     {
         core::assert_initialized(*this);
-
         return _type.type().is_token();
     }
 
     auto type::is_type_spec() const -> bool
     {
         core::assert_initialized(*this);
-
         return _type.type().is_blob();
     }
 
@@ -783,23 +756,6 @@ namespace cxxreflect { namespace reflection {
         core::assert_true([&]{ return is_type_spec(); });
 
         return _type.type().as_blob().as<metadata::type_signature>();
-    }
-
-    auto type::private_is_nested() const -> bool
-    {
-        core::assert_initialized(*this);
-
-        return resolve_type_def_and_call([](type const& t) -> bool
-        {
-            if (t.get_type_def_row()
-                .flags()
-                .with_mask(metadata::type_attribute::visibility_mask) > metadata::type_attribute::public_)
-            {
-                return true;
-            }
-
-            return false;
-        });
     }
 
     auto type::resolve_type_def(type const& t) -> type

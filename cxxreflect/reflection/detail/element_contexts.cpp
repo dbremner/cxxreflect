@@ -121,6 +121,14 @@ namespace cxxreflect { namespace reflection { namespace detail { namespace {
         }
     }
 
+    auto get_type_def_or_signature(metadata::type_def_spec_token const& token) -> metadata::type_def_or_signature
+    {
+        if (token.is<metadata::type_def_token>())
+            return token.as<metadata::type_def_token>();
+
+        return row_from(token.as<metadata::type_spec_token>()).signature();
+    }
+
     auto create_instantiator(metadata::type_def_spec_or_signature const& type)
         -> metadata::class_variable_signature_instantiator
     {
@@ -148,6 +156,69 @@ namespace cxxreflect { namespace reflection { namespace detail { namespace {
 
         Signature const& instantiation(instantiator.instantiate(signature));
         return storage.allocate_signature(instantiation.begin_bytes(), instantiation.end_bytes());
+    }
+
+    template <typename ContextTag>
+    class recursive_table_builder
+    {
+    public:
+
+        typedef element_context_traits<ContextTag>              traits_type;
+        typedef typename traits_type::token_type                token_type;
+        typedef typename traits_type::signature_type            signature_type;
+        typedef typename traits_type::context_type              context_type;
+        typedef element_context_table_collection<ContextTag>    collection_type;
+        typedef metadata::class_variable_signature_instantiator instantiator_type;
+        typedef element_context_table_storage::storage_lock     storage_type;
+
+        recursive_table_builder(metadata::type_resolver const* const resolver,
+                                collection_type         const* const collection,
+                                storage_type            const* const storage)
+            : _resolver(resolver), _collection(collection), _storage(storage)
+        {
+            core::assert_not_null(resolver);
+            core::assert_not_null(collection);
+            core::assert_not_null(storage);
+        }
+
+        auto create_element(token_type             const& token,
+                            type_def_and_signature const& instantiating_type,
+                            instantiator_type      const& instantiator) -> context_type
+        {
+            metadata::blob const signature_blob(traits_type::get_signature(*_resolver.get()));
+            if (!signature_blob.is_initialized())
+                return context_type(token);
+
+            signature_type const signature(signature_blob.as<signature_type>());
+
+            bool const requires_instantiation(instantiator.has_arguments() && instantiator_type::requires_instantiation(signature));
+            if (requires_instantiation)
+            {
+                return context_type(
+                    token,
+                    instantiating_type.signature(),
+                    instantiate(*_storage.get(), signature, instantiator));
+            }
+            else
+            {
+                return context_type(token);
+            }
+        }
+
+    private:
+
+        core::value_initialized<metadata::type_resolver const*> _resolver;
+        core::value_initialized<collection_type const*>         _collection;
+        core::value_initialized<storage_type const*>            _storage;
+    };
+
+    template <typename ContextTag>
+    auto create_recursive_table_builder(metadata::type_resolver                      const* const resolver,
+                                        element_context_table_collection<ContextTag> const* const collection,
+                                        element_context_table_storage::storage_lock  const* const storage)
+        -> element_context_table_collection<ContextTag>
+    {
+        return element_context_table_collection<ContextTag>(resolver, collection, storage);
     }
 
     // This recursive element inserter creates elements using the TCreateElement functor, inserts
@@ -223,19 +294,6 @@ namespace cxxreflect { namespace reflection { namespace detail { namespace {
                     recurse(c);
                 }
             });
-            /*
-            if (!def_and_sig.has_type_def())
-                return;
-
-            metadata::type_def_row const if_def(row_from(def_and_sig.type_def()));
-
-            
-
-            auto const first_element(Traits::begin_elements(if_def.token()));
-            auto const last_element (Traits::end_elements  (if_def.token()));
-
-            std::for_each(first_element, last_element, *this);
-            */
         }
 
         core::value_initialized<metadata::type_resolver const*> _resolver;
@@ -306,11 +364,6 @@ namespace cxxreflect { namespace reflection { namespace detail {
         element_table.push_back(new_element);
     }
 
-    auto event_context_traits::should_recurse(metadata::type_def_token const&) -> bool
-    {
-        return true; // TODO
-    }
-
 
 
 
@@ -347,11 +400,6 @@ namespace cxxreflect { namespace reflection { namespace detail {
 
         // TODO Do we need to handle hiding or overriding for fields?
         element_table.push_back(new_element);
-    }
-
-    auto field_context_traits::should_recurse(metadata::type_def_token const&) -> bool
-    {
-        return true; // TODO
     }
 
 
@@ -407,12 +455,6 @@ namespace cxxreflect { namespace reflection { namespace detail {
         {
             metadata::type_def_spec_token const old_if(resolver.resolve_type(old_element.element_row().interface()));
 
-            if ((new_if.value() == 0x1B000095 && old_if.value() == 0x1B000004) ||
-                (old_if.value() == 0x1B000095 && new_if.value() == 0x1B000004))
-            {
-                int x = 42;
-            }
-
             // If the old and new interfaces resolved to different kinds of types, obviously they
             // are not the same (basically, one is a TypeDef, the other is a TypeSpec).
             if (old_if.table() != new_if.table())
@@ -436,11 +478,6 @@ namespace cxxreflect { namespace reflection { namespace detail {
         return it == end(element_table)
             ? (void)element_table.push_back(new_element)
             : (void)(*it = new_element);
-    }
-
-    auto interface_context_traits::should_recurse(metadata::type_def_token const&) -> bool
-    {
-        return true; // TODO
     }
 
 
@@ -525,14 +562,6 @@ namespace cxxreflect { namespace reflection { namespace detail {
             : (void)(*table_it = new_element);
     }
 
-    auto method_context_traits::should_recurse(metadata::type_def_token const& type) -> bool
-    {
-        if (row_from(type).flags().with_mask(metadata::type_attribute::class_semantics_mask) == metadata::type_attribute::interface)
-            return false;
-
-        return true; // TODO
-    }
-
 
 
 
@@ -568,11 +597,6 @@ namespace cxxreflect { namespace reflection { namespace detail {
 
         // TODO Do we need to handle hiding or overriding for properties?
         element_table.push_back(new_element);
-    }
-
-    auto property_context_traits::should_recurse(metadata::type_def_token const&) -> bool
-    {
-        return true; // TODO
     }
 
 
@@ -849,35 +873,27 @@ namespace cxxreflect { namespace reflection { namespace detail {
 
         instantiator const sig_instantiator(create_instantiator(def_and_sig.signature()));
 
-        auto const perhaps_instantiate([&](context_type const& e) -> context_type
-        {
-            if (!sig_instantiator.has_arguments())
-                return e;
-
-            auto const e_sig(e.element_signature(*_resolver.get()));
-            if (!e_sig.is_initialized() || !instantiator::requires_instantiation(e_sig))
-                return e;
-
-            return context_type(
-                e.element(),
-                e.instantiating_type(),
-                instantiate(storage, e_sig, sig_instantiator));
-        });
-
         // First, recursively handle the base type hierarchy so that inherited members are emplaced
         // into the table first; this allows us to emulate runtime overriding and hiding behaviors.
         metadata::type_def_ref_spec_token const td_base(td_row.extends());
-        if (traits_type::should_recurse(td_token) && td_base.is_initialized())
+        if (td_base.is_initialized())
         {
-            metadata::type_def_spec_token const td_resolved_base(_resolver.get()->resolve_type(td_base));
+            context_table_type const base_table(get_or_create_table(get_type_def_or_signature(_resolver.get()->resolve_type(td_base))));
 
-            metadata::type_def_or_signature const td_base_for_query(td_resolved_base.is<metadata::type_spec_token>()
-                ? metadata::type_def_or_signature(row_from(td_resolved_base.as<metadata::type_spec_token>()).signature())
-                : metadata::type_def_or_signature(td_resolved_base.as<metadata::type_def_token>()));
+            std::transform(begin(base_table), end(base_table), std::back_inserter(new_table), [&](context_type const& e) -> context_type
+            {
+                if (!sig_instantiator.has_arguments())
+                    return e;
 
-            context_table_type const table(get_or_create_table(td_base_for_query));
+                auto const e_sig(e.element_signature(*_resolver.get()));
+                if (!e_sig.is_initialized() || !instantiator::requires_instantiation(e_sig))
+                    return e;
 
-            std::transform(begin(table), end(table), std::back_inserter(new_table), perhaps_instantiate);
+                return context_type(
+                    e.element(),
+                    e.instantiating_type(),
+                    instantiate(storage, e_sig, sig_instantiator));
+            });
         }
 
         core::size_type const inherited_element_count(core::convert_integer(new_table.size()));

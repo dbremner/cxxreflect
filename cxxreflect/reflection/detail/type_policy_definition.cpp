@@ -120,7 +120,10 @@ namespace cxxreflect { namespace reflection { namespace detail {
     
     auto definition_type_policy::is_generic_type_definition(type_def_or_signature_with_module const& t) const -> bool
     {
-        return false; // TODO
+        assert_token(t);
+
+        // TODO We actually need to check the generic parameters table.
+        return core::contains(row_from(t.type().as_token()).name(), L'`');
     }
 
     auto definition_type_policy::is_import(type_def_or_signature_with_module const& t) const -> bool
@@ -253,6 +256,12 @@ namespace cxxreflect { namespace reflection { namespace detail {
         case metadata::type_attribute::sequential_layout: return type_attribute_layout::sequential_layout;
         default:                                          return type_attribute_layout::unknown;
         }
+    }
+
+    auto definition_type_policy::metadata_token(type_def_or_signature_with_module const& t) const -> core::size_type
+    {
+        assert_token(t);
+        return t.type().as_token().value();
     }
 
     auto definition_type_policy::string_format(type_def_or_signature_with_module const& t) const -> type_attribute_string_format
