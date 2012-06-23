@@ -3,7 +3,8 @@
 //                   Distributed under the Boost Software License, Version 1.0.                   //
 //     (See accompanying file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)    //
 
-// Basic functionality tests for the Metadata::Database and related classes.
+// These tests do basic verification of the x64 assembly thunk that we use for dynamic invocation on
+// x64 for fastcall functions (i.e., all functions, because fastcall is all there is).
 
 #include "test/unit_tests/test_driver.hpp"
 #include "cxxreflect/cxxreflect.hpp"
@@ -31,6 +32,12 @@ namespace cxr {
 
 namespace cxxreflect_test { namespace {
 
+    // Because we are testing our ability to call arbitrary functions, we cannot pass a pointer to
+    // the current context into each function.  To work around this, we use a global context pointer
+    // that gets set at the beginning of each test and unset at the end of the test.
+    //
+    // If we ever run the test suite in parallel, we'll need to synchronize access to the global
+    // context or add some sort of tag that identifies tests as needing to be run in sequence.
     context const* global_context;
 
     class guarded_context_initializer

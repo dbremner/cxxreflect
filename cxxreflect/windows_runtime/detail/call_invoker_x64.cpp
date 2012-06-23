@@ -58,6 +58,9 @@ namespace cxxreflect { namespace windows_runtime { namespace detail {
             throw core::runtime_error(L"method arity does not match argument count");
         }
 
+        // All calls to runtime classes use the COM calling convention of returning an HRESULT error
+        // code.  If there is a "return value," it appears as a by-pointer parameter at the end of
+        // the parameter list.  
         if (method.return_type() != get_type(L"Platform", L"Void"))
         {
             frame.push(result);

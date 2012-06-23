@@ -686,7 +686,13 @@ namespace cxxreflect { namespace metadata {
         {
             core::assert_not_null(scope);
 
-            std::transform(first_argument, last_argument, std::back_inserter(_arguments),
+            // We must instantiate each of the arguments to convert class-type signatures into
+            // cross-module type reference signatures (this ensures that during later instantiations
+            // all of the arguments are ready for instantiation).  We reuse this instantiator to
+            // perform this instantiation.  We do it _before_ we set the arguments to keep everything
+            // correct.
+            type_signature_sequence arguments;
+            std::transform(first_argument, last_argument, std::back_inserter(arguments),
                            [&](type_signature const& s) -> type_signature
             {
                 this->_argument_signatures.resize(this->_argument_signatures.size() + 1);
@@ -696,6 +702,8 @@ namespace cxxreflect { namespace metadata {
                     &*_argument_signatures.back().begin(),
                     &*_argument_signatures.back().begin() + _argument_signatures.back().size());
             });
+
+            _arguments = std::move(arguments);
         }
 
         class_variable_signature_instantiator(class_variable_signature_instantiator&&);

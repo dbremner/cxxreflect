@@ -154,22 +154,24 @@ namespace cxxreflect { namespace reflection { namespace detail { namespace {
     // them into a buffer using the TInsertElement functor, then finally recurses, getting the next
     // set of elements to be processed from the element that was just processed.  We do not recurse
     // for all element types (for the moment, we only recurse for InterfaceContexts).
-    template <typename Traits, typename CreateElement, typename InsertElement>
+    template <typename Traits, typename Collection, typename Instantiator, typename CreateElement, typename InsertElement>
     class recursive_element_inserter
     {
     public:
 
         recursive_element_inserter(metadata::type_resolver const* const resolver,
+                                   Collection              const* const collection,
+                                   Instantiator            const* const instantiator,
                                    CreateElement                  const create,
                                    InsertElement                  const insert)
-            : _resolver(resolver), _create(create), _insert(insert)
+            : _resolver(resolver), _collection(collection), _instantiator(instantiator), _create(create), _insert(insert)
         {
         }
 
         template <typename T>
         auto operator()(T const& x) -> void
         {
-            context_type const new_context(_create(x.token()));
+            context_type const new_context(_create(x.token(), *_instantiator.get()));
             _insert(new_context);
 
             recurse(new_context);
@@ -197,29 +199,61 @@ namespace cxxreflect { namespace reflection { namespace detail { namespace {
             metadata::type_def_ref_spec_token const if_token(context.element_row().interface());
 
             type_def_and_signature const def_and_sig(resolve_type_def_and_signature(*_resolver.get(), if_token));
+
+            metadata::class_variable_signature_instantiator const sig_instantiator(create_instantiator(def_and_sig.signature()));
+
+            auto const table(_collection.get()->get_or_create_table(def_and_sig.has_signature()
+                ? metadata::type_def_or_signature(def_and_sig.signature())
+                : metadata::type_def_or_signature(def_and_sig.type_def())));
+
+            std::for_each(begin(table), end(table), [&](interface_context const& c)
+            {
+                if (sig_instantiator.has_arguments() &&
+                    c.element_signature(*_resolver.get()).is_initialized() &&
+                    metadata::class_variable_signature_instantiator::requires_instantiation(c.element_signature(*_resolver.get())))
+                {
+                    auto const ex(_create(c.element(), sig_instantiator));
+
+                    _insert(ex);
+                    recurse(ex);
+                }
+                else
+                {
+                    _insert(c);
+                    recurse(c);
+                }
+            });
+            /*
             if (!def_and_sig.has_type_def())
                 return;
 
             metadata::type_def_row const if_def(row_from(def_and_sig.type_def()));
 
+            
+
             auto const first_element(Traits::begin_elements(if_def.token()));
             auto const last_element (Traits::end_elements  (if_def.token()));
 
             std::for_each(first_element, last_element, *this);
+            */
         }
 
         core::value_initialized<metadata::type_resolver const*> _resolver;
+        core::value_initialized<Collection const*>              _collection;
+        core::value_initialized<Instantiator const*>            _instantiator;
         CreateElement _create;
         InsertElement _insert;
     };
 
-    template <typename Traits, typename CreateElement, typename InsertElement>
-    recursive_element_inserter<Traits, CreateElement, InsertElement>
+    template <typename Traits, typename Collection, typename Instantiator, typename CreateElement, typename InsertElement>
+    recursive_element_inserter<Traits, Collection, Instantiator, CreateElement, InsertElement>
     create_recursive_element_inserter(metadata::type_resolver const* const resolver,
+                                      Collection              const* const collection,
+                                      Instantiator            const* const instantiator,
                                       CreateElement                  const create,
                                       InsertElement                  const insert)
     {
-        return recursive_element_inserter<Traits, CreateElement, InsertElement>(resolver, create, insert);
+        return recursive_element_inserter<Traits, Collection, Instantiator, CreateElement, InsertElement>(resolver, collection, instantiator, create, insert);
     }
 
     
@@ -369,9 +403,15 @@ namespace cxxreflect { namespace reflection { namespace detail {
         // Iterate over the interface table and see if it already contains the new interface.  This
         // can happen if two classes in a class hierarchy both implement an interface.  If there are
         // two classes that implement an interface, we keep the most derived one.
-        auto const it(std::find_if(begin(element_table), end(element_table), [&](context_type const& c) -> bool
+        auto const it(std::find_if(begin(element_table), end(element_table), [&](context_type const& old_element) -> bool
         {
-            metadata::type_def_spec_token const old_if(resolver.resolve_type(c.element_row().interface()));
+            metadata::type_def_spec_token const old_if(resolver.resolve_type(old_element.element_row().interface()));
+
+            if ((new_if.value() == 0x1B000095 && old_if.value() == 0x1B000004) ||
+                (old_if.value() == 0x1B000095 && new_if.value() == 0x1B000004))
+            {
+                int x = 42;
+            }
 
             // If the old and new interfaces resolved to different kinds of types, obviously they
             // are not the same (basically, one is a TypeDef, the other is a TypeSpec).
@@ -385,8 +425,8 @@ namespace cxxreflect { namespace reflection { namespace detail {
 
             // Otherwise, both interfaces are TypeSpecs, so we compare equality using the signature
             // comparison rules:
-            auto const old_signature(get_type_spec_signature(old_if.as<metadata::type_spec_token>()));
-            auto const new_signature(get_type_spec_signature(new_if.as<metadata::type_spec_token>()));
+            auto const old_signature(old_element.element_signature(resolver));
+            auto const new_signature(new_element.element_signature(resolver));
 
             metadata::signature_comparer const compare(&resolver);
 
@@ -809,6 +849,21 @@ namespace cxxreflect { namespace reflection { namespace detail {
 
         instantiator const sig_instantiator(create_instantiator(def_and_sig.signature()));
 
+        auto const perhaps_instantiate([&](context_type const& e) -> context_type
+        {
+            if (!sig_instantiator.has_arguments())
+                return e;
+
+            auto const e_sig(e.element_signature(*_resolver.get()));
+            if (!e_sig.is_initialized() || !instantiator::requires_instantiation(e_sig))
+                return e;
+
+            return context_type(
+                e.element(),
+                e.instantiating_type(),
+                instantiate(storage, e_sig, sig_instantiator));
+        });
+
         // First, recursively handle the base type hierarchy so that inherited members are emplaced
         // into the table first; this allows us to emulate runtime overriding and hiding behaviors.
         metadata::type_def_ref_spec_token const td_base(td_row.extends());
@@ -822,24 +877,12 @@ namespace cxxreflect { namespace reflection { namespace detail {
 
             context_table_type const table(get_or_create_table(td_base_for_query));
 
-            std::transform(begin(table), end(table), std::back_inserter(new_table), [&](context_type const& e)
-                -> context_type
-            {
-                if (!sig_instantiator.has_arguments() ||
-                    !e.element_signature(*_resolver.get()).is_initialized() ||
-                    !instantiator::requires_instantiation(e.element_signature(*_resolver.get())))
-                    return e;
-
-                return context_type(
-                    e.element(),
-                    e.instantiating_type(),
-                    instantiate(storage, e.element_signature(*_resolver.get()), sig_instantiator));
-            });
+            std::transform(begin(table), end(table), std::back_inserter(new_table), perhaps_instantiate);
         }
 
         core::size_type const inherited_element_count(core::convert_integer(new_table.size()));
 
-        auto const create_element([&](token_type const& element_token) -> context_type
+        auto const create_element([&](token_type const& element_token, instantiator const& sig_instantiator) -> context_type
         {
             metadata::blob const element_sig_ref(traits_type::get_signature(*_resolver.get(), element_token));
 
@@ -874,6 +917,8 @@ namespace cxxreflect { namespace reflection { namespace detail {
         // TODO This function has become a disaster. :'(
         auto const recursive_inserter(create_recursive_element_inserter<traits_type>(
             _resolver.get(),
+            this,
+            &sig_instantiator,
             create_element,
             insert_into_buffer));
 

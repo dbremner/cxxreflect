@@ -1171,7 +1171,7 @@ auto main() -> int
     cxr::externals::initialize(cxr::win32_externals());
 
     cxr::string const input_path(L"c:\\Windows\\Microsoft.NET\\Framework\\v4.0.30319\\mscorlib.dll");
-    cxr::string const output_path(L"z:\\metadata_writer_cxx.txt");
+    cxr::string const output_path(L"c:\\jm\\metadata_writer_cxx.txt");
 
     cxr::database scope(cxr::database::create_from_file(input_path.c_str()));
 

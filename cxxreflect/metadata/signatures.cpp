@@ -713,9 +713,23 @@ namespace cxxreflect { namespace metadata {
             detail::read_sig_byte(current, end_bytes());
         }
 
+        // When we generate a cross-module type reference, we inject a tag in front of the class
+        // type reference so that we can identify it here.  We always want to skip over this tag;
+        // the only time it is relevant is here when we are seeking to the correct parts of a
+        // signature.
+        bool const is_cross_module_type_reference(
+            current != end_bytes() &&
+            detail::peek_sig_byte(current, end_bytes()) == element_type::cross_module_type_reference);
+
+        if (is_cross_module_type_reference)
+        {
+            detail::read_sig_byte(current, end_bytes());
+        }
+
         if (part_code > part::type_code)
         {
-            core::byte const type_code(detail::read_sig_byte(current, end_bytes()));
+            detail::read_sig_byte(current, end_bytes());
+
             if (part_kind != kind::unknown && !is_kind(part_kind))
             {
                 core::assert_fail(L"invalid signature part requested");
@@ -763,7 +777,7 @@ namespace cxxreflect { namespace metadata {
                     detail::read_sig_type_def_ref_spec(current, end_bytes());
                 }
 
-                if (part_code > extract_part(part::class_type_scope) && type_code == element_type::cross_module_type_reference)
+                if (part_code > extract_part(part::class_type_scope) && is_cross_module_type_reference)
                 {
                     detail::read_sig_pointer(current, end_bytes());
                 }
@@ -1498,8 +1512,9 @@ namespace cxxreflect { namespace metadata {
             {
             case element_type::class_type:
             case element_type::value_type:
+                copy_bytes_into(buffer, s, part::begin, part::type_code);
                 buffer.push_back(static_cast<core::byte>(element_type::cross_module_type_reference));
-                copy_bytes_into(buffer, s, part::class_type_type, part::end);
+                copy_bytes_into(buffer, s, part::type_code, part::end);
                 std::copy(core::begin_bytes(_scope.get()),
                           core::end_bytes(_scope.get()),
                           std::back_inserter(buffer));
@@ -1547,17 +1562,22 @@ namespace cxxreflect { namespace metadata {
         }
         case type_signature::kind::variable:
         {
-            if (s.is_class_variable())
+            if (_arguments.size() == 0)
+            {
+                // If there are no arguments, this instantiator is still being constructed.  During
+                // construction, we instantiate each of the arguments to normalize all class type
+                // signatures as cross-module type references.  Until this process is completed,
+                // there are no arguments in the _arguments sequence.
+                copy_bytes_into(buffer, s, part::begin, part::end);
+            }
+            else if (s.is_class_variable())
             {
                 core::size_type const variable_number(s.variable_number());
-                // TODO THIS IS PROBABLY INVALID METADATA IF WE HAVE A BAD ARG!
+
                 if (variable_number >= _arguments.size())
-                    copy_bytes_into(buffer, s, part::begin, part::end);
-                else
-                    copy_bytes_into(buffer, _arguments[variable_number], part::begin, part::end);
-                    
-                // TODO This is incorrect for cross-module instantiations.  We can have arguments
-                // with a different resolution scope than the signature being instantiated. :'(
+                    throw core::runtime_error(L"variable number out of range");
+
+                copy_bytes_into(buffer, _arguments[variable_number], part::begin, part::end);
             }
             else if (s.is_method_variable())
             {
