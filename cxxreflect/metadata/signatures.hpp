@@ -540,28 +540,29 @@ namespace cxxreflect { namespace metadata {
             by_ref_tag       = 0x02,
 
             // The TypeCode marks the start of the actual 'Type' signature element
-            type_code        = 0x03,
+            cross_module_type_reference = 0x03,
+            type_code                   = 0x04,
             
-            general_array_type              = static_cast<core::size_type>(kind::general_array)    + 0x04,
-            general_array_shape             = static_cast<core::size_type>(kind::general_array)    + 0x05,
+            general_array_type              = static_cast<core::size_type>(kind::general_array)    + 0x05,
+            general_array_shape             = static_cast<core::size_type>(kind::general_array)    + 0x06,
             
-            simple_array_type               = static_cast<core::size_type>(kind::simple_array)     + 0x04,
+            simple_array_type               = static_cast<core::size_type>(kind::simple_array)     + 0x05,
 
-            class_type_type                 = static_cast<core::size_type>(kind::class_type)       + 0x04,
-            class_type_scope                = static_cast<core::size_type>(kind::class_type)       + 0x05,
+            class_type_type                 = static_cast<core::size_type>(kind::class_type)       + 0x05,
+            class_type_scope                = static_cast<core::size_type>(kind::class_type)       + 0x06,
 
-            function_pointer_type           = static_cast<core::size_type>(kind::function_pointer) + 0x04,
+            function_pointer_type           = static_cast<core::size_type>(kind::function_pointer) + 0x05,
 
-            generic_instance_type_code      = static_cast<core::size_type>(kind::generic_instance) + 0x04,
-            generic_instance_type           = static_cast<core::size_type>(kind::generic_instance) + 0x05,
-            generic_instance_argument_count = static_cast<core::size_type>(kind::generic_instance) + 0x06,
-            first_generic_instance_argument = static_cast<core::size_type>(kind::generic_instance) + 0x07,
+            generic_instance_type_code      = static_cast<core::size_type>(kind::generic_instance) + 0x05,
+            generic_instance_type           = static_cast<core::size_type>(kind::generic_instance) + 0x06,
+            generic_instance_argument_count = static_cast<core::size_type>(kind::generic_instance) + 0x07,
+            first_generic_instance_argument = static_cast<core::size_type>(kind::generic_instance) + 0x08,
 
-            pointer_type                    = static_cast<core::size_type>(kind::pointer)          + 0x04,
+            pointer_type                    = static_cast<core::size_type>(kind::pointer)          + 0x05,
 
-            variable_number                 = static_cast<core::size_type>(kind::variable)         + 0x04,
+            variable_number                 = static_cast<core::size_type>(kind::variable)         + 0x05,
 
-            end              = 0x08
+            end              = 0x09
         };
 
         typedef detail::sentinel_iterator<
@@ -578,11 +579,12 @@ namespace cxxreflect { namespace metadata {
         type_signature();
         type_signature(database const* scope, core::const_byte_iterator first, core::const_byte_iterator last);
 
-        auto compute_size()     const -> core::size_type;
-        auto seek_to(part p)    const -> core::const_byte_iterator;
-        auto get_kind()         const -> kind;
-        auto is_kind(kind k)    const -> bool;
-        auto get_element_type() const -> element_type;
+        auto compute_size()                   const -> core::size_type;
+        auto seek_to(part p)                  const -> core::const_byte_iterator;
+        auto get_kind()                       const -> kind;
+        auto is_kind(kind k)                  const -> bool;
+        auto get_element_type()               const -> element_type;
+        auto is_cross_module_type_reference() const -> bool;
 
         // FieldSig, PropertySig, Param, RetType signatures, and PTR and SZARRAY Type signatures:
         auto begin_custom_modifiers() const -> custom_modifier_iterator;

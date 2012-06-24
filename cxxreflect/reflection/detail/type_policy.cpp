@@ -9,6 +9,7 @@
 #include "cxxreflect/reflection/detail/type_policy_by_ref.hpp"
 #include "cxxreflect/reflection/detail/type_policy_definition.hpp"
 #include "cxxreflect/reflection/detail/type_policy_generic_instance.hpp"
+#include "cxxreflect/reflection/detail/type_policy_generic_variable.hpp"
 #include "cxxreflect/reflection/detail/type_policy_pointer.hpp"
 
 namespace cxxreflect { namespace reflection { namespace detail {
@@ -92,6 +93,7 @@ namespace cxxreflect { namespace reflection { namespace detail {
         static by_ref_type_policy           const by_ref_instance;
         static definition_type_policy       const definition_instance;
         static generic_instance_type_policy const generic_instance_instance;
+        static generic_variable_type_policy const generic_variable_instance;
         static pointer_type_policy          const pointer_instance;
         static specialization_type_policy   const specialization_instance;
 
@@ -112,6 +114,9 @@ namespace cxxreflect { namespace reflection { namespace detail {
 
         if (signature.is_pointer())
             return &pointer_instance;
+
+        if (signature.is_class_variable() || signature.is_method_variable())
+            return &generic_variable_instance;
 
         return &specialization_instance; // Oh :'(
     }

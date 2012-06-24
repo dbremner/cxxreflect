@@ -389,12 +389,16 @@ namespace
         // type is serializable using CxxReflect, you can use the IsSerializable property.
         r_attributes.erase(cliext::remove_if(r_attributes.begin(), r_attributes.end(), [](R::CustomAttribute^ a)
         {
-            return a->Constructor->DeclaringType->Name == L"SerializableAttribute"
-                || a->Constructor->DeclaringType->Name == L"ComImportAttribute"
-                || a->Constructor->DeclaringType->Name == L"SecurityPermissionAttribute"
-                || a->Constructor->DeclaringType->Name == L"HostProtectionAttribute"
+            return a->Constructor->DeclaringType->Name == L"ComImportAttribute"
+                || a->Constructor->DeclaringType->Name == L"FieldOffsetAttribute"
                 || a->Constructor->DeclaringType->Name == L"FileIOPermissionAttribute"
-                || a->Constructor->DeclaringType->Name == L"PermissionSetAttribute";
+                || a->Constructor->DeclaringType->Name == L"HostProtectionAttribute"
+                || a->Constructor->DeclaringType->Name == L"MarshalAsAttribute"
+                || a->Constructor->DeclaringType->Name == L"NonSerializedAttribute"
+                || a->Constructor->DeclaringType->Name == L"PermissionSetAttribute"
+                || a->Constructor->DeclaringType->Name == L"SecurityPermissionAttribute"
+                || a->Constructor->DeclaringType->Name == L"SerializableAttribute"
+                || a->Constructor->DeclaringType->Name == L"StrongNameIdentityPermissionAttribute";
         }), r_attributes.end());
 
         sort(r_attributes.begin(), r_attributes.end(), metadata_token_strict_weak_ordering());
@@ -464,8 +468,6 @@ namespace
             compare(state, r_field->DeclaringType, c_field.declaring_type());
         }
 
-        // FieldHandle -- Not implemented in CxxReflect
-
         verify_string_equals(state, L"FieldType(Name)",
             r_field->FieldType->AssemblyQualifiedName,
             c_field.field_type().assembly_qualified_name());
@@ -485,19 +487,13 @@ namespace
         verify_boolean_equals(state, L"IsPinvokeImpl",       r_field->IsPinvokeImpl,       c_field.is_pinvoke_impl());
         verify_boolean_equals(state, L"IsPrivate",           r_field->IsPrivate,           c_field.is_private());
         verify_boolean_equals(state, L"IsPublic",            r_field->IsPublic,            c_field.is_public());
-        // IsSecurityCritical     -- Not implemented in CxxReflect
-        // IsSecuritySafeCritical -- Not implemented in CxxReflect
-        // IsSecurityTransparent  -- Not implemented in CxxReflect
         verify_boolean_equals(state, L"IsSpecialName",       r_field->IsSpecialName,       c_field.is_special_name());
         verify_boolean_equals(state, L"IsStatic",            r_field->IsStatic,            c_field.is_static());
 
-        // MemberType -- Not implemented in CxxReflect
 
         verify_integer_equals(state, L"MetadataToken", r_field->MetadataToken, c_field.metadata_token());
-
-        // TODO Module
-
-        verify_string_equals(state, L"Name", r_field->Name, c_field.name());
+        // verify_string_equals (state, L"Module(Name)",  r_field->Module->Name,  c_field.declaring_module().name());
+        verify_string_equals (state, L"Name",          r_field->Name,          c_field.name());
 
         verify_string_equals(state, L"ReflectedType(Name)",
             r_field->ReflectedType->AssemblyQualifiedName,
@@ -512,7 +508,8 @@ namespace
         // Methods
         //
 
-        // TODO GetCustomAttributes()
+        compare_custom_attributes_of(state, r_field, c_field);
+
         // TODO GetOptionalCustomModifiers()
         // TODO GetRawConstantValue()
         // TODO GetRequiredCustomModifiers()
@@ -572,16 +569,16 @@ namespace
             compare(state, r_method->ReflectedType, c_method.reflected_type());
         }
 
-        // TODO if (rMethod->ReturnParameter != nullptr)
-        // {
-        //     auto frame(state.Push(L"ReturnParameter"));
-        //     Compare(state, rMethod->ReturnParameter, cMethod.GetReturnParameter());
-        // }
+        if (r_method->ReturnParameter != nullptr && c_method.return_parameter().is_initialized())
+        {
+            auto frame(state.push(L"ReturnParameter"));
+            compare(state, r_method->ReturnParameter, c_method.return_parameter());
+        }
 
-        // TODO {
-        //     auto frame(state.Push(L"ReturnType"));
-        //     Compare(state, rMethod->ReturnType, cMethod.GetReturnType());
-        // }
+        {
+            auto frame(state.push(L"ReturnType"));
+            compare(state, r_method->ReturnType, c_method.return_type());
+        }
 
         // TODO ReturnTypeCustomAttributes
 
@@ -684,6 +681,19 @@ namespace
         compare_custom_attributes_of(state, r_type, c_type); // GetCustomAttributes() and friends
 
         // TODO DeclaringMethods
+
+        {
+            auto frame(state.push(L"Fields"));
+
+            cliext::vector<R::Field^> r_fields(r_type->GetFields(r_all_bindings));
+            std::vector<C::field>     c_fields(c_type.begin_fields(c_all_bindings), c_type.end_fields());
+
+            sort(r_fields.begin(), r_fields.end(), metadata_token_strict_weak_ordering());
+            sort(c_fields.begin(), c_fields.end(), metadata_token_strict_weak_ordering());
+
+            compare_ranges(state, L"Field", r_fields, c_fields);
+        }
+
         verify_string_equals(state, L"FullName", r_type->FullName, c_type.full_name());
         // TODO GenericParameterAttributes
         // TODO GenericParameterPosition
@@ -705,27 +715,33 @@ namespace
         // TODO GetGenericParameterConstraints
         // TODO GetGenericTypeDefinition
         // TODO GetInterface
-        
-        cliext::vector<R::Type^> r_interfaces(r_type->GetInterfaces());
-        std::vector<C::type>     c_interfaces(c_type.begin_interfaces(), c_type.end_interfaces());
+        {
+            auto frame(state.push(L"Interfaces"));
 
-        sort(r_interfaces.begin(), r_interfaces.end(), metadata_token_strict_weak_ordering());
-        sort(c_interfaces.begin(), c_interfaces.end(), metadata_token_strict_weak_ordering());
+            cliext::vector<R::Type^> r_interfaces(r_type->GetInterfaces());
+            std::vector<C::type>     c_interfaces(c_type.begin_interfaces(), c_type.end_interfaces());
 
-        compare_ranges(state, L"Interface", r_interfaces, c_interfaces);
+            sort(r_interfaces.begin(), r_interfaces.end(), metadata_token_strict_weak_ordering());
+            sort(c_interfaces.begin(), c_interfaces.end(), metadata_token_strict_weak_ordering());
+
+            compare_ranges(state, L"Interface", r_interfaces, c_interfaces);
+        }
 
         // TODO GetMember
         // TODO GetMembers
         // TODO GetMethod
         // TODO GetMethods
+        {
+            auto frame(state.push(L"Methods"));
 
-        cliext::vector<R::Method^> r_methods(r_type->GetMethods(r_all_bindings));
-        std::vector<C::method>     c_methods(c_type.begin_methods(c_all_bindings), c_type.end_methods());
+            cliext::vector<R::Method^> r_methods(r_type->GetMethods(r_all_bindings));
+            std::vector<C::method>     c_methods(c_type.begin_methods(c_all_bindings), c_type.end_methods());
 
-        sort(r_methods.begin(), r_methods.end(), metadata_token_strict_weak_ordering());
-        sort(c_methods.begin(), c_methods.end(), metadata_token_strict_weak_ordering());
+            sort(r_methods.begin(), r_methods.end(), metadata_token_strict_weak_ordering());
+            sort(c_methods.begin(), c_methods.end(), metadata_token_strict_weak_ordering());
 
-        compare_ranges(state, L"Method", r_methods, c_methods);
+            compare_ranges(state, L"Method", r_methods, c_methods);
+        }
 
         // TODO GetNestedType
         // TODO GetNestedTypes
@@ -788,7 +804,7 @@ namespace
 
 auto main() -> int
 {
-    // wchar_t const* const mscorlib_path(L"C:\\windows\\Microsoft.NET\\Framework\\v4.0.30319\\mscorlib.dll");
+    wchar_t const* const mscorlib_path(L"C:\\windows\\Microsoft.NET\\Framework\\v4.0.30319\\mscorlib.dll");
     wchar_t const* const assembly_path(L"c:\\jm\\cxxreflect\\build\\output\\Win32\\Debug\\test_assemblies\\alpha.dll");
 
     C::externals::initialize(cxxreflect::externals::win32_externals());
@@ -799,15 +815,31 @@ auto main() -> int
     directories.insert(L"C:\\Windows\\Microsoft.NET\\Framework\\v4.0.30319\\wpf");
     C::loader root((C::directory_based_module_locator(directories)));
 
-    // C::assembly  c_mscorlib(root.load_assembly(C::module_location(mscorlib_path)));
-    // R::Assembly^ r_mscorlib(R::Assembly::LoadFrom(gcnew System::String(mscorlib_path)));
+    C::assembly  c_mscorlib(root.load_assembly(C::module_location(mscorlib_path)));
+    R::Assembly^ r_mscorlib(R::Assembly::LoadFrom(gcnew System::String(mscorlib_path)));
 
     C::assembly  c_assembly(root.load_assembly(C::module_location(assembly_path)));
     R::Assembly^ r_assembly(R::Assembly::LoadFrom(gcnew System::String(assembly_path)));
-
+    
     state_stack state;
-    // compare(state, r_mscorlib->GetType(gcnew System::String(L"System.ValueType")), c_mscorlib.find_type(L"System.ValueType"));
-    compare(state, r_assembly, c_assembly);
+    /*
+    {
+        auto t = c_mscorlib.find_type(L"System.Security.Principal.IdentityReferenceCollection");
+        for (auto it(t.begin_interfaces()); it != t.end_interfaces(); ++it)
+        {
+            std::wcout << std::hex << it->metadata_token() << L" " << it->basic_name().c_str() << L" <<" << it->full_name().c_str() << L">>" << std::endl;
+        }
+
+       // std::getchar();
+    }
+    
+    compare(
+        state,
+        r_mscorlib->GetType(gcnew System::String(L"System.Decimal")),
+        c_mscorlib.find_type(L"System.Decimal"));
+     */   
+    compare(state, r_mscorlib, c_mscorlib);
+    // compare(state, r_assembly, c_assembly);
 
     System::IO::StreamWriter^ result_file(gcnew System::IO::StreamWriter(L"c:\\jm\\reflectresult.txt"));
     result_file->Write(state.messages());

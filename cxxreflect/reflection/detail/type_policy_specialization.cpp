@@ -18,6 +18,12 @@ namespace cxxreflect { namespace reflection { namespace detail { namespace {
 } } } }
 
 namespace cxxreflect { namespace reflection { namespace detail {
+
+    auto specialization_type_policy::attributes(type_def_or_signature_with_module const& t) const -> metadata::type_flags
+    {
+        assert_blob(t);
+        return resolve_element_type_and_call(t, &type_policy::attributes);
+    }
     
     auto specialization_type_policy::base_type(type_def_or_signature_with_module const& t) const -> type_def_or_signature_with_module
     {

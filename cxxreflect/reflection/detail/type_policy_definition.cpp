@@ -17,6 +17,13 @@ namespace cxxreflect { namespace reflection { namespace detail { namespace {
 } } } }
 
 namespace cxxreflect { namespace reflection { namespace detail {
+
+    auto definition_type_policy::attributes(type_def_or_signature_with_module const& t) const -> metadata::type_flags
+    {
+        assert_token(t);
+
+        return row_from(t.type().as_token()).flags();
+    }
     
     auto definition_type_policy::base_type(type_def_or_signature_with_module const& t) const -> type_def_or_signature_with_module
     {

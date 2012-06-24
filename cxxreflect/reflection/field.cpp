@@ -28,6 +28,11 @@ namespace cxxreflect { namespace reflection {
         core::assert_initialized(*this);
 
         detail::loader_context const& root(detail::loader_context::from(_reflected_type.realize()));
+        if (_context.get()->has_instantiating_type())
+        {
+            return type(root, _context.get()->instantiating_type(), core::internal_key());
+        }
+
         return type(root, metadata::find_owner_of_field(_context.get()->element()).token(), core::internal_key());
     }
 
@@ -52,7 +57,7 @@ namespace cxxreflect { namespace reflection {
         detail::loader_context const& root(detail::loader_context::from(_reflected_type.realize()));
         return type(
             declaring_module(),
-            metadata::blob(_context.get()->element_signature(root)),
+            metadata::blob(_context.get()->element_signature(root).type()),
             core::internal_key());
     }
 

@@ -36,6 +36,7 @@
     <ClInclude Include="detail\type_policy_array.hpp" />
     <ClInclude Include="detail\type_policy_by_ref.hpp" />
     <ClInclude Include="detail\type_policy_generic_instance.hpp" />
+    <ClInclude Include="detail\type_policy_generic_variable.hpp" />
     <ClInclude Include="detail\type_policy_pointer.hpp" />
     <ClInclude Include="detail\type_policy_specialization.hpp" />
     <ClInclude Include="event.hpp" />
@@ -69,6 +70,7 @@
     <ClCompile Include="detail\type_policy_by_ref.cpp" />
     <ClCompile Include="detail\type_policy_definition.cpp" />
     <ClCompile Include="detail\type_policy_generic_instance.cpp" />
+    <ClCompile Include="detail\type_policy_generic_variable.cpp" />
     <ClCompile Include="detail\type_policy_pointer.cpp" />
     <ClCompile Include="detail\type_policy_specialization.cpp" />
     <ClCompile Include="field.cpp" />

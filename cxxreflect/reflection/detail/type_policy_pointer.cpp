@@ -16,6 +16,12 @@ namespace cxxreflect { namespace reflection { namespace detail { namespace {
 } } } }
 
 namespace cxxreflect { namespace reflection { namespace detail {
+
+    auto pointer_type_policy::attributes(type_def_or_signature_with_module const& t) const -> metadata::type_flags
+    {
+        assert_pointer(t);
+        return metadata::type_flags();
+    }
     
     auto pointer_type_policy::base_type(type_def_or_signature_with_module const& t) const -> type_def_or_signature_with_module
     {

@@ -188,6 +188,7 @@ namespace cxxreflect { namespace reflection { namespace detail {
 
 
 
+        virtual auto attributes    (type_def_or_signature_with_module const&) const -> metadata::type_flags              = 0;
         virtual auto base_type     (type_def_or_signature_with_module const&) const -> type_def_or_signature_with_module = 0;
         virtual auto declaring_type(type_def_or_signature_with_module const&) const -> type_def_or_signature_with_module = 0;
 

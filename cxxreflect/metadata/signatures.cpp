@@ -721,7 +721,7 @@ namespace cxxreflect { namespace metadata {
             current != end_bytes() &&
             detail::peek_sig_byte(current, end_bytes()) == element_type::cross_module_type_reference);
 
-        if (is_cross_module_type_reference)
+        if (part_code > part::cross_module_type_reference && is_cross_module_type_reference)
         {
             detail::read_sig_byte(current, end_bytes());
         }
@@ -920,6 +920,14 @@ namespace cxxreflect { namespace metadata {
 
         core::byte const type_tag(detail::peek_sig_byte(seek_to(part::type_code), end_bytes()));
         return is_valid_element_type(type_tag) ? static_cast<element_type>(type_tag) : element_type::end;
+    }
+
+    auto type_signature::is_cross_module_type_reference() const -> bool
+    {
+        core::assert_initialized(*this);
+
+        core::byte const type_tag(detail::peek_sig_byte(seek_to(part::cross_module_type_reference), end_bytes()));
+        return type_tag == element_type::cross_module_type_reference;
     }
 
     auto type_signature::begin_custom_modifiers() const -> custom_modifier_iterator
@@ -1508,24 +1516,18 @@ namespace cxxreflect { namespace metadata {
         }
         case type_signature::kind::class_type:
         {
-            switch (s.get_element_type())
+            if (s.is_cross_module_type_reference())
             {
-            case element_type::class_type:
-            case element_type::value_type:
+                copy_bytes_into(buffer, s, part::begin, part::end);
+            }
+            else
+            {
                 copy_bytes_into(buffer, s, part::begin, part::type_code);
                 buffer.push_back(static_cast<core::byte>(element_type::cross_module_type_reference));
                 copy_bytes_into(buffer, s, part::type_code, part::end);
                 std::copy(core::begin_bytes(_scope.get()),
                           core::end_bytes(_scope.get()),
                           std::back_inserter(buffer));
-                break;
-
-            case element_type::cross_module_type_reference:
-                copy_bytes_into(buffer, s, part::begin, part::end);
-                break;
-
-            default:
-                throw core::logic_error(L"invalid type kind");
             }
             break;
         }

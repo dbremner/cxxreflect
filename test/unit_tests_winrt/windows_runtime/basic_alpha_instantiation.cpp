@@ -84,9 +84,7 @@ namespace cxxreflect_test { namespace {
         }
     }
 
-    CXXREFLECTTEST_REGISTER(
-        alpha_instantiation_number_providers,
-        verify_alpha_instantiation_number_providers);
+    CXXREFLECTTEST_REGISTER(alpha_instantiation_number_providers, verify_alpha_instantiation_number_providers);
 
 
 
@@ -115,9 +113,7 @@ namespace cxxreflect_test { namespace {
         c.verify_equals(count, 3u);
     }
 
-    CXXREFLECTTEST_REGISTER(
-        alpha_instantiation_number_provider_implementers,
-        verify_alpha_instantiation_number_provider_implementers);
+    CXXREFLECTTEST_REGISTER(alpha_instantiation_number_provider_implementers, verify_alpha_instantiation_number_provider_implementers);
 
 } }
 

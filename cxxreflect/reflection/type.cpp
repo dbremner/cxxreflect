@@ -212,28 +212,7 @@ namespace cxxreflect { namespace reflection {
     auto type::attributes() const -> metadata::type_flags
     {
         core::assert_initialized(*this);
-
-        if (is_type_spec())
-        {
-            metadata::type_signature const signature(get_type_spec_signature());
-
-            if (signature.is_by_ref())
-                return metadata::type_flags();
-
-            switch (signature.get_kind())
-            {
-            case metadata::type_signature::kind::pointer:
-                return metadata::type_flags();
-
-            default:
-                break;
-            }
-        }
-
-        return resolve_type_def_and_call([](type const& t)
-        {
-            return t.get_type_def_row().flags();
-        });
+        return _policy->attributes(_type);
     }
 
     auto type::base_type() const -> type
@@ -259,8 +238,11 @@ namespace cxxreflect { namespace reflection {
     auto type::element_type() const -> type
     {
         core::assert_initialized(*this);
+        detail::type_def_or_signature_with_module const element(detail::resolve_element_type(_type));
+        if (!element.is_initialized())
+            return type();
 
-        throw core::logic_error(L"not yet implemented");
+        return type(element.module().realize(), element.type(), core::internal_key());
     }
 
     auto type::assembly_qualified_name() const -> core::string
@@ -293,28 +275,25 @@ namespace cxxreflect { namespace reflection {
     auto type::basic_name() const -> core::string_reference
     {
         core::assert_initialized(*this);
+        detail::type_def_with_module const definition(detail::resolve_type_def(_type));
+        if (!definition.is_initialized())
+            return core::string_reference();
 
-        return resolve_type_def_and_call([](type const& t)
-        {
-            return t.get_type_def_row().name();
-        });
+        return row_from(definition.type()).name();
     }
 
     auto type::namespace_name() const -> core::string_reference
     {
         core::assert_initialized(*this);
 
-        if (detail::resolve_type_def_and_call(_type, &detail::type_policy::is_nested))
-        {
-            return resolve_type_def_and_call([](type const& t)
-            {
-                return t.declaring_type().namespace_name();
-            });
-        }
+        bool const is_nested_type(detail::resolve_type_def_and_call(_type, &detail::type_policy::is_nested));
 
-        return resolve_type_def_and_call([](type const& t)
+        // TODO How do we need to handle nested-nested types?
+        return resolve_type_def_and_call([=](type const& t)
         {
-            return t.get_type_def_row().namespace_name();
+            return is_nested_type
+                ? t.declaring_type().namespace_name()
+                : t.get_type_def_row().namespace_name();
         });
     }
 
@@ -387,13 +366,7 @@ namespace cxxreflect { namespace reflection {
     auto type::is_generic_parameter() const -> bool
     {
         core::assert_initialized(*this);
-
-        if (is_type_def())
-            return false;
-
-        metadata::type_signature const signature(get_type_spec_signature());
-
-        return signature.is_class_variable() || signature.is_method_variable();
+        return _policy->is_generic_parameter(_type);
     }
 
     auto type::is_generic_type() const -> bool
@@ -592,6 +565,11 @@ namespace cxxreflect { namespace reflection {
     auto type::begin_fields(metadata::binding_flags const flags) const -> field_iterator
     {
         core::assert_initialized(*this);
+
+        if (is_by_ref())
+        {
+            return field_iterator();
+        }
 
         auto const& table(detail::loader_context::from(*this).compute_field_table(_type.type()));
         if (!table.is_initialized())

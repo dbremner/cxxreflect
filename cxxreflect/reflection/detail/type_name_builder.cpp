@@ -128,12 +128,28 @@ namespace cxxreflect { namespace reflection { namespace detail {
         throw core::logic_error(L"not yet implemented");
     }
 
-    auto type_name_builder::accumulate_general_array_type_spec_name(type const& t, mode) -> bool
+    auto type_name_builder::accumulate_general_array_type_spec_name(type const& t, mode const m) -> bool
     {
         core::assert_true([&]{ return t.get_type_spec_signature().is_kind(metadata::type_signature::kind::general_array); });
 
-        // TODO We need to figure out how to write the general array form:
-        throw core::logic_error(L"not yet implemented");
+        type const array_type(
+            t.defining_module(),
+            metadata::blob(t.get_type_spec_signature().array_type()),
+            core::internal_key());
+
+        if (!accumulate_type_name(array_type, without_assembly_qualification(m)))
+            return false;
+
+        _buffer.push_back(L'[');
+        for (unsigned i(1); i < t.get_type_spec_signature().array_shape().rank(); ++i)
+            _buffer.push_back(L',');
+        _buffer.push_back(L']');
+
+        if (t.get_type_spec_signature().is_by_ref())
+            _buffer.push_back(L'&');
+
+        accumulate_assembly_qualification_if_required(array_type, m);
+        return true;
     }
 
     auto type_name_builder::accumulate_generic_instance_type_spec_name(type const& t, mode const m) -> bool
