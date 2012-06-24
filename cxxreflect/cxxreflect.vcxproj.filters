@@ -2,11 +2,19 @@
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
     <ClInclude Include="cxxreflect.hpp" />
+    <ClInclude Include="documentation\getting_started_guide.hpp">
+      <Filter>documentation</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="cxxreflect.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="cxxreflect.props" />
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="documentation">
+      <UniqueIdentifier>{8b50826d-35ff-4e56-8b1b-f89cbb19280f}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
 </Project>

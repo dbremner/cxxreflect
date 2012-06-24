@@ -10,10 +10,21 @@
 
 namespace cxxreflect { namespace core {
 
-    /// \defgroup cxxreflect_core_diagnostic Core :: Exceptions and Diagnostics
+    /// \defgroup cxxreflect_core_diagnostic Core -> Exceptions and Diagnostics
     ///
     /// @{
 
+
+
+
+
+    /// Base exception type from which all other exception types in the library are derived
+    ///
+    /// This type is derived from `std::exception` for simpler and consistent error handling, but
+    /// `std::exception::what()` will return an empty string:  call the `message()` member function
+    /// instead; it returns a wide character string.
+    ///
+    /// This type is never thrown directly; only derived exception types are thrown.
     class exception : public std::exception
     {
     public:
@@ -33,6 +44,19 @@ namespace cxxreflect { namespace core {
         string _message;
     };
 
+
+
+
+
+    /// Base exception type from which all logic error exception types in the library are derived
+    ///
+    /// This type corresponds to `std::logic_error`.  Do not catch logic errors; they indicate code
+    /// errors from which the library may not be able to recover (in theory, a logic error should
+    /// always be thrown before the library transitions into an unrecoverable state, but this is not
+    /// necessarily the case in practice).
+    ///
+    /// This library is in some cases thrown directly.  There are also other derived exceptions that
+    /// are thrown in other cases.
     class logic_error : public exception
     {
     public:
@@ -42,6 +66,14 @@ namespace cxxreflect { namespace core {
         { }
     };
 
+
+
+
+
+    /// Exception thrown when an assertion fails
+    ///
+    /// This exception is thrown from the `core::assert_*` functions, which verify invariants
+    /// throughout the library.  Definitely do not catch these.
     class assertion_error : public logic_error
     {
     public:
@@ -51,6 +83,14 @@ namespace cxxreflect { namespace core {
         { }
     };
 
+
+
+
+
+    /// Base exception type from which all runtime error exception types in the library are derived
+    ///
+    /// This type corresponds to `std::runtime_error`.  Runtime errors are any errors that cannot be
+    /// avoided at compile-time.
     class runtime_error : public exception
     {
     public:
@@ -60,6 +100,11 @@ namespace cxxreflect { namespace core {
         { }
     };
 
+
+
+
+
+    /// Exception thrown when a failure HRESULT is detected
     class hresult_error : public runtime_error
     {
     public:
@@ -73,6 +118,11 @@ namespace cxxreflect { namespace core {
         hresult _hr;
     };
 
+
+
+
+
+    /// Exception thrown when an I/O error occurs
     class io_error : public runtime_error
     {
     public:
@@ -82,6 +132,11 @@ namespace cxxreflect { namespace core {
         { }
     };
 
+
+
+
+
+    /// Exception thrown when erroneous or invalid metadata is encountered
     class metadata_error : public runtime_error
     {
     public:

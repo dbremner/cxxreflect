@@ -35,6 +35,25 @@ namespace cxxreflect { namespace windows_runtime {
         return _value.get();
     }
 
+
+
+
+
+    auto enumerator_name_less_than::operator()(enumerator const& lhs, enumerator const& rhs) const -> bool
+    {
+        return lhs.name() < rhs.name();
+    }
+
+    auto enumerator_signed_value_less_than::operator()(enumerator const& lhs, enumerator const& rhs) const -> bool
+    {
+        return lhs.signed_value() < rhs.signed_value();
+    }
+
+    auto enumerator_unsigned_value_less_than::operator()(enumerator const& lhs, enumerator const& rhs) const -> bool
+    {
+        return lhs.unsigned_value() < rhs.unsigned_value();
+    }
+
 } }
 
 #endif // ENABLE_WINDOWS_RUNTIME_INTEGRATION

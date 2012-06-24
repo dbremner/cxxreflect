@@ -16,7 +16,7 @@
 
 namespace cxxreflect { namespace reflection { namespace detail {
 
-    /// \defgroup cxxreflect_detail_corecontexts Implementation Details :: Core Contexts
+    /// \defgroup cxxreflect_reflection_detail_corecontexts Reflection -> Details -> Core Contexts
     ///
     /// These types make up the core of the CxxReflect metadata system.  They own all of the
     /// persistent state and most other types in the library are simply iterator-like references

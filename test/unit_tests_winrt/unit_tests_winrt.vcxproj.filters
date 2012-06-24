@@ -25,6 +25,9 @@
     <ClCompile Include="windows_runtime\basic_alpha_instantiation.cpp">
       <Filter>windows_runtime</Filter>
     </ClCompile>
+    <ClCompile Include="windows_runtime\basic_alpha_enumerations.cpp">
+      <Filter>windows_runtime</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <AppxManifest Include="Package.appxmanifest" />

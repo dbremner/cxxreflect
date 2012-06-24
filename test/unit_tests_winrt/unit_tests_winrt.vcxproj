@@ -34,6 +34,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="windows_runtime\basic_alpha_enumerations.cpp" />
     <ClCompile Include="windows_runtime\basic_alpha_instantiation.cpp" />
   </ItemGroup>
   <ItemGroup>

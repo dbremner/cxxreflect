@@ -12,7 +12,7 @@ namespace cxxreflect { namespace metadata {
 
     class database;
 
-    /// \defgroup cxxreflect_metadata_constants Metadata -> Tokens
+    /// \defgroup cxxreflect_metadata_tokens Metadata -> Tokens
     ///
     /// Token types used for representing rows in metadata tables and signature blobs on disk
     ///

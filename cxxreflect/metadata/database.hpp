@@ -13,6 +13,8 @@ namespace cxxreflect { namespace metadata {
     /// \defgroup cxxreflect_metadata_database Metadata -> Database
     ///
     /// Types for loading a metadata database from a PE file and interpreting its contents
+    ///
+    /// @{
 
 
 

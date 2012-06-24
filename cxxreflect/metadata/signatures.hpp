@@ -223,7 +223,7 @@ namespace cxxreflect { namespace metadata {
     class property_signature;
     class type_signature;
 
-    /// \defgroup cxxreflect_metadata_rows Metadata -> Signatures
+    /// \defgroup cxxreflect_metadata_signatures Metadata -> Signatures
     ///
     /// Signature types for parsing each kind of signature blob supported by the metadata library.
     /// Note that not all kinds are supported:  local variables, for example, remain unimplemented.

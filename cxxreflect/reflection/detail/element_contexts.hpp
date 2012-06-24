@@ -20,7 +20,7 @@ namespace cxxreflect { namespace reflection {
 
 namespace cxxreflect { namespace reflection { namespace detail {
 
-    /// \defgroup cxxreflect_detail_element_contexts Implementation Details :: Element Contexts
+    /// \defgroup cxxreflect_reflection_detail_element_contexts Reflection -> Details -> Element Contexts
     ///
     /// These element contexts represent elements that are owned by types:  events, fields, methods,
     /// properties, and interfaces.

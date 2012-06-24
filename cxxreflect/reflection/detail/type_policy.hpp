@@ -17,7 +17,7 @@ namespace cxxreflect { namespace reflection { namespace detail {
 
 
 
-    /// \ingroup cxxreflect_reflection_type_policies Reflection -> Detail -> Type Policies
+    /// \defgroup cxxreflect_reflection_type_policies Reflection -> Details -> Type Policies
     ///
     /// Policy classes that implement the fundamental logic used by the `type` class
     ///

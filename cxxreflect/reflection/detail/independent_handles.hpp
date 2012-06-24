@@ -13,7 +13,7 @@
 
 namespace cxxreflect { namespace reflection { namespace detail {
 
-    /// \defgroup cxxreflect_detail_handles Implementation Details :: Interface Handles
+    /// \defgroup cxxreflect_reflection_detail_handles Reflection -> Details -> Independent Handles
     ///
     /// These handle types encapsulate all of the information required to instantiate the
     /// corresponding public interface types, but without being size- or layout-dependent on the 

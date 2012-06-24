@@ -19,6 +19,7 @@
   <Import Project="cxxreflect.props" />
   <ItemGroup>
     <ClInclude Include="cxxreflect.hpp" />
+    <ClInclude Include="documentation\getting_started_guide.hpp" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="cxxreflect.cpp" />
