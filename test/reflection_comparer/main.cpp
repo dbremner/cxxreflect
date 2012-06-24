@@ -520,8 +520,8 @@ namespace
         auto frame(state.push(r_method));
 
         // TODO Support for generic methods
-        if (r_method->IsGenericMethod)
-            return;
+        // if (r_method->IsGenericMethod)
+        //     return;
 
         //
         // Properties

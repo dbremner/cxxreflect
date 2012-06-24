@@ -151,7 +151,15 @@ namespace cxxreflect { namespace reflection {
     {
         core::assert_initialized(*this);
 
-        // TODO is_generic_method not yet implemented
+        detail::loader_context const& root(detail::loader_context::from(reflected_type()));
+
+        auto const generic_parameters(metadata::find_generic_params_range(_context.get()->element()));
+        if (generic_parameters.first == generic_parameters.second)
+            return false;
+
+        if (_context.get()->element_signature(root).generic_parameter_count() > 0)
+            return true;
+
         return false;
     }
 
@@ -159,7 +167,15 @@ namespace cxxreflect { namespace reflection {
     {
         core::assert_initialized(*this);
 
-        // TODO is_generic_method_definition not yet implemented
+        detail::loader_context const& root(detail::loader_context::from(reflected_type()));
+
+        auto const generic_parameters(metadata::find_generic_params_range(_context.get()->element()));
+        if (generic_parameters.first == generic_parameters.second)
+            return false;
+
+        if (_context.get()->element_signature(root).generic_parameter_count() > 0)
+            return true;
+
         return false;
     }
 
