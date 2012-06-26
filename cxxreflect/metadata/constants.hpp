@@ -803,6 +803,9 @@ namespace cxxreflect { namespace metadata {
         custom_attribute_property     = 0x54,
         custom_attribute_enum         = 0x55,
 
+        annotated_mvar                = 0x5d,
+        annotated_var                 = 0x5e,
+
         /// For internal use only
         ///
         /// This is not a real ElementType and it will never be found in metadata read from a

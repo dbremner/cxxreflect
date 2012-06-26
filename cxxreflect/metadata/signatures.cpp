@@ -728,7 +728,7 @@ namespace cxxreflect { namespace metadata {
 
         if (part_code > part::type_code)
         {
-            detail::read_sig_byte(current, end_bytes());
+            element_type const type_tag(detail::read_sig_element_type(current, end_bytes()));
 
             if (part_kind != kind::unknown && !is_kind(part_kind))
             {
@@ -837,6 +837,14 @@ namespace cxxreflect { namespace metadata {
                     detail::read_sig_compressed_uint32(current, end_bytes());
                 }
 
+                bool const is_annotated(type_tag == element_type::annotated_mvar || type_tag == element_type::annotated_var);
+                
+                if (is_annotated && part_code > extract_part(part::variable_context))
+                {
+                    detail::read_sig_element<core::size_type>(current, end_bytes());
+                    detail::read_sig_pointer(current, end_bytes());
+                }
+
                 break;
             }
             default:
@@ -900,6 +908,8 @@ namespace cxxreflect { namespace metadata {
         case element_type::ptr:
             return kind::pointer;
 
+        case element_type::annotated_mvar:
+        case element_type::annotated_var:
         case element_type::mvar:
         case element_type::var:
             return kind::variable;
@@ -1004,7 +1014,7 @@ namespace cxxreflect { namespace metadata {
 
     auto type_signature::array_type() const -> type_signature
     {
-        core::assert_initialized(*this);
+        core::assert_true([&]{ return get_kind() == kind::general_array || get_kind() == kind::simple_array; });
         return type_signature(
             &scope(),
             is_kind(kind::general_array) ? seek_to(part::general_array_type) : seek_to(part::simple_array_type),
@@ -1013,7 +1023,7 @@ namespace cxxreflect { namespace metadata {
 
     auto type_signature::array_shape() const -> metadata::array_shape
     {
-        core::assert_initialized(*this);
+        assert_kind(kind::general_array);
         return metadata::array_shape(&scope(), seek_to(part::general_array_shape), end_bytes());
     }
 
@@ -1031,7 +1041,7 @@ namespace cxxreflect { namespace metadata {
 
     auto type_signature::class_type() const -> type_def_ref_spec_token
     {
-        core::assert_initialized(*this);
+        assert_kind(kind::class_type);
 
         database const* other_scope(nullptr);
         if (get_element_type() == element_type::cross_module_type_reference)
@@ -1055,7 +1065,7 @@ namespace cxxreflect { namespace metadata {
 
     auto type_signature::function_type() const -> method_signature
     {
-        core::assert_initialized(*this);
+        assert_kind(kind::function_pointer);
         return method_signature(&scope(), seek_to(part::function_pointer_type), end_bytes());
     }
 
@@ -1079,7 +1089,7 @@ namespace cxxreflect { namespace metadata {
 
     auto type_signature::generic_type() const -> type_def_ref_spec_token
     {
-        core::assert_initialized(*this);
+        assert_kind(kind::generic_instance);
         return type_def_ref_spec_token(
             &scope(),
             detail::peek_sig_type_def_ref_spec(seek_to(part::generic_instance_type), end_bytes()));
@@ -1087,13 +1097,13 @@ namespace cxxreflect { namespace metadata {
 
     auto type_signature::generic_argument_count() const -> core::size_type
     {
-        core::assert_initialized(*this);
+        assert_kind(kind::generic_instance);
         return detail::peek_sig_compressed_uint32(seek_to(part::generic_instance_argument_count), end_bytes());
     }
 
     auto type_signature::begin_generic_arguments() const -> generic_argument_iterator
     {
-        core::assert_initialized(*this);
+        assert_kind(kind::generic_instance);
 
         return generic_argument_iterator(
             &scope(),
@@ -1105,7 +1115,7 @@ namespace cxxreflect { namespace metadata {
 
     auto type_signature::end_generic_arguments() const -> generic_argument_iterator
     {
-        core::assert_initialized(*this);
+        assert_kind(kind::generic_instance);
 
         core::size_type const count(detail::peek_sig_compressed_uint32(seek_to(part::generic_instance_argument_count), end_bytes()));
         return generic_argument_iterator(&scope(), nullptr, nullptr, count, count);
@@ -1119,7 +1129,7 @@ namespace cxxreflect { namespace metadata {
 
     auto type_signature::pointer_type() const -> type_signature
     {
-        core::assert_initialized(*this);
+        assert_kind(kind::pointer);
         return type_signature(&scope(), seek_to(part::pointer_type), end_bytes());
     }
 
@@ -1137,8 +1147,20 @@ namespace cxxreflect { namespace metadata {
 
     auto type_signature::variable_number() const -> core::size_type
     {
-        core::assert_initialized(*this);
+        assert_kind(kind::variable);
         return detail::peek_sig_compressed_uint32(seek_to(part::variable_number), end_bytes());
+    }
+
+    auto type_signature::variable_context() const -> type_or_method_def_token
+    {
+        assert_kind(kind::variable);
+
+        core::const_byte_iterator it(seek_to(part::variable_context));
+
+        core::size_type const token(detail::read_sig_element<core::size_type>(it, end_bytes()));
+        database const* const scope(reinterpret_cast<database const*>(detail::read_sig_pointer(it, end_bytes())));
+
+        return type_or_method_def_token(scope, token);
     }
 
     auto type_signature::assert_kind(kind const k) const -> void

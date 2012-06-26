@@ -561,6 +561,7 @@ namespace cxxreflect { namespace metadata {
             pointer_type                    = static_cast<core::size_type>(kind::pointer)          + 0x05,
 
             variable_number                 = static_cast<core::size_type>(kind::variable)         + 0x05,
+            variable_context                = static_cast<core::size_type>(kind::variable)         + 0x06,
 
             end              = 0x09
         };
@@ -629,7 +630,8 @@ namespace cxxreflect { namespace metadata {
         // MVAR and VAR:
         auto is_class_variable()  const -> bool;
         auto is_method_variable() const -> bool;
-        auto variable_number()         const -> core::size_type;
+        auto variable_number()    const -> core::size_type;
+        auto variable_context()   const -> type_or_method_def_token;
 
     private:
 
