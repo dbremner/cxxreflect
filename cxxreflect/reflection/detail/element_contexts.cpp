@@ -5,10 +5,14 @@
 
 #include "cxxreflect/reflection/precompiled_headers.hpp"
 #include "cxxreflect/reflection/detail/element_contexts.hpp"
-#include "cxxreflect/reflection/type.hpp" // REMOVE For debug only
 
 namespace cxxreflect { namespace reflection { namespace detail { namespace {
 
+    /// A pair type that represents a type definition and a type signature
+    ///
+    /// We have many cases where we may have a type signature or a type definition, and if we have
+    /// a type signature, we may optionally have a primary type definition associated with it.  This
+    /// class contains both the definition and signature.
     class type_def_and_signature
     {
     public:
@@ -33,6 +37,7 @@ namespace cxxreflect { namespace reflection { namespace detail { namespace {
         auto signature()     const -> metadata::blob           { return _signature;                  }
         auto has_signature() const -> bool                     { return _signature.is_initialized(); }
 
+        /// Returns the signature if one exists, otherwise returns the definition
         auto best_match() const -> metadata::type_def_or_signature
         {
             if (has_signature())
@@ -47,6 +52,11 @@ namespace cxxreflect { namespace reflection { namespace detail { namespace {
         metadata::blob           _signature;
     };
 
+
+
+
+
+    /// Gets the `type_signature` that defines the provided type spec
     auto get_type_spec_signature(metadata::type_spec_token const& type) -> metadata::type_signature
     {
         core::assert_initialized(type);
@@ -54,6 +64,19 @@ namespace cxxreflect { namespace reflection { namespace detail { namespace {
         return row_from(type).signature().as<metadata::type_signature>();
     }
 
+
+
+
+
+    /// Resolves the type definition and signature for an arbitrary type
+    ///
+    /// Type references are resolved via `resolver`.  If the resolved type is a type definition, the
+    /// definition is returned alone.  If the resolved type is a type signture, the signature is 
+    /// returned, but we also attempt to find its primary type definition.
+    ///
+    /// A caller must assume that either the definition or the signature may not be present.  At
+    /// least one of them will always be present, though, otherwise the type is invalid and we 
+    /// will throw.
     auto resolve_type_def_and_signature(metadata::type_resolver                  const& resolver,
                                         metadata::type_def_ref_spec_or_signature const& original_type)
         -> type_def_and_signature
@@ -129,6 +152,11 @@ namespace cxxreflect { namespace reflection { namespace detail { namespace {
         }
     }
 
+
+
+
+
+    /// Resolves a `type_def_spec_token` into either its `type_def` or the `type_spec`'s signature
     auto get_type_def_or_signature(metadata::type_def_spec_token const& token) -> metadata::type_def_or_signature
     {
         if (token.is<metadata::type_def_token>())
@@ -137,9 +165,22 @@ namespace cxxreflect { namespace reflection { namespace detail { namespace {
         return row_from(token.as<metadata::type_spec_token>()).signature();
     }
 
+
+
+
+
+    /// Creates arguments for signature instantiation from the type signature `signature_blob`
+    ///
+    /// The signature must be a type signature or must be uninitialized.  The `scope` must be
+    /// non-null and, if the `signature_blob` is initialized, its scope must be the same as `scope`.
+    /// The signature must be a `generic_instance` type signature; if it is not, the metadata is
+    /// invalid.
     auto create_instantiator_arguments(metadata::database const* const scope,
                                        metadata::blob            const signature_blob) -> metadata::signature_instantiation_arguments
     {
+        core::assert_not_null(scope);
+        core::assert_true([&]{ return !signature_blob.is_initialized() || scope == &signature_blob.scope(); });
+
         if (!signature_blob.is_initialized())
             return metadata::signature_instantiation_arguments(scope);
 
@@ -178,7 +219,12 @@ namespace cxxreflect { namespace reflection { namespace detail { namespace {
         typedef metadata::signature_instantiation_arguments     instantiator_arguments_type;
         typedef element_context_table_storage::storage_lock     storage_type;
 
-
+        /// Constructs a new `recursive_table_builder`
+        ///
+        /// The newly constructed instance will use `resolver` to resolve types, will call back into
+        /// the `collection` to store the resulting table, and will store instantiated signatures in
+        /// the `storage` signature storage buffer.  Call `get_or_create_table` to construct the
+        /// table for the type.
         recursive_table_builder(metadata::type_resolver const* const resolver,
                                 collection_type         const* const collection,
                                 storage_type            const* const storage)
@@ -189,6 +235,11 @@ namespace cxxreflect { namespace reflection { namespace detail { namespace {
             core::assert_not_null(storage);
         }
 
+        /// Gets an existing table or creates a new table containing the elements of `type`
+        ///
+        /// We never call `create_table` directly from within this class; instead, we always call
+        /// this function to test whether the table has already been built.  No need to do expensive
+        /// work twice.
         auto get_or_create_table(metadata::type_def_or_signature const& type) const -> context_table_type
         {
             core::assert_initialized(type);
@@ -197,8 +248,6 @@ namespace cxxreflect { namespace reflection { namespace detail { namespace {
             auto const result(_storage->find_table<ContextTag>(type));
             if (result.first)
                 return result.second;
-
-            // Ok, we haven't created a table yet; let's create a new one:
 
             // Ok, we haven't created a table yet; let's create a new one.  First, resolve the type
             // definition and signature; if the type has no definition (e.g., it is a ByRef type)
@@ -214,43 +263,6 @@ namespace cxxreflect { namespace reflection { namespace detail { namespace {
         }
 
     private:
-
-        static auto get_method_instantiation_source(metadata::method_def_token const& token) -> metadata::method_def_token
-        {
-            if (!token.is_initialized())
-                return metadata::method_def_token();
-
-            if (!has_generic_params(token))
-                return metadata::method_def_token();
-
-            return token;
-        }
-
-        template <typename Token>
-        static auto get_method_instantiation_source(Token const&) -> metadata::method_def_token
-        {
-            return metadata::method_def_token();
-        }
-
-        static auto get_type_instantiation_source(metadata::type_def_token const& token) -> metadata::type_def_token
-        {
-            if (!token.is_initialized())
-                return metadata::type_def_token();
-
-            if (!has_generic_params(token))
-                return metadata::type_def_token();
-
-            return token;
-        }
-
-        /// Tests whether a type or method has generic parameters
-        static auto has_generic_params(metadata::type_or_method_def_token const& token) -> bool
-        {
-            core::assert_initialized(token);
-
-            metadata::generic_param_row_iterator_pair const parameters(metadata::find_generic_params_range(token));
-            return parameters.first != parameters.second;
-        }
 
         /// Entry point for the recursive table creation process
         ///
@@ -396,19 +408,24 @@ namespace cxxreflect { namespace reflection { namespace detail { namespace {
             });
         }
 
+        /// Function template to no-op the post-insertion recursion for non-interface context types
         template <typename ContextType>
         auto post_insertion_recurse_with_context(ContextType const&, context_sequence_type&, core::size_type) const -> void
         {
-            // Catch-all for nonrecursive element type
+            return;
         }
 
         /// Creates an element for insertion into a table
         ///
-        /// The `token` identifies the element to be inserted.  This function ge
+        /// The `token` identifies the element to be inserted.  The element is resolved, its
+        /// signature is obtained, and it is instantiated via `instantiator` if instantiation is
+        /// required.
         auto create_element(token_type             const& token,
                             type_def_and_signature const& instantiating_type,
                             instantiator_type      const& instantiator) const -> context_type
         {
+            core::assert_initialized(token);
+
             metadata::blob const signature_blob(traits_type::get_signature(*_resolver, token));
             if (!signature_blob.is_initialized())
                 return context_type(token);
@@ -421,6 +438,7 @@ namespace cxxreflect { namespace reflection { namespace detail { namespace {
             return context_type(token, instantiating_type.best_match(), instantiate(signature, instantiator));
         }
 
+        /// Instantiates the `signature` via `instantiator`, storing the result in `_storage`
         template <typename Signature>
         auto instantiate(Signature const& signature, instantiator_type const& instantiator) const -> core::const_byte_range
         {
@@ -431,18 +449,72 @@ namespace cxxreflect { namespace reflection { namespace detail { namespace {
             return _storage->allocate_signature(instantiation.begin_bytes(), instantiation.end_bytes());
         }
 
+        /// Gets the method instantiatiation source to be used when constructing an instantiator
+        ///
+        /// This function returns an uninitialized `method_def_token` if the source `token` is not
+        /// initialized or if it does not have generic parameters.  Otherwise, the token is returned
+        /// unchanged.
+        ///
+        /// There is also a function template that handles non-`method_def` tokens and no-ops them.
+        static auto get_method_instantiation_source(metadata::method_def_token const& token) -> metadata::method_def_token
+        {
+            if (!token.is_initialized())
+                return metadata::method_def_token();
+
+            if (!has_generic_params(token))
+                return metadata::method_def_token();
+
+            return token;
+        }
+
+        /// Function template to no-op the getting of an instantiation source for non-method tokens
+        template <typename Token>
+        static auto get_method_instantiation_source(Token const&) -> metadata::method_def_token
+        {
+            return metadata::method_def_token();
+        }
+
+        /// Gets the type instantiation source to be used when constructing an instantiator
+        ///
+        /// This function returns an uninitialized `type_def_token` if the source `token` is not
+        /// initialized or if it does not have generic parameters.  Otherwise, the token is returned
+        /// unchanged.
+        ///
+        /// This function only accepts `type_def_token` tokens because we will always have a type
+        /// for this check:  it is always the owning type whose elements are being enumerated.
+        static auto get_type_instantiation_source(metadata::type_def_token const& token) -> metadata::type_def_token
+        {
+            if (!token.is_initialized())
+                return metadata::type_def_token();
+
+            if (!has_generic_params(token))
+                return metadata::type_def_token();
+
+            return token;
+        }
+
+        /// Tests whether a type or method has generic parameters
+        static auto has_generic_params(metadata::type_or_method_def_token const& token) -> bool
+        {
+            core::assert_initialized(token);
+
+            metadata::generic_param_row_iterator_pair const parameters(metadata::find_generic_params_range(token));
+            return parameters.first != parameters.second;
+        }
+
         core::checked_pointer<metadata::type_resolver const> _resolver;
         core::checked_pointer<collection_type const>         _collection;
         core::checked_pointer<storage_type const>            mutable _storage;
     };
 
+    /// A `recursive_table_builder` factory that deduces the context type
     template <typename ContextTag>
     auto create_recursive_table_builder(metadata::type_resolver                      const* const resolver,
                                         element_context_table_collection<ContextTag> const* const collection,
                                         element_context_table_storage::storage_lock  const* const storage)
-        -> element_context_table_collection<ContextTag>
+        -> recursive_table_builder<ContextTag>
     {
-        return element_context_table_collection<ContextTag>(resolver, collection, storage);
+        return recursive_table_builder<ContextTag>(resolver, collection, storage);
     }
 
 } } } }
@@ -978,9 +1050,7 @@ namespace cxxreflect { namespace reflection { namespace detail {
         // that this lock will be contentious.
         auto const storage(_storage.get()->lock());
 
-        recursive_table_builder<ContextTag> const builder(_resolver.get(), this, &storage);
-
-        return builder.get_or_create_table(type);
+        return create_recursive_table_builder(_resolver.get(), this, &storage).get_or_create_table(type);
     }
 
     template <typename ContextTag>
