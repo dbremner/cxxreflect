@@ -1402,130 +1402,275 @@ namespace cxxreflect { namespace metadata {
 
 
 
-    class_variable_signature_instantiator::class_variable_signature_instantiator()
+    signature_instantiation_arguments::signature_instantiation_arguments()
     {
     }
-
-    class_variable_signature_instantiator::class_variable_signature_instantiator(
-        class_variable_signature_instantiator&& other)
-        : _arguments          (std::move(other._arguments          )),
-          _scope              (std::move(other._scope              )),
-          _argument_signatures(std::move(other._argument_signatures)),
-          _buffer             (std::move(other._buffer             ))
+    
+    signature_instantiation_arguments::signature_instantiation_arguments(database const* const scope)
+        : _scope(scope)
     {
-        other._scope.get() = nullptr;
-        core::assert_initialized(*this);
+        core::assert_not_null(scope);
+    }
+    
+    signature_instantiation_arguments::signature_instantiation_arguments(database const* const         scope,
+                                                                         argument_sequence&&           arguments,
+                                                                         argument_signature_sequence&& signatures)
+        : _scope     (scope                ),
+          _arguments (std::move(arguments )),
+          _signatures(std::move(signatures))
+    {
+        core::assert_not_null(scope);
     }
 
-    auto class_variable_signature_instantiator::operator=(
-        class_variable_signature_instantiator&& other) -> class_variable_signature_instantiator&
+    signature_instantiation_arguments::signature_instantiation_arguments(signature_instantiation_arguments&& other)
+        : _scope     (other._scope                ),
+          _arguments (std::move(other._arguments )),
+          _signatures(std::move(other._signatures))
     {
-        _arguments           = std::move(other._arguments          );
-        _scope               = std::move(other._scope              );
-        _argument_signatures = std::move(other._argument_signatures);
-        _buffer              = std::move(other._buffer             );
+        core::assert_not_null(other._scope.get());
+        other._scope.reset();
+    }
 
-        other._scope.get() = nullptr;
+    auto signature_instantiation_arguments::operator=(signature_instantiation_arguments&& other) -> signature_instantiation_arguments&
+    {
+        core::assert_not_null(other._scope.get());
 
+        _scope      = other._scope;
+        _arguments  = std::move(other._arguments);
+        _signatures = std::move(other._signatures);
+
+        other._scope.reset();
         return *this;
     }
 
-    auto class_variable_signature_instantiator::is_initialized() const -> bool
+    auto signature_instantiation_arguments::scope() const -> database const&
+    {
+        core::assert_initialized(*this);
+        return *_scope;
+    }
+
+    auto signature_instantiation_arguments::operator[](core::size_type const n) const -> type_signature
+    {
+        core::assert_initialized(*this);
+
+        if (n >= size())
+            throw core::logic_error(L"argument out of range");
+
+        return _arguments[n];
+    }
+
+    auto signature_instantiation_arguments::size() const -> core::size_type
+    {
+        core::assert_initialized(*this);
+
+        return _arguments.size();
+    }
+
+    auto signature_instantiation_arguments::is_initialized() const -> bool
     {
         return _scope.get() != nullptr;
     }
 
-    auto class_variable_signature_instantiator::has_arguments() const -> bool
-    {
-        // Note:  It is okay to call this even if we are not initialized.
 
-        return !_arguments.empty();
+
+
+
+    signature_instantiator::context::context()
+    {
+    }
+
+    signature_instantiator::context::context(arguments_type const* const arguments,
+                                             type_def_token        const type_source,
+                                             method_def_token      const method_source)
+        : _arguments(arguments), _type_source(type_source), _method_source(method_source)
+    {
+        core::assert_not_null(arguments);
+    }
+
+    auto signature_instantiator::context::arguments() const -> arguments_type const&
+    {
+        return *_arguments;
+    }
+
+    auto signature_instantiator::context::type_source() const -> type_def_token const&
+    {
+        return _type_source;
+    }
+
+    auto signature_instantiator::context::method_source() const -> method_def_token const&
+    {
+        return _method_source;
+    }
+
+    auto signature_instantiator::context::is_initialized() const -> bool
+    {
+        return _arguments.get() != nullptr;
+    }
+
+
+
+
+
+    signature_instantiator::signature_instantiator(arguments_type const* const arguments)
+        : _context(arguments, type_def_token(), method_def_token())
+    {
+        core::assert_not_null(arguments);
+        core::assert_initialized(*arguments);
+    }
+
+    signature_instantiator::signature_instantiator(arguments_type const* const arguments,
+                                                   type_def_token        const type_source)
+        : _context(arguments, type_source, method_def_token())
+    {
+        core::assert_not_null(arguments);
+        core::assert_initialized(*arguments);
+    }
+
+    signature_instantiator::signature_instantiator(arguments_type const* const arguments,
+                                                   method_def_token      const method_source)
+        : _context(arguments, type_def_token(), method_source)
+    {
+        core::assert_not_null(arguments);
+        core::assert_initialized(*arguments);
+    }
+
+    signature_instantiator::signature_instantiator(arguments_type const* const arguments,
+                                                   type_def_token        const type_source,
+                                                   method_def_token      const method_source)
+        : _context(arguments, type_source, method_source)
+    {
+        core::assert_not_null(arguments);
+        core::assert_initialized(*arguments);
+    }
+
+    auto signature_instantiator::is_initialized() const -> bool
+    {
+        return _context.is_initialized();
+    }
+
+    auto signature_instantiator::create_arguments(type_signature  const& type) -> signature_instantiation_arguments
+    {
+        core::assert_initialized(type);
+
+        if (!type.is_generic_instance())
+            return signature_instantiation_arguments();
+
+        arguments_type::argument_sequence           arguments;
+        arguments_type::argument_signature_sequence signatures;
+
+        arguments_type const empty_arguments(&type.scope());
+        context        const empty_context(&empty_arguments, type_def_token(), method_def_token());
+
+        std::transform(type.begin_generic_arguments(),
+                       type.end_generic_arguments(),
+                       std::back_inserter(arguments),
+                       [&](type_signature const& argument_signature) -> type_signature
+        {
+            signatures.resize(signatures.size() + 1);
+            instantiate_into(signatures.back(), argument_signature, empty_context);
+
+            return type_signature(
+                &type.scope(),
+                signatures.back().data(),
+                signatures.back().data() + signatures.back().size());
+        });
+
+        return signature_instantiation_arguments(&type.scope(), std::move(arguments), std::move(signatures));
     }
 
     template <typename Signature>
-    auto class_variable_signature_instantiator::instantiate(Signature const& signature) const -> Signature
+    auto signature_instantiator::would_instantiate(Signature const& signature) const -> bool
     {
         core::assert_initialized(*this);
+        core::assert_initialized(signature);
+
+        // If this instantiator doesn't do anything, then it won't instantiate any signature:
+        if (_context.arguments().size() == 0 &&
+            !_context.method_source().is_initialized() &&
+            !_context.type_source().is_initialized())
+            return false;
+
+        // Otherwise, it will instantiate any signature that requires instantiation:
+        return requires_instantiation(signature);
+    }
+
+    template auto signature_instantiator::would_instantiate(array_shape        const&) const -> bool;
+    template auto signature_instantiator::would_instantiate(field_signature    const&) const -> bool;
+    template auto signature_instantiator::would_instantiate(method_signature   const&) const -> bool;
+    template auto signature_instantiator::would_instantiate(property_signature const&) const -> bool;
+    template auto signature_instantiator::would_instantiate(type_signature     const&) const -> bool;
+
+    template <typename Signature>
+    auto signature_instantiator::instantiate(Signature const& signature) const -> Signature
+    {
+        core::assert_initialized(*this);
+        core::assert_initialized(signature);
 
         _buffer.clear();
-        instantiate_into(_buffer, signature);
-        return Signature(_scope.get(), _buffer.data(), _buffer.data() + _buffer.size());
+        instantiate_into(_buffer, signature, _context);
+        return Signature(&_context.arguments().scope(), _buffer.data(), _buffer.data() + _buffer.size());
     }
 
-    template auto class_variable_signature_instantiator::instantiate(array_shape        const&) const -> array_shape;
-    template auto class_variable_signature_instantiator::instantiate(field_signature    const&) const -> field_signature;
-    template auto class_variable_signature_instantiator::instantiate(method_signature   const&) const -> method_signature;
-    template auto class_variable_signature_instantiator::instantiate(property_signature const&) const -> property_signature;
-    template auto class_variable_signature_instantiator::instantiate(type_signature     const&) const -> type_signature;
+    template auto signature_instantiator::instantiate(array_shape        const&) const -> array_shape;
+    template auto signature_instantiator::instantiate(field_signature    const&) const -> field_signature;
+    template auto signature_instantiator::instantiate(method_signature   const&) const -> method_signature;
+    template auto signature_instantiator::instantiate(property_signature const&) const -> property_signature;
+    template auto signature_instantiator::instantiate(type_signature     const&) const -> type_signature;
 
-    template <typename Signature>
-    auto class_variable_signature_instantiator::requires_instantiation(Signature const& signature) -> bool
+    auto signature_instantiator::instantiate_into(internal_buffer& buffer, array_shape const& s, context const& c) -> void
     {
-        // TODO Does this need to handle scope conversion?
-        return requires_instantiation_internal(signature);
-    }
-
-    template auto class_variable_signature_instantiator::requires_instantiation(array_shape        const&) -> bool;
-    template auto class_variable_signature_instantiator::requires_instantiation(field_signature    const&) -> bool;
-    template auto class_variable_signature_instantiator::requires_instantiation(method_signature   const&) -> bool;
-    template auto class_variable_signature_instantiator::requires_instantiation(property_signature const&) -> bool;
-    template auto class_variable_signature_instantiator::requires_instantiation(type_signature     const&) -> bool;
-
-    auto class_variable_signature_instantiator::instantiate_into(internal_buffer      & buffer,
-                                                                 array_shape     const& s) const -> void
-    {
-        core::assert_initialized(*this);
+        core::assert_initialized(s);
+        core::assert_initialized(c);
 
         typedef array_shape::part part;
 
         copy_bytes_into(buffer, s, part::begin, part::end);
     }
 
-    auto class_variable_signature_instantiator::instantiate_into(internal_buffer      & buffer,
-                                                                 field_signature const& s) const -> void
+    auto signature_instantiator::instantiate_into(internal_buffer& buffer, field_signature const& s, context const& c) -> void
     {
-        core::assert_initialized(*this);
+        core::assert_initialized(s);
+        core::assert_initialized(c);
 
         typedef field_signature::part part;
 
         copy_bytes_into(buffer, s, part::begin, part::type);
-        instantiate_into(buffer, s.type());
+        instantiate_into(buffer, s.type(), c);
     }
 
-    auto class_variable_signature_instantiator::instantiate_into(internal_buffer       & buffer,
-                                                                 method_signature const& s) const -> void
+    auto signature_instantiator::instantiate_into(internal_buffer& buffer, method_signature const& s, context const& c) -> void
     {
-        core::assert_initialized(*this);
+        core::assert_initialized(s);
+        core::assert_initialized(c);
 
         typedef method_signature::part part;
 
         copy_bytes_into(buffer, s, part::begin, part::ret_type);
-        instantiate_into(buffer, s.return_type());
-        instantiate_range_into(buffer, s.begin_parameters(), s.end_parameters());
+        instantiate_into(buffer, s.return_type(), c);
+        instantiate_range_into(buffer, s.begin_parameters(), s.end_parameters(), c);
 
         if (s.begin_vararg_parameters() == s.end_vararg_parameters())
             return;
 
         copy_bytes_into(buffer, s, part::sentinel, part::first_vararg_param);
-        instantiate_range_into(buffer, s.begin_vararg_parameters(), s.end_vararg_parameters());
+        instantiate_range_into(buffer, s.begin_vararg_parameters(), s.end_vararg_parameters(), c);
     }
 
-    auto class_variable_signature_instantiator::instantiate_into(internal_buffer         & buffer,
-                                                                 property_signature const& s) const -> void
+    auto signature_instantiator::instantiate_into(internal_buffer& buffer, property_signature const& s, context const& c) -> void
     {
-        core::assert_initialized(*this);
+        core::assert_initialized(s);
+        core::assert_initialized(c);
 
         typedef property_signature::part part;
 
         copy_bytes_into(buffer, s, part::begin, part::type);
-        instantiate_into(buffer, s.type());
-        instantiate_range_into(buffer, s.begin_parameters(), s.end_parameters());
+        instantiate_into(buffer, s.type(), c);
     }
 
-    auto class_variable_signature_instantiator::instantiate_into(internal_buffer      & buffer,
-                                                                 type_signature  const& s) const -> void
+    auto signature_instantiator::instantiate_into(internal_buffer& buffer, type_signature const& s, context const& c) -> void
     {
-        core::assert_initialized(*this);
+        core::assert_initialized(s);
+        core::assert_initialized(c);
 
         typedef type_signature::part part;
 
@@ -1547,46 +1692,46 @@ namespace cxxreflect { namespace metadata {
                 copy_bytes_into(buffer, s, part::begin, part::type_code);
                 buffer.push_back(static_cast<core::byte>(element_type::cross_module_type_reference));
                 copy_bytes_into(buffer, s, part::type_code, part::end);
-                std::copy(core::begin_bytes(_scope.get()),
-                          core::end_bytes(_scope.get()),
-                          std::back_inserter(buffer));
+
+                database const* const scope(&c.arguments().scope());
+                std::copy(core::begin_bytes(scope), core::end_bytes(scope), std::back_inserter(buffer));
             }
             break;
         }
         case type_signature::kind::general_array:
         {
             copy_bytes_into(buffer, s, part::begin, part::general_array_type);
-            instantiate_into(buffer, s.array_type());
+            instantiate_into(buffer, s.array_type(), c);
             copy_bytes_into(buffer, s, part::general_array_shape, part::end);
             break;
         }
         case type_signature::kind::simple_array:
         {
             copy_bytes_into(buffer, s, part::begin, part::simple_array_type);
-            instantiate_into(buffer, s.array_type());
+            instantiate_into(buffer, s.array_type(), c);
             break;
         }
         case type_signature::kind::function_pointer:
         {
             copy_bytes_into(buffer, s, part::begin, part::function_pointer_type);
-            instantiate_into(buffer, s.function_type());
+            instantiate_into(buffer, s.function_type(), c);
             break;
         }
         case type_signature::kind::generic_instance:
         {
             copy_bytes_into(buffer, s, part::begin, part::first_generic_instance_argument);
-            instantiate_range_into(buffer, s.begin_generic_arguments(), s.end_generic_arguments());
+            instantiate_range_into(buffer, s.begin_generic_arguments(), s.end_generic_arguments(), c);
             break;
         }
         case type_signature::kind::pointer:
         {
             copy_bytes_into(buffer, s, part::begin, part::pointer_type);
-            instantiate_into(buffer, s.pointer_type());
+            instantiate_into(buffer, s.pointer_type(), c);
             break;
         }
         case type_signature::kind::variable:
         {
-            if (_arguments.size() == 0)
+            if (c.arguments().size() == 0)
             {
                 // If there are no arguments, this instantiator is still being constructed.  During
                 // construction, we instantiate each of the arguments to normalize all class type
@@ -1598,10 +1743,10 @@ namespace cxxreflect { namespace metadata {
             {
                 core::size_type const variable_number(s.variable_number());
 
-                if (variable_number >= _arguments.size())
+                if (variable_number >= c.arguments().size())
                     throw core::runtime_error(L"variable number out of range");
 
-                copy_bytes_into(buffer, _arguments[variable_number], part::begin, part::end);
+                copy_bytes_into(buffer, c.arguments()[variable_number], part::begin, part::end);
             }
             else if (s.is_method_variable())
             {
@@ -1621,38 +1766,57 @@ namespace cxxreflect { namespace metadata {
     }
 
     template <typename Signature, typename Part>
-    auto class_variable_signature_instantiator::copy_bytes_into(internal_buffer     & buffer,
-                                                                Signature      const& s,
-                                                                Part           const  first,
-                                                                Part           const  last) const -> void
+    auto signature_instantiator::copy_bytes_into(internal_buffer& buffer,
+                                                 Signature const& s,
+                                                 Part      const first,
+                                                 Part      const last) -> void
     {
-        core::assert_initialized(*this);
-
+        core::assert_initialized(s);
+        
         std::copy(s.seek_to(first), s.seek_to(last), std::back_inserter(buffer));
     }
 
     template <typename ForwardIterator>
-    auto class_variable_signature_instantiator::instantiate_range_into(internal_buffer      & buffer,
-                                                                       ForwardIterator const  first,
-                                                                       ForwardIterator const  last) const -> void
+    auto signature_instantiator::instantiate_range_into(internal_buffer      & buffer,
+                                                        ForwardIterator const  first,
+                                                        ForwardIterator const  last,
+                                                        context         const& context) -> void
     {
-        core::assert_initialized(*this);
+        core::assert_initialized(context);
 
-        std::for_each(first, last, [&](decltype(*first) s) { instantiate_into(buffer, s); });
+        std::for_each(first, last, [&](decltype(*first) s) { instantiate_into(buffer, s, context); });
     }
 
-    auto class_variable_signature_instantiator::requires_instantiation_internal(array_shape const& s) -> bool
+    template <typename Signature>
+    auto signature_instantiator::requires_instantiation(Signature const& signature) -> bool
     {
+        return requires_instantiation_internal(signature);
+    }
+
+    template auto signature_instantiator::requires_instantiation(array_shape        const&) -> bool;
+    template auto signature_instantiator::requires_instantiation(field_signature    const&) -> bool;
+    template auto signature_instantiator::requires_instantiation(method_signature   const&) -> bool;
+    template auto signature_instantiator::requires_instantiation(property_signature const&) -> bool;
+    template auto signature_instantiator::requires_instantiation(type_signature     const&) -> bool;
+
+    auto signature_instantiator::requires_instantiation_internal(array_shape const& s) -> bool
+    {
+        core::assert_initialized(s);
+
         return false;
     }
 
-    auto class_variable_signature_instantiator::requires_instantiation_internal(field_signature const& s) -> bool
+    auto signature_instantiator::requires_instantiation_internal(field_signature const& s) -> bool
     {
+        core::assert_initialized(s);
+
         return requires_instantiation_internal(s.type());
     }
 
-    auto class_variable_signature_instantiator::requires_instantiation_internal(method_signature const& s) -> bool
+    auto signature_instantiator::requires_instantiation_internal(method_signature const& s) -> bool
     {
+        core::assert_initialized(s);
+
         if (requires_instantiation_internal(s.return_type()))
             return true;
 
@@ -1665,8 +1829,10 @@ namespace cxxreflect { namespace metadata {
         return false;
     }
 
-    auto class_variable_signature_instantiator::requires_instantiation_internal(property_signature const& s) -> bool
+    auto signature_instantiator::requires_instantiation_internal(property_signature const& s) -> bool
     {
+        core::assert_initialized(s);
+
         if (requires_instantiation_internal(s.type()))
             return true;
 
@@ -1676,8 +1842,10 @@ namespace cxxreflect { namespace metadata {
         return false;
     }
 
-    auto class_variable_signature_instantiator::requires_instantiation_internal(type_signature const& s) -> bool
+    auto signature_instantiator::requires_instantiation_internal(type_signature const& s) -> bool
     {
+        core::assert_initialized(s);
+
         switch (s.get_kind())
         {
         case type_signature::kind::class_type:
@@ -1698,16 +1866,15 @@ namespace cxxreflect { namespace metadata {
             return requires_instantiation_internal(s.pointer_type());
 
         case type_signature::kind::variable:
-            return s.is_class_variable();
+            return s.get_element_type() == element_type::mvar || s.get_element_type() == element_type::var;
 
         default:
-            throw core::logic_error(L"not yet implemented");
+            throw core::logic_error(L"unreachable code");
         }
     }
 
     template <typename ForwardIterator>
-    auto class_variable_signature_instantiator::any_requires_instantiation_internal(ForwardIterator const first,
-                                                                                    ForwardIterator const last) -> bool
+    auto signature_instantiator::any_requires_instantiation_internal(ForwardIterator const first, ForwardIterator const last) -> bool
     {
         return std::any_of(first, last, [&](decltype(*first) s)
         {

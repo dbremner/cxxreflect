@@ -430,7 +430,7 @@ namespace cxxreflect { namespace reflection { namespace detail {
         typedef typename traits_type::signature_type            signature_type;
         typedef typename traits_type::token_type                token_type;
 
-        typedef metadata::class_variable_signature_instantiator instantiator;
+        typedef metadata::signature_instantiator                instantiator_type;
 
         element_context_table_collection(metadata::type_resolver       const* resolver,
                                          element_context_table_storage const* storage);

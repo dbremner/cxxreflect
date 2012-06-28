@@ -33,6 +33,14 @@ namespace cxxreflect { namespace reflection { namespace detail { namespace {
         auto signature()     const -> metadata::blob           { return _signature;                  }
         auto has_signature() const -> bool                     { return _signature.is_initialized(); }
 
+        auto best_match() const -> metadata::type_def_or_signature
+        {
+            if (has_signature())
+                return signature();
+            
+            return type_def();
+        }
+
     private:
 
         metadata::type_def_token _type_def;
@@ -129,47 +137,47 @@ namespace cxxreflect { namespace reflection { namespace detail { namespace {
         return row_from(token.as<metadata::type_spec_token>()).signature();
     }
 
-    auto create_instantiator(metadata::type_def_spec_or_signature const& type)
-        -> metadata::class_variable_signature_instantiator
+    auto create_instantiator_arguments(metadata::database const* const scope,
+                                       metadata::blob            const signature_blob) -> metadata::signature_instantiation_arguments
     {
-        if (!type.is_initialized() || !type.is_blob())
-            return metadata::class_variable_signature_instantiator();
+        if (!signature_blob.is_initialized())
+            return metadata::signature_instantiation_arguments(scope);
 
-        metadata::type_signature const signature(&type.scope(), begin(type.as_blob()), end(type.as_blob()));
+        metadata::type_signature const signature(signature_blob.as<metadata::type_signature>());
 
-        // We are only expecting to get base classes here, so it should be a GenericInst:
+        // We are only expecting to encounter base classes here, so we should have a GenericInst:
         if (signature.get_kind() != metadata::type_signature::kind::generic_instance)
             throw core::runtime_error(L"unexpected type provided for instantiation");
 
-        return metadata::class_variable_signature_instantiator(
-            &type.scope(),
-            signature.begin_generic_arguments(),
-            signature.end_generic_arguments());
+        return metadata::signature_instantiator::create_arguments(signature);
     }
 
-    template <typename Storage, typename Signature, typename Instantiator>
-    auto instantiate(Storage& storage, Signature const& signature, Instantiator const& instantiator)
-        -> core::const_byte_range
-    {
-        core::assert_initialized(signature);
-        core::assert_true([&]{ return Instantiator::requires_instantiation(signature); });
 
-        Signature const& instantiation(instantiator.instantiate(signature));
-        return storage.allocate_signature(instantiation.begin_bytes(), instantiation.end_bytes());
-    }
 
+
+
+    /// Implementation of `element_context_table_collection::get_or_create_table()`
+    ///
+    /// This class builds element tables for types.  We recurse in two passes:  a pre-insertion
+    /// recursion and a post-insertion recursion.
     template <typename ContextTag>
     class recursive_table_builder
     {
     public:
 
         typedef element_context_traits<ContextTag>              traits_type;
-        typedef typename traits_type::token_type                token_type;
-        typedef typename traits_type::signature_type            signature_type;
+        typedef typename traits_type::context_sequence_type     context_sequence_type;
         typedef typename traits_type::context_type              context_type;
+        typedef typename traits_type::row_iterator_type         row_iterator_type;
+        typedef typename traits_type::row_type                  row_type;
+        typedef typename traits_type::signature_type            signature_type;
+        typedef typename traits_type::token_type                token_type;
+        typedef core::array_range<context_type const>           context_table_type;
         typedef element_context_table_collection<ContextTag>    collection_type;
-        typedef metadata::class_variable_signature_instantiator instantiator_type;
+        typedef metadata::signature_instantiator                instantiator_type;
+        typedef metadata::signature_instantiation_arguments     instantiator_arguments_type;
         typedef element_context_table_storage::storage_lock     storage_type;
+
 
         recursive_table_builder(metadata::type_resolver const* const resolver,
                                 collection_type         const* const collection,
@@ -181,35 +189,251 @@ namespace cxxreflect { namespace reflection { namespace detail { namespace {
             core::assert_not_null(storage);
         }
 
+        auto get_or_create_table(metadata::type_def_or_signature const& type) const -> context_table_type
+        {
+            core::assert_initialized(type);
+            
+            // First handle the 'get' of the 'get or create':
+            auto const result(_storage->find_table<ContextTag>(type));
+            if (result.first)
+                return result.second;
+
+            // Ok, we haven't created a table yet; let's create a new one:
+
+            // Ok, we haven't created a table yet; let's create a new one.  First, resolve the type
+            // definition and signature; if the type has no definition (e.g., it is a ByRef type)
+            // then it has no elements, so we can allocate an empty table and return it:
+            type_def_and_signature const def_and_sig(resolve_type_def_and_signature(*_resolver, type));
+            if (!def_and_sig.has_type_def())
+            {
+                return _storage->allocate_table<ContextTag>(type, nullptr, nullptr);
+            }
+
+            // Otherwise, we have a definition, so let's build the table for it and return it:
+            return create_table(def_and_sig);
+        }
+
+    private:
+
+        static auto get_method_instantiation_source(metadata::method_def_token const& token) -> metadata::method_def_token
+        {
+            if (!token.is_initialized())
+                return metadata::method_def_token();
+
+            if (!has_generic_params(token))
+                return metadata::method_def_token();
+
+            return token;
+        }
+
+        template <typename Token>
+        static auto get_method_instantiation_source(Token const&) -> metadata::method_def_token
+        {
+            return metadata::method_def_token();
+        }
+
+        static auto get_type_instantiation_source(metadata::type_def_token const& token) -> metadata::type_def_token
+        {
+            if (!token.is_initialized())
+                return metadata::type_def_token();
+
+            if (!has_generic_params(token))
+                return metadata::type_def_token();
+
+            return token;
+        }
+
+        /// Tests whether a type or method has generic parameters
+        static auto has_generic_params(metadata::type_or_method_def_token const& token) -> bool
+        {
+            core::assert_initialized(token);
+
+            metadata::generic_param_row_iterator_pair const parameters(metadata::find_generic_params_range(token));
+            return parameters.first != parameters.second;
+        }
+
+        /// Entry point for the recursive table creation process
+        ///
+        /// This is called by `get_or_create_table` when a new table needs to be created.
+        auto create_table(type_def_and_signature const& type) const -> context_table_type
+        {
+            core::assert_true([&]{ return type.has_type_def(); });
+
+            // We'll use different instantiators throughout the table creation process, but the
+            // instantiator arguments are always the same.  They are also potentially expensive to
+            // construct, so we'll construct them once here:
+            auto const instantiator_arguments(create_instantiator_arguments(&type.type_def().scope(), type.signature()));
+
+            // To start off, we get the instantiated contexts from the base class.  This process
+            // recurses until it reaches the root type (Object) then iteratively builds the table as
+            // it works its way down the hierarchy to the current type's base.
+            //
+            // We enumerate the inherited elements first so that we can correctly emulate overriding
+            // and hiding, similar to what is done during reflection on a class at runtime.
+            context_sequence_type new_table(get_or_create_table_with_base_elements(type, instantiator_arguments));
+
+            core::size_type const inherited_element_count(core::convert_integer(new_table.size()));
+
+            // Next, we enumerate the elements defined by 'type' itself, and insert them into the
+            // table.  Due to overriding and hiding, these may not create new elements inthe table;
+            // each may replace an element that was already present in the table.
+            row_iterator_type const first_element(traits_type::begin_elements(type.type_def()));
+            row_iterator_type const last_element (traits_type::end_elements  (type.type_def()));
+
+            // The method instantiation source will be different for each element if we are 
+            // instantiating methods, so we'll create a new instantiator for each element.  We only
+            // have one type instantiation source, though, so we hoist it out of the loop:
+            metadata::type_def_token const type_instantiation_source(get_type_instantiation_source(type.type_def()));
+
+            std::for_each(first_element, last_element, [&](row_type const& element_row)
+            {
+                // Create the instantiator with the current type and method instantiation contexts:
+                instantiator_type const instantiator(
+                    &instantiator_arguments,
+                    type_instantiation_source,
+                    get_method_instantiation_source(element_row.token()));
+
+                // Create the new context, insert it into the table, and perform post-recurse:
+                context_type const new_context(create_element(element_row.token(), type, instantiator));
+
+                traits_type::insert_element(*_resolver, new_table, new_context, inherited_element_count);
+
+                post_insertion_recurse_with_context(new_context, new_table, inherited_element_count);
+            });
+
+            return _storage->allocate_table<ContextTag>(type.best_match(), new_table.data(), new_table.data() + new_table.size());
+        }
+
+        /// Gets a context sequence containing the elements inherited from the type's base type
+        ///
+        /// The `type` is the source type, not the base type.  Its base type will be located and its
+        /// table will be obtained.  The elements in the table will be instantiated with the generic
+        /// arguments provided by `instantiator_arguments`, if there are any.  This table is then
+        /// returned.
+        ///
+        /// The returned table is always a new sequence that is cloned from the base type's table.
+        /// If `type` has no base type or if its base type has no elements, an empty sequence is
+        /// returned.
+        auto get_or_create_table_with_base_elements(type_def_and_signature      const& type,
+                                                    instantiator_arguments_type const& instantiator_arguments) const
+            -> context_sequence_type
+        {
+            core::assert_true([&]{ return type.has_type_def(); });
+
+            // The root type (Object) and interface types do not have a base type.  If the type does
+            // not have a base type, we just return an empty sequence:
+            metadata::type_def_ref_spec_token const base_token(row_from(type.type_def()).extends());
+            if (!base_token.is_initialized())
+                return context_sequence_type();
+
+            // Resolve the base type and get (or create!) its element table.  This will recurse
+            // until we reach the root type (Object) or a type whose table has already been built:
+            context_table_type const base_table(get_or_create_table(get_type_def_or_signature(_resolver->resolve_type(base_token))));
+            if (base_table.empty())
+                return context_sequence_type();
+
+            // Now that we have the element table for the base class, we must instantiate each of
+            // its elements to replace any generic type variables with the arguments provided by our
+            // caller.  Note that we need only to instantiate generic type variables.  We do not
+            // originate any new element contexts here, so we do not need to annotate any generic
+            // type variables.  Therefore, we do not provide the instantiator with type or method
+            // sources.
+            instantiator_type const instantiator(&instantiator_arguments);
+
+            context_sequence_type new_table;
+            new_table.reserve(base_table.size());
+
+            std::transform(begin(base_table), end(base_table), std::back_inserter(new_table), [&](context_type const& c) -> context_type
+            {
+                auto const signature(c.element_signature(*_resolver));
+                if (!signature.is_initialized() || !instantiator.would_instantiate(signature))
+                    return c;
+
+                return context_type(c.element(), type.signature(), instantiate(signature, instantiator));
+            });
+
+            return new_table;
+        }
+
+        /// Performs the post-insertion recursion for interface contexts
+        ///
+        /// We only need to perform post-insertion recursion for interface contexts.  For all other
+        /// context types, no post-insertion recursion is required.  There is a function template 
+        /// defined below that no-ops the rest of the context types.
+        ///
+        /// The post-insertion recursion allows us to walk the entire tree of interface
+        /// implementations.  An interface can also implement N other interfaces, so walking the
+        /// base class hierarchy is insufficient for interface classes.
+        auto post_insertion_recurse_with_context(interface_context const& context,
+                                                 context_sequence_type  & table,
+                                                 core::size_type   const  inherited_element_count) const -> void
+        {
+            metadata::type_def_ref_spec_token const interface_token(context.element_row().interface());
+
+            type_def_and_signature const interface_type(resolve_type_def_and_signature(*_resolver, interface_token));
+
+            auto const instantiator_arguments(create_instantiator_arguments(
+                &interface_type.type_def().scope(),
+                interface_type.signature()));
+
+            auto const interface_table(get_or_create_table(interface_type.best_match()));
+
+            std::for_each(begin(interface_table), end(interface_table), [&](interface_context new_context)
+            {
+                instantiator_type const instantiator(
+                    &instantiator_arguments,
+                    get_type_instantiation_source(interface_type.type_def()));
+
+                signature_type const signature(new_context.element_signature(*_resolver));
+                if (signature.is_initialized() && instantiator.would_instantiate(signature))
+                    new_context = create_element(
+                        new_context.element(),
+                        resolve_type_def_and_signature(*_resolver, new_context.element_row().parent()),
+                        instantiator);
+
+                traits_type::insert_element(*_resolver, table, new_context, inherited_element_count);
+                post_insertion_recurse_with_context(new_context, table, inherited_element_count);
+            });
+        }
+
+        template <typename ContextType>
+        auto post_insertion_recurse_with_context(ContextType const&, context_sequence_type&, core::size_type) const -> void
+        {
+            // Catch-all for nonrecursive element type
+        }
+
+        /// Creates an element for insertion into a table
+        ///
+        /// The `token` identifies the element to be inserted.  This function ge
         auto create_element(token_type             const& token,
                             type_def_and_signature const& instantiating_type,
-                            instantiator_type      const& instantiator) -> context_type
+                            instantiator_type      const& instantiator) const -> context_type
         {
-            metadata::blob const signature_blob(traits_type::get_signature(*_resolver.get()));
+            metadata::blob const signature_blob(traits_type::get_signature(*_resolver, token));
             if (!signature_blob.is_initialized())
                 return context_type(token);
 
             signature_type const signature(signature_blob.as<signature_type>());
 
-            bool const requires_instantiation(instantiator.has_arguments() && instantiator_type::requires_instantiation(signature));
-            if (requires_instantiation)
-            {
-                return context_type(
-                    token,
-                    instantiating_type.signature(),
-                    instantiate(*_storage.get(), signature, instantiator));
-            }
-            else
-            {
+            if (!instantiator.would_instantiate(signature))
                 return context_type(token);
-            }
+
+            return context_type(token, instantiating_type.best_match(), instantiate(signature, instantiator));
         }
 
-    private:
+        template <typename Signature>
+        auto instantiate(Signature const& signature, instantiator_type const& instantiator) const -> core::const_byte_range
+        {
+            core::assert_initialized(signature);
+            core::assert_true([&]{ return instantiator.would_instantiate(signature); });
 
-        core::value_initialized<metadata::type_resolver const*> _resolver;
-        core::value_initialized<collection_type const*>         _collection;
-        core::value_initialized<storage_type const*>            _storage;
+            Signature const& instantiation(instantiator.instantiate(signature));
+            return _storage->allocate_signature(instantiation.begin_bytes(), instantiation.end_bytes());
+        }
+
+        core::checked_pointer<metadata::type_resolver const> _resolver;
+        core::checked_pointer<collection_type const>         _collection;
+        core::checked_pointer<storage_type const>            mutable _storage;
     };
 
     template <typename ContextTag>
@@ -220,101 +444,6 @@ namespace cxxreflect { namespace reflection { namespace detail { namespace {
     {
         return element_context_table_collection<ContextTag>(resolver, collection, storage);
     }
-
-    // This recursive element inserter creates elements using the TCreateElement functor, inserts
-    // them into a buffer using the TInsertElement functor, then finally recurses, getting the next
-    // set of elements to be processed from the element that was just processed.  We do not recurse
-    // for all element types (for the moment, we only recurse for InterfaceContexts).
-    template <typename Traits, typename Collection, typename Instantiator, typename CreateElement, typename InsertElement>
-    class recursive_element_inserter
-    {
-    public:
-
-        recursive_element_inserter(metadata::type_resolver const* const resolver,
-                                   Collection              const* const collection,
-                                   Instantiator            const* const instantiator,
-                                   CreateElement                  const create,
-                                   InsertElement                  const insert)
-            : _resolver(resolver), _collection(collection), _instantiator(instantiator), _create(create), _insert(insert)
-        {
-        }
-
-        template <typename T>
-        auto operator()(T const& x) -> void
-        {
-            context_type const new_context(_create(x.token(), *_instantiator.get()));
-            _insert(new_context);
-
-            recurse(new_context);
-        }
-
-    private:
-
-        typedef typename Traits::context_type context_type;
-
-        // This type is copy constructable but not assignable because the TCreateElement and
-        // TInsertElement types are likely to be non-assignable lambda types.  This is kind of ugly.
-        auto operator=(recursive_element_inserter const&) -> recursive_element_inserter&;
-
-        // By default, we don't actually recurse.  We provide nontemplate overloads for the context
-        // types for which we are going to recurse.
-        template <typename T>
-        void recurse(T const&)
-        {
-        }
-
-        // For an interface element, we get the interface type and enumerate all of the interfaces
-        // that it implements.
-        void recurse(interface_context const& context)
-        {
-            metadata::type_def_ref_spec_token const if_token(context.element_row().interface());
-
-            type_def_and_signature const def_and_sig(resolve_type_def_and_signature(*_resolver.get(), if_token));
-
-            metadata::class_variable_signature_instantiator const sig_instantiator(create_instantiator(def_and_sig.signature()));
-
-            auto const table(_collection.get()->get_or_create_table(def_and_sig.has_signature()
-                ? metadata::type_def_or_signature(def_and_sig.signature())
-                : metadata::type_def_or_signature(def_and_sig.type_def())));
-
-            std::for_each(begin(table), end(table), [&](interface_context const& c)
-            {
-                if (sig_instantiator.has_arguments() &&
-                    c.element_signature(*_resolver.get()).is_initialized() &&
-                    metadata::class_variable_signature_instantiator::requires_instantiation(c.element_signature(*_resolver.get())))
-                {
-                    auto const ex(_create(c.element(), sig_instantiator));
-
-                    _insert(ex);
-                    recurse(ex);
-                }
-                else
-                {
-                    _insert(c);
-                    recurse(c);
-                }
-            });
-        }
-
-        core::value_initialized<metadata::type_resolver const*> _resolver;
-        core::value_initialized<Collection const*>              _collection;
-        core::value_initialized<Instantiator const*>            _instantiator;
-        CreateElement _create;
-        InsertElement _insert;
-    };
-
-    template <typename Traits, typename Collection, typename Instantiator, typename CreateElement, typename InsertElement>
-    recursive_element_inserter<Traits, Collection, Instantiator, CreateElement, InsertElement>
-    create_recursive_element_inserter(metadata::type_resolver const* const resolver,
-                                      Collection              const* const collection,
-                                      Instantiator            const* const instantiator,
-                                      CreateElement                  const create,
-                                      InsertElement                  const insert)
-    {
-        return recursive_element_inserter<Traits, Collection, Instantiator, CreateElement, InsertElement>(resolver, collection, instantiator, create, insert);
-    }
-
-    
 
 } } } }
 
@@ -824,8 +953,8 @@ namespace cxxreflect { namespace reflection { namespace detail {
     }
 
     template <typename ContextTag>
-    auto element_context_table_collection<ContextTag>::operator=(
-        element_context_table_collection&& other) -> element_context_table_collection&
+    auto element_context_table_collection<ContextTag>::operator=(element_context_table_collection&& other)
+        -> element_context_table_collection&
     {
         core::assert_initialized(other);
 
@@ -839,8 +968,8 @@ namespace cxxreflect { namespace reflection { namespace detail {
     }
 
     template <typename ContextTag>
-    auto element_context_table_collection<ContextTag>::get_or_create_table(
-        metadata::type_def_or_signature const& type) const -> context_table_type
+    auto element_context_table_collection<ContextTag>::get_or_create_table(metadata::type_def_or_signature const& type) const
+        -> context_table_type
     {
         core::assert_initialized(*this);
 
@@ -849,98 +978,9 @@ namespace cxxreflect { namespace reflection { namespace detail {
         // that this lock will be contentious.
         auto const storage(_storage.get()->lock());
 
-        // First, handle the "get" of "get or create."  If we already created a table, return it:
-        auto const result(storage.find_table<ContextTag>(type));
-        if (result.first)
-            return result.second;
+        recursive_table_builder<ContextTag> const builder(_resolver.get(), this, &storage);
 
-        // Ok, we haven't yet created a table, so let's create a new one:
-        typename traits_type::context_sequence_type new_table;
-
-        // Compute and split the type definition and signature:  if we don't have a definition, then
-        // there are no elements for this type, so we record that and return the result:
-        type_def_and_signature const def_and_sig(resolve_type_def_and_signature(*_resolver.get(), type));
-        if (!def_and_sig.has_type_def())
-        {
-            return storage.allocate_table<ContextTag>(type, new_table.data(), new_table.data() + new_table.size());
-        }
-
-        metadata::type_def_token const td_token(def_and_sig.type_def());
-        metadata::type_def_row   const td_row(row_from(td_token));
-        metadata::type_signature const td_sig(def_and_sig.has_signature()
-            ? def_and_sig.signature().as<metadata::type_signature>()
-            : metadata::type_signature());
-
-        instantiator const sig_instantiator(create_instantiator(def_and_sig.signature()));
-
-        // First, recursively handle the base type hierarchy so that inherited members are emplaced
-        // into the table first; this allows us to emulate runtime overriding and hiding behaviors.
-        metadata::type_def_ref_spec_token const td_base(td_row.extends());
-        if (td_base.is_initialized())
-        {
-            context_table_type const base_table(get_or_create_table(get_type_def_or_signature(_resolver.get()->resolve_type(td_base))));
-
-            std::transform(begin(base_table), end(base_table), std::back_inserter(new_table), [&](context_type const& e) -> context_type
-            {
-                if (!sig_instantiator.has_arguments())
-                    return e;
-
-                auto const e_sig(e.element_signature(*_resolver.get()));
-                if (!e_sig.is_initialized() || !instantiator::requires_instantiation(e_sig))
-                    return e;
-
-                return context_type(
-                    e.element(),
-                    e.instantiating_type(),
-                    instantiate(storage, e_sig, sig_instantiator));
-            });
-        }
-
-        core::size_type const inherited_element_count(core::convert_integer(new_table.size()));
-
-        auto const create_element([&](token_type const& element_token, instantiator const& sig_instantiator) -> context_type
-        {
-            metadata::blob const element_sig_ref(traits_type::get_signature(*_resolver.get(), element_token));
-
-            if (!element_sig_ref.is_initialized())
-                return context_type(element_token);
-
-            signature_type const element_sig(element_sig_ref.as<signature_type>());
-
-            bool const requires_instantiation(
-                sig_instantiator.has_arguments() &&
-                instantiator::requires_instantiation(element_sig));
-
-            core::const_byte_range const instantiated_sig(requires_instantiation
-                ? instantiate(storage, element_sig, sig_instantiator)
-                : core::const_byte_range(element_sig.begin_bytes(), element_sig.end_bytes()));
-
-            return requires_instantiation
-                ? context_type(element_token, metadata::blob(td_sig), instantiated_sig)
-                : context_type(element_token);
-        });
-
-        auto const insert_into_buffer([&](context_type const& element) -> void
-        {
-            traits_type::insert_element(*_resolver.get(), new_table, element, inherited_element_count);
-        });
-
-        // Second, enumerate the elements declared by this type itself (i.e., not inherited) and
-        // insert them into the buffer in the correct location.
-        row_iterator_type const first_element(traits_type::begin_elements(td_token));
-        row_iterator_type const last_element (traits_type::end_elements  (td_token));
-
-        // TODO This function has become a disaster. :'(
-        auto const recursive_inserter(create_recursive_element_inserter<traits_type>(
-            _resolver.get(),
-            this,
-            &sig_instantiator,
-            create_element,
-            insert_into_buffer));
-
-        std::for_each(first_element, last_element, recursive_inserter);
-        
-        return storage.allocate_table<ContextTag>(type, new_table.data(), new_table.data() + new_table.size());
+        return builder.get_or_create_table(type);
     }
 
     template <typename ContextTag>

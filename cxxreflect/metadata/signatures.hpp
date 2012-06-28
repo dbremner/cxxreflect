@@ -673,48 +673,61 @@ namespace cxxreflect { namespace metadata {
 
 
 
-    /// A function object that decomposes signatures and replaces generic class variables
-    ///
-    /// Method variables are left unreplaced.
-    class class_variable_signature_instantiator
+    class signature_instantiation_arguments
     {
     public:
 
-        class_variable_signature_instantiator();
+        typedef std::vector<type_signature>     argument_sequence;
+        typedef std::vector<core::byte>         argument_signature;
+        typedef std::vector<argument_signature> argument_signature_sequence;
 
-        template <typename ForwardIterator>
-        class_variable_signature_instantiator(database const* const scope,
-                                              ForwardIterator const first_argument,
-                                              ForwardIterator const last_argument)
-            : _scope(scope)
-        {
-            core::assert_not_null(scope);
+        signature_instantiation_arguments();
 
-            // We must instantiate each of the arguments to convert class-type signatures into
-            // cross-module type reference signatures (this ensures that during later instantiations
-            // all of the arguments are ready for instantiation).  We reuse this instantiator to
-            // perform this instantiation.  We do it _before_ we set the arguments to keep everything
-            // correct.
-            type_signature_sequence arguments;
-            std::transform(first_argument, last_argument, std::back_inserter(arguments),
-                           [&](type_signature const& s) -> type_signature
-            {
-                this->_argument_signatures.resize(this->_argument_signatures.size() + 1);
-                instantiate_into(this->_argument_signatures.back(), s);
-                return type_signature(
-                    scope,
-                    &*_argument_signatures.back().begin(),
-                    &*_argument_signatures.back().begin() + _argument_signatures.back().size());
-            });
+        explicit signature_instantiation_arguments(database const* scope);
 
-            _arguments = std::move(arguments);
-        }
+        signature_instantiation_arguments(database const*               scope,
+                                          argument_sequence&&           arguments,
+                                          argument_signature_sequence&& signatures);
 
-        class_variable_signature_instantiator(class_variable_signature_instantiator&&);
-        auto operator=(class_variable_signature_instantiator&&) -> class_variable_signature_instantiator&;
+        signature_instantiation_arguments(signature_instantiation_arguments&& other);
+
+        auto operator=(signature_instantiation_arguments&& other) -> signature_instantiation_arguments&;
+
+        auto scope() const -> database const&;
+
+        auto operator[](core::size_type n) const -> type_signature;
+
+        auto size() const -> core::size_type;
 
         auto is_initialized() const -> bool;
-        auto has_arguments() const -> bool;
+
+    private:
+
+        signature_instantiation_arguments(signature_instantiation_arguments const&);
+        auto operator=(signature_instantiation_arguments const&) -> void;
+
+        core::checked_pointer<database const> _scope;
+        argument_sequence                     _arguments;
+        argument_signature_sequence           _signatures;
+    };
+
+
+
+
+
+    class signature_instantiator
+    {
+    public:
+
+        typedef signature_instantiation_arguments arguments_type;
+
+        signature_instantiator(arguments_type const* arguments);
+        signature_instantiator(arguments_type const* arguments, type_def_token);
+        signature_instantiator(arguments_type const* arguments, method_def_token);
+        signature_instantiator(arguments_type const* arguments, type_def_token, method_def_token);
+
+        template <typename Signature>
+        auto would_instantiate(Signature const& signature) const -> bool;
 
         // Instantiates 'signature' by replacing each generic class variables in it with the
         // corresponding generic argument provided in the constructor of this functor.  The returned
@@ -723,27 +736,56 @@ namespace cxxreflect { namespace metadata {
         template <typename Signature>
         auto instantiate(Signature const& signature) const -> Signature;
 
-        // Determines whether 'signature' has any generic class variables in it (and thus whether a
-        // call to Instantiate() would yield a different signature).
+        auto is_initialized() const -> bool;
+
+        static auto create_arguments(type_signature const& type) -> arguments_type;
+
         template <typename Signature>
         static auto requires_instantiation(Signature const& signature) -> bool;
 
     private:
 
-        typedef std::vector<type_signature> type_signature_sequence;
-        typedef std::vector<core::byte>     internal_buffer;
+        typedef core::checked_pointer<arguments_type const> arguments_pointer;
+        typedef std::vector<core::byte>                     internal_buffer;
 
-        auto instantiate_into(internal_buffer& buffer, array_shape        const& s) const -> void;
-        auto instantiate_into(internal_buffer& buffer, field_signature    const& s) const -> void;
-        auto instantiate_into(internal_buffer& buffer, method_signature   const& s) const -> void;
-        auto instantiate_into(internal_buffer& buffer, property_signature const& s) const -> void;
-        auto instantiate_into(internal_buffer& buffer, type_signature     const& s) const -> void;
+        class context
+        {
+        public:
+
+            context();
+
+            context(arguments_type const* arguments, type_def_token type_source, method_def_token method_source);
+
+            auto arguments()     const -> arguments_type const&;
+            auto type_source()   const -> type_def_token const&;
+            auto method_source() const -> method_def_token const&;
+
+            auto is_initialized() const -> bool;
+
+        private:
+
+            arguments_pointer _arguments;
+            type_def_token    _type_source;
+            method_def_token  _method_source;
+        };
+
+        signature_instantiator(signature_instantiator const&);
+        auto operator=(signature_instantiator const&) -> void;
+
+        static auto instantiate_into(internal_buffer& buffer, array_shape        const& s, context const& c) -> void;
+        static auto instantiate_into(internal_buffer& buffer, field_signature    const& s, context const& c) -> void;
+        static auto instantiate_into(internal_buffer& buffer, method_signature   const& s, context const& c) -> void;
+        static auto instantiate_into(internal_buffer& buffer, property_signature const& s, context const& c) -> void;
+        static auto instantiate_into(internal_buffer& buffer, type_signature     const& s, context const& c) -> void;
 
         template <typename Signature, typename Part>
-        auto copy_bytes_into(internal_buffer& buffer, Signature const& s, Part first, Part last) const -> void;
+        static auto copy_bytes_into(internal_buffer& buffer, Signature const& s, Part first, Part last) -> void;
 
         template <typename ForwardIterator>
-        auto instantiate_range_into(internal_buffer& buffer, ForwardIterator first, ForwardIterator last) const -> void;
+        static auto instantiate_range_into(internal_buffer& buffer,
+                                           ForwardIterator  first,
+                                           ForwardIterator  last,
+                                           context const&   arguments) -> void;
 
         static auto requires_instantiation_internal(array_shape        const& s) -> bool;
         static auto requires_instantiation_internal(field_signature    const& s) -> bool;
@@ -754,10 +796,8 @@ namespace cxxreflect { namespace metadata {
         template <typename ForwardIterator>
         static auto any_requires_instantiation_internal(ForwardIterator first, ForwardIterator last) -> bool;
 
-        internal_buffer                           mutable _buffer;
-        type_signature_sequence                           _arguments;
-        std::vector<internal_buffer>                      _argument_signatures;
-        core::value_initialized<database const*>          _scope;
+        context                 _context;
+        internal_buffer mutable _buffer;
     };
 
 

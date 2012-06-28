@@ -75,10 +75,8 @@ namespace cxxreflect { namespace reflection { namespace detail {
 
         metadata::type_signature const signature(t.get_type_spec_signature());
 
-        typedef metadata::class_variable_signature_instantiator instantiator;
-
         // A TypeSpec for an uninstantiated generic type has no name:
-        if (m != mode::simple_name && instantiator::requires_instantiation(signature))
+        if (m != mode::simple_name && metadata::signature_instantiator::requires_instantiation(signature))
             return false;
 
         switch (signature.get_kind())

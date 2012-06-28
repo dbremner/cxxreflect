@@ -234,6 +234,71 @@ namespace cxxreflect { namespace core {
 
 
 
+    /// A checked pointer wrapper that throws `logic_error` if it is dereferenced when nullptr
+    ///
+    /// Similar to `value_initialized<T>`, `checked_pointer<T>` always initializes its value, so it
+    /// may be safely used as the type of a data member in a class.
+    template <typename T>
+    class checked_pointer
+    {
+    public:
+
+        typedef T        value_type;
+        typedef T &      reference;
+        typedef T const& const_reference;
+        typedef T *      pointer;
+        typedef T const* const_pointer;
+
+        checked_pointer()
+            : _value()
+        {
+        }
+
+        explicit checked_pointer(pointer const value)
+            : _value(value)
+        {
+        }
+
+        auto operator*() -> reference
+        {
+            assert_not_null(_value);
+            return *_value;
+        }
+
+        auto operator*() const -> const_reference
+        {
+            assert_not_null(_value);
+            return *_value;
+        }
+
+        auto operator->() -> pointer
+        {
+            assert_not_null(_value);
+            return _value;
+        }
+
+        auto operator->() const -> const_pointer
+        {
+            assert_not_null(_value);
+            return _value;
+        }
+
+        auto get()       -> pointer&       { return _value; }
+        auto get() const -> const_pointer  { return _value; }
+        
+        auto reset() -> void { _value = nullptr; }
+
+        auto is_initialized() const -> bool { return _value != nullptr; }
+
+    private:
+
+        pointer _value;
+    };
+
+
+
+
+
     typedef std::array<byte, 20> sha1_hash;
 
     /// Computes the SHA1 hash of the bytes in the range `[first, last)`
