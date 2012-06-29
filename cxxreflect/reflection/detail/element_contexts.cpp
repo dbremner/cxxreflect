@@ -176,21 +176,21 @@ namespace cxxreflect { namespace reflection { namespace detail { namespace {
     /// The signature must be a `generic_instance` type signature; if it is not, the metadata is
     /// invalid.
     auto create_instantiator_arguments(metadata::database const* const scope,
-                                       metadata::blob            const signature_blob) -> metadata::signature_instantiation_arguments
+                                       type_def_and_signature    const type) -> metadata::signature_instantiation_arguments
     {
         core::assert_not_null(scope);
-        core::assert_true([&]{ return !signature_blob.is_initialized() || scope == &signature_blob.scope(); });
+        core::assert_true([&]{ return !type.has_signature() || scope == &type.signature().scope(); });
 
-        if (!signature_blob.is_initialized())
+        if (!type.has_signature())
             return metadata::signature_instantiation_arguments(scope);
 
-        metadata::type_signature const signature(signature_blob.as<metadata::type_signature>());
+        metadata::type_signature const signature(type.signature().as<metadata::type_signature>());
 
         // We are only expecting to encounter base classes here, so we should have a GenericInst:
         if (signature.get_kind() != metadata::type_signature::kind::generic_instance)
             throw core::runtime_error(L"unexpected type provided for instantiation");
 
-        return metadata::signature_instantiator::create_arguments(signature);
+        return metadata::signature_instantiator::create_arguments(signature, type.type_def());
     }
 
 
@@ -274,7 +274,7 @@ namespace cxxreflect { namespace reflection { namespace detail { namespace {
             // We'll use different instantiators throughout the table creation process, but the
             // instantiator arguments are always the same.  They are also potentially expensive to
             // construct, so we'll construct them once here:
-            auto const instantiator_arguments(create_instantiator_arguments(&type.type_def().scope(), type.signature()));
+            auto const instantiator_arguments(create_instantiator_arguments(&type.type_def().scope(), type));
 
             // To start off, we get the instantiated contexts from the base class.  This process
             // recurses until it reaches the root type (Object) then iteratively builds the table as
@@ -386,7 +386,7 @@ namespace cxxreflect { namespace reflection { namespace detail { namespace {
 
             auto const instantiator_arguments(create_instantiator_arguments(
                 &interface_type.type_def().scope(),
-                interface_type.signature()));
+                interface_type));
 
             auto const interface_table(get_or_create_table(interface_type.best_match()));
 

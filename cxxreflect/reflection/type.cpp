@@ -288,6 +288,15 @@ namespace cxxreflect { namespace reflection {
 
         bool const is_nested_type(detail::resolve_type_def_and_call(_type, &detail::type_policy::is_nested));
 
+        if (is_type_spec() && get_type_spec_signature().is_method_variable())
+        {
+            return core::string_reference::from_literal(L"System");
+        }
+        else if (is_type_spec() && get_type_spec_signature().is_class_variable())
+        {
+            return declaring_type().namespace_name();
+        }
+
         // TODO How do we need to handle nested-nested types?
         return resolve_type_def_and_call([=](type const& t)
         {

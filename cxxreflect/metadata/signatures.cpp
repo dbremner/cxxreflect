@@ -1136,13 +1136,15 @@ namespace cxxreflect { namespace metadata {
     auto type_signature::is_class_variable() const -> bool
     {
         core::assert_initialized(*this);
-        return get_element_type() == element_type::var;
+        element_type const type_code(get_element_type());
+        return type_code == element_type::var || type_code == element_type::annotated_var;
     }
 
     auto type_signature::is_method_variable() const -> bool
     {
         core::assert_initialized(*this);
-        return get_element_type() == element_type::mvar;
+        element_type const type_code(get_element_type());
+        return type_code == element_type::mvar || type_code == element_type::annotated_mvar;
     }
 
     auto type_signature::variable_number() const -> core::size_type
@@ -1548,7 +1550,7 @@ namespace cxxreflect { namespace metadata {
         return _context.is_initialized();
     }
 
-    auto signature_instantiator::create_arguments(type_signature  const& type) -> signature_instantiation_arguments
+    auto signature_instantiator::create_arguments(type_signature const& type, type_def_token type_source) -> signature_instantiation_arguments
     {
         core::assert_initialized(type);
 
@@ -1559,7 +1561,7 @@ namespace cxxreflect { namespace metadata {
         arguments_type::argument_signature_sequence signatures;
 
         arguments_type const empty_arguments(&type.scope());
-        context        const empty_context(&empty_arguments, type_def_token(), method_def_token());
+        context        const empty_context(&empty_arguments, type_source, method_def_token());
 
         std::transform(type.begin_generic_arguments(),
                        type.end_generic_arguments(),
@@ -1731,6 +1733,68 @@ namespace cxxreflect { namespace metadata {
         }
         case type_signature::kind::variable:
         {
+            element_type const type_code(s.get_element_type());
+
+            auto const insert_variable_source([&](type_or_method_def_token const& source)
+            {
+                   core::size_type const token(source.value());
+                   database const* const scope(&source.scope());
+
+                   buffer.insert(buffer.end(), core::begin_bytes(token), core::end_bytes(token));
+                   buffer.insert(buffer.end(), core::begin_bytes(scope), core::end_bytes(scope));
+            });
+
+            if (type_code == element_type::mvar)
+            {
+                core::assert_true([&]{ return c.method_source().is_initialized(); });
+
+                copy_bytes_into(buffer, s, part::begin, part::type_code);
+                buffer.push_back(static_cast<core::byte>(element_type::annotated_mvar));
+                copy_bytes_into(buffer, s, part::variable_number, part::end);
+                insert_variable_source(c.method_source());
+            }
+            else if (type_code == element_type::annotated_mvar)
+            {
+                copy_bytes_into(buffer, s, part::begin, part::end);
+            }
+            else if (type_code == element_type::var || type_code == element_type::annotated_var)
+            {
+                if (c.arguments().size() == 0)
+                {
+                    if (type_code == element_type::var)
+                    {
+                        core::assert_true([&]{ return c.type_source().is_initialized(); });
+
+                        copy_bytes_into(buffer, s, part::begin, part::type_code);
+                        buffer.push_back(static_cast<core::byte>(element_type::annotated_var));
+                        copy_bytes_into(buffer, s, part::variable_number, part::end);
+                        insert_variable_source(c.type_source());
+                    }
+                    else if (type_code == element_type::annotated_var)
+                    {
+                        copy_bytes_into(buffer, s, part::begin, part::end);
+                    }
+                    else
+                    {
+                        core::assert_fail(L"unreachable code");
+                    }
+                }
+                else
+                {
+                    // Otherwise, we have arguments, so we instantiate!
+                    core::size_type const variable_number(s.variable_number());
+
+                    if (variable_number >= c.arguments().size())
+                        throw core::runtime_error(L"variable number out of range");
+
+                    copy_bytes_into(buffer, c.arguments()[variable_number], part::begin, part::end);
+                }
+            }
+            else
+            {
+                core::assert_fail(L"unreachable code");
+            }
+            /*
             if (c.arguments().size() == 0)
             {
                 // If there are no arguments, this instantiator is still being constructed.  During
@@ -1756,6 +1820,7 @@ namespace cxxreflect { namespace metadata {
             {
                 throw core::runtime_error(L"unknown variable type");
             }
+            */
             break;
         }
         default:

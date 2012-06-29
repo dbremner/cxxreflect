@@ -82,7 +82,7 @@ namespace cxxreflect { namespace reflection { namespace detail {
         switch (signature.get_kind())
         {
         case metadata::type_signature::kind::class_type:       return accumulate_class_type_spec_name           (t, m);
-        case metadata::type_signature::kind::function_pointer: return accumulate_method_signature_spec_name(t, m);
+        case metadata::type_signature::kind::function_pointer: return accumulate_method_signature_spec_name     (t, m);
         case metadata::type_signature::kind::general_array:    return accumulate_general_array_type_spec_name   (t, m);
         case metadata::type_signature::kind::generic_instance: return accumulate_generic_instance_type_spec_name(t, m);
         case metadata::type_signature::kind::pointer:          return accumulate_pointer_type_spec_name         (t, m);
@@ -274,13 +274,39 @@ namespace cxxreflect { namespace reflection { namespace detail {
         return true;
     }
 
-    auto type_name_builder::accumulate_variable_type_spec_name(type const& t, mode) -> bool
+    auto type_name_builder::accumulate_variable_type_spec_name(type const& t, mode const m) -> bool
     {
         core::assert_true([&]{ return t.get_type_spec_signature().is_kind(metadata::type_signature::kind::variable); });
 
-        // TODO Do we need to support class and method variables?  If so, how do we decide when to
-        // write them to the type name (i.e., sometimes they definitely do not belong).
-        return false;
+        if (m == mode::assembly_qualified_name || m == mode::full_name)
+            return false;
+
+        metadata::type_signature const signature(t.get_type_spec_signature());
+
+        core::assert_true([&]() -> bool
+        {
+            metadata::element_type const type_code(signature.get_element_type());
+            return type_code == metadata::element_type::annotated_mvar || type_code == metadata::element_type::annotated_var;
+        });
+
+        core::size_type                    const variable_number(signature.variable_number());
+        metadata::type_or_method_def_token const variable_context(signature.variable_context());
+
+        core::assert_initialized(variable_context);
+
+        metadata::generic_param_row_iterator_pair const generic_parameters(metadata::find_generic_params_range(variable_context));
+
+        if (core::distance(generic_parameters.first, generic_parameters.second) <= variable_number)
+            throw core::runtime_error(L"invalid generic parameter number");
+
+        metadata::generic_param_row const parameter_row(*(generic_parameters.first + variable_number));
+
+        _buffer += parameter_row.name().c_str();
+
+        if (signature.is_by_ref())
+            _buffer.push_back(L'&');
+
+        return true;
     }
 
     auto type_name_builder::accumulate_assembly_qualification_if_required(type const& t, mode const m) -> void

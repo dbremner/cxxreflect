@@ -22,10 +22,71 @@ namespace cxxreflect { namespace reflection { namespace detail { namespace {
 
 namespace cxxreflect { namespace reflection { namespace detail {
 
+    auto generic_variable_type_policy::attributes(type_def_or_signature_with_module const& t) const -> metadata::type_flags
+    {
+        assert_generic_variable(t);
+        return 0x00000001; // The public flag, and just the public flag
+    }
+    
+    auto generic_variable_type_policy::declaring_type(type_def_or_signature_with_module const& t) const
+        -> type_def_or_signature_with_module
+    {
+        assert_generic_variable(t);
+
+        metadata::type_signature           const signature(t.type().as_blob().as<metadata::type_signature>());
+        metadata::type_or_method_def_token const variable_context(signature.variable_context());
+        if (variable_context.is<metadata::type_def_token>())
+        {
+            metadata::type_def_token const type_context(variable_context.as<metadata::type_def_token>());
+            return type_def_or_signature_with_module(t.module(), type_context);
+        }
+        else if (variable_context.is<metadata::method_def_token>())
+        {
+            metadata::method_def_token const method_context(variable_context.as<metadata::method_def_token>());
+            metadata::type_def_token   const method_owner(metadata::find_owner_of_method_def(method_context).token());
+            return type_def_or_signature_with_module(t.module(), method_owner);
+        }
+        else
+        {
+            core::assert_fail(L"unreachable code");
+            return type_def_or_signature_with_module();
+        }
+    }
+
     auto generic_variable_type_policy::is_generic_parameter(type_def_or_signature_with_module const& t) const -> bool
     {
         assert_generic_variable(t);
         return true;
+    }
+    
+    auto generic_variable_type_policy::is_nested(type_def_or_signature_with_module const& t) const -> bool
+    {
+        assert_generic_variable(t);
+        return true;
+    }
+    
+    auto generic_variable_type_policy::is_visible(type_def_or_signature_with_module const& t) const -> bool
+    {
+        assert_generic_variable(t);
+        return true;
+    }
+    
+    auto generic_variable_type_policy::layout(type_def_or_signature_with_module const& t) const -> type_attribute_layout
+    {
+        assert_generic_variable(t);
+        return type_attribute_layout::auto_layout;
+    }
+
+    auto generic_variable_type_policy::string_format(type_def_or_signature_with_module const& t) const -> type_attribute_string_format
+    {
+        assert_generic_variable(t);
+        return type_attribute_string_format::ansi_string_format;
+    }
+    
+    auto generic_variable_type_policy::visibility(type_def_or_signature_with_module const& t) const -> type_attribute_visibility
+    {
+        assert_generic_variable(t);
+        return type_attribute_visibility::public_;
     }
     
 } } }

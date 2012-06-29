@@ -44,7 +44,7 @@ namespace cxxreflect { namespace reflection { namespace detail {
         auto accumulate_type_spec_name                 (type const& t, mode m) -> bool;
         
         auto accumulate_class_type_spec_name           (type const& t, mode m) -> bool;
-        auto accumulate_method_signature_spec_name(type const& t, mode m) -> bool;
+        auto accumulate_method_signature_spec_name     (type const& t, mode m) -> bool;
         auto accumulate_general_array_type_spec_name   (type const& t, mode m) -> bool;
         auto accumulate_generic_instance_type_spec_name(type const& t, mode m) -> bool;
         auto accumulate_pointer_type_spec_name         (type const& t, mode m) -> bool;

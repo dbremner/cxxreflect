@@ -738,7 +738,7 @@ namespace cxxreflect { namespace metadata {
 
         auto is_initialized() const -> bool;
 
-        static auto create_arguments(type_signature const& type) -> arguments_type;
+        static auto create_arguments(type_signature const& type, type_def_token) -> arguments_type;
 
         template <typename Signature>
         static auto requires_instantiation(Signature const& signature) -> bool;
