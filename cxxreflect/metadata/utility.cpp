@@ -125,25 +125,29 @@ namespace cxxreflect { namespace metadata { namespace detail {
             std::array<char, 12> current_name((std::array<char, 12>()));
             file.read(current_name.data(), core::convert_integer(current_name.size()));
 
-            #define CXXREFLECT_GENERATE(name, id, reset)                                           \
-                if (std::strcmp(current_name.data(), name) == 0 &&                                 \
-                    stream_headers[core::as_integer(pe_cli_stream_kind::id)].metadata_offset == 0) \
-                {                                                                                  \
-                    stream_headers[core::as_integer(pe_cli_stream_kind::id)] = header;             \
-                    file.seek(reset, core::const_byte_cursor::current);                            \
-                    used = true;                                                                   \
+            auto const handle_stream([&](char const* const name, pe_cli_stream_kind const kind, core::difference_type const rewind) -> bool
+            {
+                if (std::strcmp(current_name.data(), name) == 0 &&
+                    stream_headers[core::as_integer(kind)].metadata_offset == 0)
+                {
+                    stream_headers[core::as_integer(kind)] = header;
+                    file.seek(rewind, core::const_byte_cursor::current);
+                    return true;
                 }
 
-            bool used(false);
-            CXXREFLECT_GENERATE("#Strings", string,       0);
-            CXXREFLECT_GENERATE("#US",      user_string, -8);
-            CXXREFLECT_GENERATE("#Blob",    blob,        -4);
-            CXXREFLECT_GENERATE("#GUID",    guid,        -4);
-            CXXREFLECT_GENERATE("#~",       table,       -8);
-            if (!used)
-                throw core::metadata_error(L"unknown stream name encountered");
+                return false;
+            });
 
-            #undef CXXREFLECT_GENERATE
+            if (handle_stream("#Strings", pe_cli_stream_kind::string,       0) ||
+                handle_stream("#US",      pe_cli_stream_kind::user_string, -8) ||
+                handle_stream("#Blob",    pe_cli_stream_kind::blob,        -4) ||
+                handle_stream("#GUID",    pe_cli_stream_kind::guid,        -4) ||
+                handle_stream("#~",       pe_cli_stream_kind::table,       -8))
+            {
+                continue;
+            }
+
+            throw core::metadata_error(L"unknown stream name encountered");
         }
 
         return stream_headers;
