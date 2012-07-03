@@ -271,6 +271,19 @@ namespace cxxreflect { namespace reflection { namespace detail {
         return t.type().as_token().value();
     }
 
+    
+    auto definition_type_policy::namespace_name(type_def_or_signature_with_module const& t) const -> core::string_reference
+    {
+        assert_token(t);
+
+        if (is_nested(t))
+        {
+            return namespace_name(type_def_or_signature_with_module(t.module(), declaring_type(t).type()));
+        }
+
+        return row_from(t.type().as_token()).namespace_name();
+    }
+
     auto definition_type_policy::string_format(type_def_or_signature_with_module const& t) const -> type_attribute_string_format
     {
         assert_token(t);

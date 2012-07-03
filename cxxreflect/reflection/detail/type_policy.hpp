@@ -215,6 +215,7 @@ namespace cxxreflect { namespace reflection { namespace detail {
 
         virtual auto layout        (type_def_or_signature_with_module const&) const -> type_attribute_layout        = 0;
         virtual auto metadata_token(type_def_or_signature_with_module const&) const -> core::size_type              = 0;
+        virtual auto namespace_name(type_def_or_signature_with_module const&) const -> core::string_reference       = 0;
         virtual auto string_format (type_def_or_signature_with_module const&) const -> type_attribute_string_format = 0;
         virtual auto visibility    (type_def_or_signature_with_module const&) const -> type_attribute_visibility    = 0;
 

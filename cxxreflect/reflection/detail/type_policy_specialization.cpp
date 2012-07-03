@@ -182,6 +182,12 @@ namespace cxxreflect { namespace reflection { namespace detail {
         return 0x02000000;
     }
 
+    auto specialization_type_policy::namespace_name(type_def_or_signature_with_module const& t) const -> core::string_reference
+    {
+        assert_blob(t);
+        return resolve_element_type_and_call(t, &type_policy::namespace_name);
+    }
+
     auto specialization_type_policy::string_format(type_def_or_signature_with_module const& t) const -> type_attribute_string_format
     {
         assert_blob(t);

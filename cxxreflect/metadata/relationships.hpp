@@ -51,6 +51,14 @@ namespace cxxreflect { namespace metadata {
 
 
 
+    auto find_generic_param_constraints_range(generic_param_token const& parent) -> generic_param_constraint_row_iterator_pair;
+    auto begin_generic_param_constraints(generic_param_token const& parent) -> generic_param_constraint_row_iterator;
+    auto end_generic_param_constraints(generic_param_token const& parent) -> generic_param_constraint_row_iterator;
+
+
+
+
+
     auto find_interface_impl_range(type_def_token const& parent) -> interface_impl_row_iterator_pair;
     auto begin_interface_impls(type_def_token const& parent) -> interface_impl_row_iterator;
     auto end_interface_impls(type_def_token const& parent) -> interface_impl_row_iterator;

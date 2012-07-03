@@ -64,6 +64,25 @@ namespace cxxreflect { namespace reflection { namespace detail {
         assert_generic_variable(t);
         return true;
     }
+
+    auto generic_variable_type_policy::is_value_type(type_def_or_signature_with_module const& t) const -> bool
+    {
+        assert_generic_variable(t);
+
+        metadata::type_signature           const signature(t.type().as_blob().as<metadata::type_signature>());
+        metadata::type_or_method_def_token const variable_context(signature.variable_context());
+        core::size_type                    const variable_number(signature.variable_number());
+
+        auto const range(metadata::find_generic_params_range(variable_context));
+        if (core::distance(range.first, range.second) < variable_number)
+            throw core::runtime_error(L"generic parameter index out of range");
+
+        metadata::generic_param_row const row(*std::next(range.first, variable_number));
+
+        return row.flags()
+            .with_mask(metadata::generic_parameter_attribute::special_constraint_mask)
+            .is_set(metadata::generic_parameter_attribute::non_nullable_value_type_constraint);
+    }
     
     auto generic_variable_type_policy::is_visible(type_def_or_signature_with_module const& t) const -> bool
     {
@@ -75,6 +94,20 @@ namespace cxxreflect { namespace reflection { namespace detail {
     {
         assert_generic_variable(t);
         return type_attribute_layout::auto_layout;
+    }
+
+    auto generic_variable_type_policy::namespace_name(type_def_or_signature_with_module const& t) const -> core::string_reference
+    {
+        assert_generic_variable(t);
+
+        type_def_or_signature_with_module const declarer(declaring_type(t));
+        if (!declarer.is_initialized())
+            return core::string_reference::from_literal(L"");
+
+        return type_policy::get_for(declarer)->namespace_name(declarer);
+
+        // core::string_reference const name();
+        // return name.empty() ? core::string_reference::from_literal(L"System") : name;
     }
 
     auto generic_variable_type_policy::string_format(type_def_or_signature_with_module const& t) const -> type_attribute_string_format

@@ -190,6 +190,18 @@ namespace cxxreflect { namespace reflection { namespace detail {
 
         metadata::type_signature const signature(t.type().as_blob().as<metadata::type_signature>());
 
+        if (signature.is_by_ref())
+        {
+            return resolve_type_for_construction(
+                type_def_ref_spec_or_signature_with_module(
+                    t.module(),
+                    metadata::type_def_ref_spec_or_signature(
+                        metadata::blob(
+                            &signature.scope(),
+                            signature.seek_to(metadata::type_signature::part::cross_module_type_reference),
+                            signature.end_bytes()))));
+        }
+
         metadata::type_def_ref_spec_or_signature const next_type([&]() -> metadata::type_def_ref_spec_or_signature
         {
             switch (signature.get_kind())

@@ -25,6 +25,12 @@ namespace cxxreflect { namespace reflection { namespace detail { namespace {
             core::assert_initialized(token);
         }
 
+        explicit type_def_and_signature(metadata::blob const& signature)
+            : _signature(signature)
+        {
+            core::assert_initialized(signature);
+        }
+
         type_def_and_signature(metadata::type_def_token const& token, metadata::blob const& signature)
             : _type_def(token), _signature(signature)
         {
@@ -88,7 +94,7 @@ namespace cxxreflect { namespace reflection { namespace detail { namespace {
             ? metadata::type_def_spec_or_signature(resolver.resolve_type(original_type.as_token()))
             : metadata::type_def_spec_or_signature(original_type.as_blob()));
 
-        // If we resolved the type to a TypeDef, it has on signature so we may return it directly:
+        // If we resolved the type to a TypeDef, it has no signature so we may return it directly:
         if (resolved_type.is_token() && resolved_type.as_token().is<metadata::type_def_token>())
             return type_def_and_signature(resolved_type.as_token().as<metadata::type_def_token>());
 
@@ -126,7 +132,7 @@ namespace cxxreflect { namespace reflection { namespace detail { namespace {
 
             return type_def_and_signature(
                 re_resolved_type.as<metadata::type_def_token>(),
-                metadata::blob(&signature.scope(), signature.begin_bytes(), signature.end_bytes()));
+                metadata::blob(signature));
         }
 
         case metadata::type_signature::kind::general_array:
@@ -145,7 +151,7 @@ namespace cxxreflect { namespace reflection { namespace detail { namespace {
         case metadata::type_signature::kind::variable:
         {
             // TODO Support for ptr, fn_ptr, and var types:
-            return core::default_value();
+            return type_def_and_signature(metadata::blob(signature));
         }
         default:
             throw core::logic_error(L"not yet implemented");
@@ -191,6 +197,22 @@ namespace cxxreflect { namespace reflection { namespace detail { namespace {
             throw core::runtime_error(L"unexpected type provided for instantiation");
 
         return metadata::signature_instantiator::create_arguments(signature, type.type_def());
+    }
+
+
+
+
+
+    auto find_indexed_generic_parameter(metadata::type_or_method_def_token const parent,
+                                        core::size_type                    const index) -> metadata::generic_param_token
+    {
+        core::assert_initialized(parent);
+
+        auto const range(metadata::find_generic_params_range(parent));
+        if (core::distance(range.first, range.second) < index)
+            throw core::runtime_error(L"generic parameter index out of range");
+
+        return std::next(range.first, index)->token();
     }
 
 
@@ -249,25 +271,149 @@ namespace cxxreflect { namespace reflection { namespace detail { namespace {
             if (result.first)
                 return result.second;
 
-            // Ok, we haven't created a table yet; let's create a new one.  First, resolve the type
-            // definition and signature; if the type has no definition (e.g., it is a ByRef type)
-            // then it has no elements, so we can allocate an empty table and return it:
+            // Resolve the type definition and signature.  If we have a type definition, we compute
+            // its table, instantiated with the signature context (if required) and return it:
             type_def_and_signature const def_and_sig(resolve_type_def_and_signature(*_resolver, type));
-            if (!def_and_sig.has_type_def())
+            if (def_and_sig.has_type_def())
             {
-                return _storage->allocate_table<ContextTag>(type, nullptr, nullptr);
+                return create_table_for_type(def_and_sig);
             }
 
-            // Otherwise, we have a definition, so let's build the table for it and return it:
-            return create_table(def_and_sig);
+            auto const new_empty_table([&]{ return _storage->allocate_table<ContextTag>(type, nullptr, nullptr); }); 
+
+            if (!def_and_sig.has_signature())
+            {
+                return new_empty_table();
+            }
+
+            metadata::type_signature const signature(def_and_sig.signature().as<metadata::type_signature>());
+            metadata::element_type   const signature_type(signature.get_element_type());
+
+            if (signature_type == metadata::element_type::annotated_mvar ||
+                signature_type == metadata::element_type::annotated_var)
+            {
+                metadata::generic_param_token const variable_token(find_indexed_generic_parameter(
+                    signature.variable_context(),
+                    signature.variable_number()));
+
+                return create_table_for_generic_parameter(type, variable_token);
+            }
+
+            return new_empty_table();
         }
 
     private:
 
+        auto create_table_for_generic_parameter(metadata::type_def_or_signature const& type,
+                                                metadata::generic_param_token   const& param_token) const -> context_table_type
+        {
+            core::assert_initialized(type);
+
+            metadata::generic_param_row       const param_row(row_from(param_token));
+            metadata::generic_parameter_flags const param_flags(param_row.flags());
+
+            metadata::generic_param_constraint_row_iterator const first_constraint(metadata::begin_generic_param_constraints(param_token));
+            metadata::generic_param_constraint_row_iterator const last_constraint (metadata::end_generic_param_constraints(param_token));
+
+            auto const base_constraint(std::find_if(first_constraint, last_constraint, [&](metadata::generic_param_constraint_row const& c)
+            {
+                type_def_and_signature const resolved_type(resolve_type_def_and_signature(*_resolver, c.constraint()));
+                if (!resolved_type.has_type_def())
+                    return false;
+
+                metadata::type_def_row const resolved_type_def(row_from(resolved_type.type_def()));
+                if (resolved_type_def.flags().with_mask(metadata::type_attribute::class_semantics_mask) != metadata::type_attribute::class_)
+                    return false;
+
+                return true;
+            }));
+
+            metadata::type_def_or_signature base_type;
+            if (base_constraint != last_constraint)
+            {
+                base_type = resolve_type_def_and_signature(*_resolver, base_constraint->constraint()).best_match();
+            }
+            else if (param_row.flags()
+                .with_mask(metadata::generic_parameter_attribute::special_constraint_mask)
+                .is_set(metadata::generic_parameter_attribute::non_nullable_value_type_constraint))
+            {
+                base_type = _resolver->resolve_fundamental_type(metadata::element_type::value_type);
+            }
+            else
+            {
+                auto const flags(param_row.flags());
+                base_type = _resolver->resolve_fundamental_type(metadata::element_type::object);
+            }
+
+            instantiator_arguments_type const empty_arguments(&base_type.scope());
+
+            context_sequence_type new_table(get_or_create_table_with_base_elements(base_type, type_def_and_signature(), empty_arguments));
+
+            process_generic_parameter_constraints(new_table, first_constraint, last_constraint);
+
+            return _storage->allocate_table<ContextTag>(type, new_table.data(), new_table.data() + new_table.size());
+        }
+
+        auto process_generic_parameter_constraints(interface_context_traits::context_sequence_type      & table,
+                                                   metadata::generic_param_constraint_row_iterator const& first_constraint,
+                                                   metadata::generic_param_constraint_row_iterator const& last_constraint) const -> void
+        {
+            if (first_constraint == last_constraint)
+                return;
+
+            metadata::type_or_method_def_token const parent(row_from(first_constraint->parent()).parent());
+
+            metadata::type_def_token   original_type_instantiation_source;
+            metadata::method_def_token original_method_instantiation_source;
+
+            if (parent.is<metadata::type_def_token>())
+            {
+                original_type_instantiation_source = parent.as<metadata::type_def_token>();
+            }
+            else if (parent.is<metadata::method_def_token>())
+            {
+                original_method_instantiation_source = parent.as<metadata::method_def_token>();
+                original_type_instantiation_source = find_owner_of_method_def(original_method_instantiation_source).token();
+            }
+            else
+            {
+                core::assert_fail(L"unreachable code");
+            }
+
+            instantiator_arguments_type const empty_arguments(&original_type_instantiation_source.scope());
+            metadata::type_def_token    const type_instantiation_source(get_type_instantiation_source(original_type_instantiation_source));
+            metadata::method_def_token  const method_instantiation_source(get_method_instantiation_source(original_method_instantiation_source));
+            instantiator_type           const instantiator(&empty_arguments, type_instantiation_source, method_instantiation_source);
+
+            std::for_each(first_constraint, last_constraint, [&](metadata::generic_param_constraint_row const& c)
+            {
+                type_def_and_signature const resolved_constraint_type(resolve_type_def_and_signature(*_resolver, c.constraint()));
+                if (!resolved_constraint_type.has_type_def())
+                    return; // TODO Check correctness?
+
+                if (row_from(resolved_constraint_type.type_def()).flags().with_mask(metadata::type_attribute::class_semantics_mask) !=
+                    metadata::type_attribute::interface)
+                    return;
+
+                // Create the new context, insert it into the table, and perform post-recurse:
+                context_type const new_context(create_element(c.token(), resolve_type_def_and_signature(*_resolver, original_type_instantiation_source), instantiator));
+
+                traits_type::insert_element(*_resolver, table, new_context, 0);
+
+                post_insertion_recurse_with_context(new_context, table, 0);
+            });
+        }
+
+        template <typename T, typename U, typename V>
+        auto process_generic_parameter_constraints(T const&, U const&, V const&) const -> void
+        {
+
+        }
+
         /// Entry point for the recursive table creation process
         ///
         /// This is called by `get_or_create_table` when a new table needs to be created.
-        auto create_table(type_def_and_signature const& type) const -> context_table_type
+        auto create_table_for_type(type_def_and_signature const& type) const -> context_table_type
         {
             core::assert_true([&]{ return type.has_type_def(); });
 
@@ -282,7 +428,19 @@ namespace cxxreflect { namespace reflection { namespace detail { namespace {
             //
             // We enumerate the inherited elements first so that we can correctly emulate overriding
             // and hiding, similar to what is done during reflection on a class at runtime.
-            context_sequence_type new_table(get_or_create_table_with_base_elements(type, instantiator_arguments));
+
+            // The root type (Object) and interface types do not have a base type.  If the type does
+            // not have a base type, we just return an empty sequence:
+            context_sequence_type new_table;
+
+            metadata::type_def_ref_spec_token const base_token(row_from(type.type_def()).extends());
+            if (base_token.is_initialized())
+            {
+                new_table = get_or_create_table_with_base_elements(
+                    get_type_def_or_signature(_resolver->resolve_type(base_token)),
+                    type,
+                    instantiator_arguments);
+            }
 
             core::size_type const inherited_element_count(core::convert_integer(new_table.size()));
 
@@ -326,21 +484,14 @@ namespace cxxreflect { namespace reflection { namespace detail { namespace {
         /// The returned table is always a new sequence that is cloned from the base type's table.
         /// If `type` has no base type or if its base type has no elements, an empty sequence is
         /// returned.
-        auto get_or_create_table_with_base_elements(type_def_and_signature      const& type,
-                                                    instantiator_arguments_type const& instantiator_arguments) const
+        auto get_or_create_table_with_base_elements(metadata::type_def_or_signature const& base_type,
+                                                    type_def_and_signature          const& derived_type,
+                                                    instantiator_arguments_type     const& instantiator_arguments) const
             -> context_sequence_type
         {
-            core::assert_true([&]{ return type.has_type_def(); });
+            core::assert_initialized(base_type);
 
-            // The root type (Object) and interface types do not have a base type.  If the type does
-            // not have a base type, we just return an empty sequence:
-            metadata::type_def_ref_spec_token const base_token(row_from(type.type_def()).extends());
-            if (!base_token.is_initialized())
-                return context_sequence_type();
-
-            // Resolve the base type and get (or create!) its element table.  This will recurse
-            // until we reach the root type (Object) or a type whose table has already been built:
-            context_table_type const base_table(get_or_create_table(get_type_def_or_signature(_resolver->resolve_type(base_token))));
+            context_table_type const base_table(get_or_create_table(base_type));
             if (base_table.empty())
                 return context_sequence_type();
 
@@ -361,7 +512,7 @@ namespace cxxreflect { namespace reflection { namespace detail { namespace {
                 if (!signature.is_initialized() || !instantiator.would_instantiate(signature))
                     return c;
 
-                return context_type(c.element(), type.signature(), instantiate(signature, instantiator));
+                return context_type(c.element(), derived_type.signature(), instantiate(signature, instantiator));
             });
 
             return new_table;
@@ -380,7 +531,7 @@ namespace cxxreflect { namespace reflection { namespace detail { namespace {
                                                  context_sequence_type  & table,
                                                  core::size_type   const  inherited_element_count) const -> void
         {
-            metadata::type_def_ref_spec_token const interface_token(context.element_row().interface());
+            metadata::type_def_ref_spec_token const interface_token(interface_context_traits::get_interface_type(context.element()));
 
             type_def_and_signature const interface_type(resolve_type_def_and_signature(*_resolver, interface_token));
 
@@ -396,11 +547,15 @@ namespace cxxreflect { namespace reflection { namespace detail { namespace {
                     &instantiator_arguments,
                     get_type_instantiation_source(interface_type.type_def()));
 
+                metadata::type_def_token const parent(new_context.element().is<metadata::interface_impl_token>()
+                    ? row_from(new_context.element().as<metadata::interface_impl_token>()).parent()
+                    : metadata::type_def_token());
+
                 signature_type const signature(new_context.element_signature(*_resolver));
                 if (signature.is_initialized() && instantiator.would_instantiate(signature))
                     new_context = create_element(
                         new_context.element(),
-                        resolve_type_def_and_signature(*_resolver, new_context.element_row().parent()),
+                        resolve_type_def_and_signature(*_resolver, parent),
                         instantiator);
 
                 traits_type::insert_element(*_resolver, table, new_context, inherited_element_count);
@@ -626,7 +781,7 @@ namespace cxxreflect { namespace reflection { namespace detail {
     {
         core::assert_initialized(element);
 
-        metadata::type_def_ref_spec_token const original_type(row_from(element).interface());
+        metadata::type_def_ref_spec_token const original_type(get_interface_type(element));
         metadata::type_def_spec_token     const resolved_type(resolver.resolve_type(original_type));
 
         // If the type is a TypeDef, it has no distinct signature so we can simply return an empty
@@ -647,14 +802,14 @@ namespace cxxreflect { namespace reflection { namespace detail {
     {
         core::assert_initialized(new_element);
 
-        metadata::type_def_spec_token const new_if(resolver.resolve_type(new_element.element_row().interface()));
+        metadata::type_def_spec_token const new_if(resolver.resolve_type(get_interface_type(new_element.element())));
 
         // Iterate over the interface table and see if it already contains the new interface.  This
         // can happen if two classes in a class hierarchy both implement an interface.  If there are
         // two classes that implement an interface, we keep the most derived one.
         auto const it(std::find_if(begin(element_table), end(element_table), [&](context_type const& old_element) -> bool
         {
-            metadata::type_def_spec_token const old_if(resolver.resolve_type(old_element.element_row().interface()));
+            metadata::type_def_spec_token const old_if(resolver.resolve_type(get_interface_type(old_element.element())));
 
             // If the old and new interfaces resolved to different kinds of types, obviously they
             // are not the same (basically, one is a TypeDef, the other is a TypeSpec).
@@ -679,6 +834,25 @@ namespace cxxreflect { namespace reflection { namespace detail {
         return it == end(element_table)
             ? (void)element_table.push_back(new_element)
             : (void)(*it = new_element);
+    }
+
+    auto interface_context_traits::get_interface_type(metadata::interface_impl_or_constraint_token const& parent)
+        -> metadata::type_def_ref_spec_token
+    {
+        core::assert_initialized(parent);
+
+        if (parent.is<metadata::interface_impl_token>())
+        {
+            return row_from(parent.as<metadata::interface_impl_token>()).interface();
+        }
+        else if (parent.is<metadata::generic_param_constraint_token>())
+        {
+            return row_from(parent.as<metadata::generic_param_constraint_token>()).constraint();
+        }
+        else
+        {
+            core::assert_fail(L"unreachable code");
+        }
     }
 
 
@@ -715,7 +889,7 @@ namespace cxxreflect { namespace reflection { namespace detail {
         core::assert_initialized(new_element);
         core::assert_true([&]{ return inherited_element_count <= element_table.size(); });
 
-        metadata::method_def_row   const new_method_def(new_element.element_row());
+        metadata::method_def_row   const new_method_def(row_from(new_element.element()));
         metadata::method_signature const new_method_sig(new_element.element_signature(resolver));
 
         // If the method occupies a new slot, it does not override any other method.  A static
@@ -733,7 +907,7 @@ namespace cxxreflect { namespace reflection { namespace detail {
         auto const table_end(element_table.rend());
         auto const table_it(std::find_if(table_begin, table_end, [&](context_type const& old_element) -> bool
         {
-            metadata::method_def_row   const old_method_def(old_element.element_row());
+            metadata::method_def_row   const old_method_def(row_from(old_element.element()));
             metadata::method_signature const old_method_sig(old_element.element_signature(resolver));
 
             // Note that by skipping nonvirtual methods, we also skip the name hiding feature.  We
@@ -839,14 +1013,6 @@ namespace cxxreflect { namespace reflection { namespace detail {
         core::assert_initialized(*this);
 
         return _element.as<token_type>();
-    }
-
-    template <typename T>
-    auto element_context<T>::element_row() const -> row_type
-    {
-        core::assert_initialized(*this);
-
-        return row_from(_element.as<token_type>());
     }
 
     template <typename T>

@@ -16,9 +16,9 @@ namespace cxxreflect { namespace reflection { namespace {
     template <typename T>
     auto core_filter_member(metadata::binding_flags const filter, bool const is_declaring_type, T const& current) -> bool
     {
-        typedef typename core::identity<decltype(current.element_row().flags())>::type::enumeration_type attribute_type;
+        typedef typename core::identity<decltype(row_from(current.element()).flags())>::type::enumeration_type attribute_type;
         
-        auto const current_flags(current.element_row().flags());
+        auto const current_flags(row_from(current.element()).flags());
 
         if (current_flags.is_set(attribute_type::static_))
         {
@@ -52,7 +52,7 @@ namespace cxxreflect { namespace reflection { namespace {
                 !filter.is_set(metadata::binding_attribute::flatten_hierarchy))
                 return true;
 
-            core::string_reference const member_name(current.element_row().name());
+            core::string_reference const member_name(row_from(current.element()).name());
 
             // Nonpublic methods inherited from base classes are never returned, except for
             // explicit interface implementations, which may be returned:
@@ -110,9 +110,9 @@ namespace cxxreflect { namespace reflection {
         if (core_filter_member(filter, reflected_is_declaring_type, current))
             return true;
 
-        core::string_reference const name(current.element_row().name());
+        core::string_reference const name(row_from(current.element()).name());
         bool const is_constructor(
-            current.element_row().flags().is_set(metadata::method_attribute::special_name) && 
+            row_from(current.element()).flags().is_set(metadata::method_attribute::special_name) && 
             (name == L".ctor" || name == L".cctor"));
 
         return is_constructor != filter.is_set(metadata::binding_attribute::internal_use_only_constructor);
@@ -183,7 +183,7 @@ namespace cxxreflect { namespace reflection {
             _type = resolve_type_for_construction(
                 detail::type_def_ref_spec_or_signature_with_module(
                     &root.module_from_scope(context->element().scope()),
-                    context->element_row().interface()));
+                    detail::interface_context_traits::get_interface_type(context->element())));
         }
 
         _policy = detail::type_policy::get_for(_type);
@@ -285,16 +285,14 @@ namespace cxxreflect { namespace reflection {
     auto type::namespace_name() const -> core::string_reference
     {
         core::assert_initialized(*this);
+        return _policy->namespace_name(_type);
 
         bool const is_nested_type(detail::resolve_type_def_and_call(_type, &detail::type_policy::is_nested));
 
-        if (is_type_spec() && get_type_spec_signature().is_method_variable())
+        if (is_type_spec() && get_type_spec_signature().get_kind() == metadata::type_signature::kind::variable)
         {
-            return core::string_reference::from_literal(L"System");
-        }
-        else if (is_type_spec() && get_type_spec_signature().is_class_variable())
-        {
-            return declaring_type().namespace_name();
+            core::string_reference const name(declaring_type().namespace_name());
+            return name.empty() ? core::string_reference::from_literal(L"System") : name;
         }
 
         // TODO How do we need to handle nested-nested types?

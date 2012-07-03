@@ -120,15 +120,15 @@ namespace cxxreflect { namespace reflection { namespace detail {
 
         static const metadata::table_id row_table_id = metadata::table_id::interface_impl;
 
-        typedef interface_context_tag                tag_type;
-        typedef type                                 resolved_type;
-        typedef metadata::interface_impl_token       token_type;
-        typedef metadata::interface_impl_row         row_type;
-        typedef metadata::row_iterator<row_table_id> row_iterator_type;
-        typedef metadata::type_signature             signature_type;
+        typedef interface_context_tag                        tag_type;
+        typedef type                                         resolved_type;
+        typedef metadata::interface_impl_or_constraint_token token_type;
+        typedef metadata::interface_impl_row                 row_type;
+        typedef metadata::row_iterator<row_table_id>         row_iterator_type;
+        typedef metadata::type_signature                     signature_type;
 
-        typedef element_context<tag_type>            context_type;
-        typedef std::vector<context_type>            context_sequence_type;
+        typedef element_context<tag_type>                    context_type;
+        typedef std::vector<context_type>                    context_sequence_type;
 
         static auto begin_elements(metadata::type_def_token const& type) -> row_iterator_type;
         static auto end_elements  (metadata::type_def_token const& type) -> row_iterator_type;
@@ -140,6 +140,8 @@ namespace cxxreflect { namespace reflection { namespace detail {
                                    context_sequence_type        & element_table,
                                    context_type            const& new_element,
                                    core::size_type         const  inherited_element_count) -> void;
+
+        static auto get_interface_type(metadata::interface_impl_or_constraint_token const& parent) -> metadata::type_def_ref_spec_token;
     };
 
     template <>
@@ -243,7 +245,6 @@ namespace cxxreflect { namespace reflection { namespace detail {
         // These return the full reference to the owned element's declaration, the row in which the
         // element is declared, and the signature of the element, if it has one.
         auto element()     const -> token_type;
-        auto element_row() const -> row_type;
         auto element_signature(metadata::type_resolver const& resolver) const -> signature_type;
 
         // If the element is declared as generic but has been instantiated in the reflected type or

@@ -28,9 +28,11 @@ namespace cxxreflect { namespace reflection { namespace detail {
 
         virtual auto is_generic_parameter(type_def_or_signature_with_module const&) const -> bool;
         virtual auto is_nested           (type_def_or_signature_with_module const&) const -> bool;
+        virtual auto is_value_type       (type_def_or_signature_with_module const&) const -> bool;
         virtual auto is_visible          (type_def_or_signature_with_module const&) const -> bool;
         
         virtual auto layout        (type_def_or_signature_with_module const&) const -> type_attribute_layout;
+        virtual auto namespace_name(type_def_or_signature_with_module const&) const -> core::string_reference;
         virtual auto string_format (type_def_or_signature_with_module const&) const -> type_attribute_string_format;
         virtual auto visibility    (type_def_or_signature_with_module const&) const -> type_attribute_visibility;
     };

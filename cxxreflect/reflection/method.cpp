@@ -255,7 +255,7 @@ namespace cxxreflect { namespace reflection {
 
         detail::loader_context const& root(detail::loader_context::from(reflected_type()));
 
-        metadata::method_def_row  const md_row(_context.get()->element_row());
+        metadata::method_def_row  const md_row(row_from(_context.get()->element()));
         incrementable_param_token first_parameter(md_row.first_parameter());
         incrementable_param_token const last_parameter(md_row.last_parameter());
 
@@ -278,7 +278,7 @@ namespace cxxreflect { namespace reflection {
         detail::loader_context const& root(detail::loader_context::from(reflected_type()));
 
         return parameter_iterator(*this, detail::parameter_data(
-            _context.get()->element_row().last_parameter(),
+            row_from(_context.get()->element()).last_parameter(),
             _context.get()->element_signature(root).end_parameters(),
             core::internal_key()));
     }
@@ -297,7 +297,7 @@ namespace cxxreflect { namespace reflection {
 
         detail::loader_context const& root(detail::loader_context::from(reflected_type()));
 
-        metadata::method_def_row const md_row(_context.get()->element_row());
+        metadata::method_def_row const md_row(row_from(_context.get()->element()));
         metadata::param_token const first_parameter(md_row.first_parameter());
         metadata::param_token const last_parameter(md_row.last_parameter());
 
@@ -352,7 +352,7 @@ namespace cxxreflect { namespace reflection {
     {
         core::assert_initialized(*this);
 
-        return _context.get()->element_row();
+        return row_from(_context.get()->element());
     }
 
 } }

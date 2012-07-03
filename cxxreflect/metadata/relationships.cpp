@@ -209,6 +209,35 @@ namespace cxxreflect { namespace metadata {
 
 
 
+    auto find_generic_param_constraints_range(generic_param_token const& parent) -> generic_param_constraint_row_iterator_pair
+    {
+        core::assert_initialized(parent);
+
+        auto const range(detail::table_id_primary_key_equal_range(
+            parent,
+            table_id::generic_param,
+            table_id::generic_param_constraint,
+            column_id::generic_param_constraint_parent));
+
+        return std::make_pair(
+            generic_param_constraint_row_iterator::from_row_pointer(&parent.scope(), begin(range)),
+            generic_param_constraint_row_iterator::from_row_pointer(&parent.scope(), end(range)));
+    }
+
+    auto begin_generic_param_constraints(generic_param_token const& parent) -> generic_param_constraint_row_iterator
+    {
+        return find_generic_param_constraints_range(parent).first;
+    }
+
+    auto end_generic_param_constraints(generic_param_token const& parent) -> generic_param_constraint_row_iterator
+    {
+        return find_generic_param_constraints_range(parent).second;
+    }
+
+
+
+
+
     auto find_interface_impl_range(type_def_token const& parent) -> interface_impl_row_iterator_pair
     {
         core::assert_initialized(parent);

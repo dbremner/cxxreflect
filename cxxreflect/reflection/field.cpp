@@ -230,7 +230,7 @@ namespace cxxreflect { namespace reflection {
     {
         core::assert_initialized(*this);
 
-        return _context.get()->element_row();
+        return row_from(_context.get()->element());
     }
 
 } }

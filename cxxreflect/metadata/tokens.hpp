@@ -576,6 +576,11 @@ namespace cxxreflect { namespace metadata {
     )> implementation_token;
 
     typedef restricted_token<(table_mask)(
+        (integer_table_mask)table_mask::generic_param_constraint |
+        (integer_table_mask)table_mask::interface_impl
+    )> interface_impl_or_constraint_token;
+
+    typedef restricted_token<(table_mask)(
         (integer_table_mask)table_mask::field      |
         (integer_table_mask)table_mask::method_def
     )> member_forwarded_token;
