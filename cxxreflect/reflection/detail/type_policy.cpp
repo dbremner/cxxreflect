@@ -190,16 +190,19 @@ namespace cxxreflect { namespace reflection { namespace detail {
 
         metadata::type_signature const signature(t.type().as_blob().as<metadata::type_signature>());
 
+        // If the signature is ByRef, we need to fabricate a new signature that skips the ByRef tag
+        // and represents the element type.  Note that this also removes any custom modifiers, which
+        // appear before the ByRef tag.
         if (signature.is_by_ref())
         {
-            return resolve_type_for_construction(
-                type_def_ref_spec_or_signature_with_module(
-                    t.module(),
-                    metadata::type_def_ref_spec_or_signature(
-                        metadata::blob(
-                            &signature.scope(),
-                            signature.seek_to(metadata::type_signature::part::cross_module_type_reference),
-                            signature.end_bytes()))));
+            // The cross-module type reference tag is the first part that may appear after the ByRef
+            // tag; by seeking to it, we skip past the ByRef tag:
+            metadata::blob const new_signature(
+                &signature.scope(),
+                signature.seek_to(metadata::type_signature::part::cross_module_type_reference),
+                signature.end_bytes());
+
+            return resolve_type_for_construction(type_def_or_signature_with_module(t.module(), new_signature));
         }
 
         metadata::type_def_ref_spec_or_signature const next_type([&]() -> metadata::type_def_ref_spec_or_signature

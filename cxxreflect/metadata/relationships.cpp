@@ -195,6 +195,17 @@ namespace cxxreflect { namespace metadata {
             generic_param_row_iterator::from_row_pointer(&parent.scope(), end(range)));
     }
 
+    auto find_generic_param(type_or_method_def_token const& parent, core::size_type const index) -> generic_param_row
+    {
+        core::assert_initialized(parent);
+
+        auto const range(find_generic_params_range(parent));
+        if (core::distance(range.first, range.second) < index)
+            throw core::runtime_error(L"generic param index out of range");
+
+        return *std::next(range.first, index);
+    }
+
     auto begin_generic_params(type_or_method_def_token const& parent) -> generic_param_row_iterator
     {
         return find_generic_params_range(parent).first;

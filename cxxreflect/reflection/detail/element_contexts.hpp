@@ -118,6 +118,18 @@ namespace cxxreflect { namespace reflection { namespace detail {
     {
     public:
 
+        // An interface may be represented by one of two possible parents:  an interface_impl, which
+        // specifies that a TypeDef implements an interface, or a generic_param_constraint, which
+        // speciifes that a generic parameter is constrained such that it must implement an
+        // interface.
+        //
+        // For most operations here, we simply handle the interface_impl case:  it is more common
+        // and we need special handling in the element context logic to correctly handle the
+        // generic_param_constraint case anyway.  Because the element may actually be represented
+        // by either token, though, the token_type can be either of them.  Callers must disambiguate
+        // between the two possible token types.  Usually this should be trivial because it is well-
+        // known what kind of token is expected given the context in which it is used.
+
         static const metadata::table_id row_table_id = metadata::table_id::interface_impl;
 
         typedef interface_context_tag                        tag_type;
@@ -141,7 +153,13 @@ namespace cxxreflect { namespace reflection { namespace detail {
                                    context_type            const& new_element,
                                    core::size_type         const  inherited_element_count) -> void;
 
-        static auto get_interface_type(metadata::interface_impl_or_constraint_token const& parent) -> metadata::type_def_ref_spec_token;
+        /// Gets the type of the interface referred to by the given parent token
+        ///
+        /// For an `interface_impl` this returns the `interface`.  For a `generic_param_constraint`
+        /// this returns the `constraint`.  In either case, it returns the type of the interface
+        /// to which either refers.
+        static auto get_interface_type(metadata::interface_impl_or_constraint_token const& parent)
+            -> metadata::type_def_ref_spec_token;
     };
 
     template <>

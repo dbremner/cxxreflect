@@ -175,6 +175,19 @@ namespace cxxreflect { namespace reflection { namespace detail { namespace {
 
 
 
+    /// Tests whether a type or method has generic parameters
+    auto has_generic_params(metadata::type_or_method_def_token const& token) -> bool
+    {
+        core::assert_initialized(token);
+
+        metadata::generic_param_row_iterator_pair const parameters(metadata::find_generic_params_range(token));
+        return parameters.first != parameters.second;
+    }
+
+
+
+
+
     /// Creates arguments for signature instantiation from the type signature `signature_blob`
     ///
     /// The signature must be a type signature or must be uninitialized.  The `scope` must be
@@ -203,16 +216,52 @@ namespace cxxreflect { namespace reflection { namespace detail { namespace {
 
 
 
-    auto find_indexed_generic_parameter(metadata::type_or_method_def_token const parent,
-                                        core::size_type                    const index) -> metadata::generic_param_token
+    /// Gets the method instantiatiation source to be used when constructing an instantiator
+    ///
+    /// This function returns an uninitialized `method_def_token` if the source `token` is not
+    /// initialized or if it does not have generic parameters.  Otherwise, the token is returned
+    /// unchanged.
+    ///
+    /// There is also a function template that handles non-`method_def` tokens and no-ops them.
+    auto get_method_instantiation_source(metadata::method_def_token const& token) -> metadata::method_def_token
     {
-        core::assert_initialized(parent);
+        if (!token.is_initialized())
+            return metadata::method_def_token();
 
-        auto const range(metadata::find_generic_params_range(parent));
-        if (core::distance(range.first, range.second) < index)
-            throw core::runtime_error(L"generic parameter index out of range");
+        if (!has_generic_params(token))
+            return metadata::method_def_token();
 
-        return std::next(range.first, index)->token();
+        return token;
+    }
+
+    /// Function template to no-op the getting of an instantiation source for non-method tokens
+    template <typename Token>
+    auto get_method_instantiation_source(Token const&) -> metadata::method_def_token
+    {
+        return metadata::method_def_token();
+    }
+
+
+
+
+
+    /// Gets the type instantiation source to be used when constructing an instantiator
+    ///
+    /// This function returns an uninitialized `type_def_token` if the source `token` is not
+    /// initialized or if it does not have generic parameters.  Otherwise, the token is returned
+    /// unchanged.
+    ///
+    /// This function only accepts `type_def_token` tokens because we will always have a type
+    /// for this check:  it is always the owning type whose elements are being enumerated.
+    auto get_type_instantiation_source(metadata::type_def_token const& token) -> metadata::type_def_token
+    {
+        if (!token.is_initialized())
+            return metadata::type_def_token();
+
+        if (!has_generic_params(token))
+            return metadata::type_def_token();
+
+        return token;
     }
 
 
@@ -221,8 +270,9 @@ namespace cxxreflect { namespace reflection { namespace detail { namespace {
 
     /// Implementation of `element_context_table_collection::get_or_create_table()`
     ///
-    /// This class builds element tables for types.  We recurse in two passes:  a pre-insertion
-    /// recursion and a post-insertion recursion.
+    /// This class builds element tables for types.  It handles creation of tables for ordinary
+    /// types (both type definitions and signatures representing composite or specialized types) and
+    /// fabrication of faux tables for generic type parameters, using the parameter constraints.
     template <typename ContextTag>
     class recursive_table_builder
     {
@@ -258,10 +308,6 @@ namespace cxxreflect { namespace reflection { namespace detail { namespace {
         }
 
         /// Gets an existing table or creates a new table containing the elements of `type`
-        ///
-        /// We never call `create_table` directly from within this class; instead, we always call
-        /// this function to test whether the table has already been built.  No need to do expensive
-        /// work twice.
         auto get_or_create_table(metadata::type_def_or_signature const& type) const -> context_table_type
         {
             core::assert_initialized(type);
@@ -271,8 +317,8 @@ namespace cxxreflect { namespace reflection { namespace detail { namespace {
             if (result.first)
                 return result.second;
 
-            // Resolve the type definition and signature.  If we have a type definition, we compute
-            // its table, instantiated with the signature context (if required) and return it:
+            // Resolve the type to its definition and signature.  If resolution was successful and
+            // we found a type definition, compute a new table for the type and return it:
             type_def_and_signature const def_and_sig(resolve_type_def_and_signature(*_resolver, type));
             if (def_and_sig.has_type_def())
             {
@@ -281,138 +327,43 @@ namespace cxxreflect { namespace reflection { namespace detail { namespace {
 
             auto const new_empty_table([&]{ return _storage->allocate_table<ContextTag>(type, nullptr, nullptr); }); 
 
+            // If we don't have a signature or a definition, we can simply return an empty table:
             if (!def_and_sig.has_signature())
             {
                 return new_empty_table();
             }
 
+            // If we have just a signature, we may have a generic type parameter (variable).  If so,
+            // we fabricate a table for the generic type parameter using its constraints.
             metadata::type_signature const signature(def_and_sig.signature().as<metadata::type_signature>());
-            metadata::element_type   const signature_type(signature.get_element_type());
-
-            if (signature_type == metadata::element_type::annotated_mvar ||
-                signature_type == metadata::element_type::annotated_var)
+            if (signature.get_kind() == metadata::type_signature::kind::variable)
             {
-                metadata::generic_param_token const variable_token(find_indexed_generic_parameter(
+                // We should never have an unannotated variable at this point:
+                core::assert_true([&]() -> bool
+                {
+                    metadata::element_type const signature_type(signature.get_element_type());
+                    return signature_type == metadata::element_type::annotated_mvar
+                        || signature_type == metadata::element_type::annotated_var;
+                });
+
+                metadata::generic_param_token const variable_token(metadata::find_generic_param(
                     signature.variable_context(),
-                    signature.variable_number()));
+                    signature.variable_number()).token());
 
                 return create_table_for_generic_parameter(type, variable_token);
             }
 
+            // Otherwise, this is a signature for which we do not need to create a table:
             return new_empty_table();
         }
 
     private:
 
-        auto create_table_for_generic_parameter(metadata::type_def_or_signature const& type,
-                                                metadata::generic_param_token   const& param_token) const -> context_table_type
-        {
-            core::assert_initialized(type);
-
-            metadata::generic_param_row       const param_row(row_from(param_token));
-            metadata::generic_parameter_flags const param_flags(param_row.flags());
-
-            metadata::generic_param_constraint_row_iterator const first_constraint(metadata::begin_generic_param_constraints(param_token));
-            metadata::generic_param_constraint_row_iterator const last_constraint (metadata::end_generic_param_constraints(param_token));
-
-            auto const base_constraint(std::find_if(first_constraint, last_constraint, [&](metadata::generic_param_constraint_row const& c)
-            {
-                type_def_and_signature const resolved_type(resolve_type_def_and_signature(*_resolver, c.constraint()));
-                if (!resolved_type.has_type_def())
-                    return false;
-
-                metadata::type_def_row const resolved_type_def(row_from(resolved_type.type_def()));
-                if (resolved_type_def.flags().with_mask(metadata::type_attribute::class_semantics_mask) != metadata::type_attribute::class_)
-                    return false;
-
-                return true;
-            }));
-
-            metadata::type_def_or_signature base_type;
-            if (base_constraint != last_constraint)
-            {
-                base_type = resolve_type_def_and_signature(*_resolver, base_constraint->constraint()).best_match();
-            }
-            else if (param_row.flags()
-                .with_mask(metadata::generic_parameter_attribute::special_constraint_mask)
-                .is_set(metadata::generic_parameter_attribute::non_nullable_value_type_constraint))
-            {
-                base_type = _resolver->resolve_fundamental_type(metadata::element_type::value_type);
-            }
-            else
-            {
-                auto const flags(param_row.flags());
-                base_type = _resolver->resolve_fundamental_type(metadata::element_type::object);
-            }
-
-            instantiator_arguments_type const empty_arguments(&base_type.scope());
-
-            context_sequence_type new_table(get_or_create_table_with_base_elements(base_type, type_def_and_signature(), empty_arguments));
-
-            process_generic_parameter_constraints(new_table, first_constraint, last_constraint);
-
-            return _storage->allocate_table<ContextTag>(type, new_table.data(), new_table.data() + new_table.size());
-        }
-
-        auto process_generic_parameter_constraints(interface_context_traits::context_sequence_type      & table,
-                                                   metadata::generic_param_constraint_row_iterator const& first_constraint,
-                                                   metadata::generic_param_constraint_row_iterator const& last_constraint) const -> void
-        {
-            if (first_constraint == last_constraint)
-                return;
-
-            metadata::type_or_method_def_token const parent(row_from(first_constraint->parent()).parent());
-
-            metadata::type_def_token   original_type_instantiation_source;
-            metadata::method_def_token original_method_instantiation_source;
-
-            if (parent.is<metadata::type_def_token>())
-            {
-                original_type_instantiation_source = parent.as<metadata::type_def_token>();
-            }
-            else if (parent.is<metadata::method_def_token>())
-            {
-                original_method_instantiation_source = parent.as<metadata::method_def_token>();
-                original_type_instantiation_source = find_owner_of_method_def(original_method_instantiation_source).token();
-            }
-            else
-            {
-                core::assert_fail(L"unreachable code");
-            }
-
-            instantiator_arguments_type const empty_arguments(&original_type_instantiation_source.scope());
-            metadata::type_def_token    const type_instantiation_source(get_type_instantiation_source(original_type_instantiation_source));
-            metadata::method_def_token  const method_instantiation_source(get_method_instantiation_source(original_method_instantiation_source));
-            instantiator_type           const instantiator(&empty_arguments, type_instantiation_source, method_instantiation_source);
-
-            std::for_each(first_constraint, last_constraint, [&](metadata::generic_param_constraint_row const& c)
-            {
-                type_def_and_signature const resolved_constraint_type(resolve_type_def_and_signature(*_resolver, c.constraint()));
-                if (!resolved_constraint_type.has_type_def())
-                    return; // TODO Check correctness?
-
-                if (row_from(resolved_constraint_type.type_def()).flags().with_mask(metadata::type_attribute::class_semantics_mask) !=
-                    metadata::type_attribute::interface)
-                    return;
-
-                // Create the new context, insert it into the table, and perform post-recurse:
-                context_type const new_context(create_element(c.token(), resolve_type_def_and_signature(*_resolver, original_type_instantiation_source), instantiator));
-
-                traits_type::insert_element(*_resolver, table, new_context, 0);
-
-                post_insertion_recurse_with_context(new_context, table, 0);
-            });
-        }
-
-        template <typename T, typename U, typename V>
-        auto process_generic_parameter_constraints(T const&, U const&, V const&) const -> void
-        {
-
-        }
-
         /// Entry point for the recursive table creation process
         ///
-        /// This is called by `get_or_create_table` when a new table needs to be created.
+        /// This is called by `get_or_create_table` when a new table needs to be created.  This
+        /// creates a new table for an ordinary type (a type definition or signature).  The type
+        /// must have an associated definition (i.e., `type.has_type_def()` must be `true`).
         auto create_table_for_type(type_def_and_signature const& type) const -> context_table_type
         {
             core::assert_true([&]{ return type.has_type_def(); });
@@ -422,23 +373,22 @@ namespace cxxreflect { namespace reflection { namespace detail { namespace {
             // construct, so we'll construct them once here:
             auto const instantiator_arguments(create_instantiator_arguments(&type.type_def().scope(), type));
 
+            context_sequence_type new_table;
+
             // To start off, we get the instantiated contexts from the base class.  This process
             // recurses until it reaches the root type (Object) then iteratively builds the table as
             // it works its way down the hierarchy to the current type's base.
             //
+            // Note that the root type (Object) will not have a base type.
+            //
             // We enumerate the inherited elements first so that we can correctly emulate overriding
             // and hiding, similar to what is done during reflection on a class at runtime.
-
-            // The root type (Object) and interface types do not have a base type.  If the type does
-            // not have a base type, we just return an empty sequence:
-            context_sequence_type new_table;
-
             metadata::type_def_ref_spec_token const base_token(row_from(type.type_def()).extends());
             if (base_token.is_initialized())
             {
                 new_table = get_or_create_table_with_base_elements(
                     get_type_def_or_signature(_resolver->resolve_type(base_token)),
-                    type,
+                    type.signature(),
                     instantiator_arguments);
             }
 
@@ -474,18 +424,18 @@ namespace cxxreflect { namespace reflection { namespace detail { namespace {
             return _storage->allocate_table<ContextTag>(type.best_match(), new_table.data(), new_table.data() + new_table.size());
         }
 
-        /// Gets a context sequence containing the elements inherited from the type's base type
+        /// Gets or creates the element table for base type and clones and instantiates the elements
         ///
-        /// The `type` is the source type, not the base type.  Its base type will be located and its
-        /// table will be obtained.  The elements in the table will be instantiated with the generic
-        /// arguments provided by `instantiator_arguments`, if there are any.  This table is then
-        /// returned.
+        /// The `base_type` is the base type for which to obtain an element table.  The table is
+        /// computed, then the elements are instantiated with the provided `instantiator_arguments`,
+        /// if there are any.  The resulting table is then returned.
         ///
         /// The returned table is always a new sequence that is cloned from the base type's table.
-        /// If `type` has no base type or if its base type has no elements, an empty sequence is
-        /// returned.
+        /// Note that this function is called both for ordinary types and for generic parameters.
+        ///
+        /// The derived type signature may be uninitialized.
         auto get_or_create_table_with_base_elements(metadata::type_def_or_signature const& base_type,
-                                                    type_def_and_signature          const& derived_type,
+                                                    metadata::blob                  const& derived_type_signature,
                                                     instantiator_arguments_type     const& instantiator_arguments) const
             -> context_sequence_type
         {
@@ -503,16 +453,14 @@ namespace cxxreflect { namespace reflection { namespace detail { namespace {
             // sources.
             instantiator_type const instantiator(&instantiator_arguments);
 
-            context_sequence_type new_table;
-            new_table.reserve(base_table.size());
-
-            std::transform(begin(base_table), end(base_table), std::back_inserter(new_table), [&](context_type const& c) -> context_type
+            context_sequence_type new_table(base_table.size());
+            std::transform(begin(base_table), end(base_table), begin(new_table), [&](context_type const& c) -> context_type
             {
                 auto const signature(c.element_signature(*_resolver));
                 if (!signature.is_initialized() || !instantiator.would_instantiate(signature))
                     return c;
 
-                return context_type(c.element(), derived_type.signature(), instantiate(signature, instantiator));
+                return context_type(c.element(), derived_type_signature, instantiate(signature, instantiator));
             });
 
             return new_table;
@@ -527,36 +475,47 @@ namespace cxxreflect { namespace reflection { namespace detail { namespace {
         /// The post-insertion recursion allows us to walk the entire tree of interface
         /// implementations.  An interface can also implement N other interfaces, so walking the
         /// base class hierarchy is insufficient for interface classes.
-        auto post_insertion_recurse_with_context(interface_context const& context,
-                                                 context_sequence_type  & table,
-                                                 core::size_type   const  inherited_element_count) const -> void
+        auto post_insertion_recurse_with_context(interface_context     const& context,
+                                                 context_sequence_type      & table,
+                                                 core::size_type       const  inherited_element_count) const -> void
         {
-            metadata::type_def_ref_spec_token const interface_token(interface_context_traits::get_interface_type(context.element()));
+            type_def_and_signature const interface_type(resolve_type_def_and_signature(
+                *_resolver,
+                interface_context_traits::get_interface_type(context.element())));
 
-            type_def_and_signature const interface_type(resolve_type_def_and_signature(*_resolver, interface_token));
+            core::assert_true([&]{ return interface_type.has_type_def(); });
 
-            auto const instantiator_arguments(create_instantiator_arguments(
+            // First, get the set of interfaces implemented by this interface type:
+            context_table_type const interface_table(get_or_create_table(interface_type.best_match()));
+
+            // We instantiate each interface from the context of the interface:
+            instantiator_arguments_type const instantiator_arguments(create_instantiator_arguments(
                 &interface_type.type_def().scope(),
                 interface_type));
 
-            auto const interface_table(get_or_create_table(interface_type.best_match()));
+            instantiator_type const instantiator(
+                &instantiator_arguments,
+                get_type_instantiation_source(interface_type.type_def()));
 
+            // Iterate over the interfaces and insert each of them into the table.  The insertion
+            // function eliminates duplicates as we insert new elements.  Note that this process is
+            // recursive:  for each interface that we touch, we call this function again to resolve
+            // the interfaces that it implements.  This allows us to compute the complete set of
+            // interfaces.
             std::for_each(begin(interface_table), end(interface_table), [&](interface_context new_context)
             {
-                instantiator_type const instantiator(
-                    &instantiator_arguments,
-                    get_type_instantiation_source(interface_type.type_def()));
-
                 metadata::type_def_token const parent(new_context.element().is<metadata::interface_impl_token>()
                     ? row_from(new_context.element().as<metadata::interface_impl_token>()).parent()
                     : metadata::type_def_token());
 
                 signature_type const signature(new_context.element_signature(*_resolver));
                 if (signature.is_initialized() && instantiator.would_instantiate(signature))
+                {
                     new_context = create_element(
                         new_context.element(),
                         resolve_type_def_and_signature(*_resolver, parent),
                         instantiator);
+                }
 
                 traits_type::insert_element(*_resolver, table, new_context, inherited_element_count);
                 post_insertion_recurse_with_context(new_context, table, inherited_element_count);
@@ -564,11 +523,178 @@ namespace cxxreflect { namespace reflection { namespace detail { namespace {
         }
 
         /// Function template to no-op the post-insertion recursion for non-interface context types
+        ///
+        /// We only need to recurse post-insertion for interfaces; all other element types no-op
+        /// this phase.  To make everything compile, we use this catch-all function template.
         template <typename ContextType>
         auto post_insertion_recurse_with_context(ContextType const&, context_sequence_type&, core::size_type) const -> void
         {
             return;
         }
+
+
+
+
+
+        /// Entry point for the recursive table creation process
+        ///
+        /// This is called by `get_or_create_table` when a new table needs to be created.  This
+        /// creates a new table for a generic parameter (a type or method variable).
+        auto create_table_for_generic_parameter(metadata::type_def_or_signature const& type,
+                                                metadata::generic_param_token   const& param_token) const -> context_table_type
+        {
+            core::assert_initialized(type);
+            core::assert_initialized(param_token);
+
+            auto const first_constraint(metadata::begin_generic_param_constraints(param_token));
+            auto const last_constraint (metadata::end_generic_param_constraints  (param_token));
+
+            // First, enumerate this generic parameter's constraints and look to see if any of them
+            // is a class type constraint (i.e., not an interface type).  If there is a class type
+            // constraint, then we will use this type as the base type for the generic parameter
+            // when computing its element table.
+            auto const base_constraint(std::find_if(first_constraint, last_constraint, [&](metadata::generic_param_constraint_row const& c)
+            {
+                type_def_and_signature const resolved_type(resolve_type_def_and_signature(*_resolver, c.constraint()));
+                if (!resolved_type.has_type_def())
+                    return false;
+
+                metadata::type_flags const flags(row_from(resolved_type.type_def()).flags());
+                if (flags.with_mask(metadata::type_attribute::class_semantics_mask) != metadata::type_attribute::class_)
+                    return false;
+
+                return true;
+            }));
+
+            // Determine which type to use as a base type.  There are three possibilities:
+            metadata::type_def_or_signature const base_type([&]() -> metadata::type_def_or_signature
+            {
+                // If we found a non-interface type constraint, we use that constraint as the base
+                // type.  A type may have at most one non-interface type constraint.
+                if (base_constraint != last_constraint)
+                    return resolve_type_def_and_signature(*_resolver, base_constraint->constraint()).best_match();
+
+                // If the type is constrained to be a non-nullable value type, we use ValueType as
+                // the base type for the object:
+                bool const is_constrained_as_value_type(row_from(param_token)
+                    .flags()
+                    .with_mask(metadata::generic_parameter_attribute::special_constraint_mask)
+                    .is_set(metadata::generic_parameter_attribute::non_nullable_value_type_constraint));
+
+                if (is_constrained_as_value_type)
+                    return _resolver->resolve_fundamental_type(metadata::element_type::value_type);
+
+                // Finally, if neither of the above cases selected a base type, we use Object, the
+                // one base type to rule them all:
+                return _resolver->resolve_fundamental_type(metadata::element_type::object);
+            }());
+
+            // When we get the base type table, we never have any arguments with which to instantiate
+            // the base type.  Only after we instantiate the generic type will we have arguments with
+            // which we will instantiate the elements, and at that point, we'll be using the other
+            // create table path (for ordinary types).
+            instantiator_arguments_type const empty_arguments(&base_type.scope());
+
+            // We construct a new table, then recursively process any constraints, allowing us to
+            // correctly generate interface sets.  The process_generic_parameter_constraints does
+            // not itself recurse, but it sets up the context that is required to share the same
+            // post-insertion logic used by the other create table path.
+            context_sequence_type new_table(get_or_create_table_with_base_elements(base_type, metadata::blob(), empty_arguments));
+
+            process_generic_parameter_constraints(new_table, first_constraint, last_constraint);
+
+            return _storage->allocate_table<ContextTag>(type, new_table.data(), new_table.data() + new_table.size());
+        }
+
+        /// Processes the generic parameters for potential insertion into a context table
+        ///
+        /// We only need to perform this step for interface contexts.  For all other contexts, the
+        /// only elements that go into the table are those inherited by the base type that we
+        /// select.
+        auto process_generic_parameter_constraints(interface_context_traits::context_sequence_type      & table,
+                                                   metadata::generic_param_constraint_row_iterator const& first_constraint,
+                                                   metadata::generic_param_constraint_row_iterator const& last_constraint) const -> void
+        {
+            if (first_constraint == last_constraint)
+                return;
+
+            metadata::type_or_method_def_token const parent(row_from(first_constraint->parent()).parent());
+
+            // First, we need to compute the instantiation sources for the constraints.  If this is
+            // a method variable, we'll have both method and type sources; otherwise we will only
+            // have a type source.  In any case, we will always have a type source.
+            metadata::type_def_token   original_type_instantiation_source;
+            metadata::method_def_token original_method_instantiation_source;
+
+            if (parent.is<metadata::type_def_token>())
+            {
+                original_type_instantiation_source = parent.as<metadata::type_def_token>();
+            }
+            else if (parent.is<metadata::method_def_token>())
+            {
+                original_method_instantiation_source = parent.as<metadata::method_def_token>();
+                original_type_instantiation_source   = find_owner_of_method_def(original_method_instantiation_source).token();
+            }
+            else
+            {
+                core::assert_fail(L"unreachable code");
+            }
+
+            core::assert_initialized(original_type_instantiation_source);
+
+            // We'll never have any instantiator arguments at this point; we only need our
+            // instantiator to annotate variables, so we create a new instantiator with an empty
+            // arguments sequence:
+            instantiator_arguments_type const empty_arguments(&original_type_instantiation_source.scope());
+
+            instantiator_type const instantiator(
+                &empty_arguments,
+                get_type_instantiation_source(original_type_instantiation_source),
+                get_method_instantiation_source(original_method_instantiation_source));
+
+            // When we create the elements, we need to track the instantiating type, at least for
+            // elements that end up being instantiated:
+            type_def_and_signature const resolved_type_source(resolve_type_def_and_signature(
+                *_resolver,
+                original_type_instantiation_source));
+
+            // Iterate over the interfaces and insert each of them into the table.  We skip any non-
+            // interface constraints.  There should be at most one such constraint, and it indicates
+            // the base type from which the generic argument must derive.  Note that this process is
+            // recursive:  for each interface that we touch, we back into the post-insertion element
+            // recursion, just as we do for ordinary type contexts.
+            std::for_each(first_constraint, last_constraint, [&](metadata::generic_param_constraint_row const& c)
+            {
+                type_def_and_signature const resolved_constraint_type(resolve_type_def_and_signature(*_resolver, c.constraint()));
+                if (!resolved_constraint_type.has_type_def())
+                    return; // TODO Check correctness?
+
+                metadata::type_flags const flags(row_from(resolved_constraint_type.type_def()).flags());
+                if (flags.with_mask(metadata::type_attribute::class_semantics_mask) != metadata::type_attribute::interface)
+                    return;
+
+                // Create the new context, insert it into the table, and perform post-recurse:
+                context_type const new_context(create_element(c.token(), resolved_type_source, instantiator));
+
+                traits_type::insert_element(*_resolver, table, new_context, 0);
+
+                post_insertion_recurse_with_context(new_context, table, 0);
+            });
+        }
+
+        /// Function template to no-op the constraint processing for non-interface context types
+        ///
+        /// We only need to process constraints for interfaces; all other element types no-op
+        /// this phase.  To make everything compile, we use this catch-all function template.
+        template <typename T, typename U, typename V>
+        auto process_generic_parameter_constraints(T const&, U const&, V const&) const -> void
+        {
+            return;
+        }
+
+
+
+
 
         /// Creates an element for insertion into a table
         ///
@@ -602,59 +728,6 @@ namespace cxxreflect { namespace reflection { namespace detail { namespace {
 
             Signature const& instantiation(instantiator.instantiate(signature));
             return _storage->allocate_signature(instantiation.begin_bytes(), instantiation.end_bytes());
-        }
-
-        /// Gets the method instantiatiation source to be used when constructing an instantiator
-        ///
-        /// This function returns an uninitialized `method_def_token` if the source `token` is not
-        /// initialized or if it does not have generic parameters.  Otherwise, the token is returned
-        /// unchanged.
-        ///
-        /// There is also a function template that handles non-`method_def` tokens and no-ops them.
-        static auto get_method_instantiation_source(metadata::method_def_token const& token) -> metadata::method_def_token
-        {
-            if (!token.is_initialized())
-                return metadata::method_def_token();
-
-            if (!has_generic_params(token))
-                return metadata::method_def_token();
-
-            return token;
-        }
-
-        /// Function template to no-op the getting of an instantiation source for non-method tokens
-        template <typename Token>
-        static auto get_method_instantiation_source(Token const&) -> metadata::method_def_token
-        {
-            return metadata::method_def_token();
-        }
-
-        /// Gets the type instantiation source to be used when constructing an instantiator
-        ///
-        /// This function returns an uninitialized `type_def_token` if the source `token` is not
-        /// initialized or if it does not have generic parameters.  Otherwise, the token is returned
-        /// unchanged.
-        ///
-        /// This function only accepts `type_def_token` tokens because we will always have a type
-        /// for this check:  it is always the owning type whose elements are being enumerated.
-        static auto get_type_instantiation_source(metadata::type_def_token const& token) -> metadata::type_def_token
-        {
-            if (!token.is_initialized())
-                return metadata::type_def_token();
-
-            if (!has_generic_params(token))
-                return metadata::type_def_token();
-
-            return token;
-        }
-
-        /// Tests whether a type or method has generic parameters
-        static auto has_generic_params(metadata::type_or_method_def_token const& token) -> bool
-        {
-            core::assert_initialized(token);
-
-            metadata::generic_param_row_iterator_pair const parameters(metadata::find_generic_params_range(token));
-            return parameters.first != parameters.second;
         }
 
         core::checked_pointer<metadata::type_resolver const> _resolver;
@@ -852,6 +925,7 @@ namespace cxxreflect { namespace reflection { namespace detail {
         else
         {
             core::assert_fail(L"unreachable code");
+            return metadata::type_def_ref_spec_token();
         }
     }
 

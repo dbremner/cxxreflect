@@ -44,6 +44,7 @@ namespace cxxreflect { namespace metadata {
 
 
     auto find_generic_params_range(type_or_method_def_token const& parent) -> generic_param_row_iterator_pair;
+    auto find_generic_param(type_or_method_def_token const& parent, core::size_type index) -> generic_param_row;
     auto begin_generic_params(type_or_method_def_token const& parent) -> generic_param_row_iterator;
     auto end_generic_params(type_or_method_def_token const& parent) -> generic_param_row_iterator;
 
