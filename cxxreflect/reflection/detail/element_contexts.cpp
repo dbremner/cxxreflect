@@ -38,10 +38,10 @@ namespace cxxreflect { namespace reflection { namespace detail { namespace {
             core::assert_initialized(signature);
         }
 
-        auto type_def()      const -> metadata::type_def_token { return _type_def;                   }
-        auto has_type_def()  const -> bool                     { return _type_def.is_initialized();  }
-        auto signature()     const -> metadata::blob           { return _signature;                  }
-        auto has_signature() const -> bool                     { return _signature.is_initialized(); }
+        auto type_def()      const -> metadata::type_def_token const& { return _type_def;                   }
+        auto has_type_def()  const -> bool                            { return _type_def.is_initialized();  }
+        auto signature()     const -> metadata::blob const&           { return _signature;                  }
+        auto has_signature() const -> bool                            { return _signature.is_initialized(); }
 
         /// Returns the signature if one exists, otherwise returns the definition
         auto best_match() const -> metadata::type_def_or_signature
@@ -714,7 +714,7 @@ namespace cxxreflect { namespace reflection { namespace detail { namespace {
             signature_type const signature(signature_blob.as<signature_type>());
 
             if (!instantiator.would_instantiate(signature))
-                return context_type(token);
+                return context_type(token, instantiating_type.best_match(), core::const_byte_range());
 
             return context_type(token, instantiating_type.best_match(), instantiate(signature, instantiator));
         }

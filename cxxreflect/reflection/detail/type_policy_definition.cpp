@@ -129,8 +129,8 @@ namespace cxxreflect { namespace reflection { namespace detail {
     {
         assert_token(t);
 
-        // TODO We actually need to check the generic parameters table.
-        return core::contains(row_from(t.type().as_token()).name(), L'`');
+        metadata::generic_param_row_iterator_pair const variables(metadata::find_generic_params_range(t.type().as_token()));
+        return core::distance(variables.first, variables.second) > 0;
     }
 
     auto definition_type_policy::is_import(type_def_or_signature_with_module const& t) const -> bool

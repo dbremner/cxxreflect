@@ -1002,7 +1002,7 @@ namespace cxxreflect { namespace metadata {
         os << L" | is_generic: " << (s.is_generic() ? L"true" : L"false");
         if (s.is_generic())
             os << L" (arity: " << s.generic_parameter_count() << L")";
-        os << start.c_str() << L"]\n";
+        os << L"]\n";
         os << start.c_str() << L"    [return_type]\n";
         write(os, s.return_type(), pad + 8);
         os << start.c_str() << L"    [end_return_type]\n";

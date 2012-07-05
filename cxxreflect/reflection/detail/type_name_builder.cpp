@@ -296,7 +296,7 @@ namespace cxxreflect { namespace reflection { namespace detail {
 
         metadata::generic_param_row_iterator_pair const generic_parameters(metadata::find_generic_params_range(variable_context));
 
-        if (core::distance(generic_parameters.first, generic_parameters.second) <= variable_number)
+        if (core::distance(generic_parameters.first, generic_parameters.second) < variable_number)
             throw core::runtime_error(L"invalid generic parameter number");
 
         metadata::generic_param_row const parameter_row(*(generic_parameters.first + variable_number));

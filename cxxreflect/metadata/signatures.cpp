@@ -1787,6 +1787,7 @@ namespace cxxreflect { namespace metadata {
                     if (variable_number >= c.arguments().size())
                         throw core::runtime_error(L"variable number out of range");
 
+                    copy_bytes_into(buffer, s, part::begin, part::type_code);
                     copy_bytes_into(buffer, c.arguments()[variable_number], part::begin, part::end);
                 }
             }
@@ -1794,33 +1795,6 @@ namespace cxxreflect { namespace metadata {
             {
                 core::assert_fail(L"unreachable code");
             }
-            /*
-            if (c.arguments().size() == 0)
-            {
-                // If there are no arguments, this instantiator is still being constructed.  During
-                // construction, we instantiate each of the arguments to normalize all class type
-                // signatures as cross-module type references.  Until this process is completed,
-                // there are no arguments in the _arguments sequence.
-                copy_bytes_into(buffer, s, part::begin, part::end);
-            }
-            else if (s.is_class_variable())
-            {
-                core::size_type const variable_number(s.variable_number());
-
-                if (variable_number >= c.arguments().size())
-                    throw core::runtime_error(L"variable number out of range");
-
-                copy_bytes_into(buffer, c.arguments()[variable_number], part::begin, part::end);
-            }
-            else if (s.is_method_variable())
-            {
-                copy_bytes_into(buffer, s, part::begin, part::end);
-            }
-            else
-            {
-                throw core::runtime_error(L"unknown variable type");
-            }
-            */
             break;
         }
         default:
