@@ -39,6 +39,9 @@
     <ClInclude Include="precompiled_headers.hpp">
       <Filter>headers</Filter>
     </ClInclude>
+    <ClInclude Include="debug.hpp">
+      <Filter>headers</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="constants.cpp">
@@ -60,6 +63,9 @@
       <Filter>sources</Filter>
     </ClCompile>
     <ClCompile Include="utility.cpp">
+      <Filter>sources</Filter>
+    </ClCompile>
+    <ClCompile Include="debug.cpp">
       <Filter>sources</Filter>
     </ClCompile>
   </ItemGroup>

@@ -453,6 +453,39 @@ namespace cxxreflect { namespace core {
         value_initialized<const_byte_iterator> _current;
     };
 
+
+
+
+
+    class base_wostream_wrapper
+    {
+    public:
+
+        virtual auto write(core::const_character_iterator) -> void = 0;
+    };
+
+    template <typename T>
+    class wostream_wrapper : public base_wostream_wrapper
+    {
+    public:
+
+        wostream_wrapper(T* stream)
+            : _stream(stream)
+        {
+            core::assert_not_null(stream);
+        }
+
+        virtual auto write(core::const_character_iterator s) -> void
+        {
+            core::assert_not_null(s);
+            *_stream << s;
+        }
+
+    private:
+
+        core::checked_pointer<T> _stream;
+    };
+
 } }
 
 #endif

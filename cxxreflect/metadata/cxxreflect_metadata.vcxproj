@@ -22,6 +22,7 @@
   <ItemGroup>
     <ClInclude Include="constants.hpp" />
     <ClInclude Include="database.hpp" />
+    <ClInclude Include="debug.hpp" />
     <ClInclude Include="metadata.hpp" />
     <ClInclude Include="precompiled_headers.hpp" />
     <ClInclude Include="relationships.hpp" />
@@ -34,6 +35,7 @@
   <ItemGroup>
     <ClCompile Include="constants.cpp" />
     <ClCompile Include="database.cpp" />
+    <ClCompile Include="debug.cpp" />
     <ClCompile Include="utility.cpp" />
     <ClCompile Include="precompiled_headers.cpp">
       <PrecompiledHeader>Create</PrecompiledHeader>
