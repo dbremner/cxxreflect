@@ -724,34 +724,24 @@ namespace cxxreflect { namespace metadata { namespace debug {
 
     auto insert_into_stream(core::base_wostream_wrapper& os, unrestricted_token const x) -> void
     {
-        os.write(L"{");
+        os.write(L"{0x");
 
-        // 0x12345678\0
-        typedef std::array<core::character, 9> buffer_type;
-
-        buffer_type buffer((buffer_type()));
-
-        os.write(L"0x");
-        core::assert_true(std::swprintf(buffer.data(), buffer.size(), L"%08x", x.value()) != -1);
-        os.write(buffer.data());
+        os.write(core::hex_format(x.value()));
         os.write(L"|");
 
         insert_into_stream(os, x.table());
         
         os.write(L":");
-
-        core::assert_true(std::swprintf(buffer.data(), buffer.size(), L"%u", x.index()) != -1);
-        os.write(buffer.data());
+        os.write(x.index());
 
         os.write(L"}");
     }
 
     auto insert_into_stream(core::base_wostream_wrapper& os, array_shape const& x) -> void
     {
-        os.write(L"[");
+        os.write(L"[rank:");
 
-        os.write(L"R:");
-        os.write(core::to_string(x.rank()).c_str());
+        os.write(x.rank());
 
         if (x.size_count() > 0)
         {
@@ -760,7 +750,7 @@ namespace cxxreflect { namespace metadata { namespace debug {
             std::for_each(x.begin_sizes(), x.end_sizes(), [&](core::size_type const n)
             {
                 if (!is_first) { os.write(L","); }
-                os.write(core::to_string(n).c_str());
+                os.write(n);
                 is_first = false;
             });
         }
@@ -772,7 +762,7 @@ namespace cxxreflect { namespace metadata { namespace debug {
             std::for_each(x.begin_low_bounds(), x.end_low_bounds(), [&](core::size_type const n)
             {
                 if (!is_first) { os.write(L","); }
-                os.write(core::to_string(n).c_str());
+                os.write(n);
                 is_first = false;
             });
         }
@@ -817,7 +807,7 @@ namespace cxxreflect { namespace metadata { namespace debug {
         if (x.is_generic())
         {
             os.write(L"generic:");
-            os.write(core::to_string(x.generic_parameter_count()).c_str());
+            os.write(x.generic_parameter_count());
             os.write(L":");
         }
 
@@ -957,26 +947,26 @@ namespace cxxreflect { namespace metadata { namespace debug {
 
         case element_type::annotated_mvar:
             os.write(L"mvar:");
-            os.write(core::to_string(x.variable_number()).c_str());
+            os.write(x.variable_number());
             os.write(L"/scope:");
             insert_into_stream(os, x.variable_context());
             break;
 
         case element_type::annotated_var:
             os.write(L"var:");
-            os.write(core::to_string(x.variable_number()).c_str());
+            os.write(x.variable_number());
             os.write(L"/scope:");
             insert_into_stream(os, x.variable_context());
             break;
 
         case element_type::mvar:
             os.write(L"mvar:");
-            os.write(core::to_string(x.variable_number()).c_str());
+            os.write(x.variable_number());
             break;
 
         case element_type::var:
             os.write(L"var:");
-            os.write(core::to_string(x.variable_number()).c_str());
+            os.write(x.variable_number());
             break;
 
         default:

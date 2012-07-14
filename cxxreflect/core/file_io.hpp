@@ -75,29 +75,29 @@ namespace cxxreflect { namespace core {
     {
     public:
 
-        // This is the mapping of <cstdio> functions to FileHandle member functions:
-        // fclose    Close
-        // feof      IsEof
-        // ferror    IsError
-        // fflush    Flush
-        // fgetc     GetChar
-        // fgetpos   GetPosition
-        // fgets
-        // fopen     [Constructor]
+        // This is the mapping of <cstdio> functions to file_handle member functions:
+        // fclose    close
+        // feof      is_eof
+        // ferror    is_error
+        // fflush    flush
+        // fgetc     get_char
+        // fgetpos   get_position
+        // fgets     [not implemented]
+        // fopen     [constructor]
         // fprintf   operator<<
-        // fputc     PutChar
+        // fputc     put_char
         // fputs     operator<<
-        // fread     Read
-        // freopen   [Not Implemented]
-        // fscanf
-        // fseek     Seek
-        // fsetpos   SetPosition
-        // ftell     Tell
-        // fwrite    Write
-        // getc      GetChar
-        // putc      PutChar
+        // fread     read
+        // freopen   [not implemented]
+        // fscanf    [not implemented]
+        // fseek     seek
+        // fsetpos   set_position
+        // ftell     tell
+        // fwrite    write
+        // getc      get_char
+        // putc      put_char
         // puts      operator<<
-        // rewind    [Not Implemented]
+        // rewind    [not implemented]
 
         enum origin_type
         {
@@ -149,6 +149,7 @@ namespace cxxreflect { namespace core {
         auto flush() -> void
         {
             assert_output_stream();
+
             if (std::fflush(_handle) == EOF)
                 throw io_error();
         }
@@ -156,6 +157,7 @@ namespace cxxreflect { namespace core {
         auto get_char() -> int
         {
             assert_input_stream();
+
             int const value(std::fgetc(_handle));
             if (value == EOF)
                 throw io_error();
@@ -457,13 +459,39 @@ namespace cxxreflect { namespace core {
 
 
 
+    /// Abstract base class for the `wostream_wrapper` type to allow for pimpl'ed formatting code
+    ///
+    /// The only derived classes are specializations of `wostream_wrapper`.  Each implementes the
+    /// `write` member function to write a wide character string to the stream.
     class base_wostream_wrapper
     {
     public:
 
         virtual auto write(core::const_character_iterator) -> void = 0;
+
+        auto write(core::size_type const value) -> void { write_size_type(value,         L"%u"  ); }
+        auto write(hex_format      const value) -> void { write_size_type(value.value(), L"%08x"); }
+
+    protected:
+
+        ~base_wostream_wrapper() { }
+
+    private:
+
+        auto write_size_type(core::size_type const value, wchar_t const* const format) -> void
+        {
+            size_type_buffer buffer((size_type_buffer()));
+            assert_true(std::swprintf(buffer.data(), buffer.size(), format, value) != -1);
+            write(buffer.data());
+        }
+
+        typedef std::array<core::character, 15> size_type_buffer;
     };
 
+    /// Concrete `wostream_wrapper` implementation template (`T` is the conrete stream type)
+    ///
+    /// The only requirement on `T` is that given an object `x` of type `T` and a `wchar_t const*`
+    /// named `s`, the expression `x << s` is valid and inserts the string `s` into the stream.
     template <typename T>
     class wostream_wrapper : public base_wostream_wrapper
     {
