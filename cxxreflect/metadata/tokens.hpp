@@ -12,59 +12,226 @@ namespace cxxreflect { namespace metadata {
 
     class database;
 
-    /// \defgroup cxxreflect_metadata_tokens Metadata -> Tokens
+    /// \defgroup cxxreflect_metadata_tokens Metadata -> Tokens and Signatures
     ///
-    /// Token types used for representing rows in metadata tables and signature blobs on disk
+    /// Types for representing a reference to a row in a metadata table or to a signature blob
     ///
-    /// The token type system constructed here provides a (relatively) type-safe way of referencing
-    /// elements in a metadata database without significant performance overhead.  The core of the
-    /// token type system is the `restricted_token<Mask>`.  The mask specifies the restricted set
-    /// of tables in which the token can reference entities.  For example, the `type_def_token` is
-    /// specialized such that it can only refer to rows in the TypeDef table, and the token type
-    /// `type_def_ref_spec_token` type is specialized such that it can refer to rows in the TypeDef,
-    /// TypeRef, or TypeSpec tables.
     ///
-    /// A more restrictive token type may be implicitly converted to a less restrictive token type,
-    /// similar to how a pointer to a derived class may be implicitly converted to a pointer to one
-    /// of its base classes.  For example, there is an implicit conversion from `type_def_token` to
-    /// `type_def_ref_spec_token` because all possible values representable by the former are
-    /// representable by the latter.
     ///
-    /// It is possible to convert from a less restrictive token type to a more restrictive token
-    /// type (e.g. from `type_def_token` to `type_def_ref_spec_token`), but the conversion must be
-    /// done using the `as` member function template.  The rule is that all implicit conversions are
-    /// safe.  Any conversion which may fail is made explicit via the `as<>` member function
-    /// template.
+    /// **Terminology**
     ///
-    /// Every token contains three pieces of information:  (1) the scope in which the element to
-    /// which the token refers is located, (2) the table into which the token refers, and (3) the
-    /// index of the row in the table to which the token refers.
+    /// A metadata database is a set of tables (see the `table_id` enumeration for the list).  Each
+    /// table has a sequence of rows.  The database is a partially-denormalized relational database,
+    /// so there are relationships between the tables.  A reference to a row in a database table is
+    /// called a "token."
     ///
-    /// A token therefore has all of the information required to resolve the row to which it refers.
-    /// If a token `t` is of a type that can refer to only a single table (e.g. a `type_def_token`),
-    /// then the row to which the token refers may be resolved via:
+    /// A metadata database also contains signature information, represented in blobs.  A blob is
+    /// simply reference to a sequence of bytes.
+    ///
+    /// Each token and blob has a pointer to the metadata database from which it originated:  this
+    /// pointer is called the "scope."
+    ///
+    ///
+    ///
+    /// **What is a token?**
+    ///
+    /// A token consists of three parts:
+    ///
+    ///  * Its scope
+    ///  * A `table_id` identifier identifying the table in which the row is located
+    ///  * The index of the referenced row in the table.
+    ///
+    /// The concept of a "token" comes from the CLI specification (ECMA-335).  In that specification
+    /// a token is a 32-bit integer in which the upper eight bits encode the table identifier and
+    /// the lower 24 bits encode the index of the row.  In this form, rows are indexed starting from
+    /// one.  A token value of zero is a "null token."
+    ///
+    /// This metadata library represents a token similarly, with one small difference:  we adjust
+    /// the row index so that it is zero-based instead of one-based.  A token with a row index of
+    /// `0x00ffffff` is a null token (remember:  only 24 bits are used to represent the row index).
+    /// We do this to avoid confusion:  zero-based indices are much easier to deal with.
+    ///
+    ///
+    ///
+    /// **What is a blob?**
+    ///
+    /// A blob is an arbitrary sequence of bytes, often read from the blob heap of a metadata
+    /// database, but it may refer elsewhere too.  For example, we initially refer to GUIDs as blobs
+    /// even though they are stored in the GUID heap.  More commonly, we may instantiate a signature
+    /// into a buffer not directly associated with a database.  In this case, we still refer to that
+    /// signature's bytes as a blob.
+    ///
+    /// A blob consists of three parts:
+    ///
+    ///  * Its scope
+    ///  * A pointer to its initial byte
+    ///  * A pointer to one past its last byte
+    ///
+    /// As described above, a blob may not be located in a metadata database.  However, it will
+    /// always be derived from a blob that was obtained from a metadata database.  When a blob
+    /// refers to an instantiated signature, the scope of that blob will be the metadata database
+    /// from which we obtained the original blob.
+    ///
+    ///
+    ///
+    /// **What is the purpose of all of these types?**
+    ///
+    /// A token is just a pointer and a 32-bit integer and a blob is really just a set of three
+    /// pointers, so we could easily represent these with very few lines of code.  Why all the 
+    /// complexity?
+    ///
+    /// The types defined here provide type safety benefits and make it much harder to write
+    /// incorrect code.  Most of the logic is designed to restrict the usage of tokens, so we'll
+    /// describe an example involving tokens to demonstrate the purpose of these types.
+    ///
+    /// As we have already described, a token is a 32-bit integer that can refer to any row in any
+    /// table.  This is a useful and compact representation.  However, most of the time, when we
+    /// have a token, it can only refer to a row in one particular table or in one of a small set
+    /// of tables.  For example, when we have a type definition (TypeDef) and we get the token for
+    /// its first field, we know that it will refer to a row in the FieldDef table.  If it doesn't
+    /// then the metadata database is ill-formed.
+    ///
+    /// Similarly, if we have a GenericParam row and we want to find its parent, we know that the
+    /// parent will be a row in the TypeDef or MethodDef table.  It is not possible for the owner
+    /// to be from any other table.  (In many cases, these restrictions are not only mandated by the
+    /// specification, they are often imposed by the way tokens are represented in metadata:  it is
+    /// often impossible for an invalid token to be represented).
+    ///
+    /// If we simply represent a token value using a 32-bit integer or using a thin facade around an
+    /// integer, we lose this information:  a 32-bit integer can represent a row in any table with
+    /// no restrictions.  This means that we must use many checks at runtime to verify that we have
+    /// the right kind of token:  every argument must be checked and every return value must be
+    /// checked.  This leads to a substantial amount of overhead and adds a lot of unnecessary
+    /// error-checking boilerplate to the code.
+    ///
+    ///
+    ///
+    /// **Ok, so how have we solved this problem?**
+    ///
+    /// Templates are the solution to every problem in C++, so we have used templates to solve this
+    /// problem and to help to encode table restrictions such that the C++ type system will check
+    /// our token usage for us.
+    ///
+    /// There are currently 38 metadata tables.  Each metadata table has an identifier.  The
+    /// identifiers are in the range [0,44].  We define a bitfield, named `table_mask`, which has
+    /// one enumerator per table identifier and the value of each enumerator is `1 << n`, where `n`
+    /// is the numeric value of the table identifier.  With a bitfield of this type we can
+    /// represent any subset of tables.
+    ///
+    /// We define a class template named `restricted_token<Mask>`.  The `Mask` template argument is
+    /// a value of type `table_mask`.  A specialization of this class template may contain a token
+    /// that refers to a row in any table specified in the mask.  Consider a few examples:
+    ///
+    ///  * `restricted_token<module>` can refer only to a row in the Module table.
+    ///
+    ///  * `restricted_token<type_def | method_def>` can refer to a row in either the TypeDef or the
+    ///    MethodDef table.
+    ///
+    /// Because we construct a restricted token from an integer value that we obtain from a metadata
+    /// database, we verify in its constructor that it is being initialized with a token value that
+    /// refers to an allowed table.  This check is done at runtime.  Because we only construct a
+    /// token in a handful of places in the metadata database code, this check is only really done
+    /// in a handful of places in the code, leaving a small surface area for error.
+    ///
+    /// Only safe conversions between `restricted_token<Mask>` specializations are only allowed.  In
+    /// effect, only "widening" conversions are implicit:  a conversion is only allowed if all valid
+    /// values for the source specialization are valid in the target specialization.  Let's consider
+    /// a few examples:
+    ///
+    ///  * A `restricted_token<type_def>` is convertible to a `restricted_token<type_def>` because
+    ///    they both have the same `Mask` value.  In short, copy construction is permitted.  This
+    ///    should be obvious.
+    ///
+    ///  * A `restricted_token<type_def | type_ref>` is implicitly convertible to a 
+    ///    `restricted_token<type_def | type_ref | type_spec>`.  This is because every value of the
+    ///    source token type is also a valid value for the target token type:  the source can
+    ///    represent any row in the TypeDef or TypeRef tables and the target can represent any row
+    ///    in the TypeDef, TypeRef, or TypeSpec tables.
+    ///
+    ///  * The converse is not true:  a `restricted_token<type_def | type_ref | type_spec>` is not
+    ///    implicitly convertible to a `restricted_token<type_def | type_ref>`.  This is because the
+    ///    source token may refer to a row in the TypeSpec table, which is not valid for the target
+    ///    token type.
+    ///
+    /// Using bitwise arithmetic, we can say that a conversion from mask `S` to mask `T` is allowed
+    /// if and only if `S == (S & T)`.  That is, if every bit in `S` is also set in `T`.  We enforce
+    /// this constraint via SFINAE-enabled converting constructors.
+    ///
+    /// This is all well and good, except that if we have a token that refers to a row in one of a
+    /// set of tables, we'll eventually need to convert it somehow to a more restrictive type.  For
+    /// example, given a `restricted_token<type_def | method_def>`, we'll eventually need to get
+    /// either a `restricted_token<type_def>` or a `restricted_token<method_def>` from it.
+    ///
+    /// To do  this, the `restricted_token<Mask>` provides `is<Target>()` and `as<Target>()` member
+    /// functions.  `as<Target>()` converts the token to a more restrictive type.  If the conversion
+    /// is invalid (i.e., if the value of the source is not representable by the target type), it
+    /// fails with an assertion.  The `is<Target>()` tests whether `as<Target>()` would succeed.  It
+    /// is the responsibility of the caller to be sure to test `is<Target>()` before calling 
+    /// `as<Target>()` because these checks are only done when debug assertions are enabled (the
+    /// checks are simple, but enormously expensive due to their frequency).
+    ///
+    /// The `Target` template parameter provided to the `is` and `as` member function templates may
+    /// be either another specialization of `restricted_token<Mask>` or may be a `token_mask` value.
+    ///
+    /// For simplicitly, we define a number of commonly-used specializations of `restricted_token`.
+    /// These are all defined in this header file.  Most of these use masks that are combinations
+    /// that occur in metadata databases, but some of them are hybrid token combinations that only
+    /// originate from other parts of this library (we define them all here anyway so they can be
+    /// used uniformly).
+    ///
+    ///
+    ///
+    /// **What do blobs have to do with all this?**
+    ///
+    /// Why, I'm glad you asked that!  Tokens and blobs are entirely unrelated:  they are separate
+    /// and distinct things.  However, there are a few select places where we need to represent
+    /// "a token or a blob."  Notably, there are places in the library where we may have either a
+    /// TypeDef token _or_ a blob containing the signature of a type.
+    ///
+    /// To represent this, we define a `restricted_token_or_blob<Mask>` that can represent either
+    /// a `restricted_token<Mask>` or a `blob`.  This class template allows conversion similar to
+    /// those allowed by `restricted_token<Mask>` for different `Mask` values.  It also allows
+    /// conversions from `blob` itself or from `restricted_token<Mask>`, for valid `Mask` values.
+    ///
+    /// A `restricted_token_or_blob<Mask>` allows direct access to its scope, since both blobs and
+    /// tokens have a scope.  For access to any other data, it must be converted to a token or a
+    /// blob type, via its `as_token()` and `as_blob()` member functions.
+    ///
+    ///
+    ///
+    /// **How can I get to a row from a token?**
+    ///
+    /// There are row types defined in the `rows.hpp` header file.  There is one row type per table.
+    /// each row type provides access to all of the columns for the table whose rows it represents.
+    ///
+    /// If you have a "unique token" (a token that can refer to a row in exactly one table), you can
+    /// get its row object via the following expression:
     ///
     ///     t.scope()[t]
     ///
-    /// There is a nonmember function to help with this, so that t needs only be evaluated once:
+    /// Because this is a common operation and because we'd like to avoid having to name `t` twice,
+    /// there is a nonmember utility function that can be used for this (most of the time, we'll use
+    /// this and make the call unqualified, letting it be found via ADL):
     ///
     ///     row_from(t)
     ///
-    /// This function will be found via ADL, so long as `t` is a `restricted_token`.
+    /// Because each table has its own row type, this only works for unique tokens.  If you try to
+    /// get a row from a nonunique token, you may get an ugly compilation error.
     ///
-    /// The other kind of entity in a metadata database is a blob, which is an array of bytes that
-    /// usually represents a signature, but can also represent practically anything else, like a
-    /// GUID or a constant value.  Blobs are represented by the `blob` type, which is basically a
-    /// token type for blobs.  All blobs are of the same kinf, however, so there is only one blob 
-    /// type.  To interpret a blob as a particular kind of signature, convert it to that signature
-    /// type (e.g., to `type_signature`).
     ///
-    /// There are many cases where one may have either a token or a blob.  For example, the `type`
-    /// class type can refer either to a TypeDef directly or it can refer to a part of a type
-    /// signature.  To handle this case, we provide the `restricted_token_or_blob` class template.
-    /// This is effectively a discriminated union that can hold either a blob or a particular
-    /// specialization of a restricted token.  To use this type, you must inspect the tag to find
-    /// which kind of entity is represented, then convert the object to either a token or a blob.
+    ///
+    /// **What about arithmetic on tokens?**
+    ///
+    /// We actually lied above:  the `restricted_token` template has two template parameters:  the
+    /// second is a `bool` nontype template parameter that specifies whether the token allows
+    /// pointer-like arithmetic operations.  This allows a unique token to be used like an iterator
+    /// into a database table.  Because we rarely use arithmetic with tokens, we only use token
+    /// types with arithmetic operations occasionally.  When we use them, they are injected via a
+    /// CRTP base class, `base_token_with_arithmetic`.
+    ///
+    ///
+    ///
+    /// **A reminder about error checking**
     ///
     /// Note that most of the type checking is done only in debug builds.  Within the metadata
     /// library, any error that might originate from malformed metadata is caught before creation
@@ -162,23 +329,23 @@ namespace cxxreflect { namespace metadata {
         {
             core::assert_true([&]{ return lhs.is_initialized() == rhs.is_initialized(); });
 
-            return std::make_tuple(lhs._scope.get(), lhs._value.get())
-                == std::make_tuple(rhs._scope.get(), rhs._value.get());
+            return std::tie(lhs._scope, lhs._value) == std::tie(rhs._scope, rhs._value);
         }
 
         friend auto operator<(base_token const& lhs, base_token const& rhs) -> bool
         {
             core::assert_true([&]{ return lhs.is_initialized() == rhs.is_initialized(); });
 
-            return std::make_tuple(lhs._scope.get(), lhs._value.get())
-                <  std::make_tuple(rhs._scope.get(), rhs._value.get());
+            return std::tie(lhs._scope, lhs._value) < std::tie(rhs._scope, rhs._value);
         }
 
         CXXREFLECT_GENERATE_COMPARISON_OPERATORS(base_token)
 
     protected:
 
-        base_token() { }
+        base_token()
+        {
+        }
 
         base_token(database const* const scope, value_type const token)
             : _scope(scope), _value(token - 1)
@@ -194,7 +361,9 @@ namespace cxxreflect { namespace metadata {
             // compose_value will verify the correctness of the table and index arguments
         }
 
-        ~base_token() { }
+        ~base_token()
+        {
+        }
 
     private:
 
@@ -217,8 +386,8 @@ namespace cxxreflect { namespace metadata {
             return table_component | index_component;
         }
 
-        core::value_initialized<database const*> _scope;
-        core::value_initialized<value_type     > _value;
+        core::checked_pointer<database const> _scope;
+        core::value_initialized<value_type>   _value;
     };
 
 
@@ -300,8 +469,7 @@ namespace cxxreflect { namespace metadata {
             if (!lhs.is_initialized() && !rhs.is_initialized())
                 return 0;
 
-            return static_cast<core::difference_type>(lhs.index())
-                 - static_cast<core::difference_type>(rhs.index());
+            return static_cast<core::difference_type>(lhs.index()) - static_cast<core::difference_type>(rhs.index());
         }
 
         friend auto operator+=(DerivedType& x, core::difference_type const n) -> DerivedType&
@@ -322,7 +490,9 @@ namespace cxxreflect { namespace metadata {
 
     protected:
 
-        base_token_with_arithmetic() { }
+        base_token_with_arithmetic()
+        {
+        }
 
         base_token_with_arithmetic(database const* const scope, value_type const token)
             : base_token(scope, token)
@@ -339,13 +509,18 @@ namespace cxxreflect { namespace metadata {
         {
         }
 
-        ~base_token_with_arithmetic() { }
+        ~base_token_with_arithmetic()
+        {
+        }
 
     private:
 
+        /// Tests whether `x {+,-} n` can be evaluated without overflow
+        ///
+        /// If `is_subtraction` is `true`, `x - n` is tested; otherwise `x + n` is tested.
         static auto is_in_range(DerivedType           const& x,
                                 bool                  const  is_subtraction,
-                                core::difference_type const n) -> bool
+                                core::difference_type const  n) -> bool
         {
             static core::difference_type const difference_mask(static_cast<core::difference_type>(index_mask));
 
@@ -407,11 +582,14 @@ namespace cxxreflect { namespace metadata {
         typedef metadata::table_mask         mask_type;
         typedef metadata::integer_table_mask integer_mask_type;
 
+        // Note:  These are not defined; they are for use in constant expressions only
         static mask_type         const mask           = Mask;
         static integer_mask_type const integer_mask   = static_cast<integer_mask_type>(mask);
         static bool              const has_arithmetic = WithArithmetic;
 
-        restricted_token() { }
+        restricted_token()
+        {
+        }
 
         restricted_token(database const* const scope, core::size_type const token)
             : base_type(scope, token)
@@ -433,6 +611,11 @@ namespace cxxreflect { namespace metadata {
         /// by the source token type.
         ///
         /// To perform unsafe conversions, use the `is()` and `as()` member functions.
+        ///
+        /// Note that we have intentionally chosen to use SFINAE instead of static_cast, even though
+        /// no other overload will ever match.  We do this so that the `std::is_convertible` type
+        /// trait can be used to determine whether conversion will succeed at compile-time.  This
+        /// allows us to write unit tests that verify nonconvertibility of incompatible token types.
         template <mask_type SourceMask, bool BaseFlag>
         restricted_token(restricted_token<SourceMask, BaseFlag> const& other,
                          typename std::enable_if<
@@ -508,6 +691,10 @@ namespace cxxreflect { namespace metadata {
     // each of which can represent a row in one of several tables.  We only define types for non-
     // unique tokens that either are found natively in metadata or which are created elsewhere in
     // the library.
+    //
+    // This is one of the few places in the library we use C-style casts.  The casts here are safe
+    // because they are only evaluated at compile-time to compute the value of the integral constant
+    // expression.
     
     /// Token that can refer to a row in any table of the metadata database
     typedef restricted_token<(table_mask)-1> unrestricted_token;
@@ -658,7 +845,9 @@ namespace cxxreflect { namespace metadata {
     {
     public:
 
-        blob() { }
+        blob()
+        {
+        }
 
         blob(database const*           const scope,
              core::const_byte_iterator const first,
@@ -799,7 +988,7 @@ namespace cxxreflect { namespace metadata {
 
     private:
 
-        core::value_initialized<database const*>           _scope;
+        core::checked_pointer<database const>              _scope;
         core::value_initialized<core::const_byte_iterator> _first;
         core::value_initialized<core::const_byte_iterator> _last;
     };
@@ -971,7 +1160,7 @@ namespace cxxreflect { namespace metadata {
         {
             core::assert_initialized(*this);
 
-            return *_scope.get();
+            return *_scope;
         }
 
         friend auto operator==(restricted_token_or_blob const& lhs, restricted_token_or_blob const& rhs) -> bool
@@ -1022,7 +1211,7 @@ namespace cxxreflect { namespace metadata {
             return is_blob() ? reinterpret_cast<std::uintptr_t>(_first) : static_cast<std::uintptr_t>(_index);
         }
 
-        core::value_initialized<database const*> _scope;
+        core::checked_pointer<database const> _scope;
 
         union
         {

@@ -32,6 +32,14 @@ namespace cxxreflect { namespace metadata {
         /// to throw a `metadata_error`.
         virtual auto resolve_type(type_def_ref_spec_token) const -> type_def_spec_token = 0;
 
+        /// Resolves the TypeDef token that represents a fundamental type
+        ///
+        /// The element type `e` must be one of the concrete element types (i.e., it must have a
+        /// value less than `element_type::concrete_element_type_max`) and its value must not be
+        /// `end`, `by_ref`, `generic_inst`, or `typed_by_ref`.
+        ///
+        /// The type resolver is responsible for resolving the type in the type universe's 
+        /// system assembly.  If it fails to resolve the type, it must throw a `metadata_error`.
         virtual auto resolve_fundamental_type(element_type e) const -> type_def_token = 0;
 
         virtual ~type_resolver() { }

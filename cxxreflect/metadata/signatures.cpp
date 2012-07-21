@@ -1175,7 +1175,7 @@ namespace cxxreflect { namespace metadata {
 
 
 
-    signature_comparer::signature_comparer(type_resolver const* resolver)
+    signature_comparer::signature_comparer(type_resolver const* const resolver)
         : _resolver(resolver)
     {
         core::assert_not_null(resolver);
@@ -1550,7 +1550,8 @@ namespace cxxreflect { namespace metadata {
         return _context.is_initialized();
     }
 
-    auto signature_instantiator::create_arguments(type_signature const& type, type_def_token type_source) -> signature_instantiation_arguments
+    auto signature_instantiator::create_arguments(type_signature const& type, type_def_token const type_source)
+        -> signature_instantiation_arguments
     {
         core::assert_initialized(type);
 

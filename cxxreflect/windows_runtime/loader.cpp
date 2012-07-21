@@ -42,8 +42,8 @@ namespace cxxreflect { namespace windows_runtime {
                        [](core::string const& file_name) -> path_map::value_type
         {
             // TODO We definitely need error checking here.
-            auto first(std::find(file_name.rbegin(), file_name.rend(), L'\\').base());
-            auto last (std::find(file_name.rbegin(), file_name.rend(), L'.' ).base());
+            auto const first(std::find(file_name.rbegin(), file_name.rend(), L'\\').base());
+            auto const last (std::find(file_name.rbegin(), file_name.rend(), L'.' ).base());
 
             core::string const simple_name(first, std::prev(last));
 

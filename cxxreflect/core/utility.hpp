@@ -290,6 +290,18 @@ namespace cxxreflect { namespace core {
 
         auto is_initialized() const -> bool { return _value != nullptr; }
 
+        friend auto operator==(checked_pointer const& lhs, checked_pointer const& rhs) -> bool
+        {
+            return std::equal_to<pointer>()(lhs._value, rhs._value);
+        }
+
+        friend auto operator<(checked_pointer const& lhs, checked_pointer const& rhs) -> bool
+        {
+            return std::less<pointer>()(lhs._value, rhs._value);
+        }
+
+        CXXREFLECT_GENERATE_COMPARISON_OPERATORS(checked_pointer)
+
     private:
 
         pointer _value;
@@ -766,6 +778,18 @@ namespace cxxreflect { namespace core {
         auto get() const -> const_reference { return _value; }
         
         auto reset() -> void { _value = value_type(); }
+
+        friend auto operator==(value_initialized const& lhs, value_initialized const& rhs) -> bool
+        {
+            return std::equal_to<value_type>()(lhs._value, rhs._value);
+        }
+
+        friend auto operator<(value_initialized const& lhs, value_initialized const& rhs) -> bool
+        {
+            return std::less<value_type>()(lhs._value, rhs._value);
+        }
+
+        CXXREFLECT_GENERATE_COMPARISON_OPERATORS(value_initialized)
 
     private:
 

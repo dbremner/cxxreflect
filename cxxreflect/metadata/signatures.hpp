@@ -673,6 +673,9 @@ namespace cxxreflect { namespace metadata {
 
 
 
+    /// Arguments for the `signature_instantiator`
+    ///
+    /// See the documentation for the signature instantiator to see how this is used.
     class signature_instantiation_arguments
     {
     public:
@@ -715,6 +718,43 @@ namespace cxxreflect { namespace metadata {
 
 
 
+    /// A signature instantiator that instantiates generic types and annotates generic parameters
+    ///
+    /// Instantiation makes several changes to a signature:
+    ///
+    ///  * For a generic instance (i.e., a generic type that has been instantiated with a set of
+    ///    type arguments), we replace the type and method variables (Var and MVar elements) with
+    ///    the types of the instantiation.  For example, given `IEnumerable<T>`, if we instantiate
+    ///    it as `IEnumerable<int>`, we replace every instance of `T` in the signature with `int`.
+    ///    This process is necessarily recursive:  consider, for example, a method that has a
+    ///    parameter of type `IEnumerable<IDictionary<int, IEnumerable<T>>`.
+    ///
+    ///  * During instantiation of a generic instance, we annotate any TypeDef, TypeRef, or TypeSpec
+    ///    token that is part of an argument with the scope from which it was obtained.  This is
+    ///    required to allow us to correctly resolve types when the arguments are defined in an
+    ///    assembly other than the assembly in which the generic type definition is defined.
+    ///
+    ///    This annotation actually takes place during the construction of the arguments before they
+    ///    are provided to the constructor (i.e., the `signature_instantiation_arguments` annotates
+    ///    the argument signatures when it is constructed).
+    ///
+    ///  * Any type or method variables (Var or MVar elements) are annotated with the token that
+    ///    identifies the type or method to which the variable belongs.  This is required so that we
+    ///    can determine the declaring type of the variable when we inspect it for reflection.  This
+    ///    is also required for us to be able to compute the row in the GenericParam table that
+    ///    corresponds to the signature element for the variable.
+    ///
+    ///    The type and method instantiation contexts are provided when an instantiator is
+    ///    constructed.  One or both may be provided, depending on whether the signature originates
+    ///    from a method.  For non-generic signatures, it is not necessary to provide instantiation
+    ///    contexts.
+    ///
+    /// Note that construction of the `signature_instantiation_arguments` is expensive and requires
+    /// dynamic allocation.  This is why we have split it into its own class:  when we actually
+    /// instantiate signatures, it is often the case that we have one set of arguments that will be
+    /// used for instantiation of multiple signatures with different method and type instantiation
+    /// contexts.  By splitting the construction into two phases, we substantially reduce the amount
+    /// of dynamic allocation required.
     class signature_instantiator
     {
     public:

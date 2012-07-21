@@ -31,9 +31,11 @@ namespace cxxreflect { namespace metadata {
         /// Each component of the version number is a 16-bit unsigned integer
         typedef std::uint16_t component;
 
-        four_component_version() { }
+        four_component_version()
+        {
+        }
 
-        four_component_version(component major, component minor, component build, component revision)
+        four_component_version(component const major, component const minor, component const build, component const revision)
             : _major(major), _minor(minor), _build(build), _revision(revision)
         {
         }
@@ -406,7 +408,7 @@ namespace cxxreflect { namespace metadata {
         /// that the `row_from(token)` nonmember function, defined in tokens.hpp, may be used for
         /// more succinct realization of row objects.
         template <table_mask Mask>
-        auto operator[](restricted_token<Mask> const token) const -> typename row_type_for_mask<Mask>::type
+        auto operator[](restricted_token<Mask> const& token) const -> typename row_type_for_mask<Mask>::type
         {
             core::assert_initialized(*this);
             core::assert_initialized(token);
@@ -479,7 +481,9 @@ namespace cxxreflect { namespace metadata {
             return row_iterator(scope, core::convert_integer((iterator - begin(table)) / table.row_size()));
         }
 
-        row_iterator() { }
+        row_iterator()
+        {
+        }
 
         row_iterator(database const* const scope, core::size_type const index)
             : _scope(scope), _index(index)

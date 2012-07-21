@@ -17,6 +17,10 @@ namespace cxxreflect { namespace metadata {
     ///
     /// @{
 
+
+
+
+
     class database;
 
     /// Creates an instance of a row of type `Row` from the provided scope and data pointer

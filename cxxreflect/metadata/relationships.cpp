@@ -161,9 +161,10 @@ namespace cxxreflect { namespace metadata {
         if (range.size() != event_map_table.row_size())
             throw core::metadata_error(L"event map table has non-unique parent index");
 
+        event_map_row const map_row(*event_map_row_iterator::from_row_pointer(&parent.scope(), begin(range)));
         return std::make_pair(
-            event_row_iterator::from_row_pointer(&parent.scope(), begin(range)),
-            event_row_iterator::from_row_pointer(&parent.scope(), end(range)));
+            event_row_iterator(&parent.scope(), map_row.first_event().index()),
+            event_row_iterator(&parent.scope(), map_row.last_event().index()));
     }
 
     auto begin_events(type_def_token const& parent) -> event_row_iterator
@@ -346,7 +347,7 @@ namespace cxxreflect { namespace metadata {
             table_id::property_map,
             column_id::property_map_parent));
 
-        // Not every type has events; if this is such a type, return an empty range:
+        // Not every type has properties; if this is such a type, return an empty range:
         if (range.empty())
             return std::make_pair(
                 property_row_iterator(&parent.scope(), 0),
@@ -357,9 +358,10 @@ namespace cxxreflect { namespace metadata {
         if (range.size() != property_map_table.row_size())
             throw core::metadata_error(L"property map table has non-unique parent index");
 
+        property_map_row const map_row(*property_map_row_iterator::from_row_pointer(&parent.scope(), begin(range)));
         return std::make_pair(
-            property_row_iterator::from_row_pointer(&parent.scope(), begin(range)),
-            property_row_iterator::from_row_pointer(&parent.scope(), end(range)));
+            property_row_iterator(&parent.scope(), map_row.first_property().index()),
+            property_row_iterator(&parent.scope(), map_row.last_property().index()));
     }
 
     auto begin_properties(type_def_token const& parent) -> property_row_iterator

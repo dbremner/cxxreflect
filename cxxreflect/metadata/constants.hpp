@@ -10,7 +10,7 @@
 
 namespace cxxreflect { namespace metadata {
 
-    /// \defgroup cxxreflect_metadata_constants Metadata -> Constants
+    /// \defgroup cxxreflect_metadata_constants Metadata -> Constants and Related Functionality
     ///
     /// Constants, enumerations, and related functions and metafunctions used by the metadata
     /// database and metadata signature parsing libraries.
@@ -182,6 +182,7 @@ namespace cxxreflect { namespace metadata {
 
     /// Computes the table identifier from a given mask bit
     auto table_id_for(table_mask mask) -> table_id;
+
 
 
 

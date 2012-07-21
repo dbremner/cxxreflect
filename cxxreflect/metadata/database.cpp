@@ -17,117 +17,133 @@ namespace cxxreflect { namespace metadata { namespace {
         2, 2, 5, 1, 2, 3, 1, 1, 1, 2, 3, 2, 1
     };
 
-    #define CXXREFLECT_GENERATE(x, y)                                                   \
-        (table_sizes[core::as_integer(table_id::y)] <                                   \
-        (1ull << (16 - composite_index_tag_size[core::as_integer(composite_index::x)])))
+    // The `compute_{index_name}_index_size()` functions compute the size of an index.  It will
+    // always be either two or four bytes.  An index value is two bytes in width if all of the
+    // tables to which it can point have fewer rows than the maximum value that can be
+    // represented by the index.  Each index has a tag of N bytes (see the list above) that
+    // identifies the table into which it points.  
+    //
+    // As an example, the has_custom_attribute tag requires five bits.  So, this index can only be
+    // represented by a two byte value if the number of rows in each of the tables it can reference
+    // is less than 2^(16 - 5) = 2^11 = 2048.  If any table it can reference has more than 2048 rows
+    // the index is represented by four-byte values.
+    //
+    // The `test_table_index_size` tests whether a given table can be represented in two bytes in
+    // a given index.  We then aggregate the results of calling this for each table to determine
+    // whether a given index is representable by two bytes.
+    //
+    // Easy as delicious, deceptive cake.
+
+    auto test_table_index_size(table_id_size_array const& table_sizes, composite_index const index, table_id const table) -> bool
+    {
+        return table_sizes[core::as_integer(table)] < (1ull << (16 - composite_index_tag_size[core::as_integer(index)]));
+    }
 
     auto compute_type_def_ref_spec_index_size(table_id_size_array const& table_sizes) -> core::size_type
     {
-        return CXXREFLECT_GENERATE(type_def_ref_spec, type_def)
-            && CXXREFLECT_GENERATE(type_def_ref_spec, type_ref)
-            && CXXREFLECT_GENERATE(type_def_ref_spec, type_spec) ? 2 : 4;
+        return test_table_index_size(table_sizes, composite_index::type_def_ref_spec, table_id::type_def)
+            && test_table_index_size(table_sizes, composite_index::type_def_ref_spec, table_id::type_ref)
+            && test_table_index_size(table_sizes, composite_index::type_def_ref_spec, table_id::type_spec) ? 2 : 4;
     }
 
     auto compute_has_constant_index_size(table_id_size_array const& table_sizes) -> core::size_type
     {
-        return CXXREFLECT_GENERATE(has_constant, field)
-            && CXXREFLECT_GENERATE(has_constant, param)
-            && CXXREFLECT_GENERATE(has_constant, property) ? 2 : 4;
+        return test_table_index_size(table_sizes, composite_index::has_constant, table_id::field)
+            && test_table_index_size(table_sizes, composite_index::has_constant, table_id::param)
+            && test_table_index_size(table_sizes, composite_index::has_constant, table_id::property) ? 2 : 4;
     }
 
     auto compute_has_custom_attribute_index_size(table_id_size_array const& table_sizes) -> core::size_type
     {
-        return CXXREFLECT_GENERATE(has_custom_attribute, method_def)
-            && CXXREFLECT_GENERATE(has_custom_attribute, field)
-            && CXXREFLECT_GENERATE(has_custom_attribute, type_ref)
-            && CXXREFLECT_GENERATE(has_custom_attribute, type_def)
-            && CXXREFLECT_GENERATE(has_custom_attribute, param)
-            && CXXREFLECT_GENERATE(has_custom_attribute, interface_impl)
-            && CXXREFLECT_GENERATE(has_custom_attribute, member_ref)
-            && CXXREFLECT_GENERATE(has_custom_attribute, module)
-            && CXXREFLECT_GENERATE(has_custom_attribute, property)
-            && CXXREFLECT_GENERATE(has_custom_attribute, event)
-            && CXXREFLECT_GENERATE(has_custom_attribute, standalone_sig)
-            && CXXREFLECT_GENERATE(has_custom_attribute, module_ref)
-            && CXXREFLECT_GENERATE(has_custom_attribute, type_spec)
-            && CXXREFLECT_GENERATE(has_custom_attribute, assembly)
-            && CXXREFLECT_GENERATE(has_custom_attribute, assembly_ref)
-            && CXXREFLECT_GENERATE(has_custom_attribute, file)
-            && CXXREFLECT_GENERATE(has_custom_attribute, exported_type)
-            && CXXREFLECT_GENERATE(has_custom_attribute, manifest_resource)
-            && CXXREFLECT_GENERATE(has_custom_attribute, generic_param)
-            && CXXREFLECT_GENERATE(has_custom_attribute, generic_param_constraint)
-            && CXXREFLECT_GENERATE(has_custom_attribute, method_spec) ? 2 : 4;
+        return test_table_index_size(table_sizes, composite_index::has_custom_attribute, table_id::method_def)
+            && test_table_index_size(table_sizes, composite_index::has_custom_attribute, table_id::field)
+            && test_table_index_size(table_sizes, composite_index::has_custom_attribute, table_id::type_ref)
+            && test_table_index_size(table_sizes, composite_index::has_custom_attribute, table_id::type_def)
+            && test_table_index_size(table_sizes, composite_index::has_custom_attribute, table_id::param)
+            && test_table_index_size(table_sizes, composite_index::has_custom_attribute, table_id::interface_impl)
+            && test_table_index_size(table_sizes, composite_index::has_custom_attribute, table_id::member_ref)
+            && test_table_index_size(table_sizes, composite_index::has_custom_attribute, table_id::module)
+            && test_table_index_size(table_sizes, composite_index::has_custom_attribute, table_id::property)
+            && test_table_index_size(table_sizes, composite_index::has_custom_attribute, table_id::event)
+            && test_table_index_size(table_sizes, composite_index::has_custom_attribute, table_id::standalone_sig)
+            && test_table_index_size(table_sizes, composite_index::has_custom_attribute, table_id::module_ref)
+            && test_table_index_size(table_sizes, composite_index::has_custom_attribute, table_id::type_spec)
+            && test_table_index_size(table_sizes, composite_index::has_custom_attribute, table_id::assembly)
+            && test_table_index_size(table_sizes, composite_index::has_custom_attribute, table_id::assembly_ref)
+            && test_table_index_size(table_sizes, composite_index::has_custom_attribute, table_id::file)
+            && test_table_index_size(table_sizes, composite_index::has_custom_attribute, table_id::exported_type)
+            && test_table_index_size(table_sizes, composite_index::has_custom_attribute, table_id::manifest_resource)
+            && test_table_index_size(table_sizes, composite_index::has_custom_attribute, table_id::generic_param)
+            && test_table_index_size(table_sizes, composite_index::has_custom_attribute, table_id::generic_param_constraint)
+            && test_table_index_size(table_sizes, composite_index::has_custom_attribute, table_id::method_spec) ? 2 : 4;
     }
 
     auto compute_has_field_marshal_index_size(table_id_size_array const& table_sizes) -> core::size_type
     {
-        return CXXREFLECT_GENERATE(has_field_marshal, field)
-            && CXXREFLECT_GENERATE(has_field_marshal, param) ? 2 : 4;
+        return test_table_index_size(table_sizes, composite_index::has_field_marshal, table_id::field)
+            && test_table_index_size(table_sizes, composite_index::has_field_marshal, table_id::param) ? 2 : 4;
     }
 
     auto compute_has_decl_security_index_size(table_id_size_array const& table_sizes) -> core::size_type
     {
-        return CXXREFLECT_GENERATE(has_decl_security, type_def)
-            && CXXREFLECT_GENERATE(has_decl_security, method_def)
-            && CXXREFLECT_GENERATE(has_decl_security, assembly) ? 2 : 4;
+        return test_table_index_size(table_sizes, composite_index::has_decl_security, table_id::type_def)
+            && test_table_index_size(table_sizes, composite_index::has_decl_security, table_id::method_def)
+            && test_table_index_size(table_sizes, composite_index::has_decl_security, table_id::assembly) ? 2 : 4;
     }
 
     auto compute_member_ref_parent_index_size(table_id_size_array const& table_sizes) -> core::size_type
     {
-        return CXXREFLECT_GENERATE(member_ref_parent, type_def)
-            && CXXREFLECT_GENERATE(member_ref_parent, type_ref)
-            && CXXREFLECT_GENERATE(member_ref_parent, module_ref)
-            && CXXREFLECT_GENERATE(member_ref_parent, method_def)
-            && CXXREFLECT_GENERATE(member_ref_parent, type_spec) ? 2 : 4;
+        return test_table_index_size(table_sizes, composite_index::member_ref_parent, table_id::type_def)
+            && test_table_index_size(table_sizes, composite_index::member_ref_parent, table_id::type_ref)
+            && test_table_index_size(table_sizes, composite_index::member_ref_parent, table_id::module_ref)
+            && test_table_index_size(table_sizes, composite_index::member_ref_parent, table_id::method_def)
+            && test_table_index_size(table_sizes, composite_index::member_ref_parent, table_id::type_spec) ? 2 : 4;
     }
 
     auto compute_has_semantics_index_size(table_id_size_array const& table_sizes) -> core::size_type
     {
-        return CXXREFLECT_GENERATE(has_semantics, event)
-            && CXXREFLECT_GENERATE(has_semantics, property) ? 2 : 4;
+        return test_table_index_size(table_sizes, composite_index::has_semantics, table_id::event)
+            && test_table_index_size(table_sizes, composite_index::has_semantics, table_id::property) ? 2 : 4;
     }
 
     auto compute_method_def_or_ref_index_size(table_id_size_array const& table_sizes) -> core::size_type
     {
-        return CXXREFLECT_GENERATE(method_def_or_ref, method_def)
-            && CXXREFLECT_GENERATE(method_def_or_ref, member_ref) ? 2 : 4;
+        return test_table_index_size(table_sizes, composite_index::method_def_or_ref, table_id::method_def)
+            && test_table_index_size(table_sizes, composite_index::method_def_or_ref, table_id::member_ref) ? 2 : 4;
     }
 
     auto compute_member_forwarded_index_size(table_id_size_array const& table_sizes) -> core::size_type
     {
-        return CXXREFLECT_GENERATE(member_forwarded, field)
-            && CXXREFLECT_GENERATE(member_forwarded, method_def) ? 2 : 4;
+        return test_table_index_size(table_sizes, composite_index::member_forwarded, table_id::field)
+            && test_table_index_size(table_sizes, composite_index::member_forwarded, table_id::method_def) ? 2 : 4;
     }
 
     auto compute_implementation_index_size(table_id_size_array const& table_sizes) -> core::size_type
     {
-        return CXXREFLECT_GENERATE(implementation, file)
-            && CXXREFLECT_GENERATE(implementation, assembly_ref)
-            && CXXREFLECT_GENERATE(implementation, exported_type) ? 2 : 4;
+        return test_table_index_size(table_sizes, composite_index::implementation, table_id::file)
+            && test_table_index_size(table_sizes, composite_index::implementation, table_id::assembly_ref)
+            && test_table_index_size(table_sizes, composite_index::implementation, table_id::exported_type) ? 2 : 4;
     }
 
     auto compute_custom_attribute_type_index_size(table_id_size_array const& table_sizes) -> core::size_type
     {
-        return CXXREFLECT_GENERATE(custom_attribute_type, method_def)
-            && CXXREFLECT_GENERATE(custom_attribute_type, member_ref) ? 2 : 4;
+        return test_table_index_size(table_sizes, composite_index::custom_attribute_type, table_id::method_def)
+            && test_table_index_size(table_sizes, composite_index::custom_attribute_type, table_id::member_ref) ? 2 : 4;
     }
 
     auto compute_resolution_scope_index_size(table_id_size_array const& table_sizes) -> core::size_type
     {
-        return CXXREFLECT_GENERATE(resolution_scope, module)
-            && CXXREFLECT_GENERATE(resolution_scope, module_ref)
-            && CXXREFLECT_GENERATE(resolution_scope, assembly_ref)
-            && CXXREFLECT_GENERATE(resolution_scope, type_ref) ? 2 : 4;
+        return test_table_index_size(table_sizes, composite_index::resolution_scope, table_id::module)
+            && test_table_index_size(table_sizes, composite_index::resolution_scope, table_id::module_ref)
+            && test_table_index_size(table_sizes, composite_index::resolution_scope, table_id::assembly_ref)
+            && test_table_index_size(table_sizes, composite_index::resolution_scope, table_id::type_ref) ? 2 : 4;
     }
     
     auto compute_type_or_method_def_index_size(table_id_size_array const& table_sizes) -> core::size_type
     {
-        return CXXREFLECT_GENERATE(type_or_method_def, type_def)
-            && CXXREFLECT_GENERATE(type_or_method_def, method_def) ? 2 : 4;
+        return test_table_index_size(table_sizes, composite_index::type_or_method_def, table_id::type_def)
+            && test_table_index_size(table_sizes, composite_index::type_or_method_def, table_id::method_def) ? 2 : 4;
     }
-
-    #undef CXXREFLECT_GENERATE
 
 } } }
 
@@ -387,165 +403,180 @@ namespace cxxreflect { namespace metadata {
 
     auto database_table_collection::compute_table_row_sizes() -> void
     {
-        #define CXXREFLECT_GENERATE(x, n, o)                                \
-            _column_offsets.get()[core::as_integer(table_id::x)][n] =       \
-            _column_offsets.get()[core::as_integer(table_id::x)][n - 1] + o
+        // First, we build up the _column_offsets table, which will contain the offsets of each
+        // column in each table in this database.  The offset of the column one-past-the-end of
+        // the last column of a table is the size of the whole table.
+        //
+        // Note that the offset of the initial column is always zero (for obvious reasons).  When we
+        // call set_column_index for a given column, we provide it with the zero-based index of the
+        // column and the size of the column at the previous index.  We accumulate the size of the
+        // row as we set column indices.
+        //
+        // Another way to look at it is this:  each call to set_column_index provides the one-based
+        // index of a column and its size.  Either way you look at it, the math is the same.
+        //
+        // Note that we've chosen to use integer column identifiers instead of the named constants
+        // from the column_id enumeration to make it more easily verifiable that we're setting the
+        // column sizes in order.  This is important since each index depends on the index of the
+        // previous column.
+        auto const set_column_index([&](table_id const table, core::size_type const column, core::size_type const size)
+        {
+            _column_offsets.get()[core::as_integer(table)][column] = _column_offsets.get()[core::as_integer(table)][column - 1] + size;
+        });
 
-        CXXREFLECT_GENERATE(assembly, 1, 4);
-        CXXREFLECT_GENERATE(assembly, 2, 8);
-        CXXREFLECT_GENERATE(assembly, 3, 4);
-        CXXREFLECT_GENERATE(assembly, 4, blob_heap_index_size());
-        CXXREFLECT_GENERATE(assembly, 5, string_heap_index_size());
-        CXXREFLECT_GENERATE(assembly, 6, string_heap_index_size());
+        set_column_index(table_id::assembly, 1, 4);
+        set_column_index(table_id::assembly, 2, 8);
+        set_column_index(table_id::assembly, 3, 4);
+        set_column_index(table_id::assembly, 4, blob_heap_index_size());
+        set_column_index(table_id::assembly, 5, string_heap_index_size());
+        set_column_index(table_id::assembly, 6, string_heap_index_size());
 
-        CXXREFLECT_GENERATE(assembly_os, 1, 4);
-        CXXREFLECT_GENERATE(assembly_os, 2, 4);
-        CXXREFLECT_GENERATE(assembly_os, 3, 4);
+        set_column_index(table_id::assembly_os, 1, 4);
+        set_column_index(table_id::assembly_os, 2, 4);
+        set_column_index(table_id::assembly_os, 3, 4);
 
-        CXXREFLECT_GENERATE(assembly_processor, 1, 4);
+        set_column_index(table_id::assembly_processor, 1, 4);
         
-        CXXREFLECT_GENERATE(assembly_ref, 1, 8);
-        CXXREFLECT_GENERATE(assembly_ref, 2, 4);
-        CXXREFLECT_GENERATE(assembly_ref, 3, blob_heap_index_size());
-        CXXREFLECT_GENERATE(assembly_ref, 4, string_heap_index_size());
-        CXXREFLECT_GENERATE(assembly_ref, 5, string_heap_index_size());
-        CXXREFLECT_GENERATE(assembly_ref, 6, blob_heap_index_size());
+        set_column_index(table_id::assembly_ref, 1, 8);
+        set_column_index(table_id::assembly_ref, 2, 4);
+        set_column_index(table_id::assembly_ref, 3, blob_heap_index_size());
+        set_column_index(table_id::assembly_ref, 4, string_heap_index_size());
+        set_column_index(table_id::assembly_ref, 5, string_heap_index_size());
+        set_column_index(table_id::assembly_ref, 6, blob_heap_index_size());
 
-        CXXREFLECT_GENERATE(assembly_ref_os, 1, 4);
-        CXXREFLECT_GENERATE(assembly_ref_os, 2, 4);
-        CXXREFLECT_GENERATE(assembly_ref_os, 3, 4);
-        CXXREFLECT_GENERATE(assembly_ref_os, 4, table_index_size(table_id::assembly_ref));
+        set_column_index(table_id::assembly_ref_os, 1, 4);
+        set_column_index(table_id::assembly_ref_os, 2, 4);
+        set_column_index(table_id::assembly_ref_os, 3, 4);
+        set_column_index(table_id::assembly_ref_os, 4, table_index_size(table_id::assembly_ref));
 
-        CXXREFLECT_GENERATE(assembly_ref_processor, 1, 4);
-        CXXREFLECT_GENERATE(assembly_ref_processor, 2, table_index_size(table_id::assembly_ref));
+        set_column_index(table_id::assembly_ref_processor, 1, 4);
+        set_column_index(table_id::assembly_ref_processor, 2, table_index_size(table_id::assembly_ref));
 
-        CXXREFLECT_GENERATE(class_layout, 1, 2);
-        CXXREFLECT_GENERATE(class_layout, 2, 4);
-        CXXREFLECT_GENERATE(class_layout, 3, table_index_size(table_id::type_def));
+        set_column_index(table_id::class_layout, 1, 2);
+        set_column_index(table_id::class_layout, 2, 4);
+        set_column_index(table_id::class_layout, 3, table_index_size(table_id::type_def));
 
-        CXXREFLECT_GENERATE(constant, 1, 2);
-        CXXREFLECT_GENERATE(constant, 2, composite_index_size(composite_index::has_constant));
-        CXXREFLECT_GENERATE(constant, 3, blob_heap_index_size());
+        set_column_index(table_id::constant, 1, 2);
+        set_column_index(table_id::constant, 2, composite_index_size(composite_index::has_constant));
+        set_column_index(table_id::constant, 3, blob_heap_index_size());
 
-        CXXREFLECT_GENERATE(custom_attribute, 1, composite_index_size(composite_index::has_custom_attribute));
-        CXXREFLECT_GENERATE(custom_attribute, 2, composite_index_size(composite_index::custom_attribute_type));
-        CXXREFLECT_GENERATE(custom_attribute, 3, blob_heap_index_size());
+        set_column_index(table_id::custom_attribute, 1, composite_index_size(composite_index::has_custom_attribute));
+        set_column_index(table_id::custom_attribute, 2, composite_index_size(composite_index::custom_attribute_type));
+        set_column_index(table_id::custom_attribute, 3, blob_heap_index_size());
 
-        CXXREFLECT_GENERATE(decl_security, 1, 2);
-        CXXREFLECT_GENERATE(decl_security, 2, composite_index_size(composite_index::has_decl_security));
-        CXXREFLECT_GENERATE(decl_security, 3, blob_heap_index_size());
+        set_column_index(table_id::decl_security, 1, 2);
+        set_column_index(table_id::decl_security, 2, composite_index_size(composite_index::has_decl_security));
+        set_column_index(table_id::decl_security, 3, blob_heap_index_size());
 
-        CXXREFLECT_GENERATE(event_map, 1, table_index_size(table_id::type_def));
-        CXXREFLECT_GENERATE(event_map, 2, table_index_size(table_id::event));
+        set_column_index(table_id::event_map, 1, table_index_size(table_id::type_def));
+        set_column_index(table_id::event_map, 2, table_index_size(table_id::event));
 
-        CXXREFLECT_GENERATE(event, 1, 2);
-        CXXREFLECT_GENERATE(event, 2, string_heap_index_size());
-        CXXREFLECT_GENERATE(event, 3, composite_index_size(composite_index::type_def_ref_spec));
+        set_column_index(table_id::event, 1, 2);
+        set_column_index(table_id::event, 2, string_heap_index_size());
+        set_column_index(table_id::event, 3, composite_index_size(composite_index::type_def_ref_spec));
 
-        CXXREFLECT_GENERATE(exported_type, 1, 4);
-        CXXREFLECT_GENERATE(exported_type, 2, 4);
-        CXXREFLECT_GENERATE(exported_type, 3, string_heap_index_size());
-        CXXREFLECT_GENERATE(exported_type, 4, string_heap_index_size());
-        CXXREFLECT_GENERATE(exported_type, 5, composite_index_size(composite_index::implementation));
+        set_column_index(table_id::exported_type, 1, 4);
+        set_column_index(table_id::exported_type, 2, 4);
+        set_column_index(table_id::exported_type, 3, string_heap_index_size());
+        set_column_index(table_id::exported_type, 4, string_heap_index_size());
+        set_column_index(table_id::exported_type, 5, composite_index_size(composite_index::implementation));
 
-        CXXREFLECT_GENERATE(field, 1, 2);
-        CXXREFLECT_GENERATE(field, 2, string_heap_index_size());
-        CXXREFLECT_GENERATE(field, 3, blob_heap_index_size());
+        set_column_index(table_id::field, 1, 2);
+        set_column_index(table_id::field, 2, string_heap_index_size());
+        set_column_index(table_id::field, 3, blob_heap_index_size());
 
-        CXXREFLECT_GENERATE(field_layout, 1, 4);
-        CXXREFLECT_GENERATE(field_layout, 2, table_index_size(table_id::field));
+        set_column_index(table_id::field_layout, 1, 4);
+        set_column_index(table_id::field_layout, 2, table_index_size(table_id::field));
 
-        CXXREFLECT_GENERATE(field_marshal, 1, composite_index_size(composite_index::has_field_marshal));
-        CXXREFLECT_GENERATE(field_marshal, 2, blob_heap_index_size());
+        set_column_index(table_id::field_marshal, 1, composite_index_size(composite_index::has_field_marshal));
+        set_column_index(table_id::field_marshal, 2, blob_heap_index_size());
 
-        CXXREFLECT_GENERATE(field_rva, 1, 4);
-        CXXREFLECT_GENERATE(field_rva, 2, table_index_size(table_id::field));
+        set_column_index(table_id::field_rva, 1, 4);
+        set_column_index(table_id::field_rva, 2, table_index_size(table_id::field));
 
-        CXXREFLECT_GENERATE(file, 1, 4);
-        CXXREFLECT_GENERATE(file, 2, string_heap_index_size());
-        CXXREFLECT_GENERATE(file, 3, blob_heap_index_size());
+        set_column_index(table_id::file, 1, 4);
+        set_column_index(table_id::file, 2, string_heap_index_size());
+        set_column_index(table_id::file, 3, blob_heap_index_size());
 
-        CXXREFLECT_GENERATE(generic_param, 1, 2);
-        CXXREFLECT_GENERATE(generic_param, 2, 2);
-        CXXREFLECT_GENERATE(generic_param, 3, composite_index_size(composite_index::type_or_method_def));
-        CXXREFLECT_GENERATE(generic_param, 4, string_heap_index_size());
+        set_column_index(table_id::generic_param, 1, 2);
+        set_column_index(table_id::generic_param, 2, 2);
+        set_column_index(table_id::generic_param, 3, composite_index_size(composite_index::type_or_method_def));
+        set_column_index(table_id::generic_param, 4, string_heap_index_size());
 
-        CXXREFLECT_GENERATE(generic_param_constraint, 1, table_index_size(table_id::generic_param));
-        CXXREFLECT_GENERATE(generic_param_constraint, 2, composite_index_size(composite_index::type_def_ref_spec));
+        set_column_index(table_id::generic_param_constraint, 1, table_index_size(table_id::generic_param));
+        set_column_index(table_id::generic_param_constraint, 2, composite_index_size(composite_index::type_def_ref_spec));
 
-        CXXREFLECT_GENERATE(impl_map, 1, 2);
-        CXXREFLECT_GENERATE(impl_map, 2, composite_index_size(composite_index::member_forwarded));
-        CXXREFLECT_GENERATE(impl_map, 3, string_heap_index_size());
-        CXXREFLECT_GENERATE(impl_map, 4, table_index_size(table_id::module_ref));
+        set_column_index(table_id::impl_map, 1, 2);
+        set_column_index(table_id::impl_map, 2, composite_index_size(composite_index::member_forwarded));
+        set_column_index(table_id::impl_map, 3, string_heap_index_size());
+        set_column_index(table_id::impl_map, 4, table_index_size(table_id::module_ref));
 
-        CXXREFLECT_GENERATE(interface_impl, 1, table_index_size(table_id::type_def));
-        CXXREFLECT_GENERATE(interface_impl, 2, composite_index_size(composite_index::type_def_ref_spec));
+        set_column_index(table_id::interface_impl, 1, table_index_size(table_id::type_def));
+        set_column_index(table_id::interface_impl, 2, composite_index_size(composite_index::type_def_ref_spec));
 
-        CXXREFLECT_GENERATE(manifest_resource, 1, 4);
-        CXXREFLECT_GENERATE(manifest_resource, 2, 4);
-        CXXREFLECT_GENERATE(manifest_resource, 3, string_heap_index_size());
-        CXXREFLECT_GENERATE(manifest_resource, 4, composite_index_size(composite_index::implementation));
+        set_column_index(table_id::manifest_resource, 1, 4);
+        set_column_index(table_id::manifest_resource, 2, 4);
+        set_column_index(table_id::manifest_resource, 3, string_heap_index_size());
+        set_column_index(table_id::manifest_resource, 4, composite_index_size(composite_index::implementation));
 
-        CXXREFLECT_GENERATE(member_ref, 1, composite_index_size(composite_index::member_ref_parent));
-        CXXREFLECT_GENERATE(member_ref, 2, string_heap_index_size());
-        CXXREFLECT_GENERATE(member_ref, 3, blob_heap_index_size());
+        set_column_index(table_id::member_ref, 1, composite_index_size(composite_index::member_ref_parent));
+        set_column_index(table_id::member_ref, 2, string_heap_index_size());
+        set_column_index(table_id::member_ref, 3, blob_heap_index_size());
 
-        CXXREFLECT_GENERATE(method_def, 1, 4);
-        CXXREFLECT_GENERATE(method_def, 2, 2);
-        CXXREFLECT_GENERATE(method_def, 3, 2);
-        CXXREFLECT_GENERATE(method_def, 4, string_heap_index_size());
-        CXXREFLECT_GENERATE(method_def, 5, blob_heap_index_size());
-        CXXREFLECT_GENERATE(method_def, 6, table_index_size(table_id::param));
+        set_column_index(table_id::method_def, 1, 4);
+        set_column_index(table_id::method_def, 2, 2);
+        set_column_index(table_id::method_def, 3, 2);
+        set_column_index(table_id::method_def, 4, string_heap_index_size());
+        set_column_index(table_id::method_def, 5, blob_heap_index_size());
+        set_column_index(table_id::method_def, 6, table_index_size(table_id::param));
 
-        CXXREFLECT_GENERATE(method_impl, 1, table_index_size(table_id::type_def));
-        CXXREFLECT_GENERATE(method_impl, 2, composite_index_size(composite_index::method_def_or_ref));
-        CXXREFLECT_GENERATE(method_impl, 3, composite_index_size(composite_index::method_def_or_ref));
+        set_column_index(table_id::method_impl, 1, table_index_size(table_id::type_def));
+        set_column_index(table_id::method_impl, 2, composite_index_size(composite_index::method_def_or_ref));
+        set_column_index(table_id::method_impl, 3, composite_index_size(composite_index::method_def_or_ref));
 
-        CXXREFLECT_GENERATE(method_semantics, 1, 2);
-        CXXREFLECT_GENERATE(method_semantics, 2, table_index_size(table_id::method_def));
-        CXXREFLECT_GENERATE(method_semantics, 3, composite_index_size(composite_index::has_semantics));
+        set_column_index(table_id::method_semantics, 1, 2);
+        set_column_index(table_id::method_semantics, 2, table_index_size(table_id::method_def));
+        set_column_index(table_id::method_semantics, 3, composite_index_size(composite_index::has_semantics));
 
-        CXXREFLECT_GENERATE(method_spec, 1, composite_index_size(composite_index::method_def_or_ref));
-        CXXREFLECT_GENERATE(method_spec, 2, blob_heap_index_size());
+        set_column_index(table_id::method_spec, 1, composite_index_size(composite_index::method_def_or_ref));
+        set_column_index(table_id::method_spec, 2, blob_heap_index_size());
 
-        CXXREFLECT_GENERATE(module, 1, 2);
-        CXXREFLECT_GENERATE(module, 2, string_heap_index_size());
-        CXXREFLECT_GENERATE(module, 3, guid_heap_index_size());
-        CXXREFLECT_GENERATE(module, 4, guid_heap_index_size());
-        CXXREFLECT_GENERATE(module, 5, guid_heap_index_size());
+        set_column_index(table_id::module, 1, 2);
+        set_column_index(table_id::module, 2, string_heap_index_size());
+        set_column_index(table_id::module, 3, guid_heap_index_size());
+        set_column_index(table_id::module, 4, guid_heap_index_size());
+        set_column_index(table_id::module, 5, guid_heap_index_size());
 
-        CXXREFLECT_GENERATE(module_ref, 1, string_heap_index_size());
+        set_column_index(table_id::module_ref, 1, string_heap_index_size());
 
-        CXXREFLECT_GENERATE(nested_class, 1, table_index_size(table_id::type_def));
-        CXXREFLECT_GENERATE(nested_class, 2, table_index_size(table_id::type_def));
+        set_column_index(table_id::nested_class, 1, table_index_size(table_id::type_def));
+        set_column_index(table_id::nested_class, 2, table_index_size(table_id::type_def));
 
-        CXXREFLECT_GENERATE(param, 1, 2);
-        CXXREFLECT_GENERATE(param, 2, 2);
-        CXXREFLECT_GENERATE(param, 3, string_heap_index_size());
+        set_column_index(table_id::param, 1, 2);
+        set_column_index(table_id::param, 2, 2);
+        set_column_index(table_id::param, 3, string_heap_index_size());
 
-        CXXREFLECT_GENERATE(property, 1, 2);
-        CXXREFLECT_GENERATE(property, 2, string_heap_index_size());
-        CXXREFLECT_GENERATE(property, 3, blob_heap_index_size());
+        set_column_index(table_id::property, 1, 2);
+        set_column_index(table_id::property, 2, string_heap_index_size());
+        set_column_index(table_id::property, 3, blob_heap_index_size());
 
-        CXXREFLECT_GENERATE(property_map, 1, table_index_size(table_id::type_def));
-        CXXREFLECT_GENERATE(property_map, 2, table_index_size(table_id::property));
+        set_column_index(table_id::property_map, 1, table_index_size(table_id::type_def));
+        set_column_index(table_id::property_map, 2, table_index_size(table_id::property));
 
-        CXXREFLECT_GENERATE(standalone_sig, 1, blob_heap_index_size());
+        set_column_index(table_id::standalone_sig, 1, blob_heap_index_size());
 
-        CXXREFLECT_GENERATE(type_def, 1, 4);
-        CXXREFLECT_GENERATE(type_def, 2, string_heap_index_size());
-        CXXREFLECT_GENERATE(type_def, 3, string_heap_index_size());
-        CXXREFLECT_GENERATE(type_def, 4, composite_index_size(composite_index::type_def_ref_spec));
-        CXXREFLECT_GENERATE(type_def, 5, table_index_size(table_id::field));
-        CXXREFLECT_GENERATE(type_def, 6, table_index_size(table_id::method_def));
+        set_column_index(table_id::type_def, 1, 4);
+        set_column_index(table_id::type_def, 2, string_heap_index_size());
+        set_column_index(table_id::type_def, 3, string_heap_index_size());
+        set_column_index(table_id::type_def, 4, composite_index_size(composite_index::type_def_ref_spec));
+        set_column_index(table_id::type_def, 5, table_index_size(table_id::field));
+        set_column_index(table_id::type_def, 6, table_index_size(table_id::method_def));
 
-        CXXREFLECT_GENERATE(type_ref, 1, composite_index_size(composite_index::resolution_scope));
-        CXXREFLECT_GENERATE(type_ref, 2, string_heap_index_size());
-        CXXREFLECT_GENERATE(type_ref, 3, string_heap_index_size());
+        set_column_index(table_id::type_ref, 1, composite_index_size(composite_index::resolution_scope));
+        set_column_index(table_id::type_ref, 2, string_heap_index_size());
+        set_column_index(table_id::type_ref, 3, string_heap_index_size());
 
-        CXXREFLECT_GENERATE(type_spec, 1, blob_heap_index_size());
-
-        #undef CXXREFLECT_GENERATE
+        set_column_index(table_id::type_spec, 1, blob_heap_index_size());
 
         // Finally, compute the complete row sizes:
         std::transform(begin(_column_offsets.get()), end(_column_offsets.get()), begin(_row_sizes.get()), 

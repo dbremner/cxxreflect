@@ -327,12 +327,12 @@ namespace cxxreflect { namespace metadata {
         }
     }
 
-    auto is_valid_composite_index(core::size_type index) -> bool
+    auto is_valid_composite_index(core::size_type const index) -> bool
     {
         return index < composite_index_count;
     }
 
-    auto is_valid_composite_index(composite_index index) -> bool
+    auto is_valid_composite_index(composite_index const index) -> bool
     {
         return core::as_integer(index) < composite_index_count;
     }
