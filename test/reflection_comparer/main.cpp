@@ -22,6 +22,7 @@
 #include <cliext/adapter>
 #include <cliext/algorithm>
 #include <cliext/vector>
+#include <vcclr.h>
 
 // For convenience, map everything from CxxReflect into the C namespace, then map the corresponding
 // types in the CLR Reflection API into the R namespace.
@@ -268,13 +269,13 @@ namespace
     auto get_brief_string(C::field            const& x) -> System::String^ { return gcnew System::String(x.name().c_str());                                                   }
     auto get_brief_string(C::method           const& x) -> System::String^ { return gcnew System::String(x.name().c_str());                                                   }
     auto get_brief_string(C::parameter        const& x) -> System::String^ { return gcnew System::String(x.name().c_str());                                                   }
-    auto get_brief_string(C::type             const& x) -> System::String^ { return gcnew System::String(x.assembly_qualified_name().c_str());                                }
+    auto get_brief_string(C::type             const& x) -> System::String^ { return System::String::Format(L"{0} ({1})", gcnew System::String(x.assembly_qualified_name().c_str()), gcnew System::String(x.simple_name().c_str())); }
 
     auto get_brief_string(R::CustomAttribute^ x) -> System::String^ { return x->Constructor->DeclaringType->AssemblyQualifiedName; }
     auto get_brief_string(R::Field^           x) -> System::String^ { return x->Name;                                              }
     auto get_brief_string(R::Method^          x) -> System::String^ { return x->Name;                                              }
     auto get_brief_string(R::Parameter^       x) -> System::String^ { return x->Name;                                              }
-    auto get_brief_string(R::Type^            x) -> System::String^ { return x->AssemblyQualifiedName;                             }
+    auto get_brief_string(R::Type^            x) -> System::String^ { return System::String::Format(L"{0} ({1})", x->AssemblyQualifiedName, x->Name);                             }
 
     class metadata_token_strict_weak_ordering
     {
@@ -334,7 +335,7 @@ namespace
         state.report_difference(name, System::String::Format("{0}", expected), System::String::Format("{0}", actual));
     }
 
-    auto compare(state_stack%, R::Assembly^,        C::assembly         const&) -> void;
+    auto compare(state_stack%, R::Assembly^,        C::assembly         const&, unsigned = 0, unsigned = 0) -> void;
     auto compare(state_stack%, R::CustomAttribute^, C::custom_attribute const&) -> void;
     auto compare(state_stack%, R::Field^,           C::field            const&) -> void;
     auto compare(state_stack%, R::Method^,          C::method           const&) -> void;
@@ -407,7 +408,7 @@ namespace
         compare_ranges(state, L"Attribute", r_attributes, c_attributes);
     }
 
-    auto compare(state_stack% state, R::Assembly^ r_assembly, C::assembly const& c_assembly) -> void
+    auto compare(state_stack% state, R::Assembly^ r_assembly, C::assembly const& c_assembly, unsigned first, unsigned last) -> void
     {
         auto frame(state.push(r_assembly));
 
@@ -434,7 +435,23 @@ namespace
 
         auto r_it(r_types.begin());
         auto c_it(c_types.begin());
-        for (; r_it != r_types.end() && c_it != c_types.end(); ++r_it, ++c_it)
+
+        auto r_end(r_types.end());
+        auto c_end(c_types.end());
+
+        if (first != 0)
+        {
+            r_it += first;
+            c_it += first;
+        }
+
+        if (last != 0 && last < r_types.size() && last < c_types.size())
+        {
+            r_end = r_types.begin() + last;
+            c_end = c_types.begin() + last;
+        }
+
+        for (; r_it != r_end && c_it != c_end; ++r_it, ++c_it)
         {   
             compare(state, *r_it, *c_it);
         }
@@ -659,7 +676,7 @@ namespace
 
         // TODO Support for generic types
         // TODO Support for array types
-        if (r_type->IsGenericType || r_type->IsArray)
+        if (/*r_type->IsGenericType ||*/ r_type->IsArray)
             return;
 
         auto frame(state.push(r_type));
@@ -715,6 +732,7 @@ namespace
         // TODO GetGenericParameterConstraints
         // TODO GetGenericTypeDefinition
         // TODO GetInterface
+        /* TODO
         {
             auto frame(state.push(L"Interfaces"));
 
@@ -726,7 +744,7 @@ namespace
 
             compare_ranges(state, L"Interface", r_interfaces, c_interfaces);
         }
-
+        */
         // TODO GetMember
         // TODO GetMembers
         // TODO GetMethod
@@ -800,6 +818,68 @@ namespace
         // TODO TypeHandle
         // TODO TypeInitializer
     }
+
+    public ref class compare_assembly_results_data
+    {
+    public:
+
+        property System::String^ path;
+        property unsigned        first;
+        property unsigned        last;
+        property System::String^ result;
+
+        auto run() -> void
+        {
+            pin_ptr<const wchar_t> local_path(PtrToStringChars(path));
+
+            // Load the assembly using CxxReflect:
+            C::directory_based_module_locator::directory_set directories;
+            directories.insert(L"C:\\Windows\\Microsoft.NET\\Framework\\v4.0.30319");
+            directories.insert(L"C:\\Windows\\Microsoft.NET\\Framework\\v4.0.30319\\wpf");
+            C::loader root((C::directory_based_module_locator(directories)));
+
+            C::assembly  c_assembly(root.load_assembly(C::module_location(local_path)));
+            R::Assembly^ r_assembly(R::Assembly::LoadFrom(gcnew System::String(local_path)));
+
+            state_stack state;
+            compare(state, r_assembly, c_assembly, first, last);
+            result = state.messages();
+        }
+    };
+
+    auto compare_assembly_results(wchar_t const* const path) -> void
+    {
+        R::Assembly^ r_assembly(R::Assembly::LoadFrom(gcnew System::String(path)));
+        
+        int const type_count(r_assembly->GetTypes()->Length);
+        int const concurrency(System::Environment::ProcessorCount);
+
+        cliext::vector<compare_assembly_results_data^> contexts;
+        cliext::vector<System::Threading::Thread^>     threads;
+
+        for (int i(0); i < type_count; i += (type_count / concurrency))
+        {
+            contexts.push_back(gcnew compare_assembly_results_data());
+            contexts.back()->path = gcnew System::String(path);
+            contexts.back()->first = i;
+            contexts.back()->last = i + (type_count / concurrency);
+
+            threads.push_back(gcnew System::Threading::Thread(gcnew System::Threading::ThreadStart(contexts.back(), &compare_assembly_results_data::run)));
+            threads.back()->Start();
+        }
+
+        for (auto it(threads.begin()); it != threads.end(); ++it)
+        {
+            (*it)->Join();
+        }
+
+        System::IO::StreamWriter^ result_file(gcnew System::IO::StreamWriter(L"c:\\jm\\reflectresult.txt"));
+        for (auto it(contexts.begin()); it != contexts.end(); ++it)
+        {
+            result_file->Write((*it)->result);
+        }
+        result_file->Close();
+    }
 }
 
 auto main() -> int
@@ -820,8 +900,19 @@ auto main() -> int
 
     C::assembly  c_assembly(root.load_assembly(C::module_location(assembly_path)));
     R::Assembly^ r_assembly(R::Assembly::LoadFrom(gcnew System::String(assembly_path)));
+
     
-    state_stack state;
+
+
+    
+    //state_stack state;
+
+    //compare(state, r_assembly, c_assembly);
+
+    //System::IO::StreamWriter^ result_file(gcnew System::IO::StreamWriter(L"c:\\jm\\reflectresult.txt"));
+    //result_file->Write(state.messages());
+    //result_file->Close();
+
     /*
     {
         auto t = c_mscorlib.find_type(L"System.Security.Principal.IdentityReferenceCollection");
@@ -832,20 +923,19 @@ auto main() -> int
 
        // std::getchar();
     }
-    
+    *
     compare(
         state,
-        r_mscorlib->GetType(gcnew System::String(L"System.Decimal")),
-        c_mscorlib.find_type(L"System.Decimal"));
-     */   
+        r_mscorlib->GetType(gcnew System::String(L"System.Runtime.InteropServices.WindowsRuntime.IReadOnlyListToIVectorViewAdapter")),
+        c_mscorlib.find_type(L"System.Runtime.InteropServices.WindowsRuntime.IReadOnlyListToIVectorViewAdapter"));
+     /*
     compare(state, r_mscorlib, c_mscorlib);
-    // compare(state, r_assembly, c_assembly);
+    // 
 
     System::IO::StreamWriter^ result_file(gcnew System::IO::StreamWriter(L"c:\\jm\\reflectresult.txt"));
     result_file->Write(state.messages());
     result_file->Close();
-
+    */
+    compare_assembly_results(mscorlib_path);
     return 0;
 }
-
-// AMDG //

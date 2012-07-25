@@ -116,5 +116,3 @@ namespace cxxreflect_test { namespace {
     CXXREFLECTTEST_REGISTER(alpha_instantiation_number_provider_implementers, verify_alpha_instantiation_number_provider_implementers);
 
 } }
-
-// AMDG //

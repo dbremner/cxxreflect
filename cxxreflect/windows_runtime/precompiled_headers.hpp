@@ -9,5 +9,3 @@
 #include "cxxreflect/reflection/reflection.hpp"
 
 #endif
-
-// AMDG //

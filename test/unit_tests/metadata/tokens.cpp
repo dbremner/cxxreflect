@@ -547,5 +547,3 @@ namespace cxxreflect_test { namespace {
     CXXREFLECTTEST_REGISTER(metadata_tokens_hybrid_comparability, verify_hybrid_comparability);
 
 } }
-
-// AMDG //

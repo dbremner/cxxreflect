@@ -244,5 +244,3 @@ namespace cxxreflect { namespace core {
     }
 
 } }
-
-// AMDG //

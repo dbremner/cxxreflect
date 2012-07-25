@@ -9,5 +9,3 @@
 #include "cxxreflect/core/core.hpp"
 
 #endif
-
-// AMDG //

@@ -16,5 +16,3 @@
 #include "cxxreflect/metadata/utility.hpp"
 
 #endif
-
-// AMDG //

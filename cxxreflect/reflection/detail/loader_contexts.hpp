@@ -241,5 +241,3 @@ namespace cxxreflect { namespace reflection { namespace detail {
 } } }
 
 #endif
-
-// AMDG //

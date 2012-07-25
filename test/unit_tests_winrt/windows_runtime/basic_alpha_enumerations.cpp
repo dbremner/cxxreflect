@@ -50,5 +50,3 @@ namespace cxxreflect_test { namespace {
 
 
 } }
-
-// AMDG //

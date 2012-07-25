@@ -1578,5 +1578,3 @@ namespace cxxreflect_test { namespace {
     #undef CXXREFLECTTEST_REGISTERTABLETEST
     
 } }
-
-// AMDG //

@@ -70,5 +70,3 @@ namespace cxxreflect { namespace windows_runtime { namespace detail {
 
 #endif // #if defined(ENABLE_WINDOWS_RUNTIME_INTEGRATION) && ARCHITECTURE == ARCHITECTURE_X86
 #endif 
-
-// AMDG //

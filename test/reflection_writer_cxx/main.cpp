@@ -89,7 +89,7 @@ namespace
         });
         os << L"!!EndAssemblyReferences\n";
         os << L"!!BeginTypes\n";
-        std::for_each(a.begin_types(), std::next(a.begin_types(), 500), [&](cxr::type const& x)
+        std::for_each(a.begin_types(), a.end_types(), [&](cxr::type const& x)
         {
             if (is_known_problem_type(x))
                 return;
@@ -140,7 +140,6 @@ namespace
 
     auto write(cxr::file_handle& os, cxr::parameter const& p) -> void
     {
-        /*
         os << L"         -- [" << p.name().c_str()
            << L"] [$" << cxr::hex_format(p.metadata_token())
            << L"] [" << p.parameter_type().full_name().c_str() << ((p.is_out() && !p.parameter_type().is_by_ref() && !p.parameter_type().is_array() && !p.parameter_type().is_pointer() && !p.is_in() && p.parameter_type().full_name() != L"System.Text.StringBuilder" && !p.parameter_type().full_name().empty()) ? L"&" : L"") << L"]\n";
@@ -148,7 +147,6 @@ namespace
         // TODO Not yet implemented feature:  we do not correctly handle uninstantiated generic parameters.
         if (p.parameter_type().full_name().size() > 0)
             write_basic_type_traits(os, p.parameter_type(), 12);
-            */
         // TODO
     }
 
@@ -211,6 +209,7 @@ namespace
 
 auto main() -> int
 {
+    auto const start(std::chrono::high_resolution_clock::now());
     cxr::externals::initialize(cxr::win32_externals());
 
     cxr::string const input_path(L"c:\\Windows\\Microsoft.NET\\Framework\\v4.0.30319\\mscorlib.dll");
@@ -226,7 +225,12 @@ auto main() -> int
     cxr::file_handle os(output_path.c_str(), cxr::file_mode::write);
     write(os, a);
 
+    auto const end(std::chrono::high_resolution_clock::now());
+
+    std::chrono::milliseconds duration = std::chrono::duration_cast<std::chrono::milliseconds>((end - start));
+
+    os << L"\n" << (unsigned)duration.count() << L"\n";
+
+
     return 0;
 }
-
-// AMDG //

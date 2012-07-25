@@ -159,5 +159,3 @@ namespace cxxreflect { namespace core { namespace externals {
 } } }
 
 #endif
-
-// AMDG //

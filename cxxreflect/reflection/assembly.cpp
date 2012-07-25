@@ -224,5 +224,3 @@ namespace cxxreflect { namespace reflection {
         return *_context.get();
     }
 } }
-
-// AMDG //

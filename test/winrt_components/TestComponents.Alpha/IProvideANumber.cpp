@@ -64,5 +64,3 @@ namespace TestComponents { namespace Alpha {
     };
     
 } }
-
-// AMDG //

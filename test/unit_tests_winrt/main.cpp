@@ -29,5 +29,3 @@ auto main(Platform::Array<Platform::String^>^) -> int
     cxxreflect_test::driver::start(static_cast<wchar_t const**>(nullptr), static_cast<wchar_t const**>(nullptr));
     std::getchar();
 }
-
-// AMDG //

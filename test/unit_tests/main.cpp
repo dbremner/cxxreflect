@@ -13,5 +13,3 @@ auto main(int argc, wchar_t const** argv) -> int
     cxxreflect_test::driver::start(argv, argv + argc);
     std::getchar();
 }
-
-// AMDG //

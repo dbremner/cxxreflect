@@ -248,5 +248,3 @@ namespace cxxreflect_test { namespace {
     CXXREFLECTTEST_REGISTER(reflection_alpha_type_special_handling, verify_alpha_type_special_handling);
 
 } }
-
-// AMDG //

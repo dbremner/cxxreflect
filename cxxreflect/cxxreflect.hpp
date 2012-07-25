@@ -12,5 +12,3 @@
 #include "cxxreflect/windows_runtime/windows_runtime.hpp"
 
 #endif
-
-// AMDG //

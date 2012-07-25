@@ -570,5 +570,3 @@ namespace cxxreflect_test { namespace {
 } }
 
 #endif // CXXREFLECT_ARCHITECTURE == CXXREFLECT_ARCHITECTURE_X64
-
-// AMDG //

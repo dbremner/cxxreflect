@@ -978,5 +978,3 @@ namespace cxxreflect { namespace metadata { namespace debug {
     }
 
 } } }
-
-// AMDG //

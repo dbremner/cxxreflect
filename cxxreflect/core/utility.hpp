@@ -81,16 +81,16 @@
 #define CXXREFLECT_GENERATE_SAFE_BOOL_CONVERSION(type)                                  \
 private:                                                                                \
                                                                                         \
-    typedef void (type::*FauxBoolType)() const;                                         \
+    typedef void (type::*faux_bool_type)() const;                                       \
                                                                                         \
-    void ThisTypeDoesNotSupportComparisons() const { }                                  \
+    void this_type_does_not_support_comparisons() const { }                             \
                                                                                         \
 public:                                                                                 \
                                                                                         \
-    operator FauxBoolType() const                                                       \
+    operator faux_bool_type() const                                                     \
     {                                                                                   \
         return !(*this).operator!()                                                     \
-            ? &type::ThisTypeDoesNotSupportComparisons                                  \
+            ? &type::this_type_does_not_support_comparisons                             \
             : nullptr;                                                                  \
     }
 
@@ -116,48 +116,6 @@ namespace cxxreflect { namespace core { namespace detail {
         typedef decltype(f<T>(0)) type;
 
         enum { value = type::value };
-    };
-
-
-
-
-
-    template <typename T, size_type Shift>
-    struct log_base_2_impl;
-
-    template <typename T>
-    struct log_base_2_impl<T, 0>
-    {
-        static auto compute(T) -> size_type
-        {
-            return static_cast<size_type>(-1);
-        }
-    };
-
-    template <typename T, size_type Shift>
-    struct log_base_2_impl
-    {
-        static_assert(std::is_unsigned<T>::value, "value type must be an unsigned integral type");
-
-        static auto compute(T const value) -> size_type
-        {
-            static const char table[256] = 
-            {
-                #define LT(n) n, n, n, n, n, n, n, n, n, n, n, n, n, n, n, n
-                -1, 0, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 3, 3,
-
-                LT(4), LT(5), LT(5), LT(6), LT(6), LT(6), LT(6),
-                LT(7), LT(7), LT(7), LT(7), LT(7), LT(7), LT(7), LT(7)
-
-                #undef LT
-            };
-
-            size_type const shifted_value(value >> (Shift - 8));
-            if (shifted_value != 0)
-                return table[shifted_value];
-
-            return log_base_2_impl<T, Shift - 8>::compute(value);
-        }
     };
 
 } } }
@@ -540,21 +498,6 @@ namespace cxxreflect { namespace core {
 
 
 
-    /// Computes the log base 2 of an unsigned integer
-    ///
-    /// Complements of http://graphics.stanford.edu/~seander/bithacks.html#IntegerLogLookup
-    template <typename T>
-    auto log_base_2(T const value) -> size_type
-    {
-        static_assert(std::is_unsigned<T>::value, "value type must be an unsigned integral type");
-
-        return detail::log_base_2_impl<T, sizeof(T)>::compute(value);
-    }
-
-
-
-
-
     template <typename T>
     auto make_unique() -> std::unique_ptr<T>
     {
@@ -799,5 +742,3 @@ namespace cxxreflect { namespace core {
 } }
 
 #endif
-
-// AMDG //

@@ -124,7 +124,6 @@
         ( 01 00 24 30 30 30 30 30 30 30 30 2D 30 30 30 30   // ..$00000000-0000
           2D 30 30 30 30 2D 30 30 30 30 2D 30 30 30 30 30   // -0000-0000-00000
           30 30 30 30 30 30 30 00 00 )                      // 0000000..
-
 }
 
 .class QTrivialComObject          extends [mscorlib]System.__ComObject        { }
@@ -234,10 +233,15 @@
 // II.10.1.7 GENERIC PARAMETERS
 // TODO LEFT OFF HERE
 
-.class QTrivialGeneric`1<T>    { }
-.class QTrivialGeneric`2<T, U> { }
+.class QTrivialGeneric00`1<T>    { }
+.class QTrivialGeneric00`2<T, U> { }
 
+.class QTrivialGeneric01`2<T,U>
+{
+    .method public hidebysig instance void F(!T t, [out] !U& u) { ret; }
 
+    .method private hidebysig class QTrivialGeneric00`1<class QTrivialGeneric01`2<string, string>&> G() { ret; }
+}
 
 
 
@@ -265,5 +269,3 @@
 .class QExtendsD3 extends QExtendsB0 implements QExtendsI0, QExtendsI1 { }
 .class QExtendsD4 extends QExtendsB0 implements QExtendsI0, QExtendsI2 { }
 .class QExtendsD5 extends QExtendsB0 implements QExtendsI1, QExtendsI2 { }
-
-// AMDG //

@@ -547,5 +547,3 @@ auto main() -> int
 
     return 0;
 }
-
-// AMDG //

@@ -1309,5 +1309,3 @@ namespace cxxreflect { namespace reflection { namespace detail {
     template class element_context_table_collection<property_context_tag >;
 
 } } }
-
-// AMDG //

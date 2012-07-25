@@ -33,5 +33,3 @@
 #endif
 
 #endif 
-
-// AMDG //

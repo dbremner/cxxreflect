@@ -408,5 +408,3 @@ namespace cxxreflect { namespace windows_runtime { namespace detail {
 } } }
 
 #endif // ENABLE_WINDOWS_RUNTIME_INTEGRATION
-
-// AMDG //

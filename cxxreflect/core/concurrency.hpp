@@ -76,5 +76,3 @@ namespace cxxreflect { namespace core {
 } }
 
 #endif
-
-// AMDG //

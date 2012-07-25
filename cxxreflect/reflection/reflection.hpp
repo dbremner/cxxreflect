@@ -25,5 +25,3 @@
 #include "cxxreflect/reflection/utility.hpp"
 
 #endif
-
-// AMDG //

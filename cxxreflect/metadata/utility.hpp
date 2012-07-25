@@ -533,5 +533,3 @@ namespace cxxreflect { namespace metadata { namespace detail {
 } } }
 
 #endif
-
-// AMDG //

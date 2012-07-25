@@ -231,12 +231,12 @@ namespace cxxreflect { namespace core {
     template<typename Target, typename Source>
     auto lexical_cast(Source x) -> Target
     {
-      std::stringstream s;
-      Target y;
-      if (!(s << x) || !(s >> y) || !(s >> std::ws).eof())
-          throw runtime_error(L"bad lexical cast");
+        std::stringstream s;
+        Target y;
+        if (!(s << x) || !(s >> y) || !(s >> std::ws).eof())
+            throw runtime_error(L"bad lexical cast");
 
-      return y;
+        return y;
     }
 
 
@@ -244,7 +244,7 @@ namespace cxxreflect { namespace core {
 
 
     /// Tests whether the C string pointed to by `target_it` is prefixed by the C string `prefix_it`
-    inline bool starts_with(const_character_iterator target_it, const_character_iterator prefix_it)
+    inline auto starts_with(const_character_iterator target_it, const_character_iterator prefix_it) -> bool
     {
         if (target_it == nullptr || prefix_it == nullptr)
             return false;
@@ -269,7 +269,9 @@ namespace cxxreflect { namespace core {
     template <typename String>
     auto to_lowercase(String s) -> String
     {
-        using std::begin; using std::end;
+        using std::begin;
+        using std::end;
+
         std::transform(begin(s), end(s), begin(s), (int(*)(std::wint_t))std::tolower);
         return s;
     }
@@ -292,5 +294,3 @@ namespace cxxreflect { namespace core {
 } }
 
 #endif
-
-// AMDG //

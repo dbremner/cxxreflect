@@ -914,5 +914,3 @@ namespace cxxreflect { namespace windows_runtime { namespace utility {
 #endif // #if defined(CXXREFLECT_WINDOWSRUNTIME_UTILITIES_STANDALONE) || defined(CXXREFLECT_ENABLE_WINDOWS_RUNTIME_INTEGRATION)
 
 #endif
-
-// AMDG //

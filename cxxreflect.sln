@@ -35,6 +35,12 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "winrt_components", "winrt_c
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "TestComponents.Alpha", "test\winrt_components\TestComponents.Alpha\TestComponents.Alpha.vcxproj", "{C340A193-B0DC-45B2-8975-73081D1B6784}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "miscellaneous", "miscellaneous", "{93C99276-C9E0-43C5-992E-9B75475D215D}"
+	ProjectSection(SolutionItems) = preProject
+		Doxyfile = Doxyfile
+		LICENSE_1_0.txt = LICENSE_1_0.txt
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug(ZW)|ARM = Debug(ZW)|ARM

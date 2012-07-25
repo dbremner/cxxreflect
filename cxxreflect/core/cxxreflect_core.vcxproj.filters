@@ -71,5 +71,8 @@
     <ClInclude Include="externals\win32_externals.hpp">
       <Filter>headers\externals</Filter>
     </ClInclude>
+    <ClInclude Include="pool.hpp">
+      <Filter>headers</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

@@ -312,5 +312,3 @@ cxxreflect_windows_runtime_x64_fastcall_thunk ENDP
 _TEXT ENDS
 
 END
-
-; // AMDG //

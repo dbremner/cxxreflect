@@ -36,5 +36,3 @@ namespace cxxreflect { namespace externals {
 } }
 
 #endif // ENABLE_WINDOWS_RUNTIME_INTEGRATION
-
-// AMDG //

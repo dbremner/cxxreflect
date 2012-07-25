@@ -253,5 +253,3 @@ namespace cxxreflect_test
 }
 
 #endif
-
-// AMDG //

@@ -88,5 +88,3 @@
 .class public auto ansi Platform.STAThreadAttribute          extends Platform.Object { }
 .class public auto ansi Platform.SizeT                       extends Platform.Object { }
 .class public auto ansi Platform.TypeCode                    extends Platform.Object { }
-
-// AMDG //
