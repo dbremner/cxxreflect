@@ -16,9 +16,6 @@ namespace cxxreflect { namespace reflection {
     {
     public:
 
-        typedef void /* TODO */ optional_custom_modifier_iterator;
-        typedef void /* TODO */ required_custom_modifier_iterator;
-
         parameter();
 
         auto attributes() const -> metadata::parameter_flags;
@@ -37,17 +34,11 @@ namespace cxxreflect { namespace reflection {
 
         auto parameter_type() const -> type;
         auto position()       const -> core::size_type;
-
+        
         auto default_value() const -> constant;
 
         auto begin_custom_attributes() const -> custom_attribute_iterator;
         auto end_custom_attributes()   const -> custom_attribute_iterator;
-
-        auto begin_optional_custom_modifiers() const -> optional_custom_modifier_iterator;
-        auto end_optional_custom_modifiers()   const -> optional_custom_modifier_iterator;
-
-        auto begin_required_custom_modifiers() const -> required_custom_modifier_iterator;
-        auto end_required_custom_modifiers()   const -> required_custom_modifier_iterator;
 
         auto is_initialized() const -> bool;
         auto operator!()      const -> bool;

@@ -6,6 +6,7 @@
 #ifndef CXXREFLECT_REFLECTION_TYPE_HPP_
 #define CXXREFLECT_REFLECTION_TYPE_HPP_
 
+#include "cxxreflect/reflection/detail/custom_modifier_iterator.hpp"
 #include "cxxreflect/reflection/detail/forward_declarations.hpp"
 #include "cxxreflect/reflection/detail/independent_handles.hpp"
 #include "cxxreflect/reflection/detail/loader_contexts.hpp"
@@ -139,6 +140,12 @@ namespace cxxreflect { namespace reflection {
         // TODO Provide ability to return inherited attributes
         auto begin_custom_attributes() const -> custom_attribute_iterator;
         auto end_custom_attributes()   const -> custom_attribute_iterator;
+
+        auto begin_required_custom_modifiers() const -> detail::custom_modifier_iterator;
+        auto end_required_custom_modifiers()   const -> detail::custom_modifier_iterator;
+
+        auto begin_optional_custom_modifiers() const -> detail::custom_modifier_iterator;
+        auto end_optional_custom_modifiers()   const -> detail::custom_modifier_iterator;
 
         auto is_initialized() const -> bool;
         auto operator!()      const -> bool;

@@ -19,9 +19,6 @@ namespace cxxreflect { namespace reflection {
         typedef void /* TODO */ accessor_iterator;
         typedef void /* TODO */ parameter_iterator;
 
-        typedef void /* TODO */ optional_custom_modifier_iterator;
-        typedef void /* TODO */ required_custom_modifier_iterator;
-
         property();
 
         auto declaring_type() const -> type;
@@ -42,22 +39,16 @@ namespace cxxreflect { namespace reflection {
         auto begin_custom_attributes() const -> custom_attribute_iterator;
         auto end_custom_attributes()   const -> custom_attribute_iterator;
 
-        auto begin_optional_custom_modifiers() const -> optional_custom_modifier_iterator;
-        auto end_optional_custom_modifiers()   const -> optional_custom_modifier_iterator;
-
-        auto begin_required_custom_modifiers() const -> required_custom_modifier_iterator;
-        auto end_required_custom_modifiers()   const -> required_custom_modifier_iterator;
-
         auto default_value() const -> constant;
 
-        auto begin_accessors() const -> accessor_iterator;
-        auto end_accessors()   const -> accessor_iterator;
+        // TODO auto begin_accessors() const -> accessor_iterator;
+        // TODO auto end_accessors()   const -> accessor_iterator;
 
         auto get_method() const -> method;
         auto set_method() const -> method;
 
-        auto begin_index_parameters() const -> parameter_iterator;
-        auto end_index_parameters()   const -> parameter_iterator;
+        // TODO auto begin_index_parameters() const -> parameter_iterator;
+        // TODO auto end_index_parameters()   const -> parameter_iterator;
 
         auto is_initialized() const -> bool;
         auto operator!()      const -> bool;
@@ -83,8 +74,8 @@ namespace cxxreflect { namespace reflection {
 
         auto row() const -> metadata::property_row;
 
-        detail::type_handle                                      _reflected_type;
-        core::value_initialized<detail::property_context const*> _context;
+        detail::type_handle                                   _reflected_type;
+        core::checked_pointer<detail::property_context const> _context;
     };
 
 } }

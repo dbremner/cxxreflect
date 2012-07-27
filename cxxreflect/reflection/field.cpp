@@ -28,12 +28,12 @@ namespace cxxreflect { namespace reflection {
         core::assert_initialized(*this);
 
         detail::loader_context const& root(detail::loader_context::from(_reflected_type.realize()));
-        if (_context.get()->has_instantiating_type())
+        if (_context->has_instantiating_type())
         {
-            return type(root, _context.get()->instantiating_type(), core::internal_key());
+            return type(root, _context->instantiating_type(), core::internal_key());
         }
 
-        return type(root, metadata::find_owner_of_field(_context.get()->element()).token(), core::internal_key());
+        return type(root, metadata::find_owner_of_field(_context->element()).token(), core::internal_key());
     }
 
     auto field::reflected_type() const -> type
@@ -57,7 +57,7 @@ namespace cxxreflect { namespace reflection {
         detail::loader_context const& root(detail::loader_context::from(_reflected_type.realize()));
         return type(
             declaring_module(),
-            metadata::blob(_context.get()->element_signature(root).type()),
+            metadata::blob(_context->element_signature(root).type()),
             core::internal_key());
     }
 
@@ -162,14 +162,14 @@ namespace cxxreflect { namespace reflection {
     {
         core::assert_initialized(*this);
 
-        return _context.get()->element().value();
+        return _context->element().value();
     }
 
     auto field::constant_value() const -> constant
     {
         core::assert_initialized(*this);
 
-        return constant(metadata::find_constant(_context.get()->element()).token(), core::internal_key());
+        return constant(metadata::find_constant(_context->element()).token(), core::internal_key());
     }
 
     auto field::name() const -> core::string_reference
@@ -183,19 +183,19 @@ namespace cxxreflect { namespace reflection {
     {
         core::assert_initialized(*this);
 
-        return custom_attribute::begin_for(declaring_module(), _context.get()->element(), core::internal_key());
+        return custom_attribute::begin_for(declaring_module(), _context->element(), core::internal_key());
     }
 
     auto field::end_custom_attributes() const -> custom_attribute_iterator
     {
         core::assert_initialized(*this);
 
-        return custom_attribute::end_for(declaring_module(), _context.get()->element(), core::internal_key());
+        return custom_attribute::end_for(declaring_module(), _context->element(), core::internal_key());
     }
 
     auto field::is_initialized() const -> bool
     {
-        return _context.get() != nullptr;
+        return _context.is_initialized();
     }
 
     auto field::operator!() const -> bool
@@ -208,7 +208,7 @@ namespace cxxreflect { namespace reflection {
         core::assert_initialized(lhs);
         core::assert_initialized(rhs);
 
-        return std::equal_to<detail::field_context const*>()(lhs._context.get(), rhs._context.get());
+        return lhs._context == rhs._context;
     }
 
     auto operator<(field const& lhs, field const& rhs) -> bool
@@ -216,21 +216,21 @@ namespace cxxreflect { namespace reflection {
         core::assert_initialized(lhs);
         core::assert_initialized(rhs);
 
-        return std::less<detail::field_context const*>()(lhs._context.get(), rhs._context.get());
+        return lhs._context < rhs._context;
     }
 
     auto field::context(core::internal_key) const -> detail::field_context const&
     {
         core::assert_initialized(*this);
 
-        return *_context.get();
+        return *_context;
     }
 
     auto field::row() const -> metadata::field_row
     {
         core::assert_initialized(*this);
 
-        return row_from(_context.get()->element());
+        return row_from(_context->element());
     }
 
 } }

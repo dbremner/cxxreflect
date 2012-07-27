@@ -481,7 +481,7 @@ namespace cxxreflect { namespace core {
         auto write_size_type(core::size_type const value, wchar_t const* const format) -> void
         {
             size_type_buffer buffer((size_type_buffer()));
-            assert_true(std::swprintf(buffer.data(), buffer.size(), format, value) != -1);
+            std::swprintf(buffer.data(), buffer.size(), format, value);
             write(buffer.data());
         }
 

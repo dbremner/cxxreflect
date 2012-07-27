@@ -60,8 +60,8 @@ namespace cxxreflect { namespace reflection {
 
         auto row() const -> metadata::event_row;
 
-        detail::type_handle                                   _reflected_type;
-        core::value_initialized<detail::event_context const*> _context;
+        detail::type_handle                                _reflected_type;
+        core::checked_pointer<detail::event_context const> _context;
     };
 
 } }

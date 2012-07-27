@@ -54,7 +54,6 @@ namespace cxxreflect { namespace reflection {
         CXXREFLECT_GENERATE_COMPARISON_OPERATORS(module)
         CXXREFLECT_GENERATE_SAFE_BOOL_CONVERSION(module)
 
-
     public: // internal members
 
         module(detail::module_context const* context, core::internal_key);
@@ -64,7 +63,7 @@ namespace cxxreflect { namespace reflection {
 
     private:
 
-        core::value_initialized<detail::module_context const*> _context;
+        core::checked_pointer<detail::module_context const> _context;
     };
 
 } }

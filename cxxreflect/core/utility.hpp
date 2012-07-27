@@ -118,6 +118,48 @@ namespace cxxreflect { namespace core { namespace detail {
         enum { value = type::value };
     };
 
+
+
+
+
+    template <typename T, size_type Shift>
+    struct log_base_2_impl;
+
+    template <typename T>
+    struct log_base_2_impl<T, 0>
+    {
+        static auto compute(T) -> size_type
+        {
+            return static_cast<size_type>(-1);
+        }
+    };
+
+    template <typename T, size_type Shift>
+    struct log_base_2_impl
+    {
+        static_assert(std::is_unsigned<T>::value, "value type must be an unsigned integral type");
+
+        static auto compute(T const value) -> size_type
+        {
+            static const char table[256] = 
+            {
+                #define LT(n) n, n, n, n, n, n, n, n, n, n, n, n, n, n, n, n
+                -1, 0, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 3, 3,
+
+                LT(4), LT(5), LT(5), LT(6), LT(6), LT(6), LT(6),
+                LT(7), LT(7), LT(7), LT(7), LT(7), LT(7), LT(7), LT(7)
+
+                #undef LT
+            };
+
+            size_type const shifted_value(value >> (Shift - 8));
+            if (shifted_value != 0)
+                return table[shifted_value];
+
+            return log_base_2_impl<T, Shift - 8>::compute(value);
+        }
+    };
+
 } } }
 
 namespace cxxreflect { namespace core {
@@ -136,7 +178,8 @@ namespace cxxreflect { namespace core {
 
         array_range()
             : _begin(nullptr), _end(nullptr)
-        { }
+        {
+        }
 
         array_range(pointer const first, pointer const last)
             : _begin(first), _end(last)
@@ -435,7 +478,9 @@ namespace cxxreflect { namespace core {
 
         enum { block_size = BlockSize };
 
-        linear_array_allocator() { }
+        linear_array_allocator()
+        {
+        }
 
         linear_array_allocator(linear_array_allocator&& other)
             : _blocks(std::move(other._blocks)),
@@ -493,6 +538,21 @@ namespace cxxreflect { namespace core {
         block_sequence _blocks;
         block_iterator _current;
     };
+
+
+
+
+
+    /// Computes the log base 2 of an unsigned integer
+    ///
+    /// Complements of http://graphics.stanford.edu/~seander/bithacks.html#IntegerLogLookup
+    template <typename T>
+    auto log_base_2(T const value) -> size_type
+    {
+        static_assert(std::is_unsigned<T>::value, "value type must be an unsigned integral type");
+
+        return detail::log_base_2_impl<T, sizeof(T)>::compute(value);
+    }
 
 
 
@@ -563,11 +623,13 @@ namespace cxxreflect { namespace core {
 
         optional()
             : _value(), _has_value(false)
-        { }
+        {
+        }
 
         optional(value_type const& value)
             : _value(value), _has_value(true)
-        { }
+        {
+        }
 
         auto has_value() const -> bool     { return _has_value; }
         auto value()           -> T&       { return _value;     }
@@ -616,7 +678,8 @@ namespace cxxreflect { namespace core {
 
         explicit scope_guard(function_type f)
             : _f(std::move(f))
-        { }
+        {
+        }
 
         ~scope_guard()
         {
@@ -647,11 +710,13 @@ namespace cxxreflect { namespace core {
 
         unique_byte_array() 
             : _first(nullptr), _last(nullptr)
-        { }
+        {
+        }
 
         unique_byte_array(const_byte_iterator const first, const_byte_iterator const last, release_function release)
             : _first(first), _last(last), _release(std::move(release))
-        { }
+        {
+        }
 
         unique_byte_array(unique_byte_array&& other)
             : _first(other._first), _last(other._last), _release(other._release)

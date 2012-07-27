@@ -244,6 +244,17 @@
 }
 
 
+.class QClassWithCustomModifiers
+{
+    .method public hidebysig instance void F(
+        bool
+            modopt([mscorlib]System.UInt32) modreq([mscorlib]System.UInt64) * 
+            modopt([mscorlib]System.Int32)  modreq([mscorlib]System.Int64)  arg)
+    {
+        ret;
+    } 
+}
+
 
 
 

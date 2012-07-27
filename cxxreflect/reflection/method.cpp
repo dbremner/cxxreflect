@@ -32,7 +32,7 @@ namespace cxxreflect { namespace reflection {
 
         return type(
             root,
-            metadata::find_owner_of_method_def(_context.get()->element()).token(),
+            metadata::find_owner_of_method_def(_context->element()).token(),
             core::internal_key());
     }
 
@@ -69,7 +69,7 @@ namespace cxxreflect { namespace reflection {
     {
         core::assert_initialized(*this);
 
-        metadata::signature_attribute const convention(_context.get()
+        metadata::signature_attribute const convention(_context
             ->element_signature(detail::loader_context::from(reflected_type()))
             .calling_convention());
 
@@ -80,7 +80,7 @@ namespace cxxreflect { namespace reflection {
     {
         core::assert_initialized(*this);
 
-        return _context.get()->element().value();
+        return _context->element().value();
     }
 
     auto method::name() const -> core::string_reference
@@ -153,11 +153,11 @@ namespace cxxreflect { namespace reflection {
 
         detail::loader_context const& root(detail::loader_context::from(reflected_type()));
 
-        auto const generic_parameters(metadata::find_generic_params_range(_context.get()->element()));
+        auto const generic_parameters(metadata::find_generic_params_range(_context->element()));
         if (generic_parameters.first == generic_parameters.second)
             return false;
 
-        if (_context.get()->element_signature(root).generic_parameter_count() > 0)
+        if (_context->element_signature(root).generic_parameter_count() > 0)
             return true;
 
         return false;
@@ -169,11 +169,11 @@ namespace cxxreflect { namespace reflection {
 
         detail::loader_context const& root(detail::loader_context::from(reflected_type()));
 
-        auto const generic_parameters(metadata::find_generic_params_range(_context.get()->element()));
+        auto const generic_parameters(metadata::find_generic_params_range(_context->element()));
         if (generic_parameters.first == generic_parameters.second)
             return false;
 
-        if (_context.get()->element_signature(root).generic_parameter_count() > 0)
+        if (_context->element_signature(root).generic_parameter_count() > 0)
             return true;
 
         return false;
@@ -225,7 +225,7 @@ namespace cxxreflect { namespace reflection {
 
     auto method::is_initialized() const -> bool
     {
-        return _context.get() != nullptr;
+        return _context.is_initialized();
     }
 
     auto method::operator!() const -> bool
@@ -237,14 +237,14 @@ namespace cxxreflect { namespace reflection {
     {
         core::assert_initialized(*this);
 
-        return custom_attribute::begin_for(declaring_module(), _context.get()->element(), core::internal_key());
+        return custom_attribute::begin_for(declaring_module(), _context->element(), core::internal_key());
     }
 
     auto method::end_custom_attributes() const -> custom_attribute_iterator
     {
         core::assert_initialized(*this);
 
-        return custom_attribute::end_for(declaring_module(), _context.get()->element(), core::internal_key());
+        return custom_attribute::end_for(declaring_module(), _context->element(), core::internal_key());
     }
 
     auto method::begin_parameters() const -> parameter_iterator
@@ -255,7 +255,7 @@ namespace cxxreflect { namespace reflection {
 
         detail::loader_context const& root(detail::loader_context::from(reflected_type()));
 
-        metadata::method_def_row  const md_row(row_from(_context.get()->element()));
+        metadata::method_def_row  const md_row(row_from(_context->element()));
         incrementable_param_token first_parameter(md_row.first_parameter());
         incrementable_param_token const last_parameter(md_row.last_parameter());
 
@@ -267,7 +267,7 @@ namespace cxxreflect { namespace reflection {
 
         return parameter_iterator(*this, detail::parameter_data(
             first_parameter,
-            _context.get()->element_signature(root).begin_parameters(),
+            _context->element_signature(root).begin_parameters(),
             core::internal_key()));
     }
 
@@ -278,8 +278,8 @@ namespace cxxreflect { namespace reflection {
         detail::loader_context const& root(detail::loader_context::from(reflected_type()));
 
         return parameter_iterator(*this, detail::parameter_data(
-            row_from(_context.get()->element()).last_parameter(),
-            _context.get()->element_signature(root).end_parameters(),
+            row_from(_context->element()).last_parameter(),
+            _context->element_signature(root).end_parameters(),
             core::internal_key()));
     }
 
@@ -288,7 +288,7 @@ namespace cxxreflect { namespace reflection {
         core::assert_initialized(*this);
 
         detail::loader_context const& root(detail::loader_context::from(reflected_type()));
-        return _context.get()->element_signature(root).parameter_count();
+        return _context->element_signature(root).parameter_count();
     }
 
     auto method::return_parameter() const -> parameter
@@ -297,7 +297,7 @@ namespace cxxreflect { namespace reflection {
 
         detail::loader_context const& root(detail::loader_context::from(reflected_type()));
 
-        metadata::method_def_row const md_row(row_from(_context.get()->element()));
+        metadata::method_def_row const md_row(row_from(_context->element()));
         metadata::param_token const first_parameter(md_row.first_parameter());
         metadata::param_token const last_parameter(md_row.last_parameter());
 
@@ -309,7 +309,7 @@ namespace cxxreflect { namespace reflection {
         return parameter(
             *this,
             first_parameter,
-            _context.get()->element_signature(root).return_type(),
+            _context->element_signature(root).return_type(),
             core::internal_key());
     }
 
@@ -321,7 +321,7 @@ namespace cxxreflect { namespace reflection {
 
         return type(
             declaring_module(),
-            metadata::blob(_context.get()->element_signature(root).return_type()),
+            metadata::blob(_context->element_signature(root).return_type()),
             core::internal_key());
     }
 
@@ -330,7 +330,7 @@ namespace cxxreflect { namespace reflection {
         core::assert_initialized(lhs);
         core::assert_initialized(rhs);
 
-        return std::equal_to<detail::method_context const*>()(lhs._context.get(), rhs._context.get());
+        return lhs._context == rhs._context;
     }
 
     auto operator<(method const& lhs, method const& rhs) -> bool
@@ -338,21 +338,21 @@ namespace cxxreflect { namespace reflection {
         core::assert_initialized(lhs);
         core::assert_initialized(rhs);
 
-        return std::less<detail::method_context const*>()(lhs._context.get(), rhs._context.get());
+        return lhs._context < rhs._context;
     }
 
     auto method::context(core::internal_key) const -> detail::method_context const&
     {
         core::assert_initialized(*this);
 
-        return *_context.get();
+        return *_context;
     }
 
     auto method::row() const -> metadata::method_def_row
     {
         core::assert_initialized(*this);
 
-        return row_from(_context.get()->element());
+        return row_from(_context->element());
     }
 
 } }

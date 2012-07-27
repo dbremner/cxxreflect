@@ -613,10 +613,16 @@ namespace cxxreflect { namespace reflection {
         return method_iterator();
     }
 
-    auto type::find_method(core::string_reference name, metadata::binding_flags) const -> method
+    auto type::find_method(core::string_reference const name, metadata::binding_flags const flags) const -> method
     {
         core::assert_initialized(*this);
-        throw core::logic_error(L"not yet implemented");
+
+        auto const it(std::find_if(begin_methods(flags), end_methods(), [&](method const& m)
+        {
+            return m.name() == name;
+        }));
+
+        return it != end_methods() ? *it : method();
     }
 
     auto type::begin_custom_attributes() const -> custom_attribute_iterator
@@ -644,6 +650,58 @@ namespace cxxreflect { namespace reflection {
         {
             return custom_attribute::end_for(t.defining_module(), t._type.type().as_token(), core::internal_key());
         });
+    }
+
+    auto type::begin_required_custom_modifiers() const -> detail::custom_modifier_iterator
+    {
+        core::assert_initialized(*this);
+
+        if (_type.type().is_token())
+            return detail::custom_modifier_iterator();
+
+        return detail::custom_modifier_iterator(
+            detail::custom_modifier_iterator::kind::required,
+            defining_module(),
+            _type.type().as_blob().as<metadata::type_signature>().begin_custom_modifiers());
+    }
+
+    auto type::end_required_custom_modifiers() const -> detail::custom_modifier_iterator
+    {
+        core::assert_initialized(*this);
+
+        if (_type.type().is_token())
+            return detail::custom_modifier_iterator();
+
+        return detail::custom_modifier_iterator(
+            detail::custom_modifier_iterator::kind::required,
+            defining_module(),
+            _type.type().as_blob().as<metadata::type_signature>().end_custom_modifiers());
+    }
+
+    auto type::begin_optional_custom_modifiers() const -> detail::custom_modifier_iterator
+    {
+        core::assert_initialized(*this);
+
+        if (_type.type().is_token())
+            return detail::custom_modifier_iterator();
+
+        return detail::custom_modifier_iterator(
+            detail::custom_modifier_iterator::kind::optional,
+            defining_module(),
+            _type.type().as_blob().as<metadata::type_signature>().begin_custom_modifiers());
+    }
+
+    auto type::end_optional_custom_modifiers() const -> detail::custom_modifier_iterator
+    {
+        core::assert_initialized(*this);
+
+        if (_type.type().is_token())
+            return detail::custom_modifier_iterator();
+
+        return detail::custom_modifier_iterator(
+            detail::custom_modifier_iterator::kind::optional,
+            defining_module(),
+            _type.type().as_blob().as<metadata::type_signature>().end_custom_modifiers());
     }
 
     auto type::is_initialized() const -> bool
@@ -679,6 +737,10 @@ namespace cxxreflect { namespace reflection {
                 lhs.get_type_spec_signature(),
                 rhs.get_type_spec_signature());
         }
+
+        // TODO We need to handle the case where we are comparing a type with custom modifiers with
+        // a type with no custom modifiers.  We can have cases where TypeDef == TypeSpec might be
+        // true.  Also look at the operator< below.
     }
 
     auto operator<(type const& lhs, type const& rhs) -> bool

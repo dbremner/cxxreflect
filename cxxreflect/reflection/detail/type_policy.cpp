@@ -28,9 +28,10 @@ namespace cxxreflect { namespace reflection { namespace detail {
 
             metadata::type_signature const signature(t.type().as_blob().as<metadata::type_signature>());
 
-            // The ByRef tag occurs in metadata before the element type, so any ByRef type must be
-            // handled via its signature; it must not be resolved to an underlying type.
-            if (signature.is_by_ref())
+            // We can only resolve a signature to a TypeDef if there is no signature information
+            // that precedes the type code.  Required and optional custom modifiers and the ByRef
+            // tag can both appear before the type code.
+            if (signature.seek_to(metadata::type_signature::part::cross_module_type_reference) != signature.begin_bytes())
             {
                 return type_def_or_signature_with_module(t.module(), t.type().as_blob());
             }

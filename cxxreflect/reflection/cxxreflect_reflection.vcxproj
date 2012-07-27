@@ -24,6 +24,7 @@
     <ClInclude Include="assembly_name.hpp" />
     <ClInclude Include="constant.hpp" />
     <ClInclude Include="custom_attribute.hpp" />
+    <ClInclude Include="detail\custom_modifier_iterator.hpp" />
     <ClInclude Include="detail\element_contexts.hpp" />
     <ClInclude Include="detail\forward_declarations.hpp" />
     <ClInclude Include="detail\independent_handles.hpp" />
@@ -60,6 +61,7 @@
     <ClCompile Include="assembly_name.cpp" />
     <ClCompile Include="constant.cpp" />
     <ClCompile Include="custom_attribute.cpp" />
+    <ClCompile Include="detail\custom_modifier_iterator.cpp" />
     <ClCompile Include="detail\element_contexts.cpp" />
     <ClCompile Include="detail\independent_handles.cpp" />
     <ClCompile Include="detail\loader_contexts.cpp" />
@@ -84,6 +86,7 @@
     <ClCompile Include="precompiled_headers.cpp">
       <PrecompiledHeader>Create</PrecompiledHeader>
     </ClCompile>
+    <ClCompile Include="property.cpp" />
     <ClCompile Include="reflection_loader.cpp" />
     <ClCompile Include="type.cpp" />
   </ItemGroup>

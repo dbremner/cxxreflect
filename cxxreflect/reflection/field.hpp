@@ -16,9 +16,6 @@ namespace cxxreflect { namespace reflection {
     {
     public:
 
-        typedef void /* TODO */ optional_custom_modifier_iterator;
-        typedef void /* TODO */ required_custom_modifier_iterator;
-
         field();
 
         auto declaring_type()   const -> type;
@@ -48,12 +45,6 @@ namespace cxxreflect { namespace reflection {
 
         auto begin_custom_attributes() const -> custom_attribute_iterator;
         auto end_custom_attributes()   const -> custom_attribute_iterator;
-
-        auto begin_optional_custom_modifiers() const -> optional_custom_modifier_iterator;
-        auto end_optional_custom_modifiers()   const -> optional_custom_modifier_iterator;
-
-        auto begin_required_custom_modifiers() const -> required_custom_modifier_iterator;
-        auto end_required_custom_modifiers()   const -> required_custom_modifier_iterator;
 
         auto is_initialized() const -> bool;
         auto operator!()      const -> bool;
@@ -86,8 +77,8 @@ namespace cxxreflect { namespace reflection {
 
         auto row() const -> metadata::field_row;
 
-        detail::type_handle                                   _reflected_type;
-        core::value_initialized<detail::field_context const*> _context;
+        detail::type_handle                                _reflected_type;
+        core::checked_pointer<detail::field_context const> _context;
     };
 
 } }

@@ -24,14 +24,14 @@ namespace cxxreflect { namespace reflection {
         core::assert_initialized(defining_assembly);
 
         _context.get() = defining_assembly.context(core::internal_key()).modules().at(module_index).get();
-        core::assert_not_null(_context.get());
+        core::assert_initialized(_context);
     }
 
     auto module::defining_assembly() const -> assembly
     {
         core::assert_initialized(*this);
 
-        return assembly(&_context.get()->assembly(), core::internal_key());
+        return assembly(&_context->assembly(), core::internal_key());
     }
 
     auto module::metadata_token() const -> core::size_type
@@ -46,7 +46,7 @@ namespace cxxreflect { namespace reflection {
     {
         core::assert_initialized(*this);
 
-        metadata::database const& scope(_context.get()->database());
+        metadata::database const& scope(_context->database());
 
         return scope[metadata::module_token(&scope, metadata::table_id::module, 0)].name();
     }
@@ -55,7 +55,7 @@ namespace cxxreflect { namespace reflection {
     {
         core::assert_initialized(*this);
 
-        module_location const location(_context.get()->location());
+        module_location const location(_context->location());
 
         return location.is_file() ? location.file_path() : core::string_reference(L"");
     }
@@ -82,7 +82,7 @@ namespace cxxreflect { namespace reflection {
         // <module> "type" containing module-scope thingies.
         return type_iterator(
             *this,
-            metadata::type_def_token(&_context.get()->database(), metadata::table_id::type_def, 1));
+            metadata::type_def_token(&_context->database(), metadata::table_id::type_def, 1));
     }
 
     auto module::end_types() const -> type_iterator
@@ -92,14 +92,14 @@ namespace cxxreflect { namespace reflection {
         return type_iterator(
             *this,
             metadata::type_def_token(
-                &_context.get()->database(),
+                &_context->database(),
                 metadata::table_id::type_def,
-                _context.get()->database().tables()[metadata::table_id::type_def].row_count()));
+                _context->database().tables()[metadata::table_id::type_def].row_count()));
     }
 
     auto module::is_initialized() const -> bool
     {
-        return _context.get() != nullptr;
+        return _context.is_initialized();
     }
 
     auto module::operator!() const -> bool
@@ -112,7 +112,7 @@ namespace cxxreflect { namespace reflection {
         core::assert_initialized(lhs);
         core::assert_initialized(rhs);
 
-        return lhs._context.get() == rhs._context.get();
+        return lhs._context == rhs._context;
     }
 
     auto operator<(module const& lhs, module const& rhs) -> bool
@@ -120,14 +120,14 @@ namespace cxxreflect { namespace reflection {
         core::assert_initialized(lhs);
         core::assert_initialized(rhs);
 
-        return std::less<detail::module_context const*>()(lhs._context.get(), rhs._context.get());
+        return lhs._context < rhs._context;
     }
 
     auto module::context(core::internal_key) const -> detail::module_context const&
     {
         core::assert_initialized(*this);
 
-        return *_context.get();
+        return *_context;
     }
 
 } }

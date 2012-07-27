@@ -247,4 +247,58 @@ namespace cxxreflect_test { namespace {
 
     CXXREFLECTTEST_REGISTER(reflection_alpha_type_special_handling, verify_alpha_type_special_handling);
 
+
+
+
+
+    auto verify_alpha_custom_modifiers(context const& c) -> void
+    {
+        cxr::loader   const root(create_test_loader(c));
+        cxr::assembly const a(load_alpha_assembly(c, root));
+
+        cxr::type const t(a.find_type(L"QClassWithCustomModifiers"));
+        c.verify(t.is_initialized());
+
+        cxr::method const m(t.find_method(L"F", cxr::binding_attribute::all_instance));
+        c.verify(m.is_initialized());
+        c.verify_equals(cxr::distance(m.begin_parameters(), m.end_parameters()), 1u);
+
+        cxr::parameter const p(*m.begin_parameters());
+        c.verify_equals(p.name(), L"arg");
+        
+        cxr::type const pt(p.parameter_type());
+        c.verify(pt.is_initialized());
+        c.verify(pt.is_pointer());
+
+        cxr::type const pte(pt.element_type());
+        c.verify(pte.is_initialized());
+        c.verify_equals(pte.simple_name(), L"Boolean");
+
+        {
+            auto const first_modopt(pte.begin_optional_custom_modifiers());
+            auto const last_modopt(pte.end_optional_custom_modifiers());
+            c.verify_equals(cxr::distance(first_modopt, last_modopt), 1u);
+            c.verify_equals(first_modopt->full_name(), L"System.UInt32");
+       
+            auto const first_modreq(pte.begin_required_custom_modifiers());
+            auto const last_modreq(pte.end_required_custom_modifiers());
+            c.verify_equals(cxr::distance(first_modreq, last_modreq), 1u);
+            c.verify_equals(first_modreq->full_name(), L"System.UInt64");
+        }
+
+        {
+            auto const first_modopt(pt.begin_optional_custom_modifiers());
+            auto const last_modopt(pt.end_optional_custom_modifiers());
+            c.verify_equals(cxr::distance(first_modopt, last_modopt), 1u);
+            c.verify_equals(first_modopt->full_name(), L"System.Int32");
+       
+            auto const first_modreq(pt.begin_required_custom_modifiers());
+            auto const last_modreq(pt.end_required_custom_modifiers());
+            c.verify_equals(cxr::distance(first_modreq, last_modreq), 1u);
+            c.verify_equals(first_modreq->full_name(), L"System.Int64");
+        }
+    }
+
+    CXXREFLECTTEST_REGISTER_SOLO(reflection_alpha_custom_modifiers, verify_alpha_custom_modifiers);
+
 } }
