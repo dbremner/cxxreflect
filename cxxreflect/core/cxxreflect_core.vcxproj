@@ -21,7 +21,6 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="concurrency.cpp" />
-    <ClCompile Include="utility.cpp" />
     <ClCompile Include="externals\win32_externals.cpp" />
     <ClCompile Include="precompiled_headers.cpp">
       <PrecompiledHeader>Create</PrecompiledHeader>

@@ -16,6 +16,8 @@ namespace cxxreflect { namespace windows_runtime { namespace detail {
 
     auto compute_canonical_uri(core::string path) -> core::string;
 
+    auto compute_sha1_hash(core::const_byte_iterator first, core::const_byte_iterator last) -> core::sha1_hash;
+
     auto current_package_root() -> core::string;
 
     auto enumerate_package_metadata_files(core::string_reference package_root) -> std::vector<core::string>;

@@ -314,10 +314,6 @@ namespace cxxreflect { namespace core {
 
     typedef std::array<byte, 20> sha1_hash;
 
-    /// Computes the SHA1 hash of the bytes in the range `[first, last)`
-    auto compute_sha1_hash(const_byte_iterator first, const_byte_iterator last) -> sha1_hash;
-
-
 
 
 

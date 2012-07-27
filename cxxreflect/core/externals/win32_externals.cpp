@@ -133,6 +133,33 @@ namespace cxxreflect { namespace externals {
     {
     }
 
+    auto win32_externals::compute_sha1_hash(core::const_byte_iterator const first, core::const_byte_iterator const last) const
+        -> core::sha1_hash
+    {
+        core::assert_not_null(first);
+        core::assert_not_null(last);
+
+        HCRYPTPROV provider(0);
+        core::scope_guard cleanup_provider([&](){ if (provider) { CryptReleaseContext(provider, 0); } });
+        if (!CryptAcquireContext(&provider, nullptr, nullptr, PROV_RSA_FULL, CRYPT_VERIFYCONTEXT))
+            throw core::runtime_error(L"failed to acquire cryptographic context");
+
+        HCRYPTHASH hash(0);
+        core::scope_guard cleanup_hash([&](){ if (hash) { CryptDestroyHash(hash); } });
+        if (!CryptCreateHash(provider, CALG_SHA1, 0, 0, &hash))
+            throw core::runtime_error(L"failed to create cryptographic hash");
+
+        if (!CryptHashData(hash, first, static_cast<DWORD>(last - first), 0))
+            throw core::runtime_error(L"failed to hash data");
+
+        core::sha1_hash result = { 0 };
+        DWORD resultLength(static_cast<DWORD>(result.size()));
+        if (!CryptGetHashParam(hash, HP_HASHVAL, result.data(), &resultLength, 0) || resultLength != 20)
+            throw core::runtime_error(L"failed to obtain hash value");
+
+        return result;
+    }
+
     auto win32_externals::compute_canonical_uri(wchar_t const* const path_or_uri) const -> core::string
     {
         core::value_initialized<std::array<wchar_t, 2048>> buffer;

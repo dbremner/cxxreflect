@@ -14,7 +14,7 @@ namespace cxxreflect { namespace reflection { namespace {
 
         if (is_full_public_key)
         {
-            core::sha1_hash const hash(core::compute_sha1_hash(begin(key), end(key)));
+            core::sha1_hash const hash(core::externals::compute_sha1_hash(begin(key), end(key)));
             std::copy(hash.rbegin(), hash.rbegin() + 8, begin(result));
         }
         else if (core::distance(begin(key), end(key)) > 0)

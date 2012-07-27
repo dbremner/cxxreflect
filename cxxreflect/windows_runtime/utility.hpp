@@ -114,6 +114,60 @@ namespace cxxreflect { namespace windows_runtime { namespace utility {
         auto operator=(guarded_console const&) -> guarded_console&;
     };
 
+
+
+
+
+    template <typename T>
+    class smart_com_array
+    {
+    public:
+
+        typedef T* pointer;
+
+        smart_com_array(pointer const p = nullptr)
+            : _p(p)
+        {
+        }
+
+        ~smart_com_array()
+        {
+            release();
+        }
+
+        auto get() -> pointer
+        {
+            return _p;
+        }
+
+        auto get_address_of() -> pointer*
+        {
+            return &_p;
+        }
+
+        auto release_and_get_address_of() -> pointer*
+        {
+            release();
+            return get_address_of();
+        }
+
+    private:
+
+        smart_com_array(smart_com_array const&);
+        auto operator=(smart_com_array const&) -> smart_com_array&;
+
+        auto release() -> void
+        {
+            if (_p == nullptr)
+                return;
+
+            ::CoTaskMemFree(_p);
+            _p = nullptr;
+        }
+
+        pointer _p;
+    };
+
 } } }
 
 namespace cxxreflect { namespace windows_runtime { namespace utility {

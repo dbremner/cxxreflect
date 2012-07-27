@@ -16,6 +16,8 @@ namespace cxxreflect { namespace externals {
     {
     public:
 
+        auto compute_sha1_hash(core::const_byte_iterator first, core::const_byte_iterator last) const -> core::sha1_hash;
+
         auto compute_canonical_uri(wchar_t const* const path_or_uri) const -> core::string;
 
         auto file_exists(wchar_t const* const file_path) const -> bool;

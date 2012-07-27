@@ -36,6 +36,7 @@
     <ClCompile Include="main.cpp" />
     <ClCompile Include="windows_runtime\basic_alpha_enumerations.cpp" />
     <ClCompile Include="windows_runtime\basic_alpha_instantiation.cpp" />
+    <ClCompile Include="windows_runtime\runtime_utility_compute_sha1_hash.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\winrt_components\TestComponents.Alpha\TestComponents.Alpha.vcxproj">

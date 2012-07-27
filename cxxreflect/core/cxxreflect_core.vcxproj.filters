@@ -24,9 +24,6 @@
     <ClCompile Include="externals\win32_externals.cpp">
       <Filter>sources\externals</Filter>
     </ClCompile>
-    <ClCompile Include="utility.cpp">
-      <Filter>sources</Filter>
-    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="algorithm.hpp">

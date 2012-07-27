@@ -18,6 +18,8 @@
 
 #include <windows.applicationModel.h>
 #include <windows.foundation.h>
+#include <windows.security.cryptography.h>
+#include <windows.security.cryptography.core.h>
 #include <windows.storage.h>
 
 using namespace Microsoft::WRL;
@@ -87,6 +89,88 @@ namespace cxxreflect { namespace windows_runtime { namespace detail {
         return absolute_uri.c_str();
     }
 
+    auto compute_sha1_hash(core::const_byte_iterator const first, core::const_byte_iterator const last) -> core::sha1_hash
+    {
+        using namespace ABI::Windows::Security::Cryptography;
+        using namespace ABI::Windows::Security::Cryptography::Core;
+        using namespace ABI::Windows::Storage::Streams;
+
+        core::assert_not_null(first);
+        core::assert_not_null(last);
+
+        // Get the hash provider:
+        utility::smart_hstring const hash_provider_type_name(RuntimeClass_Windows_Security_Cryptography_Core_HashAlgorithmProvider);
+
+        ComPtr<IHashAlgorithmProviderStatics> hash_provider_statics;
+        void** const hash_provider_statics_result = reinterpret_cast<void**>(hash_provider_statics.GetAddressOf());
+        if (FAILED(::RoGetActivationFactory(hash_provider_type_name.value(), IID_IHashAlgorithmProviderStatics, hash_provider_statics_result)))
+            return core::sha1_hash();
+
+        utility::smart_hstring const hash_algorithm_name(L"SHA1");
+
+        ComPtr<IHashAlgorithmProvider> hash_provider;
+        if (FAILED(hash_provider_statics->OpenAlgorithm(hash_algorithm_name.value(), hash_provider.GetAddressOf())))
+            return core::sha1_hash();
+
+        UINT32 expected_hash_length(0);
+        if (FAILED(hash_provider->get_HashLength(&expected_hash_length)))
+            return core::sha1_hash();
+
+        if (expected_hash_length != core::sha1_hash().size())
+            return core::sha1_hash();
+
+
+        // Get the buffer creation mechanics:
+        utility::smart_hstring const buffer_type_name(RuntimeClass_Windows_Security_Cryptography_CryptographicBuffer);
+
+        ComPtr<ICryptographicBufferStatics> buffer_statics;
+        void** const buffer_statics_result = reinterpret_cast<void**>(buffer_statics.GetAddressOf());
+        if (FAILED(::RoGetActivationFactory(buffer_type_name.value(), IID_ICryptographicBufferStatics, buffer_statics_result)))
+            return core::sha1_hash();
+
+        if (buffer_statics == nullptr)
+            return core::sha1_hash();
+
+        
+        // Create the source buffer:
+        UINT32 const data_length(core::distance(first, last));
+        BYTE*  const data_pointer(const_cast<BYTE*>(first));
+
+        ComPtr<IBuffer> source_buffer;
+        if (FAILED(buffer_statics->CreateFromByteArray(data_length, data_pointer, source_buffer.GetAddressOf())))
+            return core::sha1_hash();
+
+        if (source_buffer == nullptr)
+            return core::sha1_hash();
+
+        
+        // Hash the data:
+        ComPtr<IBuffer> hash_buffer;
+        if (FAILED(hash_provider->HashData(source_buffer.Get(), hash_buffer.GetAddressOf())))
+            return core::sha1_hash();
+
+        if (hash_buffer == nullptr)
+            return core::sha1_hash();
+
+        UINT32 hash_length(0);
+        if (FAILED(hash_buffer->get_Length(&hash_length)))
+            return core::sha1_hash();
+
+        if (hash_length != expected_hash_length)
+            return core::sha1_hash();
+
+
+        // Copy the hash value
+        UINT32 hash_data_length(0);
+        utility::smart_com_array<BYTE> hash_data;
+        if (FAILED(buffer_statics->CopyToByteArray(hash_buffer.Get(), &hash_data_length, hash_data.get_address_of())))
+            return core::sha1_hash();
+
+        core::sha1_hash hash_value;
+        core::range_checked_copy(hash_data.get(), hash_data.get() + hash_data_length, hash_value.begin(), hash_value.end());
+        return hash_value;
+    }
+
     auto current_package_root() -> core::string
     {
         using namespace ABI::Windows::ApplicationModel;
@@ -95,8 +179,8 @@ namespace cxxreflect { namespace windows_runtime { namespace detail {
         utility::smart_hstring const package_type_name(RuntimeClass_Windows_ApplicationModel_Package);
 
         ComPtr<IPackageStatics> package_statics;
-        void** const activationFactoryResult = reinterpret_cast<void**>(package_statics.GetAddressOf());
-        if (FAILED(::RoGetActivationFactory(package_type_name.value(), IID_IPackageStatics, activationFactoryResult)))
+        void** const activation_factory_result = reinterpret_cast<void**>(package_statics.GetAddressOf());
+        if (FAILED(::RoGetActivationFactory(package_type_name.value(), IID_IPackageStatics, activation_factory_result)))
             return core::string();
 
         if (package_statics == nullptr)

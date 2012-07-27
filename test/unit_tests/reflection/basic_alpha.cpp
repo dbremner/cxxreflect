@@ -299,6 +299,6 @@ namespace cxxreflect_test { namespace {
         }
     }
 
-    CXXREFLECTTEST_REGISTER_SOLO(reflection_alpha_custom_modifiers, verify_alpha_custom_modifiers);
+    CXXREFLECTTEST_REGISTER(reflection_alpha_custom_modifiers, verify_alpha_custom_modifiers);
 
 } }

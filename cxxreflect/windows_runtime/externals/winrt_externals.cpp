@@ -12,6 +12,12 @@
 
 namespace cxxreflect { namespace externals {
 
+    auto winrt_externals::compute_sha1_hash(core::const_byte_iterator const first, core::const_byte_iterator const last) const
+        -> core::sha1_hash
+    {
+        return windows_runtime::detail::compute_sha1_hash(first, last);
+    }
+
     auto winrt_externals::compute_canonical_uri(wchar_t const* const path_or_uri) const -> core::string
     {
         return windows_runtime::detail::compute_canonical_uri(path_or_uri);

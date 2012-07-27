@@ -14,6 +14,8 @@ namespace cxxreflect { namespace core { namespace detail {
     {
     public:
 
+        virtual auto compute_sha1_hash(core::const_byte_iterator first, core::const_byte_iterator last) -> core::sha1_hash = 0;
+
         /// Given a UTF-8 string, computes its length in characters when represented in UTF-16
         virtual auto compute_utf16_length_of_utf8_string(char const* source) const -> unsigned = 0;
 
@@ -46,6 +48,11 @@ namespace cxxreflect { namespace core { namespace detail {
         derived_externals(externals_type instance)
             : _instance(std::move(instance))
         { }
+
+        virtual auto compute_sha1_hash(core::const_byte_iterator first, core::const_byte_iterator last) -> core::sha1_hash
+        {
+            return _instance.compute_sha1_hash(first, last);
+        }
 
         virtual auto compute_utf16_length_of_utf8_string(char const* source) const -> unsigned
         {
@@ -124,6 +131,11 @@ namespace cxxreflect { namespace core { namespace externals {
     auto initialize(T const& x) -> void
     {
         detail::global_externals::initialize(x);
+    }
+
+    inline auto compute_sha1_hash(const_byte_iterator const first, const_byte_iterator const last) -> sha1_hash
+    {
+        return detail::global_externals::get().compute_sha1_hash(first, last);
     }
 
     inline auto compute_utf16_length_of_utf8_string(char const* const source) -> unsigned
