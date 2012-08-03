@@ -853,7 +853,7 @@ namespace cxxreflect_test { namespace {
             cxr::interface_impl_row   const cxr_row(cxr_database[cxr_token]);
 
             c.verify_equals(cor_class,     cxr_row.parent().value());
-            c.verify_equals(cor_interface, cxr_row.interface().value());
+            c.verify_equals(cor_interface, cxr_row.interface_().value());
         }
     }
 

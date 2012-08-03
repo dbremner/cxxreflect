@@ -145,7 +145,7 @@ namespace cxxreflect { namespace reflection { namespace detail {
         assert_token(t);
 
         return row_from(t.type().as_token()).flags().with_mask(metadata::type_attribute::class_semantics_mask)
-            == metadata::type_attribute::interface;
+            == metadata::type_attribute::interface_;
     }
 
     auto definition_type_policy::is_marshal_by_ref(type_def_or_signature_with_module const& t) const -> bool

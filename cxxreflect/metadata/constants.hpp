@@ -692,7 +692,7 @@ namespace cxxreflect { namespace metadata {
 
         class_semantics_mask       = 0x00000020,
         class_                     = 0x00000000,
-        interface                  = 0x00000020,
+        interface_                 = 0x00000020,
 
         abstract_                  = 0x00000080,
         sealed                     = 0x00000100,

@@ -11,6 +11,7 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="cxxreflect.props" />
+    <None Include="cxxreflect.targets" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="documentation">

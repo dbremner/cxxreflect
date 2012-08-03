@@ -428,6 +428,16 @@ namespace cxxreflect { namespace core {
 
 
 
+    template <typename Target, typename Source>
+    auto implicit_cast(Source&& source) -> Target
+    {
+        return std::forward<Source>(source);
+    }
+
+
+
+
+
     /// Access key for internal members
     class internal_key
     {

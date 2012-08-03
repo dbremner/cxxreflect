@@ -292,7 +292,7 @@ namespace cxxreflect { namespace metadata {
     auto operator<<(cxr::file_handle& os, cxr::interface_impl_row const& r) -> cxr::file_handle&
     {
         os << L"//  * parent [" << r.parent() << L"]\n";
-        os << L"//  * interface [" << r.interface() << L"]\n";
+        os << L"//  * interface [" << r.interface_() << L"]\n";
         os << L"// \n";
         return os;
     }

@@ -23,16 +23,9 @@ namespace cxxreflect { namespace windows_runtime { namespace generated {
 
 namespace cxxreflect { namespace windows_runtime {
 
-    auto begin_initialization() -> void
+    auto create_package_loader_future() -> std::future<std::unique_ptr<package_loader>>
     {
-        if (global_package_loader::has_initialization_begun())
-            throw core::logic_error(L"initialization has already begun");
-
-        core::externals::initialize(externals::winrt_externals());
-
-        // Start initialization in the background.  Note:  we explicitly want to specify an async
-        // launch here.  This cannot run on an STA thread when /ZW is used.
-        global_package_loader::initialize(std::async(std::launch::async, []() -> std::unique_ptr<package_loader>
+        return std::async(std::launch::async, []() -> std::unique_ptr<package_loader>
         {
             core::string const current_package_root(detail::current_package_root());
 
@@ -61,7 +54,19 @@ namespace cxxreflect { namespace windows_runtime {
                 std::move(loader_instance)));
 
             return context;
-        }));
+        });
+    }
+
+    auto begin_initialization() -> void
+    {
+        if (global_package_loader::has_initialization_begun())
+            throw core::logic_error(L"initialization has already begun");
+
+        core::externals::initialize(externals::winrt_externals());
+
+        // Start initialization in the background.  Note:  we explicitly want to specify an async
+        // launch here.  This cannot run on an STA thread when /ZW is used.
+        global_package_loader::initialize(create_package_loader_future());
     }
 
     auto has_initialization_begun() -> bool

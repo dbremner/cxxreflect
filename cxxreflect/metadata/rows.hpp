@@ -346,7 +346,7 @@ namespace cxxreflect { namespace metadata {
     public:
 
         auto parent()        const -> type_def_token;
-        auto interface()     const -> type_def_ref_spec_token;
+        auto interface_()    const -> type_def_ref_spec_token;
         auto interface_raw() const -> core::size_type;
     };
 

@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?> 
+<!--
+
+//                            Copyright James P. McNellis 2011 - 2012.                            //
+//                   Distributed under the Boost Software License, Version 1.0.                   //
+//     (See accompanying file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)    //
+
+This targets file defines replacements for MSBuild targets that are not suitable for building the
+CxxReflect library components.  If a project file requires one of these targets, it should define
+the property that enables the target and include this targets file after it includes the platform
+targets (i.e., at the very end of the project file).
+
+-->
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  
+  <!--
+  This target is copied from Microsoft.CppBuild.targets.  The only change that has been made is the
+  removal of the check on WinMDFullPath that test whether the linker produces a WinMD.  This
+  replacement target is used only by our non-C++/CX WinRT projects (i.e., projects that produce a
+  WinMD through midlrt, not the C++ compiler).
+  
+  For these projects, we must set the WinMDFullPath to the IDL-generated WinMD, which will be in the
+  same location as the WinMD that would have been produced by the C++ compiler.  Otherwise, project-
+  to-project references will not work correctly.
+  -->
+  <Target Condition="'$(CxxReflectIsNonZWWinRTComponent)' == 'true'" Name="GetResolvedWinMD" Returns="@(WinMDFullPath)">
+    <ItemGroup>
+      <Link Include="tmp" Condition="'@(Link)'==''">
+        <DeleteSoon>true</DeleteSoon>
+      </Link>
+
+      <WinMDFullPath Include="@(Link->Metadata('WindowsMetadataFile')->FullPath()->Distinct()->ClearMetadata())">
+        <TargetPath>$([System.IO.Path]::GetFileName('%(Link.WindowsMetadataFile)'))</TargetPath>
+        <Primary>true</Primary>
+      </WinMDFullPath>
+
+      <WinMDFullPath>
+        <Implementation>$(WinMDImplementationPath)$(TargetName)$(TargetExt)</Implementation>
+        <FileType>winmd</FileType>
+        <WinMDFile>true</WinMDFile>
+        <ProjectType>$(ConfigurationType)</ProjectType>
+      </WinMDFullPath>
+      <Link Remove="@(Link)" Condition="'%(Link.DeleteSoon)' == 'true'" />
+    </ItemGroup>
+  </Target>
+  
+</Project>

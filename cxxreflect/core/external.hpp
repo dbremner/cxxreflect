@@ -128,9 +128,10 @@ namespace cxxreflect { namespace core { namespace detail {
 namespace cxxreflect { namespace core { namespace externals {
 
     template <typename T>
-    auto initialize(T const& x) -> void
+    auto initialize(T const& x) -> size_type
     {
         detail::global_externals::initialize(x);
+        return 0;
     }
 
     inline auto compute_sha1_hash(const_byte_iterator const first, const_byte_iterator const last) -> sha1_hash

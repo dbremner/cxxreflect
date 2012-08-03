@@ -670,7 +670,7 @@ namespace cxxreflect { namespace reflection { namespace detail { namespace {
                     return; // TODO Check correctness?
 
                 metadata::type_flags const flags(row_from(resolved_constraint_type.type_def()).flags());
-                if (flags.with_mask(metadata::type_attribute::class_semantics_mask) != metadata::type_attribute::interface)
+                if (flags.with_mask(metadata::type_attribute::class_semantics_mask) != metadata::type_attribute::interface_)
                     return;
 
                 // Create the new context, insert it into the table, and perform post-recurse:
@@ -916,7 +916,7 @@ namespace cxxreflect { namespace reflection { namespace detail {
 
         if (parent.is<metadata::interface_impl_token>())
         {
-            return row_from(parent.as<metadata::interface_impl_token>()).interface();
+            return row_from(parent.as<metadata::interface_impl_token>()).interface_();
         }
         else if (parent.is<metadata::generic_param_constraint_token>())
         {

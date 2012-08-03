@@ -195,7 +195,7 @@ namespace cxxreflect { namespace metadata { namespace debug {
 
     realized_interface_impl_row::realized_interface_impl_row(interface_impl_row const& r)
         : _parent       (r.parent()       ),
-          _interface    (r.interface()    ),
+          _interface    (r.interface_()    ),
           _interface_raw(r.interface_raw())
     {
     }
@@ -607,7 +607,7 @@ namespace cxxreflect { namespace metadata { namespace debug {
         CXXREFLECT_WRITE_IF_HAS_MASKED_VALUE(type_attribute, layout_mask, explicit_layout);
 
         CXXREFLECT_WRITE_IF_HAS_MASKED_VALUE(type_attribute, class_semantics_mask, class_);
-        CXXREFLECT_WRITE_IF_HAS_MASKED_VALUE(type_attribute, class_semantics_mask, interface);
+        CXXREFLECT_WRITE_IF_HAS_MASKED_VALUE(type_attribute, class_semantics_mask, interface_);
 
         CXXREFLECT_WRITE_IF_BIT_SET(type_attribute, abstract_);
         CXXREFLECT_WRITE_IF_BIT_SET(type_attribute, sealed);

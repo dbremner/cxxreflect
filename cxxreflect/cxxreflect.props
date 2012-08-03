@@ -5,113 +5,186 @@
 //                   Distributed under the Boost Software License, Version 1.0.                   //
 //     (See accompanying file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)    //
 
+This properties file defines all of the properties that are common to all of the CxxReflect library
+projects, or to any subset of those projects.  This should be included in every project file, after
+the project property definitions, in lieu of the Microsoft.Cpp.Default.props file, which this props
+file includes.
+
+Some top-level notes:
+
+[*] The ConcRT headers define types that are layout sensitive to /ZW.  Because we make use of the
+    C++ Standard Library thread support and asynchronous operations libraries and because those
+    libraries make use of ConcRT, we are also layout sensitive to /ZW.
+    
+    We therefore have two sets of build configurations:  one set that builds with /ZW and another
+    that builds without.  This means that there are 12 total builds, combining {ZW,non-ZW}, 
+    {Debug,Release}, and {Win32,x64,ARM}.
+    
+[*] Our goal is to have as few properties as possible specified in project files.  Ideally, each
+    project file should just have a list of source files to be built and whatever properties really
+    are project-specific (e.g. project GUID, root namespace, etc.).  Unfortunately, this means that
+    you cannot change project properties using the Visual Studio IDE.  Instead, you must unload the
+    project to be modified and hand-edit it using a text editor.
+    
+The following properties may be defined by a project before including this props file to control the
+configuration of the project:
+
+[*] CxxReflectIsStandalone:  cxxreflect.lib will not be added to the linker options for the project.
+
 -->
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
-
+  
   <!--
-  Note:  The Visual C++ Standard Library implementation relies on ConcRT for its threading headers.
-  ConcRT, in turn, is layout-dependent on /ZW, so we cannot mix /ZW object files with non-/ZW object
-  files.  Thus, we have two sets of identical project configurations:  one with /ZW, the other
-  without.
+  IsCxxReflect, IxCxxReflectLibrary, IsCxxReflectPart
+  
+  These properties are true only for the projects that compose the CxxReflect library:  these are
+  the CxxReflect library project itself (cxxreflect.lib) and the components that are concatenated
+  to form that library (these are the projects whos names are prefixed by "cxxreflect_").
   -->
-
   <PropertyGroup Condition="'$(MSBuildProjectExtension)' == '.vcxproj'">
-    <!-- CxxReflectIsCxxReflectPart is true for all of the library parts -->
+    <!-- IsCxxReflectPart is true for all of the library parts -->
     <CxxReflectIsCxxReflectPart Condition="'$(MSBuildProjectName.Length)' &gt; 11 and '$(MSBuildProjectName.Substring(0, 11))' == 'cxxreflect_'">true</CxxReflectIsCxxReflectPart>
     <CxxReflectIsCxxReflectPart Condition="'$(CxxReflectIsCxxReflectPart)' == ''">false</CxxReflectIsCxxReflectPart>
 
-    <!-- CxxReflectIsCxxReflectLibrary is true only for the final, complete library project -->
+    <!-- IsCxxReflectLibrary is true only for the final, complete library project -->
     <CxxReflectIsCxxReflectLibrary Condition="'$(MSBuildProjectName)' == 'cxxreflect'">true</CxxReflectIsCxxReflectLibrary>
     <CxxReflectIsCxxReflectLibrary Condition="'$(CxxReflectIsCxxReflectLibrary)' == ''">false</CxxReflectIsCxxReflectLibrary>
 
+    <!-- IsCxxReflect is true if either IsCxxReflectPart or IsCxxReflectLibrary is true -->
     <CxxReflectIsCxxReflect Condition="'$(CxxReflectIsCxxReflectPart)' == 'true' or '$(CxxReflectIsCxxReflectLibrary)' == 'true'">true</CxxReflectIsCxxReflect>
     <CxxReflectIsCxxReflect Condition="'$(CxxReflectIsCxxReflect)' == ''">false</CxxReflectIsCxxReflect>
+  </PropertyGroup>
 
-    <!-- Non-/ZW configurations are enabled for the CxxReflect library projects and all non-AppContainerApplication projects -->
+  
+  
+  
+  
+  <!--
+  IncludeNonZWConfigurations, IncludeZWConfigurations, IncludeAnyCPUConfigurations
+  
+  These properties select which project configurations and platforms are available to build.  The
+  CxxReflect library projects support all CPU-specific ZW and non-ZW configurations.  The test
+  projects each support a subset of the project configurations, depending on the type of the 
+  project.  Only pure managed projects support AnyCPU.
+  -->
+  <PropertyGroup Condition="'$(MSBuildProjectExtension)' == '.vcxproj'">
+    <!-- Non-ZW configs are enabled for the CxxReflect libraries and all non-WinRT projects -->
     <CxxReflectIncludeNonZWConfigurations Condition="'$(CxxReflectIsCxxReflect)' == 'true' or '$(AppContainerApplication)' != 'true'">true</CxxReflectIncludeNonZWConfigurations>
     <CxxReflectIncludeNonZWConfigurations Condition="'$(CxxReflectIncludeNonZWConfigurations)' == ''">false</CxxReflectIncludeNonZWConfigurations>
 
-    <!-- /ZW configurations are enabled for the CxxReflect library projects and all AppContainerApplication projects -->
+    <!-- ZW configs are enabled for the CxxReflect libraries and all WinRT projects -->
     <CxxReflectIncludeZWConfigurations Condition="'$(CxxReflectIsCxxReflect)' == 'true' or '$(AppContainerApplication)' == 'true'">true</CxxReflectIncludeZWConfigurations>
     <CxxReflectIncludeZWConfigurations Condition="'$(CxxReflectIncludeZWConfigurations)' == ''">false</CxxReflectIncludeZWConfigurations>
 
+    <!-- AnyCPU is disabled for all C++ projects -->
     <CxxReflectIncludeAnyCPUConfigurations>false</CxxReflectIncludeAnyCPUConfigurations>
   </PropertyGroup>
 
-  <!-- All C# projects should include the AnyCPU configuration. -->
+  
+  
+  
+  
+  <!--
+  C#-specific project property configuration
+  
+  All C# projects support the AnyCPU platform.  All C# projects are also standalone, since we can't
+  link native C++ libraries into a C# project.
+  -->
   <PropertyGroup Condition="'$(MSBuildProjectExtension)' == '.csproj'">
     <CxxReflectIncludeAnyCPUConfigurations>true</CxxReflectIncludeAnyCPUConfigurations>
     <CxxReflectIsStandalone>true</CxxReflectIsStandalone>
   </PropertyGroup>
 
+  
+  
+  
+  
+  <!--
+  ProjectConfiguration specification
+  
+  These ItemGroups define the available project configurations for this project using the properties
+  that were configured in the above groups.
+  -->
+  
   <!-- Non-/ZW Project Configurations -->
   <ItemGroup Condition="'$(CxxReflectIncludeNonZWConfigurations)' == 'true'">
-    <ProjectConfiguration Include="Debug|Win32">
-      <Configuration>Debug</Configuration>
-      <Platform>Win32</Platform>
-    </ProjectConfiguration>
-    <ProjectConfiguration Include="Debug|x64">
-      <Configuration>Debug</Configuration>
-      <Platform>x64</Platform>
-    </ProjectConfiguration>
-    <ProjectConfiguration Include="Release|Win32">
-      <Configuration>Release</Configuration>
-      <Platform>Win32</Platform>
-    </ProjectConfiguration>
-    <ProjectConfiguration Include="Release|x64">
-      <Configuration>Release</Configuration>
-      <Platform>x64</Platform>
-    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug|Win32">   <Configuration>Debug</Configuration>   <Platform>Win32</Platform> </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug|x64">     <Configuration>Debug</Configuration>   <Platform>x64</Platform>   </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|Win32"> <Configuration>Release</Configuration> <Platform>Win32</Platform> </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">   <Configuration>Release</Configuration> <Platform>x64</Platform>   </ProjectConfiguration>
   </ItemGroup>
 
   <!-- /ZW Project Configurations -->
   <ItemGroup Condition="'$(CxxReflectIncludeZWConfigurations)' == 'true'">
-    <ProjectConfiguration Include="Debug(ZW)|Win32">
-      <Configuration>Debug(ZW)</Configuration>
-      <Platform>Win32</Platform>
-    </ProjectConfiguration>
-    <ProjectConfiguration Include="Debug(ZW)|x64">
-      <Configuration>Debug(ZW)</Configuration>
-      <Platform>x64</Platform>
-    </ProjectConfiguration>
-    <ProjectConfiguration Include="Release(ZW)|Win32">
-      <Configuration>Release(ZW)</Configuration>
-      <Platform>Win32</Platform>
-    </ProjectConfiguration>
-    <ProjectConfiguration Include="Release(ZW)|x64">
-      <Configuration>Release(ZW)</Configuration>
-      <Platform>x64</Platform>
-    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug(ZW)|Win32">   <Configuration>Debug(ZW)</Configuration>   <Platform>Win32</Platform> </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug(ZW)|x64">     <Configuration>Debug(ZW)</Configuration>   <Platform>x64</Platform>   </ProjectConfiguration>
+    <ProjectConfiguration Include="Release(ZW)|Win32"> <Configuration>Release(ZW)</Configuration> <Platform>Win32</Platform> </ProjectConfiguration>
+    <ProjectConfiguration Include="Release(ZW)|x64">   <Configuration>Release(ZW)</Configuration> <Platform>x64</Platform>   </ProjectConfiguration>
   </ItemGroup>
 
+  <!-- AnyCPU Project Configurations -->
   <ItemGroup Condition="'$(CxxReflectIncludeAnyCPUConfigurations)' == 'true'">
-    <ProjectConfiguration Include="Debug|AnyCPU">
-      <Configuration>Debug</Configuration>
-      <Platform>AnyCPU</Platform>
-    </ProjectConfiguration>
-    <ProjectConfiguration Include="Release|AnyCPU">
-      <Configuration>Release</Configuration>
-      <Platform>AnyCPU</Platform>
-    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug|AnyCPU">   <Configuration>Debug</Configuration>   <Platform>AnyCPU</Platform> </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|AnyCPU"> <Configuration>Release</Configuration> <Platform>AnyCPU</Platform> </ProjectConfiguration>
   </ItemGroup>
-
+  
+  
+  
+  
+  
+  <!--
+  IsZwEnabled
+  
+  This property is set if the project configuration being built is one of the ZW configurations.
+  -->
   <PropertyGroup>
-    <CxxReflectIsZwEnabled Condition="$(Configuration.Contains('ZW'))">true</CxxReflectIsZwEnabled>
-    <CxxReflectIsZwEnabled Condition="'$(CxxReflectIsZwEnabled)' == ''">false</CxxReflectIsZwEnabled>
+    <CxxReflectIsZWEnabled Condition="$(Configuration.Contains('ZW'))">true</CxxReflectIsZWEnabled>
+    <CxxReflectIsZWEnabled Condition="'$(CxxReflectIsZWEnabled)' == ''">false</CxxReflectIsZWEnabled>
   </PropertyGroup>
 
+  
+  
+  
+  
+  <!--
+  Properties common to all projects
+  
+  We must set these properties before including the build platform properties to make things work.
+  -->
   <PropertyGroup>
+    <DefaultLanguage>en-US</DefaultLanguage>
     <MinimumVisualStudioVersion>11.0</MinimumVisualStudioVersion>
     <RootNamespace>$(MSBuildProjectName)</RootNamespace>
     <VCTargetsPath Condition="'$(VCTargetsPath11)' != '' and '$(VSVersion)' == '' and '$(VisualStudioVersion)' == ''">$(VCTargetsPath11)</VCTargetsPath>
   </PropertyGroup>
 
-  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
-
+  
+  
+  
+  
   <!--
-  Early Configuration Options
+  //
+  //
+  // INCLUDE THE C++ DEFAULT PROJECT PROPERTIES
+  //
+  //
+  -->
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <!--
+  //
+  //
+  //
+  //
+  //
   -->
 
+  
+  
+  
+  
+  <!--
+  We update some of the default configuration options before we include the real properties.
+  -->
   <PropertyGroup>
     <CodeAnalysisRuleSet>AllRules.ruleset</CodeAnalysisRuleSet>
     <PlatformToolset>v110</PlatformToolset>
@@ -127,38 +200,80 @@
     <WholeProgramOptimization>true</WholeProgramOptimization>
   </PropertyGroup>
 
+  
+  
+  
+  
+  <!--
+  BuildLog Path
+  
+  The BuildLog Path must be set after importing the default properties but before importing the
+  real properties.  If we include it too early, our value will get clobbered.  If we include it
+  too late, a build log file gets created where we don't want it.
+  -->
   <ItemDefinitionGroup>
-    <!--
-    The BuildLog Path must be set after importing Microsoft.Cpp.Default.props but after importing
-    Microsoft.Cpp.props.  If we include it too early, the Default.props will reset it back to its
-    default.  If we include it too late, the build will already have created the log.
-    -->
     <BuildLog>
       <Path>$(SolutionDir)build\intermediate\$(Platform)\$(Configuration)\$(MSBuildProjectName)\$(MsBuildProjectName).log</Path>
     </BuildLog>
   </ItemDefinitionGroup>
 
-  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
-
+  
+  
+  
+  
   <!--
-  Late Configuration Options
+  //
+  //
+  // INCLUDE THE REAL C++ PROJECT PROPERTIES
+  //
+  //
+  -->
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <!--
+  //
+  //
+  //
+  //
+  //
   -->
 
-  <PropertyGroup>
-    <OutDir Condition="'$(CxxReflectIsCxxReflect)' == 'true'">$(SolutionDir)build\output\$(Platform)\$(Configuration)\cxxreflect\</OutDir>
-    <OutDir Condition="'$(CxxReflectIsCxxReflect)' == 'false'">$(SolutionDir)build\output\$(Platform)\$(Configuration)\$(MSBuildProjectName)\</OutDir>
-    <IntDir>$(SolutionDir)build\intermediate\$(Platform)\$(Configuration)\$(MSBuildProjectName)\</IntDir>
+  
+  
+  
 
-    <CxxReflectOutDir>$(SolutionDir)build\output\$(Platform)\$(Configuration)\cxxreflect\</CxxReflectOutDir>
+  <!--
+  IntDir, OutDir
+  
+  We move all of the intermediate build artifacts and output build artifacts to a common location.
+  If anyone knows how to move the Generated Files folder too, I would love to know. :'(
+  -->  
+  <PropertyGroup>
+    <IntDir>$(SolutionDir)build\intermediate\$(Platform)\$(Configuration)\$(MSBuildProjectName)\</IntDir>
+    
+    <OutDir Condition="'$(CxxReflectIsCxxReflect)' == 'true'">$(SolutionDir)\build\output\$(Platform)\$(Configuration)\cxxreflect\</OutDir>
+    <OutDir Condition="'$(CxxReflectIsCxxReflect)' == 'false'">$(SolutionDir)\build\output\$(Platform)\$(Configuration)\$(MSBuildProjectName)\</OutDir>
+
+    <CxxReflectOutDir>$(SolutionDir)\build\output\$(Platform)\$(Configuration)\cxxreflect\</CxxReflectOutDir>
   </PropertyGroup>
 
+  
+  
+  
+  
+  <!--
+  Normal Build Configuration Stuff
+  
+  The following property and item definition groups specify the normal build configuration, both the
+  global configuration and the debug- and release-specific configuration.  Most of this should be
+  self-explanatory.
+  -->
   <ItemDefinitionGroup>
     <BuildLog>
       <Path>$(SolutionDir)build\intermediate\$(Platform)\$(Configuration)\$(MSBuildProjectName)\$(MsBuildProjectName).log</Path>
     </BuildLog>
     <ClCompile>
       <AdditionalIncludeDirectories>$(IncludePath);$(SolutionDir);$(VCInstallDir)Include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <AdditionalOptions>/D_SCL_SECURE_NO_WARNINGS %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions>/D_SCL_SECURE_NO_WARNINGS /bigobj %(AdditionalOptions)</AdditionalOptions>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <!--
       C4100 (unreferenced parameter) is emitted by various XAML-generated files and library headers
@@ -174,7 +289,7 @@
     </ClCompile>
     <Lib>
       <!--
-      LNK4264 is the "don't stick WinRT metadata in a static library.  We don't.  The linker
+      LNK4264 is the "don't stick WinRT metadata in a static library."  We don't.  The linker
       complaineth.  We suppresseth.  LNK4221 is the "this file defines no symbols" warning.
       We expect this for some architecture-specific source files.
       -->
@@ -184,11 +299,6 @@
     <Link>
       <AdditionalDependencies>runtimeobject.lib;advapi32.lib;shlwapi.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalLibraryDirectories>$(CxxReflectOutDir);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <!--
-      LNK4264 is the "don't stick WinRT metadata in a static library.  We don't.  The linker
-      complaineth.  We suppresseth.  LNK4221 is the "this file defines no symbols" warning.
-      We expect this for some architecture-specific source files.
-      -->
       <AdditionalOptions>/ignore:4264 /ignore:4221 %(AdditionalOptions)</AdditionalOptions>
       <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
@@ -217,19 +327,69 @@
     </Link>
   </ItemDefinitionGroup>
 
+  
+  
+  
+  
   <!--
-  For /ZW, we need to add the paths to Windows.winmd and Platform.winmd to the Using directories. We
-  also need to actually set the /ZW compiler flag.
+  IsZWEnabled Compilation Configuration
+  
+  For ZW configurations, we need to set the correct path to the Windows.winmd and Platform.winmd
+  metadata files.  We also need to actually set the /ZW compiler flag so that we actually compile
+  with the C++/CX language extensions.  Note that we only need to do this for the CxxReflect parts.
+  Any test projects will automatically inherit these settings because they will correctly set the
+  AppContainerApplication property to true.
   -->
-
-  <ItemDefinitionGroup Condition="'$(CxxReflectIsZwEnabled)' == 'true' and '$(CxxReflectIsCxxReflectPart)' == 'true'">
+  <ItemDefinitionGroup Condition="'$(CxxReflectIsZWEnabled)' == 'true' and '$(CxxReflectIsCxxReflectPart)' == 'true'">
     <ClCompile>
       <AdditionalOptions>/ZW %(AdditionalOptions)</AdditionalOptions>
-      <AdditionalUsingDirectories>"$(WindowsSdk80Path)References\CommonConfiguration\Neutral";"$(ProgramFiles)\Microsoft SDKs\Windows\v8.0\ExtensionSDKs\Microsoft.VCLibs\11.0\References\CommonConfiguration\neutral"</AdditionalUsingDirectories>
+      <AdditionalUsingDirectories>
+        "$(WindowsSdk80Path)References\CommonConfiguration\Neutral";
+        "$(ProgramFiles)\Microsoft SDKs\Windows\v8.0\ExtensionSDKs\Microsoft.VCLibs\11.0\References\CommonConfiguration\neutral"
+      </AdditionalUsingDirectories>
     </ClCompile>
   </ItemDefinitionGroup>
 
-  <!-- Some extra loving care for C# projects -->
+  
+  
+  
+  
+  <!--
+  IsNonZWWinRTComponent Compilation Configuration
+  
+  The CxxReflect Extension SDK projects do not produce a WinMD file through the linker.  Instead,
+  they have an IDL file that defines the metadata for the project and they run midlrt to generate
+  the WinMD.
+  
+  Correctly configuring this is tricky:  we must instruct the linker not to generate the WinMD,
+  otherwise midlrt will run, create its WinMD, then the compilation pass will run and the linker
+  will overwrite the correct WinMD with a new, empty WinMD created from the build.  That would be
+  simple, except that the packaging tasks test the linker configuration to see whether the project
+  produced a WinMD file.  There's no way to override that check, so projects that genreate a WinMD
+  via IDL must also include the cxxreflect.targets targets file that overrides the entire target.
+  See that file for additional details.
+  -->
+  <ItemDefinitionGroup Condition="'$(CxxReflectIsNonZWWinRTComponent)' == 'true'">
+    <Link>
+      <GenerateWindowsMetadata>false</GenerateWindowsMetadata>
+    </Link>
+    <Midl>
+      <HeaderFileName>%(Filename).h</HeaderFileName>
+      <MetadataFileName>%(Filename).winmd</MetadataFileName>
+      <OutputDirectory>$(OutDir)</OutputDirectory>
+    </Midl>
+  </ItemDefinitionGroup>
+  
+  
+  
+  
+
+  <!--
+  C# Project Configuration
+  
+  Some of our test projects are written in C#; these properties are used to configured the C# build.
+  The properties defined here do not impact the C++ build in any way.
+  -->
   <PropertyGroup Condition="'$(MSBuildProjectExtension)' == '.csproj'">
     <CxxReflectIsStandalone>true</CxxReflectIsStandalone>
     <FileAlignment>512</FileAlignment>
@@ -254,7 +414,13 @@
     <DefineConstants>TRACE</DefineConstants>
   </PropertyGroup>
 
-  <!-- All projects reference the core cxxreflect.lib project -->
+  <!--
+  Project References
+  
+  All projects reference cxxreflect.lib, except those that don't.  Projects explicitly marked as
+  standalone do not reference cxxreflect.lib and the libraries that compose cxxreflect.lib also do
+  not reference cxxreflect.lib, for obvious reasons.
+  -->
   <Choose>
     <When Condition="'$(CxxReflectIsCxxReflect)' != 'true' and '$(CxxReflectIsStandalone)' != 'true'">
       <ItemGroup>

@@ -1465,7 +1465,7 @@ namespace cxxreflect { namespace metadata {
     {
         core::assert_initialized(*this);
 
-        return _arguments.size();
+        return core::convert_integer(_arguments.size());
     }
 
     auto signature_instantiation_arguments::is_initialized() const -> bool

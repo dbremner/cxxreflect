@@ -12,6 +12,8 @@
 
 namespace cxxreflect { namespace windows_runtime {
 
+    auto create_package_loader_future() -> std::future<std::unique_ptr<class package_loader>>;
+
     auto begin_initialization() -> void;
     auto has_initialization_begun() -> bool;
     auto is_initialized() -> bool;

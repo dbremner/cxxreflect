@@ -102,69 +102,62 @@ namespace cxxreflect { namespace windows_runtime { namespace detail {
         utility::smart_hstring const hash_provider_type_name(RuntimeClass_Windows_Security_Cryptography_Core_HashAlgorithmProvider);
 
         ComPtr<IHashAlgorithmProviderStatics> hash_provider_statics;
-        void** const hash_provider_statics_result = reinterpret_cast<void**>(hash_provider_statics.GetAddressOf());
-        if (FAILED(::RoGetActivationFactory(hash_provider_type_name.value(), IID_IHashAlgorithmProviderStatics, hash_provider_statics_result)))
-            return core::sha1_hash();
+        utility::throw_on_failure(::RoGetActivationFactory(
+            hash_provider_type_name.value(),
+            IID_IHashAlgorithmProviderStatics,
+            reinterpret_cast<void**>(hash_provider_statics.GetAddressOf())));
+        utility::throw_if_null(hash_provider_statics);
 
         utility::smart_hstring const hash_algorithm_name(L"SHA1");
 
         ComPtr<IHashAlgorithmProvider> hash_provider;
-        if (FAILED(hash_provider_statics->OpenAlgorithm(hash_algorithm_name.value(), hash_provider.GetAddressOf())))
-            return core::sha1_hash();
+        utility::throw_on_failure(hash_provider_statics->OpenAlgorithm(hash_algorithm_name.value(), hash_provider.GetAddressOf()));
 
         UINT32 expected_hash_length(0);
-        if (FAILED(hash_provider->get_HashLength(&expected_hash_length)))
-            return core::sha1_hash();
+        utility::throw_on_failure(hash_provider->get_HashLength(&expected_hash_length));
 
         if (expected_hash_length != core::sha1_hash().size())
-            return core::sha1_hash();
+            throw core::logic_error(L"length of sha1 hash is not the expected length");
 
 
         // Get the buffer creation mechanics:
         utility::smart_hstring const buffer_type_name(RuntimeClass_Windows_Security_Cryptography_CryptographicBuffer);
 
         ComPtr<ICryptographicBufferStatics> buffer_statics;
-        void** const buffer_statics_result = reinterpret_cast<void**>(buffer_statics.GetAddressOf());
-        if (FAILED(::RoGetActivationFactory(buffer_type_name.value(), IID_ICryptographicBufferStatics, buffer_statics_result)))
-            return core::sha1_hash();
-
-        if (buffer_statics == nullptr)
-            return core::sha1_hash();
+        utility::throw_on_failure(::RoGetActivationFactory(
+            buffer_type_name.value(),
+            IID_ICryptographicBufferStatics,
+            reinterpret_cast<void**>(buffer_statics.GetAddressOf())));
+        utility::throw_if_null(buffer_statics);
 
         
-        // Create the source buffer:
+        // Create the source buffer.  WinRT has no const semantics (*sigh*), so we'll just hope that
+        // the CreateFromByteArray() does not modify the data we pass in.  This seems reasonable...
         UINT32 const data_length(core::distance(first, last));
         BYTE*  const data_pointer(const_cast<BYTE*>(first));
 
         ComPtr<IBuffer> source_buffer;
-        if (FAILED(buffer_statics->CreateFromByteArray(data_length, data_pointer, source_buffer.GetAddressOf())))
-            return core::sha1_hash();
-
-        if (source_buffer == nullptr)
-            return core::sha1_hash();
+        utility::throw_on_failure(buffer_statics->CreateFromByteArray(data_length, data_pointer, source_buffer.GetAddressOf()));
+        utility::throw_if_null(source_buffer);
 
         
         // Hash the data:
         ComPtr<IBuffer> hash_buffer;
-        if (FAILED(hash_provider->HashData(source_buffer.Get(), hash_buffer.GetAddressOf())))
-            return core::sha1_hash();
-
-        if (hash_buffer == nullptr)
-            return core::sha1_hash();
+        utility::throw_on_failure(hash_provider->HashData(source_buffer.Get(), hash_buffer.GetAddressOf()));
+        utility::throw_if_null(hash_buffer);
 
         UINT32 hash_length(0);
-        if (FAILED(hash_buffer->get_Length(&hash_length)))
-            return core::sha1_hash();
+        utility::throw_on_failure(hash_buffer->get_Length(&hash_length));
 
         if (hash_length != expected_hash_length)
-            return core::sha1_hash();
+            throw core::logic_error(L"length of computed hash is not the expected length");
 
 
         // Copy the hash value
         UINT32 hash_data_length(0);
         utility::smart_com_array<BYTE> hash_data;
-        if (FAILED(buffer_statics->CopyToByteArray(hash_buffer.Get(), &hash_data_length, hash_data.get_address_of())))
-            return core::sha1_hash();
+        utility::throw_on_failure(buffer_statics->CopyToByteArray(hash_buffer.Get(), &hash_data_length, hash_data.get_address_of()));
+        utility::throw_if_null(hash_data.get());
 
         core::sha1_hash hash_value;
         core::range_checked_copy(hash_data.get(), hash_data.get() + hash_data_length, hash_value.begin(), hash_value.end());

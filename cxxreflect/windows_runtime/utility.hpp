@@ -17,6 +17,7 @@
 
 #include <algorithm>
 #include <cstdint>
+#include <future>
 #include <limits>
 #include <stdexcept>
 #include <string>
@@ -25,11 +26,17 @@
 #    define NOMINMAX
 #endif
 
+#include <combaseapi.h>
 #include <cor.h>
 #include <hstring.h>
+#include <ppl.h>
+#include <ppltasks.h>
 #include <roapi.h>
 #include <rometadataresolution.h>
+#include <windows.foundation.h>
 #include <winstring.h>
+#include <wrl.h>
+#include <wrl/async.h>
 #include <wrl/client.h>
 
 namespace cxxreflect { namespace windows_runtime { namespace utility {
@@ -58,6 +65,13 @@ namespace cxxreflect { namespace windows_runtime { namespace utility {
     {
         if (hr < 0)
             throw hresult_error(hr);
+    }
+
+    template <typename T>
+    void throw_if_null(T const p)
+    {
+        if (p == nullptr)
+            throw hresult_error(E_POINTER);
     }
 
     typedef std::uint32_t size_type;
@@ -118,6 +132,10 @@ namespace cxxreflect { namespace windows_runtime { namespace utility {
 
 
 
+    /// An RAII container for an array that must be freed via CoTaskMemFree
+    ///
+    /// We could use unique_ptr<T[]>, but we need the ability to get the address of the contained
+    /// pointer for use with COM.
     template <typename T>
     class smart_com_array
     {
@@ -125,7 +143,7 @@ namespace cxxreflect { namespace windows_runtime { namespace utility {
 
         typedef T* pointer;
 
-        smart_com_array(pointer const p = nullptr)
+        explicit smart_com_array(pointer const p = nullptr)
             : _p(p)
         {
         }
@@ -166,6 +184,139 @@ namespace cxxreflect { namespace windows_runtime { namespace utility {
         }
 
         pointer _p;
+    };
+
+
+
+
+
+    /// Calls RoActivateInstance to instantiate a type and QI's the created object for an interface
+    template <typename T>
+    auto activate_instance_and_qi(HSTRING const class_id, T** result) -> HRESULT
+    {
+        using ::Microsoft::WRL::ComPtr;
+
+        if (result == nullptr)
+            return E_INVALIDARG;
+
+        *result = nullptr;
+
+        ComPtr<IInspectable> inspectable;
+        HRESULT const hr0(::RoActivateInstance(class_id, inspectable.GetAddressOf()));
+        if (FAILED(hr0))
+            return hr0;
+
+        if (inspectable == nullptr)
+            return E_POINTER;
+
+        ComPtr<T> pointer;
+        HRESULT const hr1(inspectable.As(&pointer));
+        if (FAILED(hr1))
+            return hr1;
+
+        if (pointer == nullptr)
+            return E_POINTER;
+
+        *result = pointer.Detach();
+        return S_OK;
+    }
+
+
+
+
+
+    /// A base class for IAsyncOperation<T> implementations for use with WRL
+    template <typename T>
+    class async_operation_base
+        : public ::Microsoft::WRL::RuntimeClass<
+            ::Microsoft::WRL::AsyncBase< ::ABI::Windows::Foundation::IAsyncOperationCompletedHandler<T*>>,
+            ::ABI::Windows::Foundation::IAsyncOperation<T*>
+        >
+    {
+        InspectableClass(L"Windows.Foundation.IAsyncInfo", BaseTrust)
+
+    public:
+
+        typedef ::ABI::Windows::Foundation::IAsyncOperationCompletedHandler<T*> HandlerType;
+
+        async_operation_base()
+        {
+            this->Start();
+        }
+
+        virtual auto STDMETHODCALLTYPE put_Completed(HandlerType* handler) -> HRESULT override
+        {
+            return this->PutOnComplete(handler);
+        }
+
+        virtual auto STDMETHODCALLTYPE get_Completed(HandlerType** handler) -> HRESULT override
+        {
+            return this->GetOnComplete(handler);
+        }
+
+    protected:
+
+        virtual auto OnStart()  -> HRESULT override { return S_OK; }
+        virtual auto OnClose()  -> void    override { };
+        virtual auto OnCancel() -> void    override { };
+    };
+
+    /// An IAsyncOperation<T> implementation that returns an already-realized value
+    template <typename T>
+    class already_completed_async_operation
+        : public async_operation_base<T>
+    {
+    public:
+
+        already_completed_async_operation(T* const value)
+            : _value(value)
+        {
+            this->FireCompletion();
+        }
+
+        virtual auto STDMETHODCALLTYPE GetResults(T** results)  -> HRESULT override
+        {
+            if (results == nullptr)
+                return E_INVALIDARG;
+
+            *results = _value.Get();
+            return S_OK;
+        }
+
+    private:
+
+        ::Microsoft::WRL::ComPtr<T> _value;
+    };
+
+    /// An IAsyncOperation<T> implementation that waits on a std::future using PPL
+    template <typename T>
+    class task_based_async_operation
+        : public async_operation_base<T>
+    {
+    public:
+
+        task_based_async_operation(std::future<T*>&& f)
+            : _future(std::move(f)), _task([&]() -> ::Microsoft::WRL::ComPtr<T> { return _future.get(); })
+        {
+            _task.then([&](::Microsoft::WRL::ComPtr<T>)
+            {
+                this->FireCompletion();
+            });
+        }
+
+        virtual auto STDMETHODCALLTYPE GetResults(T** results)  -> HRESULT override
+        {
+            if (results == nullptr)
+                return E_INVALIDARG;
+
+            *results = _task.get().Get();
+            return S_OK;
+        }
+
+    private:
+
+        std::future<T*>                                  _future;
+        ::Concurrency::task<::Microsoft::WRL::ComPtr<T>> _task;
     };
 
 } } }

@@ -726,7 +726,7 @@ namespace cxxreflect { namespace metadata {
             column_offset(column_id::interface_impl_parent));
     }
 
-    auto interface_impl_row::interface() const -> type_def_ref_spec_token
+    auto interface_impl_row::interface_() const -> type_def_ref_spec_token
     {
         return detail::read_token<type_def_ref_spec_token>(
             scope(),

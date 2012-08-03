@@ -28,6 +28,9 @@
     <None Include="cxxreflect.props">
       <SubType>Designer</SubType>
     </None>
+    <None Include="cxxreflect.targets">
+      <SubType>Designer</SubType>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="core\cxxreflect_core.vcxproj">
