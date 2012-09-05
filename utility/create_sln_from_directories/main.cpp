@@ -283,6 +283,10 @@ namespace
                     os << "\t\t" << project.guid() << "." << configuration << ".ActiveCfg = " << configuration << "\n";
                     os << "\t\t" << project.guid() << "." << configuration << ".Build.0 = " << configuration << "\n";
                 }
+                else
+                {
+                    os << "\t\t" << project.guid() << "." << configuration << ".ActiveCfg = " << *project.configurations().begin() << "\n";
+                }
             });
         });
         os << "\tEndGlobalSection\n";
