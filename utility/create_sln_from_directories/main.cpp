@@ -241,6 +241,8 @@ namespace
         {
             if (!is_directory(solution_root / path) &&
                 !set_contains(seen_root_files, path) &&
+                path.string().size() > 0 &&
+                path.string()[0] != '\\' &&
                 path.extension() != ".sln" &&
                 path.extension() != ".swp" &&
                 path.extension() != ".suo")
