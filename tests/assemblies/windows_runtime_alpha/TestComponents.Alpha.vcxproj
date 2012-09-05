@@ -12,7 +12,7 @@
     <ConfigurationType>DynamicLibrary</ConfigurationType>
     <DefaultLanguage>en-US</DefaultLanguage>
     <GenerateManifest>false</GenerateManifest>
-    <ProjectGuid>{c340a193-b0dc-45b2-8975-73081d1b6784}</ProjectGuid>
+    <ProjectGuid>{C340A193-B0DC-45B2-8975-73081D1B6784}</ProjectGuid>
     <ProjectName>TestComponents.Alpha</ProjectName>
     <RootNamespace>TestComponents.Alpha</RootNamespace>
   </PropertyGroup>
