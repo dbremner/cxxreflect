@@ -12,7 +12,7 @@
     <ConfigurationType>DynamicLibrary</ConfigurationType>
     <CxxReflectIsNonZWWinRTComponent>true</CxxReflectIsNonZWWinRTComponent>
     <GenerateManifests>false</GenerateManifests>
-    <ProjectGuid>{11406f69-cf9e-4f61-b00c-6600a56b0a49}</ProjectGuid>
+    <ProjectGuid>{11406F69-CF9E-4F61-B00C-6600A56B0A49}</ProjectGuid>
     <ProjectName>CxxReflect.Reflection.Native</ProjectName>
   </PropertyGroup>
   <Import Project="$(SolutionDir)\cxxreflect\cxxreflect.props" />

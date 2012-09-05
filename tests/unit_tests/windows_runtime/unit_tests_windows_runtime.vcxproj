@@ -7,7 +7,7 @@
     <ConfigurationType>DynamicLibrary</ConfigurationType>
     <DefaultLanguage>en-US</DefaultLanguage>
     <PackageCertificateKeyFile>unit_tests_windows_runtime.pfx</PackageCertificateKeyFile>
-    <ProjectGuid>{5d28bcbf-82f0-4cee-8471-3b486ddeb838}</ProjectGuid>
+    <ProjectGuid>{5D28BCBF-82F0-4CEE-8471-3B486DDEB838}</ProjectGuid>
     <RootNamespace>unit_tests_windows_runtime</RootNamespace>
   </PropertyGroup>
   <Import Project="$(SolutionDir)\cxxreflect\cxxreflect.props" />
