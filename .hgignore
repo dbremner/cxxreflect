@@ -3,6 +3,5 @@ syntax: glob
 *.user
 build/*
 documentation/*
-build/*
 *.exe
 cxxreflect.v11.suo

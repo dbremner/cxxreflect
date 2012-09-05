@@ -253,6 +253,9 @@ configuration of the project:
     <OutDir Condition="'$(CxxReflectIsCxxReflect)' == 'true'">$(SolutionDir)\build\output\$(Platform)\$(Configuration)\cxxreflect\</OutDir>
     <OutDir Condition="'$(CxxReflectIsCxxReflect)' == 'false'">$(SolutionDir)\build\output\$(Platform)\$(Configuration)\$(MSBuildProjectName)\</OutDir>
 
+    <AppxPackageDir>$(SolutionDir)\build\app_packages\$(Platform)\$(Configuration)\$(MSBuildProjectName)\</AppxPackageDir>
+    <GeneratedFilesDir>$(IntDir)\generated\</GeneratedFilesDir>
+    <TestResultsSubdirectory>build\test_results</TestResultsSubdirectory>
     <CxxReflectOutDir>$(SolutionDir)\build\output\$(Platform)\$(Configuration)\cxxreflect\</CxxReflectOutDir>
 
     <!-- Disable AppX package validation because MSBuild hates us. -->
