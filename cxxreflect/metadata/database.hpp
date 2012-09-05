@@ -313,6 +313,28 @@ namespace cxxreflect { namespace metadata {
 
 
 
+    /// A polymorphic base for tagging a type that owns a `database` instance
+    ///
+    /// In most use cases, a database will be owned by some other object.  For example, if we're 
+    /// loading a set of assemblies, there will be some kind of "module" type that owns the
+    /// `database` for the module.  This module type will have a reference back to its assembly and
+    /// the assembly will have a reference back to the root object that owns all of the loaded
+    /// assemblies.
+    ///
+    /// The `database_owner` type simply allows an "owner" object to be stored in a `database` to
+    /// make it easier to transition between different layers (the metadata layer and the "higher"
+    /// layer.
+    class database_owner
+    {
+    public:
+
+        virtual ~database_owner();
+    };
+
+
+
+
+
     /// A metadata database
     ///
     /// This is the root from which all of the other metadata database types are created and is the
@@ -365,7 +387,7 @@ namespace cxxreflect { namespace metadata {
         /// `path` must refer to an accessible, readable file that contains a valid metadata
         /// database.  If the file cannot be read or if there are errors reading the metadata
         /// database, some form of `runtime_error` will be thrown.
-        static auto create_from_file(core::string_reference path) -> database;
+        static auto create_from_file(core::string_reference path, database_owner const* owner = nullptr) -> database;
 
         /// Constructs a new `database` from the bytes contained in the array `file`
         ///
@@ -377,7 +399,7 @@ namespace cxxreflect { namespace metadata {
         /// will be thrown.  Note that validity of the database is only checked on-demand, so any
         /// operation on the database might throw an exception.  During construction, only the
         /// validity of the database header and stream headers is typically checked.
-        database(file_range&& file);
+        database(file_range&& file, database_owner const* owner = nullptr);
 
         database(database&& other);
         auto operator=(database&& other) -> database&;
@@ -422,6 +444,8 @@ namespace cxxreflect { namespace metadata {
         auto blobs()   const -> database_stream const&;
         auto guids()   const -> database_stream const&;
 
+        auto owner()   const -> database_owner const&;
+
         auto is_initialized() const -> bool;
 
         friend auto operator==(database const&, database const&) -> bool;
@@ -441,6 +465,8 @@ namespace cxxreflect { namespace metadata {
         database_table_collection  _tables;
 
         file_range _file;
+
+        core::checked_pointer<database_owner const> _owner;
     };
 
 

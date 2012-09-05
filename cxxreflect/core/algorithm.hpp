@@ -245,6 +245,30 @@ namespace cxxreflect { namespace core {
 
 
 
+    template <typename ForwardIterator0, typename ForwardIterator1, typename Predicate>
+    auto find_combination_if(ForwardIterator0 const first0,
+                             ForwardIterator0 const last0,
+                             ForwardIterator1 const first1,
+                             ForwardIterator1 const last1,
+                             Predicate              predicate)
+        -> std::pair<ForwardIterator0, ForwardIterator1>
+    {
+        for (auto it0(first0); it0 != last0; ++it0)
+        {
+            for (auto it1(first1); it1 != last1; ++it1)
+            {
+                if (predicate(*it0, *it1))
+                    return std::make_pair(it0, it1);
+            }
+        }
+
+        return std::make_pair(last0, last1);
+    }
+
+
+
+
+
     /// Copies the range `[first0, last0)` into the range `[first1, last1)`
     ///
     /// This algorithm terminates when the end of either range is reached.

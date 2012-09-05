@@ -1,0 +1,58 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<!--
+
+//                            Copyright James P. McNellis 2011 - 2012.                            //
+//                   Distributed under the Boost Software License, Version 1.0.                   //
+//     (See accompanying file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)    //
+
+-->
+<Project DefaultTargets="Build" ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <AppContainerApplication>true</AppContainerApplication>
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <CxxReflectIsNonZWWinRTComponent>true</CxxReflectIsNonZWWinRTComponent>
+    <GenerateManifests>false</GenerateManifests>
+    <ProjectGuid>{11406f69-cf9e-4f61-b00c-6600a56b0a49}</ProjectGuid>
+    <ProjectName>CxxReflect.Reflection.Native</ProjectName>
+  </PropertyGroup>
+  <Import Project="$(SolutionDir)\cxxreflect\cxxreflect.props" />
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <AdditionalIncludeDirectories>$(OutDir)\..\CxxReflect.Reflection;$(OutDir)\..\CxxReflect.Reflection.Native\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <PreprocessorDefinitions>_WINRT_DLL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <BrowseInformation Condition="'$(Configuration)|$(Platform)'=='Debug(ZW)|Win32'">true</BrowseInformation>
+    </ClCompile>
+    <Midl>
+      <AdditionalIncludeDirectories>$(SolutionDir)\windows_runtime_sdk\CxxReflect.Reflection;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </Midl>
+    <Bscmake>
+      <PreserveSbr Condition="'$(Configuration)|$(Platform)'=='Debug(ZW)|Win32'">true</PreserveSbr>
+    </Bscmake>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <Midl Include="CxxReflect.Reflection.Native.idl" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="DllMain.cpp" />
+    <ClCompile Include="Loader.cpp" />
+    <ClCompile Include="LoaderFactory.cpp" />
+    <ClCompile Include="Namespace.cpp" />
+    <ClCompile Include="Type.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="Configuration.hpp" />
+    <ClInclude Include="IterableUtility.hpp" />
+    <ClInclude Include="Loader.hpp" />
+    <ClInclude Include="LoaderFactory.hpp" />
+    <ClInclude Include="Namespace.hpp" />
+    <ClInclude Include="Type.hpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="$(SolutionDir)\windows_runtime_sdk\CxxReflect.Reflection\CxxReflect.Reflection.vcxproj">
+      <Project>{fed56876-34e0-41e0-9c2b-b458648bbe5b}</Project>
+    </ProjectReference>
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <Import Project="$(SolutionDir)\cxxreflect\cxxreflect.targets" />
+</Project>

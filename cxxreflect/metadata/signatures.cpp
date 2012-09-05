@@ -1909,7 +1909,8 @@ namespace cxxreflect { namespace metadata {
             return s.get_element_type() == element_type::mvar || s.get_element_type() == element_type::var;
 
         default:
-            throw core::logic_error(L"unreachable code");
+            core::assert_fail(L"unreachable code");
+            return false;
         }
     }
 

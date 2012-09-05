@@ -113,6 +113,8 @@ namespace cxxreflect { namespace core {
             : _hr(hr)
         { }
 
+        auto error() const -> hresult { return _hr; }
+
     private:
 
         hresult _hr;

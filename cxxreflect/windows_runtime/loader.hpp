@@ -134,12 +134,12 @@ namespace cxxreflect { namespace windows_runtime {
 
     private:
 
+        static auto initialized() -> initialized_flag&;
+        static auto context()     -> unique_loader_future&;
+
         global_package_loader();
         global_package_loader(global_package_loader const&);
         auto operator=(global_package_loader const&) -> global_package_loader;
-
-        static initialized_flag     _initialized;
-        static unique_loader_future _context;
     };
 
 } }

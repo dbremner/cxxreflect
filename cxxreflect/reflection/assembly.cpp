@@ -46,7 +46,7 @@ namespace cxxreflect { namespace reflection {
     {
         core::assert_initialized(*this);
 
-        module_location const location(_context.get()->manifest_module().location());
+        module_location const& location(_context.get()->manifest_module().location());
 
         return location.is_file() ? location.file_path() : core::string_reference(L"");
     }

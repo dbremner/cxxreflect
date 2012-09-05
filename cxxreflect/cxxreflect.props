@@ -213,7 +213,7 @@ configuration of the project:
   -->
   <ItemDefinitionGroup>
     <BuildLog>
-      <Path>$(SolutionDir)build\intermediate\$(Platform)\$(Configuration)\$(MSBuildProjectName)\$(MsBuildProjectName).log</Path>
+      <Path>$(SolutionDir)\build\intermediate\$(Platform)\$(Configuration)\$(MSBuildProjectName)\$(MsBuildProjectName).log</Path>
     </BuildLog>
   </ItemDefinitionGroup>
 
@@ -248,12 +248,15 @@ configuration of the project:
   If anyone knows how to move the Generated Files folder too, I would love to know. :'(
   -->  
   <PropertyGroup>
-    <IntDir>$(SolutionDir)build\intermediate\$(Platform)\$(Configuration)\$(MSBuildProjectName)\</IntDir>
+    <IntDir>$(SolutionDir)\build\intermediate\$(Platform)\$(Configuration)\$(MSBuildProjectName)\</IntDir>
     
     <OutDir Condition="'$(CxxReflectIsCxxReflect)' == 'true'">$(SolutionDir)\build\output\$(Platform)\$(Configuration)\cxxreflect\</OutDir>
     <OutDir Condition="'$(CxxReflectIsCxxReflect)' == 'false'">$(SolutionDir)\build\output\$(Platform)\$(Configuration)\$(MSBuildProjectName)\</OutDir>
 
     <CxxReflectOutDir>$(SolutionDir)\build\output\$(Platform)\$(Configuration)\cxxreflect\</CxxReflectOutDir>
+
+    <!-- Disable AppX package validation because MSBuild hates us. -->
+    <AppxPackageValidationEnabled>false</AppxPackageValidationEnabled>
   </PropertyGroup>
 
   
@@ -269,18 +272,19 @@ configuration of the project:
   -->
   <ItemDefinitionGroup>
     <BuildLog>
-      <Path>$(SolutionDir)build\intermediate\$(Platform)\$(Configuration)\$(MSBuildProjectName)\$(MsBuildProjectName).log</Path>
+      <Path>$(SolutionDir)\build\intermediate\$(Platform)\$(Configuration)\$(MSBuildProjectName)\$(MsBuildProjectName).log</Path>
     </BuildLog>
     <ClCompile>
       <AdditionalIncludeDirectories>$(IncludePath);$(SolutionDir);$(VCInstallDir)Include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <AdditionalOptions>/D_SCL_SECURE_NO_WARNINGS /bigobj %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions>/D_SCL_SECURE_NO_WARNINGS /DCXXREFLECT_PROJECT_NAME=$(ProjectName) /bigobj %(AdditionalOptions)</AdditionalOptions>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <!--
       C4100 (unreferenced parameter) is emitted by various XAML-generated files and library headers
+      C4505 (unreferenced local function has been removed) is emitted by the unit test framework headers :'(
       C4512 (op= could not be generated) is a silly warning that we aren't interested in :-)
       C4702 (unreachable code) is hit in release builds by debug statements that are unreachable
       -->
-      <DisableSpecificWarnings>4100;4512;4702</DisableSpecificWarnings>
+      <DisableSpecificWarnings>4100;4505;4512;4702</DisableSpecificWarnings>
       <ErrorReporting>None</ErrorReporting>
       <MinimalRebuild>false</MinimalRebuild>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
@@ -345,7 +349,8 @@ configuration of the project:
       <AdditionalOptions>/ZW %(AdditionalOptions)</AdditionalOptions>
       <AdditionalUsingDirectories>
         "$(WindowsSdk80Path)References\CommonConfiguration\Neutral";
-        "$(ProgramFiles)\Microsoft SDKs\Windows\v8.0\ExtensionSDKs\Microsoft.VCLibs\11.0\References\CommonConfiguration\neutral"
+        "$(MSBuildExtensionsPath32)\..\Microsoft SDKs\Windows\v8.0\ExtensionSDKs\Microsoft.VCLibs\11.0\References\CommonConfiguration\neutral"
+        %(AdditionalUsingDirectories)
       </AdditionalUsingDirectories>
     </ClCompile>
   </ItemDefinitionGroup>
@@ -424,7 +429,7 @@ configuration of the project:
   <Choose>
     <When Condition="'$(CxxReflectIsCxxReflect)' != 'true' and '$(CxxReflectIsStandalone)' != 'true'">
       <ItemGroup>
-        <ProjectReference Include="$(SolutionDir)cxxreflect\cxxreflect.vcxproj">
+        <ProjectReference Include="$(SolutionDir)\cxxreflect\cxxreflect.vcxproj">
           <Project>{1323C7D0-55D3-2A4A-EC85-6693FC4678FE}</Project>
         </ProjectReference>
       </ItemGroup>

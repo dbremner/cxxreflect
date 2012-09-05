@@ -412,25 +412,22 @@ namespace cxxreflect { namespace windows_runtime {
 
 
 
-    global_package_loader::initialized_flag     global_package_loader::_initialized;
-    global_package_loader::unique_loader_future global_package_loader::_context;
-
     auto global_package_loader::initialize(unique_loader_future&& loader) -> void
     {
         // Ensure that we only initialize the global loader once:
         bool expected(false);
-        if (!_initialized.compare_exchange_strong(expected, true))
+        if (!initialized().compare_exchange_strong(expected, true))
             throw core::logic_error(L"initialize was already called");
 
-        _context = std::move(loader);
+        context() = std::move(loader);
     }
 
     auto global_package_loader::get() -> package_loader&
     {
-        if (!_initialized.load())
+        if (!initialized().load())
             throw core::logic_error(L"initialize has not yet been called");
 
-        package_loader* const context(_context.get().get());
+        package_loader* const context(context().get().get());
         if (context == nullptr)
             throw core::logic_error(L"initialization completed but the result was invalid (nullptr)");
 
@@ -439,12 +436,24 @@ namespace cxxreflect { namespace windows_runtime {
 
     auto global_package_loader::has_initialization_begun() -> bool
     {
-        return _initialized.load();
+        return initialized().load();
     }
 
     auto global_package_loader::is_initialized() -> bool
     {
-        return _context.valid();
+        return context().valid();
+    }
+
+    auto global_package_loader::initialized() -> initialized_flag&
+    {
+        static initialized_flag instance;
+        return instance;
+    }
+
+    auto global_package_loader::context() -> unique_loader_future&
+    {
+        static unique_loader_future instance;
+        return instance;
     }
 
 } }

@@ -1,0 +1,33 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Include="precompiled_headers.cpp" />
+    <ClCompile Include="metadata\tokens.cpp">
+      <Filter>metadata</Filter>
+    </ClCompile>
+    <ClCompile Include="metadata\database_correctness.cpp">
+      <Filter>metadata</Filter>
+    </ClCompile>
+    <ClCompile Include="static_initialization.cpp" />
+    <ClCompile Include="windows_runtime\x64_fastcall_thunk.cpp">
+      <Filter>windows_runtime</Filter>
+    </ClCompile>
+    <ClCompile Include="reflection\basic_alpha.cpp">
+      <Filter>reflection</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="precompiled_headers.hpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="metadata">
+      <UniqueIdentifier>{0f5e98fb-57a0-4153-b0eb-4b6970f05bf1}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="windows_runtime">
+      <UniqueIdentifier>{149e65f7-b12f-4e02-afd1-505427b8fbfb}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="reflection">
+      <UniqueIdentifier>{56ad7ac2-9ec5-4ee5-a84f-fe161525f00d}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+</Project>

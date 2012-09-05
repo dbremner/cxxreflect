@@ -649,14 +649,23 @@ namespace cxxreflect { namespace metadata {
 
 
 
-    auto database::create_from_file(core::string_reference const path) -> database
+    database_owner::~database_owner()
     {
-        core::file_handle const file(path.c_str(), core::file_mode::read | core::file_mode::binary);
-        return database(core::externals::map_file(file.handle()));
+        // Virtual destructor required for polymorphic base
     }
 
-    database::database(file_range&& file)
-        : _file(std::move(file))
+
+
+
+
+    auto database::create_from_file(core::string_reference const path, database_owner const* const owner) -> database
+    {
+        core::file_handle const file(path.c_str(), core::file_mode::read | core::file_mode::binary);
+        return database(core::externals::map_file(file.handle()), owner);
+    }
+
+    database::database(file_range&& file, database_owner const* const owner)
+        : _file(std::move(file)), _owner(owner)
     {
         core::const_byte_cursor const cursor(_file.begin(), _file.end());
 
@@ -758,6 +767,12 @@ namespace cxxreflect { namespace metadata {
     {
         core::assert_initialized(*this);
         return _guids;
+    }
+
+    auto database::owner() const -> database_owner const&
+    {
+        core::assert_initialized(*this);
+        return *_owner;
     }
 
     auto database::is_initialized() const -> bool

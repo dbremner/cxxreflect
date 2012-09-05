@@ -12,7 +12,7 @@
     <CxxReflectIsStandalone>true</CxxReflectIsStandalone>
     <ProjectGuid>{D9E97E25-93C7-4CBB-9767-CDB6522B6EC8}</ProjectGuid>
   </PropertyGroup>
-  <Import Project="$(SolutionDir)cxxreflect\cxxreflect.props" />
+  <Import Project="$(SolutionDir)\cxxreflect\cxxreflect.props" />
   <ItemGroup>
     <ClCompile Include="main.cpp" />
   </ItemGroup>

@@ -1,0 +1,43 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="windows_runtime">
+      <UniqueIdentifier>{c6338c5e-7ad2-4423-be89-c5cece5c573a}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="miscellaneous">
+      <UniqueIdentifier>{6c296c6a-2336-4774-a620-ec59448ea9b8}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="Images\UnitTestLogo.png">
+      <Filter>miscellaneous</Filter>
+    </Image>
+    <Image Include="Images\UnitTestSmallLogo.png">
+      <Filter>miscellaneous</Filter>
+    </Image>
+    <Image Include="Images\UnitTestSplashScreen.png">
+      <Filter>miscellaneous</Filter>
+    </Image>
+    <Image Include="Images\UnitTestStoreLogo.png">
+      <Filter>miscellaneous</Filter>
+    </Image>
+  </ItemGroup>
+  <ItemGroup>
+    <AppxManifest Include="package.appxmanifest">
+      <Filter>miscellaneous</Filter>
+    </AppxManifest>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="unit_tests_windows_runtime.pfx" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="precompiled_headers.cpp" />
+    <ClCompile Include="static_initialization.cpp" />
+    <ClCompile Include="windows_runtime\basic_alpha_enumerations.cpp">
+      <Filter>windows_runtime</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="precompiled_headers.hpp" />
+  </ItemGroup>
+</Project>

@@ -37,7 +37,33 @@
 #include <winstring.h>
 #include <wrl.h>
 #include <wrl/async.h>
-#include <wrl/client.h>
+
+
+
+
+
+//
+//
+// Core Typedefs
+//
+//
+
+namespace cxxreflect { namespace windows_runtime { namespace utility {
+
+    typedef std::uint32_t size_type;
+    typedef std::int32_t  difference_type;
+
+} } }
+
+
+
+
+
+//
+//
+// Exceptions and Erorr Handling
+//
+//
 
 namespace cxxreflect { namespace windows_runtime { namespace utility {
 
@@ -74,63 +100,90 @@ namespace cxxreflect { namespace windows_runtime { namespace utility {
             throw hresult_error(E_POINTER);
     }
 
-    typedef std::uint32_t size_type;
-    typedef std::int32_t  difference_type;
-
-    class guarded_roinitialize
+    template <typename T>
+    void throw_if_null_and_initialize_out_parameter(T* const p, HRESULT const hr = E_INVALIDARG)
     {
-    public:
+        if (p == nullptr)
+            throw hresult_error(hr);
 
-        guarded_roinitialize()
-        {
-            HRESULT const hr(::RoInitialize(RO_INIT_MULTITHREADED));
-            if (FAILED(hr))
-                throw hresult_error(hr);
-        }
+        *p = T();
+    }
 
-        ~guarded_roinitialize()
-        {
-            ::RoUninitialize();
-        }
+    inline void throw_if_true(bool const c, HRESULT const hr = E_FAIL)
+    {
+        if (c)
+            throw hresult_error(hr);
+    }
 
-    private:
-
-        guarded_roinitialize(guarded_roinitialize const&);
-        auto operator=(guarded_roinitialize const&) -> guarded_roinitialize&;
-    };
-
-    extern "C" __declspec(dllimport) int __stdcall AllocConsole();
-    extern "C" __declspec(dllimport) int __stdcall FreeConsole();
-
-    /// RAII wrapper for balancing AllocConsole and FreeConsole calls
+    /// Calls `callable`, catches any exceptions, and returns the best matching HRESULT
     ///
-    /// AllocConsole and FreeConsole are not on the approved APIs list for Windows Runtime projects,
-    /// so this can't be used in an application submitted to the Windows Store.  However, for unit 
-    /// tests and for debugging, everything works wonderfully.
-    class guarded_console
+    /// This is useful for implementing COM interfaces (and WinRT components using WRL) when the
+    /// C++ code being called may throw exceptions.  We cannot throw across the COM interface
+    /// boundary, so we make a best effort to translate an exceptional return into an error HRESULT.
+    ///
+    /// Hat tip to the Visual Studio SDK's `ErrorHandler::CallWithCOMConvention` for this epic
+    /// technique for clean error handling.
+    template <typename Callable>
+    auto call_with_runtime_convention(Callable&& callable) -> HRESULT
+    {
+        try
+        {
+            return callable();
+        }
+        catch (hresult_error const& e)
+        {
+            return e.error();
+        }
+        catch (...)
+        {
+            return E_FAIL;
+        }
+    }
+
+} } }
+
+
+
+
+
+//
+//
+// Smart Pointers and RAII Helpers
+//
+//
+
+namespace cxxreflect { namespace windows_runtime { namespace utility {
+
+    /// A "strongly-typed" `WeakRef`
+    ///
+    /// Wraps the WRL `WeakRef` type in a wrapper that allows direct construction that throws on
+    /// failure (instead of returning an HRESULT) and allows resolution to the known interface type
+    /// without re-naming the interface type at resolution time.
+    template <typename T>
+    class weak_ref
     {
     public:
 
-        guarded_console()
+        explicit weak_ref(T* const mr_pointer)
         {
-            if (AllocConsole() == 0)
-                throw hresult_error(E_FAIL);
+            throw_if_null(mr_pointer);
+            throw_on_failure(::Microsoft::WRL::AsWeak(mr_pointer, &_weakling));
         }
 
-        ~guarded_console()
+        auto resolve() -> ::Microsoft::WRL::ComPtr<T>
         {
-            FreeConsole();
+            ::Microsoft::WRL::ComPtr<T> strong;
+            _weakling.As(&strong);
+            return strong;
         }
 
     private:
 
-        guarded_console(guarded_console const&);
-        auto operator=(guarded_console const&) -> guarded_console&;
+        weak_ref(weak_ref const&);
+        auto operator=(weak_ref const&) -> weak_ref&;
+
+        ::Microsoft::WRL::WeakRef _weakling;
     };
-
-
-
-
 
     /// An RAII container for an array that must be freed via CoTaskMemFree
     ///
@@ -186,9 +239,71 @@ namespace cxxreflect { namespace windows_runtime { namespace utility {
         pointer _p;
     };
 
+    /// RAII wrapper for balancing RoInitialize and RoUninitialize calls
+    class guarded_roinitialize
+    {
+    public:
+
+        guarded_roinitialize()
+        {
+            HRESULT const hr(::RoInitialize(RO_INIT_MULTITHREADED));
+            if (FAILED(hr))
+                throw hresult_error(hr);
+        }
+
+        ~guarded_roinitialize()
+        {
+            ::RoUninitialize();
+        }
+
+    private:
+
+        guarded_roinitialize(guarded_roinitialize const&);
+        auto operator=(guarded_roinitialize const&) -> guarded_roinitialize&;
+    };
+
+    extern "C" __declspec(dllimport) int __stdcall AllocConsole();
+    extern "C" __declspec(dllimport) int __stdcall FreeConsole();
+
+    /// RAII wrapper for balancing AllocConsole and FreeConsole calls
+    ///
+    /// AllocConsole and FreeConsole are not on the approved APIs list for Windows Runtime projects,
+    /// so this can't be used in an application submitted to the Windows Store.  However, for unit 
+    /// tests and for debugging, everything works wonderfully.
+    class guarded_console
+    {
+    public:
+
+        guarded_console()
+        {
+            if (AllocConsole() == 0)
+                throw hresult_error(E_FAIL);
+        }
+
+        ~guarded_console()
+        {
+            FreeConsole();
+        }
+
+    private:
+
+        guarded_console(guarded_console const&);
+        auto operator=(guarded_console const&) -> guarded_console&;
+    };
+
+} } }
 
 
 
+
+
+//
+//
+// Activation Helpers
+//
+//
+
+namespace cxxreflect { namespace windows_runtime { namespace utility {
 
     /// Calls RoActivateInstance to instantiate a type and QI's the created object for an interface
     template <typename T>
@@ -221,9 +336,19 @@ namespace cxxreflect { namespace windows_runtime { namespace utility {
         return S_OK;
     }
 
+} } }
 
 
 
+
+
+//
+//
+// IAsyncOperation<T> Implementation Helpers
+//
+//
+
+namespace cxxreflect { namespace windows_runtime { namespace utility {
 
     /// A base class for IAsyncOperation<T> implementations for use with WRL
     template <typename T>
@@ -320,6 +445,16 @@ namespace cxxreflect { namespace windows_runtime { namespace utility {
     };
 
 } } }
+
+
+
+
+
+//
+//
+// HSTRING Utilities
+//
+//
 
 namespace cxxreflect { namespace windows_runtime { namespace utility {
 
@@ -462,8 +597,9 @@ namespace cxxreflect { namespace windows_runtime { namespace utility {
             smart_hstring* _value;
         };
 
-        auto proxy()       -> reference_proxy { return reference_proxy(this); }
-        auto value() const -> HSTRING         { return _value;                }
+        auto proxy()       -> reference_proxy { return reference_proxy(this);                          }
+        auto value() const -> HSTRING         { return _value;                                         }
+        auto release()     -> HSTRING         { HSTRING value(_value); _value = nullptr; return value; }
 
         friend auto operator==(smart_hstring const& lhs, smart_hstring const& rhs) -> bool
         {
@@ -566,6 +702,16 @@ namespace cxxreflect { namespace windows_runtime { namespace utility {
     }
 
 } } }
+
+
+
+
+
+//
+//
+// HCORENUM Iterator Wrappers
+//
+//
 
 namespace cxxreflect { namespace windows_runtime { namespace utility {
 

@@ -1,0 +1,53 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <AppContainerApplication>true</AppContainerApplication>
+    <AppxPackage>True</AppxPackage>
+    <AppxPackageIncludePrivateSymbols>true</AppxPackageIncludePrivateSymbols>
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <DefaultLanguage>en-US</DefaultLanguage>
+    <PackageCertificateKeyFile>unit_tests_windows_runtime.pfx</PackageCertificateKeyFile>
+    <ProjectGuid>{5d28bcbf-82f0-4cee-8471-3b486ddeb838}</ProjectGuid>
+    <RootNamespace>unit_tests_windows_runtime</RootNamespace>
+  </PropertyGroup>
+  <Import Project="$(SolutionDir)\cxxreflect\cxxreflect.props" />
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <AdditionalIncludeDirectories>$(VCInstallDir)UnitTest\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PrecompiledHeader>Use</PrecompiledHeader>
+      <PrecompiledHeaderFile>tests/unit_tests/windows_runtime/precompiled_headers.hpp</PrecompiledHeaderFile>
+      <PrecompiledHeaderOutputFile>$(IntDir)$(TargetName).pch</PrecompiledHeaderOutputFile>
+      <UseFullPaths>true</UseFullPaths>
+    </ClCompile>
+    <Link>
+      <AdditionalLibraryDirectories>$(VCInstallDir)UnitTest\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <SDKReference Include="CppUnitTestFramework, Version=11.0" />
+    <SDKReference Include="TestPlatform, Version=11.0" />
+  </ItemGroup>
+  <ItemGroup>
+    <AppxManifest Include="package.appxmanifest">
+      <SubType>Designer</SubType>
+    </AppxManifest>
+    <None Include="unit_tests_windows_runtime.pfx" />
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="Images\UnitTestLogo.png" />
+    <Image Include="Images\UnitTestSmallLogo.png" />
+    <Image Include="Images\UnitTestSplashScreen.png" />
+    <Image Include="Images\UnitTestStoreLogo.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="precompiled_headers.cpp">
+      <PrecompiledHeader>Create</PrecompiledHeader>
+    </ClCompile>
+    <ClCompile Include="static_initialization.cpp" />
+    <ClCompile Include="windows_runtime\basic_alpha_enumerations.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="precompiled_headers.hpp" />
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+</Project>
