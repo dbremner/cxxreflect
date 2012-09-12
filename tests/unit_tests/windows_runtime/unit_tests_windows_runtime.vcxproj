@@ -45,9 +45,21 @@
     </ClCompile>
     <ClCompile Include="static_initialization.cpp" />
     <ClCompile Include="windows_runtime\basic_alpha_enumerations.cpp" />
+    <ClCompile Include="windows_runtime_sdk\basic_alpha_sdk.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="precompiled_headers.hpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\windows_runtime_sdk\CxxReflect.Reflection.Native\CxxReflect.Reflection.Native.vcxproj">
+      <Project>{11406f69-cf9e-4f61-b00c-6600a56b0a49}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\..\..\windows_runtime_sdk\CxxReflect.Reflection\CxxReflect.Reflection.vcxproj">
+      <Project>{fed56876-34e0-41e0-9c2b-b458648bbe5b}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\..\assemblies\windows_runtime_alpha\TestComponents.Alpha.vcxproj">
+      <Project>{c340a193-b0dc-45b2-8975-73081d1b6784}</Project>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
 </Project>

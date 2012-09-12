@@ -68,7 +68,7 @@
 .class public auto ansi Platform.ClassNotRegisteredException extends Platform.Object { }
 .class public auto ansi Platform.Delegate                    extends Platform.Object { }
 .class public auto ansi Platform.DisconnectedException       extends Platform.Object { }
-.class public auto ansi Platform.Enum                        extends Platform.Object { }
+.class public auto ansi Platform.Enum                        extends Platform.ValueType { }
 .class public auto ansi Platform.Exception                   extends Platform.Object { }
 .class public auto ansi Platform.FailureException            extends Platform.Object { }
 .class public auto ansi Platform.Guid                        extends Platform.Object { }

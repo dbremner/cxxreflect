@@ -129,8 +129,8 @@
 /// You are free to use the CxxReflect library however you see fit in your own code; we use this
 /// alias for brevity only.
 ///
-/// The first thing you'll need to do in your program is start initialization of the global WinRT
-/// type universe.  This is done by calling the following function as early as you can:
+/// The first thing you'll need to do in your program is start initialization of the global Windows
+/// Runtime type universe.  This is done by calling the following function as early as you can:
 ///
 ///     cxr::begin_initialization();
 ///

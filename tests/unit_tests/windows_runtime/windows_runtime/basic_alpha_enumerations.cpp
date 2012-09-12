@@ -4,7 +4,7 @@
 //     (See accompanying file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)    //
 
 #include "tests/unit_tests/windows_runtime/precompiled_headers.hpp"
-/*
+
 namespace cxr
 {
     using namespace cxxreflect::core;
@@ -20,7 +20,7 @@ namespace co
 
 namespace cxxreflect_test { namespace unit_tests_windows_runtime {
 
-    auto basic_alpha_enumerations(context const& c) -> void
+    CXXREFLECTTEST_DEFINE_TEST(basic_alpha_enumerations)
     {
         auto enumerators(cxr::get_enumerators(cxr::get_type(L"TestComponents.Alpha.DayOfWeek")));
 
@@ -44,7 +44,4 @@ namespace cxxreflect_test { namespace unit_tests_windows_runtime {
         });
     }
 
-    CXXREFLECTTEST_REGISTER(basic_alpha_enumerations);
-
 } }
-*/

@@ -68,11 +68,11 @@ configuration of the project:
   project.  Only pure managed projects support AnyCPU.
   -->
   <PropertyGroup Condition="'$(MSBuildProjectExtension)' == '.vcxproj'">
-    <!-- Non-ZW configs are enabled for the CxxReflect libraries and all non-WinRT projects -->
+    <!-- Non-ZW configs are enabled for the CxxReflect libraries and all non-Windows Runtime projects -->
     <CxxReflectIncludeNonZWConfigurations Condition="'$(CxxReflectIsCxxReflect)' == 'true' or '$(AppContainerApplication)' != 'true'">true</CxxReflectIncludeNonZWConfigurations>
     <CxxReflectIncludeNonZWConfigurations Condition="'$(CxxReflectIncludeNonZWConfigurations)' == ''">false</CxxReflectIncludeNonZWConfigurations>
 
-    <!-- ZW configs are enabled for the CxxReflect libraries and all WinRT projects -->
+    <!-- ZW configs are enabled for the CxxReflect libraries and all Windows Runtime projects -->
     <CxxReflectIncludeZWConfigurations Condition="'$(CxxReflectIsCxxReflect)' == 'true' or '$(AppContainerApplication)' == 'true'">true</CxxReflectIncludeZWConfigurations>
     <CxxReflectIncludeZWConfigurations Condition="'$(CxxReflectIncludeZWConfigurations)' == ''">false</CxxReflectIncludeZWConfigurations>
 
@@ -296,8 +296,8 @@ configuration of the project:
     </ClCompile>
     <Lib>
       <!--
-      LNK4264 is the "don't stick WinRT metadata in a static library."  We don't.  The linker
-      complaineth.  We suppresseth.  LNK4221 is the "this file defines no symbols" warning.
+      LNK4264 is the "don't stick Windows Runtime metadata in a static library."  We don't.  The
+      linker complaineth.  We suppresseth.  LNK4221 is the "this file defines no symbols" warning.
       We expect this for some architecture-specific source files.
       -->
       <AdditionalLibraryDirectories>$(CxxReflectOutDir);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>

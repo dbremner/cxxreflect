@@ -10,6 +10,7 @@
 
 #ifdef CXXREFLECT_ENABLE_WINDOWS_RUNTIME_INTEGRATION
 
+#include "cxxreflect/windows_runtime/detail/module_type_index.hpp"
 #include "cxxreflect/windows_runtime/enumerator.hpp"
 
 #include <atomic>
@@ -107,9 +108,12 @@ namespace cxxreflect { namespace windows_runtime {
         package_loader(package_loader const&);
         auto operator=(package_loader const&) -> package_loader&;
 
-        package_module_locator                      _locator;
-        std::unique_ptr<reflection::loader>         _loader;
-        core::recursive_mutex               mutable _sync;
+        auto get_or_create_type_index(metadata::database const& scope) const -> detail::module_type_index const&;
+
+        package_module_locator                                                 _locator;
+        std::unique_ptr<reflection::loader>                                    _loader;
+        std::map<metadata::database const*, detail::module_type_index> mutable _type_index;
+        core::recursive_mutex                                          mutable _sync;
     };
 
 

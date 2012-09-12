@@ -152,7 +152,8 @@ namespace CxxReflect { namespace Reflection {
 
         wrl::ComPtr<cxrabi::LoaderFuture> future(GetOrCreateGlobalPackageLoader([&]
         {
-            return loader;
+            wrl::ComPtr<cxrabi::LoaderFuture> local_loader(loader);
+            return local_loader.Detach();
         }));
 
         return future != nullptr ? S_OK : E_FAIL;

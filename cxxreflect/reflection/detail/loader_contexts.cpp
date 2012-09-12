@@ -57,17 +57,19 @@ namespace cxxreflect { namespace reflection { namespace detail {
 
         if (location.is_file())
         {
-            return metadata::database::create_from_file(location.file_path().c_str());
+            return metadata::database::create_from_file(location.file_path().c_str(), this);
         }
         else if (!location.is_memory())
         {
             core::assert_fail(L"unreachable code");
         }
 
-        return metadata::database(core::unique_byte_array(
-            begin(location.memory_range()),
-            end(location.memory_range()),
-            nullptr));
+        return metadata::database(
+            core::unique_byte_array(
+                begin(location.memory_range()),
+                end(location.memory_range()),
+                nullptr),
+            this);
     }
 
 
@@ -475,6 +477,15 @@ namespace cxxreflect { namespace reflection { namespace detail {
     auto loader_context::from(type const& x) -> loader_context const&
     {
         return x.defining_module().context(core::internal_key()).assembly().loader();
+    }
+
+    auto loader_context::from(metadata::database const& x) -> loader_context const&
+    {
+        module_context const* const module(dynamic_cast<module_context const*>(&x.owner()));
+        if (module == nullptr)
+            core::logic_error(L"provided unowned database for discovery");
+
+        return module->assembly().loader();
     }
 
 } } }

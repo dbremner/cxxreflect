@@ -5,3 +5,4 @@ build/*
 documentation/*
 *.exe
 cxxreflect.v11.suo
+TestResults/*

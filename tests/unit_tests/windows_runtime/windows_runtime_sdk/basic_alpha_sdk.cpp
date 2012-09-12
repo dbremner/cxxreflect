@@ -1,0 +1,65 @@
+
+//                            Copyright James P. McNellis 2011 - 2012.                            //
+//                   Distributed under the Boost Software License, Version 1.0.                   //
+//     (See accompanying file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)    //
+
+#include "tests/unit_tests/windows_runtime/precompiled_headers.hpp"
+
+namespace sdk {
+
+    using namespace CxxReflect::Reflection;
+}
+
+namespace cxxreflect_test {
+
+    CXXREFLECTTEST_DEFINE_TEST(basic_alpha_sdk_obtain_loader)
+    {
+        sdk::ILoader^ const loader(win::sync(sdk::Loader::PackageLoader));
+        c.verify(loader != nullptr);
+    }
+
+    CXXREFLECTTEST_DEFINE_TEST(basic_alpha_sdk_obtain_type)
+    {
+        sdk::ILoader^ const loader(win::sync(sdk::Loader::PackageLoader));
+
+        sdk::IType^ const dayOfWeekType(loader->FindType(L"TestComponents.Alpha.DayOfWeek"));
+        c.verify(dayOfWeekType != nullptr);
+        c.verify_equals(dayOfWeekType->FullName,        ref new Platform::String(L"TestComponents.Alpha.DayOfWeek"));
+        c.verify_equals(dayOfWeekType->Name,            ref new Platform::String(L"DayOfWeek"));
+        //c.verify_equals(dayOfWeekType->Namespace->Name, ref new Platform::String(L"TestComponents.Alpha"));
+        c.verify(!dayOfWeekType->IsAbstract);
+        c.verify(!dayOfWeekType->IsArray);
+        c.verify(!dayOfWeekType->IsByRef);
+        c.verify(!dayOfWeekType->IsClass);
+        c.verify(dayOfWeekType->IsEnum);
+        c.verify(!dayOfWeekType->IsGenericParameter);
+        c.verify(!dayOfWeekType->IsGenericType);
+        c.verify(!dayOfWeekType->IsGenericTypeDefinition);
+        c.verify(!dayOfWeekType->IsInterface);
+        c.verify(!dayOfWeekType->IsPrimitive);
+        c.verify(dayOfWeekType->IsSealed);
+        c.verify(dayOfWeekType->IsValueType);
+
+        sdk::IType^ const enumType(dayOfWeekType->BaseType);
+        c.verify(enumType != nullptr);
+        c.verify_equals(enumType->FullName,        ref new Platform::String(L"Platform.Enum"));
+        c.verify_equals(enumType->Name,            ref new Platform::String(L"Enum"));
+        //c.verify_equals(enumType->Namespace->Name, ref new Platform::String(L"Platform"));
+
+        sdk::IType^ const valueTypeType(enumType->BaseType);
+        c.verify(valueTypeType != nullptr);
+        c.verify_equals(valueTypeType->FullName,        ref new Platform::String(L"Platform.ValueType"));
+        c.verify_equals(valueTypeType->Name,            ref new Platform::String(L"ValueType"));
+        //c.verify_equals(valueTypeType->Namespace->Name, ref new Platform::String(L"Platform"));
+
+        sdk::IType^ const objectType(valueTypeType->BaseType);
+        c.verify(objectType != nullptr);
+        c.verify_equals(objectType->FullName,        ref new Platform::String(L"Platform.Object"));
+        c.verify_equals(objectType->Name,            ref new Platform::String(L"Object"));
+        //c.verify_equals(objectType->Namespace->Name, ref new Platform::String(L"Object"));
+
+        sdk::IType^ const nullType(objectType->BaseType);
+        c.verify(nullType == nullptr);
+    }
+
+}

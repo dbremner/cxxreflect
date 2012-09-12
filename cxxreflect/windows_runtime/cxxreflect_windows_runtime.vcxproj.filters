@@ -75,6 +75,9 @@
     <ClCompile Include="instantiation.cpp">
       <Filter>sources</Filter>
     </ClCompile>
+    <ClCompile Include="detail\module_type_index.cpp">
+      <Filter>sources\detail</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="detail\argument_handling.hpp">
@@ -127,6 +130,9 @@
     </ClInclude>
     <ClInclude Include="externals\winrt_externals.hpp">
       <Filter>headers\externals</Filter>
+    </ClInclude>
+    <ClInclude Include="detail\module_type_index.hpp">
+      <Filter>headers\detail</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

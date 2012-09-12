@@ -238,7 +238,16 @@ namespace cxxreflect { namespace windows_runtime {
         if (!assembly)
             return reflection::type();
 
-        return assembly.find_type(namespace_name, simple_name);
+        metadata::database        const& scope(assembly.context(core::internal_key()).manifest_module().database());
+        detail::module_type_index const& index(get_or_create_type_index(scope));
+        metadata::type_def_token  const& token(index.find(namespace_name, simple_name));
+        if (!token.is_initialized())
+            return reflection::type();
+
+        return reflection::type(
+            reflection::detail::loader_context::from(token.scope()),
+            token,
+            core::internal_key());
     }
 
     auto package_loader::get_implementers(reflection::type const& interface_type) const
@@ -348,6 +357,16 @@ namespace cxxreflect { namespace windows_runtime {
 
         // TODO We need to make sure that a type has only one GuidAttribute.
         return it != runtime_type.end_custom_attributes() ? it->single_guid_argument() : reflection::guid();
+    }
+
+    auto package_loader::get_or_create_type_index(metadata::database const& scope) const -> detail::module_type_index const&
+    {
+        auto const lock(_sync.lock());
+        auto const it(_type_index.find(&scope));
+        if (it != end(_type_index))
+            return it->second;
+
+        return _type_index.insert(std::make_pair(&scope, detail::module_type_index(&scope))).first->second;
     }
 
     #define CXXREFLECT_WINDOWS_RUNTIME_LOADER_DEFINE_PROPERTY(XTYPE, XNAME, ...)  \

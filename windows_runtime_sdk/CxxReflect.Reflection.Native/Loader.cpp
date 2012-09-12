@@ -6,6 +6,7 @@
 #include "IterableUtility.hpp"
 #include "Loader.hpp"
 #include "Namespace.hpp"
+#include "Type.hpp"
 
 namespace CxxReflect { namespace Reflection { namespace Native {
 
@@ -42,6 +43,11 @@ namespace CxxReflect { namespace Reflection { namespace Native {
         {
             cxr::throw_if_null_and_initialize_out_parameter(value, E_INVALIDARG);
             cxr::throw_if_true(::WindowsIsStringEmpty(fullName) == TRUE, E_INVALIDARG);
+
+            cxr::type const type(_loader->get_type(::WindowsGetStringRawBuffer(fullName, nullptr)));
+            cxr::throw_if_true(!type.is_initialized());
+
+            *value = wrl::Make<Type>(this, type).Detach();
 
             return S_OK; // TODO Not yet implemented
         });

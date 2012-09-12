@@ -57,7 +57,7 @@ namespace cxxreflect { namespace reflection { namespace detail {
 
 
 
-    class module_context
+    class module_context : public metadata::database_owner
     {
     public:
 
@@ -75,7 +75,7 @@ namespace cxxreflect { namespace reflection { namespace detail {
         module_context(module_context const&);
         auto operator=(module_context const&) -> module_context&;
 
-        static auto create_database(module_location const& location) -> metadata::database;
+        auto create_database(module_location const& location) -> metadata::database;
 
         core::value_initialized<assembly_context const*> _assembly;
         module_location                                  _location;
@@ -190,11 +190,12 @@ namespace cxxreflect { namespace reflection { namespace detail {
         auto compute_method_table   (metadata::type_def_or_signature const& type) const -> method_context_table;
         auto compute_property_table (metadata::type_def_or_signature const& type) const -> property_context_table;
 
-        static auto from(assembly_context const&) -> loader_context const&;
-        static auto from(module_context   const&) -> loader_context const&;
-        static auto from(assembly         const&) -> loader_context const&;
-        static auto from(module           const&) -> loader_context const&;
-        static auto from(type             const&) -> loader_context const&;
+        static auto from(assembly_context   const&) -> loader_context const&;
+        static auto from(module_context     const&) -> loader_context const&;
+        static auto from(assembly           const&) -> loader_context const&;
+        static auto from(module             const&) -> loader_context const&;
+        static auto from(type               const&) -> loader_context const&;
+        static auto from(metadata::database const&) -> loader_context const&;
 
     private:
 

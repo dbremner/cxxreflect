@@ -11,4 +11,26 @@
 
 #include <CppUnitTest.h>
 
+namespace win {
+
+    using namespace Windows::Foundation;
+
+    /// Synchronizes an asynchronous call
+    ///
+    /// This takes a Windows Runtime IAsyncOperation, waits for it to complete, then returns the
+    /// result.  Ideally we'd just call GetResults() and block, but PPL prohibits blocking on a
+    /// task on a RoInitialize'd STA.  So, we spin-wait on the asynchronous operation.  Woo hoo!
+    ///
+    /// (We could yield, or sleep for a while, but at the moment we only synchronize operations
+    /// that are expected to complete very quickly during unit testing, so this isn't much of a
+    /// concern yet.)
+    template <typename AsyncOperation>
+    auto sync(AsyncOperation&& op) -> decltype(op->GetResults())
+    {
+        while (op->Status != ::Windows::Foundation::AsyncStatus::Completed) { }
+        return op->GetResults();
+    }
+
+}
+
 #endif

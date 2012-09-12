@@ -7,6 +7,9 @@
     <Filter Include="miscellaneous">
       <UniqueIdentifier>{6c296c6a-2336-4774-a620-ec59448ea9b8}</UniqueIdentifier>
     </Filter>
+    <Filter Include="windows_runtime_sdk">
+      <UniqueIdentifier>{b8723e2b-77d2-491d-8a54-f3d331170f10}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <Image Include="Images\UnitTestLogo.png">
@@ -35,6 +38,9 @@
     <ClCompile Include="static_initialization.cpp" />
     <ClCompile Include="windows_runtime\basic_alpha_enumerations.cpp">
       <Filter>windows_runtime</Filter>
+    </ClCompile>
+    <ClCompile Include="windows_runtime_sdk\basic_alpha_sdk.cpp">
+      <Filter>windows_runtime_sdk</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

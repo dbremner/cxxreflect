@@ -171,6 +171,11 @@ namespace cxxreflect { namespace core {
         if (!callable())
             throw assertion_error(message);
     }
+
+    inline auto assert_unreachable() -> void
+    {
+        throw assertion_error(L"unreachable code");
+    }
     
     template <typename T>
     auto assert_initialized(T const& object) -> void

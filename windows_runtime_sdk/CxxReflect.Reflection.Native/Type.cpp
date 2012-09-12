@@ -18,10 +18,22 @@ namespace CxxReflect { namespace Reflection { namespace Native { namespace {
         });
     }
 
+    template <typename String>
+    auto GetStringProperty(cxr::type const& type, String(cxr::type::*f)() const, HSTRING* const value) -> HRESULT
+    {
+        return cxr::call_with_runtime_convention([&]() -> HRESULT
+        {
+            cxr::throw_if_null_and_initialize_out_parameter(value);
+
+            String const& s((type.*f)());
+            return ::WindowsCreateString(s.c_str(), s.size(), value);
+        });
+    }
+
     auto GetTypeProperty(cxr::weak_ref<cxrabi::ILoader>& loader,
-                           cxr::type const& type,
-                           cxr::type(cxr::type::*f)() const,
-                           cxrabi::IType** const value) -> HRESULT
+                         cxr::type const& type,
+                         cxr::type(cxr::type::*f)() const,
+                         cxrabi::IType** const value) -> HRESULT
     {
         return cxr::call_with_runtime_convention([&]() -> HRESULT
         {
@@ -129,12 +141,12 @@ namespace CxxReflect { namespace Reflection { namespace Native {
         
     auto STDMETHODCALLTYPE Type::get_FullName(HSTRING* const value) -> HRESULT
     {
-        return E_NOTIMPL;
+        return GetStringProperty(_type, &cxr::type::full_name, value);
     }
 
     auto STDMETHODCALLTYPE Type::get_Name(HSTRING* const value) -> HRESULT
     {
-        return E_NOTIMPL;
+        return GetStringProperty(_type, &cxr::type::simple_name, value);
     }
 
 } } }

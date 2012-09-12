@@ -127,8 +127,8 @@ namespace cxxreflect { namespace core {
             else if (lhs_it != nullptr && rhs_it == nullptr)
                 return Comparer<value_type>()(1, 0);
 
-            // Next, if both strings are valid, compare them using the provided comparator:
-            while (*lhs_it != 0 && *rhs_it != 0 && Comparer<value_type>()(*lhs_it, *rhs_it))
+            // Next, if both strings are valid, compare them until we find nonequal characters:
+            while (*lhs_it != 0 && *rhs_it != 0 && *lhs_it == *rhs_it)
             {
                 ++lhs_it;
                 ++rhs_it;
@@ -141,7 +141,7 @@ namespace cxxreflect { namespace core {
             if (rhs._last == nullptr && *rhs_it == 0)
                 rhs._last = rhs_it;
 
-            return *lhs_it == 0 && *rhs_it == 0;
+            return Comparer<value_type>()(*lhs_it, *rhs_it);
         }
 
         CXXREFLECT_GENERATE_COMPARISON_OPERATORS(enhanced_cstring)

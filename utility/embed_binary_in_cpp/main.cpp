@@ -41,10 +41,10 @@ namespace
     {
         std::cout << "Creates a .cpp file that defines an array of bytes.\n"
                   << "\n"
-                  << "CreateFileInCpp {0} {1} {2}\n"
-                  << "  {1}: The path to the source file.\n"
-                  << "  {2}: The path to the .cpp file to create.\n"
-                  << "  {3}: The name of the array to create in the file." << std::endl;
+                  << "embed_binary_in_cpp {0} {1} {2}\n"
+                  << "  {0}: The path to the source file.\n"
+                  << "  {1}: The path to the .cpp file to create.\n"
+                  << "  {2}: The name of the array to create in the file." << std::endl;
     }
 
     auto parse_qualified_name(std::string name) -> std::vector<std::string>
@@ -161,6 +161,12 @@ auto main(int argc, char** argv) -> int
     {
         std::cout << "Uh oh.  An exception occurred during execution :'(\n"
                   << e.what();
+
+        return EXIT_FAILURE;
+    }
+    catch (...)
+    {
+        std::cout << "Uh oh.  An unknown exception occurred during execution :'(\n";
 
         return EXIT_FAILURE;
     }
