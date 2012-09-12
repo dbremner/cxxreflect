@@ -13,6 +13,7 @@
 #include "cxxreflect/windows_runtime/utility.hpp"
 #include "cxxreflect/windows_runtime/detail/argument_handling.hpp"
 #include "cxxreflect/windows_runtime/detail/call_invoker_utility.hpp"
+#include "cxxreflect/windows_runtime/detail/call_invoker_arm.hpp"
 #include "cxxreflect/windows_runtime/detail/call_invoker_x64.hpp"
 #include "cxxreflect/windows_runtime/detail/call_invoker_x86.hpp"
 #include "cxxreflect/windows_runtime/detail/overload_resolution.hpp"

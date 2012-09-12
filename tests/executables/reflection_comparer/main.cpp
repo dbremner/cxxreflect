@@ -445,7 +445,7 @@ namespace
             c_it += first;
         }
 
-        if (last != 0 && last < r_types.size() && last < c_types.size())
+        if (last != 0 && last < static_cast<unsigned>(r_types.size()) && last < c_types.size())
         {
             r_end = r_types.begin() + last;
             c_end = c_types.begin() + last;
@@ -885,57 +885,22 @@ namespace
 auto main() -> int
 {
     wchar_t const* const mscorlib_path(L"C:\\windows\\Microsoft.NET\\Framework\\v4.0.30319\\mscorlib.dll");
-    wchar_t const* const assembly_path(L"c:\\jm\\cxxreflect\\build\\output\\Win32\\Debug\\test_assemblies\\alpha.dll");
+    // wchar_t const* const assembly_path(L"c:\\jm\\cxxreflect\\build\\output\\Win32\\Debug\\test_assemblies\\alpha.dll");
 
     C::externals::initialize(cxxreflect::externals::win32_externals());
 
     // Load the assembly using CxxReflect:
-    C::directory_based_module_locator::directory_set directories;
-    directories.insert(L"C:\\Windows\\Microsoft.NET\\Framework\\v4.0.30319");
-    directories.insert(L"C:\\Windows\\Microsoft.NET\\Framework\\v4.0.30319\\wpf");
-    C::loader root((C::directory_based_module_locator(directories)));
+    // C::directory_based_module_locator::directory_set directories;
+    // directories.insert(L"C:\\Windows\\Microsoft.NET\\Framework\\v4.0.30319");
+    // directories.insert(L"C:\\Windows\\Microsoft.NET\\Framework\\v4.0.30319\\wpf");
+    // C::loader root((C::directory_based_module_locator(directories)));
 
-    C::assembly  c_mscorlib(root.load_assembly(C::module_location(mscorlib_path)));
-    R::Assembly^ r_mscorlib(R::Assembly::LoadFrom(gcnew System::String(mscorlib_path)));
+    // C::assembly  c_mscorlib(root.load_assembly(C::module_location(mscorlib_path)));
+    // R::Assembly^ r_mscorlib(R::Assembly::LoadFrom(gcnew System::String(mscorlib_path)));
 
-    C::assembly  c_assembly(root.load_assembly(C::module_location(assembly_path)));
-    R::Assembly^ r_assembly(R::Assembly::LoadFrom(gcnew System::String(assembly_path)));
+    // C::assembly  c_assembly(root.load_assembly(C::module_location(assembly_path)));
+    // R::Assembly^ r_assembly(R::Assembly::LoadFrom(gcnew System::String(assembly_path)));
 
-    
-
-
-    
-    //state_stack state;
-
-    //compare(state, r_assembly, c_assembly);
-
-    //System::IO::StreamWriter^ result_file(gcnew System::IO::StreamWriter(L"c:\\jm\\reflectresult.txt"));
-    //result_file->Write(state.messages());
-    //result_file->Close();
-
-    /*
-    {
-        auto t = c_mscorlib.find_type(L"System.Security.Principal.IdentityReferenceCollection");
-        for (auto it(t.begin_interfaces()); it != t.end_interfaces(); ++it)
-        {
-            std::wcout << std::hex << it->metadata_token() << L" " << it->basic_name().c_str() << L" <<" << it->full_name().c_str() << L">>" << std::endl;
-        }
-
-       // std::getchar();
-    }
-    *
-    compare(
-        state,
-        r_mscorlib->GetType(gcnew System::String(L"System.Runtime.InteropServices.WindowsRuntime.IReadOnlyListToIVectorViewAdapter")),
-        c_mscorlib.find_type(L"System.Runtime.InteropServices.WindowsRuntime.IReadOnlyListToIVectorViewAdapter"));
-     /*
-    compare(state, r_mscorlib, c_mscorlib);
-    // 
-
-    System::IO::StreamWriter^ result_file(gcnew System::IO::StreamWriter(L"c:\\jm\\reflectresult.txt"));
-    result_file->Write(state.messages());
-    result_file->Close();
-    */
     compare_assembly_results(mscorlib_path);
     return 0;
 }

@@ -44,6 +44,7 @@
   <ItemGroup>
     <ClInclude Include="common.hpp" />
     <ClInclude Include="detail\argument_handling.hpp" />
+    <ClInclude Include="detail\call_invoker_arm.hpp" />
     <ClInclude Include="detail\call_invoker_utility.hpp" />
     <ClInclude Include="detail\call_invoker_x64.hpp" />
     <ClInclude Include="detail\call_invoker_x86.hpp" />

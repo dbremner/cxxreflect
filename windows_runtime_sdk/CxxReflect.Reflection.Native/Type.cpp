@@ -26,7 +26,7 @@ namespace CxxReflect { namespace Reflection { namespace Native { namespace {
             cxr::throw_if_null_and_initialize_out_parameter(value);
 
             String const& s((type.*f)());
-            return ::WindowsCreateString(s.c_str(), s.size(), value);
+            return ::WindowsCreateString(s.c_str(), cxr::convert_integer(s.size()), value);
         });
     }
 

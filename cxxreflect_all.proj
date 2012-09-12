@@ -10,13 +10,17 @@
   <Target Name="Build">
     <MSBuild Projects="cxxreflect.sln" Properties="SolutionDir=$(MSBuildProjectDirectory)\;Configuration=Release;Platform=Win32"     Targets="$(BuildCommand)" />
     <MSBuild Projects="cxxreflect.sln" Properties="SolutionDir=$(MSBuildProjectDirectory)\;Configuration=Release;Platform=x64"       Targets="$(BuildCommand)" />
+    <MSBuild Projects="cxxreflect.sln" Properties="SolutionDir=$(MSBuildProjectDirectory)\;Configuration=Release;Platform=ARM"       Targets="$(BuildCommand)" />
     <MSBuild Projects="cxxreflect.sln" Properties="SolutionDir=$(MSBuildProjectDirectory)\;Configuration=Release(ZW);Platform=Win32" Targets="$(BuildCommand)" />
     <MSBuild Projects="cxxreflect.sln" Properties="SolutionDir=$(MSBuildProjectDirectory)\;Configuration=Release(ZW);Platform=x64"   Targets="$(BuildCommand)" />
+    <MSBuild Projects="cxxreflect.sln" Properties="SolutionDir=$(MSBuildProjectDirectory)\;Configuration=Release(ZW);Platform=ARM"   Targets="$(BuildCommand)" />
 
     <MSBuild Projects="cxxreflect.sln" Properties="SolutionDir=$(MSBuildProjectDirectory)\;Configuration=Debug;Platform=Win32"       Targets="$(BuildCommand)" />
     <MSBuild Projects="cxxreflect.sln" Properties="SolutionDir=$(MSBuildProjectDirectory)\;Configuration=Debug;Platform=x64"         Targets="$(BuildCommand)" />
+    <MSBuild Projects="cxxreflect.sln" Properties="SolutionDir=$(MSBuildProjectDirectory)\;Configuration=Debug;Platform=ARM"         Targets="$(BuildCommand)" />
     <MSBuild Projects="cxxreflect.sln" Properties="SolutionDir=$(MSBuildProjectDirectory)\;Configuration=Debug(ZW);Platform=Win32"   Targets="$(BuildCommand)" />
     <MSBuild Projects="cxxreflect.sln" Properties="SolutionDir=$(MSBuildProjectDirectory)\;Configuration=Debug(ZW);Platform=x64"     Targets="$(BuildCommand)" />
+    <MSBuild Projects="cxxreflect.sln" Properties="SolutionDir=$(MSBuildProjectDirectory)\;Configuration=Debug(ZW);Platform=ARM"     Targets="$(BuildCommand)" />
   </Target>
 </Project>
 

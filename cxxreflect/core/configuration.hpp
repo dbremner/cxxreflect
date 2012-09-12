@@ -72,8 +72,8 @@
 #        define CXXREFLECT_ARCHITECTURE CXXREFLECT_ARCHITECTURE_X86
 #    elif defined (_M_X64)
 #        define CXXREFLECT_ARCHITECTURE CXXREFLECT_ARCHITECTURE_X64
-#    elif false // TODO ARM
-#        define CXXREFLECT_ARCHITECTURE_ARM
+#    elif defined(_M_ARM)
+#        define CXXREFLECT_ARCHITECTURE CXXREFLECT_ARCHITECTURE_ARM
 #    else
 #        error Compiling for an unknown platform
 #    endif

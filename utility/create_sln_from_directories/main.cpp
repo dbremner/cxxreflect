@@ -156,7 +156,7 @@ namespace
         std::copy(begin(result), begin(result) + sizeof guid, reinterpret_cast<byte_iterator>(&guid));
 
         std::vector<wchar_t> guid_string(40);
-        if (::StringFromGUID2(guid, guid_string.data(), guid_string.size()) == 0)
+        if (::StringFromGUID2(guid, guid_string.data(), static_cast<int>(guid_string.size())) == 0)
             throw std::runtime_error("failed to stringify guid");
 
         std::vector<char> narrow_guid_string(begin(guid_string), end(guid_string));
