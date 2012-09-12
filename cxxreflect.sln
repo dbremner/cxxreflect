@@ -27,7 +27,7 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "unit_tests_neutral", "tests
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "unit_tests_windows_runtime", "tests\unit_tests\windows_runtime\unit_tests_windows_runtime.vcxproj", "{5D28BCBF-82F0-4CEE-8471-3B486DDEB838}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "create_sln_from_directories", "utility\create_sln_from_directories\create_sln_from_directories.vcxproj", "{2AB43027-E9CE-49B4-A08D-1A39C3F52E94}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "create_sln_from_filesystem", "utility\create_sln_from_filesystem\create_sln_from_filesystem.vcxproj", "{2AB43027-E9CE-49B4-A08D-1A39C3F52E94}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "embed_binary_in_cpp", "utility\embed_binary_in_cpp\embed_binary_in_cpp.vcxproj", "{D9E97E25-93C7-4CBB-9767-CDB6522B6EC8}"
 EndProject
@@ -392,6 +392,7 @@ Global
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{53B02AFA-1600-49B3-BC8A-6949C77F74F4} = {BB8640F0-FDB0-F55E-56BB-1C475882E221}
+		{1323C7D0-55D3-2A4A-EC85-6693FC4678FE} = {BB8640F0-FDB0-F55E-56BB-1C475882E221}
 		{035DCFC2-3BAD-4B6A-ADBC-90647A9675EB} = {BB8640F0-FDB0-F55E-56BB-1C475882E221}
 		{F615A647-5914-4701-9BE2-B15DBDE54501} = {BB8640F0-FDB0-F55E-56BB-1C475882E221}
 		{FD75E829-FE31-4CEC-ACD3-294DAB75AE9F} = {BB8640F0-FDB0-F55E-56BB-1C475882E221}

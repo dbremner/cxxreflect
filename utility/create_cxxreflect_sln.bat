@@ -1,1 +1,1 @@
-utility\create_sln_from_directories.exe %CD%\ cxxreflect.sln
+utility\create_sln_from_filesystem.exe %CD%\ cxxreflect.sln
