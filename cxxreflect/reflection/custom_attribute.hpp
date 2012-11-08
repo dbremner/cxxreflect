@@ -7,8 +7,6 @@
 #define CXXREFLECT_REFLECTION_CUSTOM_ATTRIBUTE_HPP_
 
 #include "cxxreflect/reflection/detail/forward_declarations.hpp"
-#include "cxxreflect/reflection/detail/independent_handles.hpp"
-#include "cxxreflect/reflection/detail/loader_contexts.hpp"
 
 namespace cxxreflect { namespace reflection {
 
@@ -16,10 +14,14 @@ namespace cxxreflect { namespace reflection {
     {
     public:
 
-        typedef void /* TODO */ positional_argument_iterator;
-        typedef void /* TODO */ named_argument_iterator;
+        // TODO typedef void positional_argument_iterator;
+        // TODO typedef void named_argument_iterator;
+
+        // TODO typedef core::iterator_range<positional_argument_iterator> positional_argument_range;
+        // TODO typedef core::iterator_range<named_argument_iterator     > named_argument_range;
 
         custom_attribute();
+        custom_attribute(nullptr_t, metadata::custom_attribute_token const& attribute, core::internal_key);
 
         auto metadata_token() const -> core::size_type;
 
@@ -27,11 +29,8 @@ namespace cxxreflect { namespace reflection {
 
         auto constructor() const -> method;
 
-        auto begin_positional_arguments() const -> positional_argument_iterator;
-        auto end_positional_arguments()   const -> positional_argument_iterator;
-
-        auto begin_named_arguments() const -> named_argument_iterator;
-        auto end_named_arguments()   const -> named_argument_iterator;
+        // TODO auto positional_arguments() const -> positional_argument_range;
+        // TODO auto named_arguments()      const -> named_argument_range;
 
         // TODO These must be removed. These return the first fixed argument of the custom attribute,
         // interpreted either as a string or a GUID.  They do no type checking (and are therefore
@@ -50,24 +49,13 @@ namespace cxxreflect { namespace reflection {
         CXXREFLECT_GENERATE_COMPARISON_OPERATORS(custom_attribute)
         CXXREFLECT_GENERATE_SAFE_BOOL_CONVERSION(custom_attribute)
 
-    public: // internal members
-
-        custom_attribute(module                           const& declaring_module,
-                         metadata::custom_attribute_token const& attribute,
-                         core::internal_key);
-
-        static auto begin_for(module                               const& declaring_module,
-                              metadata::has_custom_attribute_token const& parent,
-                              core::internal_key) -> custom_attribute_iterator;
-
-        static auto end_for  (module                               const& declaring_module,
-                              metadata::has_custom_attribute_token const& parent,
-                              core::internal_key) -> custom_attribute_iterator;
+        static auto get_for(metadata::has_custom_attribute_token const& parent, core::internal_key) -> detail::custom_attribute_range;
 
     private:
-
-        metadata::custom_attribute_token     _attribute;
-        detail::method_handle                _constructor;
+        
+        metadata::custom_attribute_token                        _attribute;
+        metadata::type_def_or_signature                         _reflected_type;
+        core::checked_pointer<detail::method_table_entry const> _constructor;
     };
 
 } }

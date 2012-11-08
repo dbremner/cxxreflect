@@ -58,7 +58,7 @@ namespace cxxreflect { namespace windows_runtime { namespace detail {
         reflection::type const type(method.reflected_type());
 
         core::size_type slot_index(0);
-        for (auto it(type.begin_methods(metadata::binding_attribute::all_instance)); it != type.end_methods(); ++it)
+        for (auto it(begin(type.methods(metadata::binding_attribute::all_instance))); it != end(type.methods()); ++it)
         {
             if (*it == method)
                 break;
@@ -85,9 +85,10 @@ namespace cxxreflect { namespace windows_runtime { namespace detail {
         if (runtime_type.is_interface())
             return runtime_type_method;
 
-        for (auto if_it(runtime_type.begin_interfaces()); if_it != runtime_type.end_interfaces(); ++if_it)
+        for (auto if_it(begin(runtime_type.interfaces())); if_it != end(runtime_type.interfaces()); ++if_it)
         {
-            for (auto method_it(if_it->begin_methods(flags)); method_it != if_it->end_methods(); ++method_it)
+            reflection::type const t(*if_it);
+            for (auto method_it(begin(t.methods(flags))); method_it != end(t.methods()); ++method_it)
             {
                 // TODO This does not handle the ImplMap. Do we have to do that for WinRT?
                 if (method_it->name() != runtime_type_method.name())
@@ -97,8 +98,8 @@ namespace cxxreflect { namespace windows_runtime { namespace detail {
                     continue;
 
                 if (!core::range_checked_equal(
-                        method_it->begin_parameters(), method_it->end_parameters(),
-                        runtime_type_method.begin_parameters(), runtime_type_method.end_parameters()))
+                        begin(method_it->parameters()), end(method_it->parameters()),
+                        begin(runtime_type_method.parameters()), end(runtime_type_method.parameters())))
                     continue;
 
                 return *method_it;

@@ -4,6 +4,8 @@
 //     (See accompanying file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)    //
 
 #include "cxxreflect/reflection/precompiled_headers.hpp"
+#include "cxxreflect/reflection/detail/forward_declarations.hpp"
+#include "cxxreflect/reflection/detail/parameter_data.hpp"
 #include "cxxreflect/reflection/constant.hpp"
 #include "cxxreflect/reflection/custom_attribute.hpp"
 #include "cxxreflect/reflection/method.hpp"
@@ -20,7 +22,10 @@ namespace cxxreflect { namespace reflection {
     parameter::parameter(method                 const& declaring_method,
                          detail::parameter_data const& data,
                          core::internal_key)
-        : _method(declaring_method), _parameter(data.token()), _signature(data.signature())
+        : _reflected_type(declaring_method.reflected_type().context(core::internal_key())),
+          _method(&declaring_method.context(core::internal_key())),
+          _parameter(data.token()),
+          _signature(data.signature())
     {
         core::assert_initialized(declaring_method);
         core::assert_initialized(data.token());
@@ -31,7 +36,10 @@ namespace cxxreflect { namespace reflection {
                          metadata::param_token    const& token,
                          metadata::type_signature const& signature,
                          core::internal_key)
-        : _method(declaring_method), _parameter(token), _signature(signature)
+        : _reflected_type(declaring_method.reflected_type().context(core::internal_key())),
+          _method(&declaring_method.context(core::internal_key())),
+          _parameter(token),
+          _signature(signature)
     {
         core::assert_initialized(declaring_method);
         core::assert_initialized(token);
@@ -56,7 +64,7 @@ namespace cxxreflect { namespace reflection {
     {
         core::assert_initialized(*this);
 
-        throw core::logic_error(L"not yet implemented");
+        core::assert_not_yet_implemented();
     }
 
     auto parameter::is_optional() const -> bool
@@ -77,14 +85,14 @@ namespace cxxreflect { namespace reflection {
     {
         core::assert_initialized(*this);
 
-        throw core::logic_error(L"not yet implemented");
+        core::assert_not_yet_implemented();
     }
 
     auto parameter::declaring_method() const -> method
     {
         core::assert_initialized(*this);
 
-        return _method.realize();
+        return method(type(_reflected_type, core::internal_key()), _method.get(), core::internal_key());
     }
 
     auto parameter::metadata_token() const -> core::size_type
@@ -105,10 +113,7 @@ namespace cxxreflect { namespace reflection {
     {
         core::assert_initialized(*this);
 
-        return type(
-            _method.realize().declaring_module(),
-            metadata::blob(_signature),
-            core::internal_key());
+        return type(metadata::blob(_signature), core::internal_key());
     }
 
     auto parameter::position() const -> core::size_type
@@ -126,25 +131,12 @@ namespace cxxreflect { namespace reflection {
         return constant(metadata::find_constant(_parameter).token(), core::internal_key());
     }
 
-    auto parameter::begin_custom_attributes() const -> custom_attribute_iterator
+    auto parameter::custom_attributes() const -> detail::custom_attribute_range
     {
         core::assert_initialized(*this);
 
-        return custom_attribute::begin_for(declaring_method().declaring_module(), _parameter, core::internal_key());
+        return custom_attribute::get_for(_parameter, core::internal_key());
     }
-
-    auto parameter::end_custom_attributes() const -> custom_attribute_iterator
-    {
-        core::assert_initialized(*this);
-
-        return custom_attribute::end_for(declaring_method().declaring_module(), _parameter, core::internal_key());
-    }
-
-    // TODO auto parameter::begin_optional_custom_modifiers() const -> optional_custom_modifier_iterator;
-    // TODO auto parameter::end_optional_custom_modifiers()   const -> optional_custom_modifier_iterator;
-
-    // TODO auto parameter::begin_required_custom_modifiers() const -> required_custom_modifier_iterator;
-    // TODO auto parameter::end_required_custom_modifiers()   const -> required_custom_modifier_iterator;
 
     auto parameter::is_initialized() const -> bool
     {

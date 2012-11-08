@@ -747,7 +747,7 @@ namespace cxxreflect { namespace metadata { namespace debug {
         {
             os.write(L"/sizes:");
             bool is_first(true);
-            std::for_each(x.begin_sizes(), x.end_sizes(), [&](core::size_type const n)
+            core::for_all(x.sizes(), [&](core::size_type const n)
             {
                 if (!is_first) { os.write(L","); }
                 os.write(n);
@@ -759,7 +759,7 @@ namespace cxxreflect { namespace metadata { namespace debug {
         {
             os.write(L"/bounds:");
             bool is_first(true);
-            std::for_each(x.begin_low_bounds(), x.end_low_bounds(), [&](core::size_type const n)
+            core::for_all(x.low_bounds(), [&](core::size_type const n)
             {
                 if (!is_first) { os.write(L","); }
                 os.write(n);
@@ -817,7 +817,7 @@ namespace cxxreflect { namespace metadata { namespace debug {
         os.write(L"parameters:(");
         {
             bool is_first(true);
-            std::for_each(x.begin_parameters(), x.end_parameters(), [&](type_signature const& p)
+            core::for_all(x.parameters(), [&](type_signature const& p)
             {
                 if (!is_first) { os.write(L","); }
                 insert_into_stream(os, p);
@@ -829,7 +829,7 @@ namespace cxxreflect { namespace metadata { namespace debug {
         os.write(L"varargs:(");
         {
             bool is_first(true);
-            std::for_each(x.begin_vararg_parameters(), x.end_vararg_parameters(), [&](type_signature const& p)
+            core::for_all(x.vararg_parameters(), [&](type_signature const& p)
             {
                 if (!is_first) { os.write(L","); }
                 insert_into_stream(os, p);
@@ -855,7 +855,7 @@ namespace cxxreflect { namespace metadata { namespace debug {
         {
             os.write(L"parameters:(");
             bool is_first(true);
-            std::for_each(x.begin_parameters(), x.end_parameters(), [&](type_signature const& p)
+            core::for_all(x.parameters(), [&](type_signature const& p)
             {
                 if (!is_first) { os.write(L","); }
                 insert_into_stream(os, p);
@@ -871,7 +871,7 @@ namespace cxxreflect { namespace metadata { namespace debug {
     {
         os.write(L"{");
 
-        std::for_each(x.begin_custom_modifiers(), x.end_custom_modifiers(), [&](custom_modifier const& m)
+        core::for_all(x.custom_modifiers(), [&](custom_modifier const& m)
         {
             insert_into_stream(os, m);
         });
@@ -933,7 +933,7 @@ namespace cxxreflect { namespace metadata { namespace debug {
             os.write(L"generic_inst:");
             insert_into_stream(os, x.generic_type());
             os.write(L"<");
-            std::for_each(x.begin_generic_arguments(), x.end_generic_arguments(), [&](type_signature const& s)
+            core::for_all(x.generic_arguments(), [&](type_signature const& s)
             {
                 insert_into_stream(os, s);
             });

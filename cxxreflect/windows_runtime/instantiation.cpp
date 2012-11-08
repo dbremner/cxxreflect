@@ -38,8 +38,8 @@ namespace cxxreflect { namespace windows_runtime { namespace detail {
 
         // Enumerate the candidate activation methods and perform overload resolution:
         auto const candidates(core::create_static_filtered_range(
-            factory_type.begin_methods(metadata::binding_attribute::all_instance),
-            factory_type.end_methods(),
+            begin(factory_type.methods(metadata::binding_attribute::all_instance)),
+            end(factory_type.methods()),
             [&](reflection::method const& m) { return m.name() == L"CreateInstance" && m.return_type() == type; }));
 
         overload_resolver const resolver(begin(candidates), end(candidates), arguments);

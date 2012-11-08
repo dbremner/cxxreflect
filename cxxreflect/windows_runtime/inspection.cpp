@@ -72,8 +72,8 @@ namespace cxxreflect { namespace windows_runtime {
             metadata::binding_attribute::public_);
 
         // TODO Consider checking the activation factory instead of the constructor definitions
-        auto const first_constructor(type.begin_constructors(flags));
-        auto const last_constructor(type.end_constructors());
+        auto const first_constructor(begin(type.constructors(flags)));
+        auto const last_constructor(end(type.constructors()));
 
         if (first_constructor == last_constructor)
             return true;

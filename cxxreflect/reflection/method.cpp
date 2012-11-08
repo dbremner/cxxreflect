@@ -4,6 +4,8 @@
 //     (See accompanying file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)    //
 
 #include "cxxreflect/reflection/precompiled_headers.hpp"
+#include "cxxreflect/reflection/detail/loader_context.hpp"
+#include "cxxreflect/reflection/detail/parameter_data.hpp"
 #include "cxxreflect/reflection/custom_attribute.hpp"
 #include "cxxreflect/reflection/method.hpp"
 #include "cxxreflect/reflection/module.hpp"
@@ -16,8 +18,8 @@ namespace cxxreflect { namespace reflection {
     {
     }
 
-    method::method(type const& reflected_type, detail::method_context const* context, core::internal_key)
-        : _reflected_type(reflected_type),
+    method::method(type const& reflected_type, detail::method_table_entry const* context, core::internal_key)
+        : _reflected_type(reflected_type.context(core::internal_key())),
           _context(context)
     {
         core::assert_initialized(reflected_type);
@@ -27,52 +29,38 @@ namespace cxxreflect { namespace reflection {
     auto method::declaring_type() const -> type
     {
         core::assert_initialized(*this);
-
-        detail::loader_context const& root(detail::loader_context::from(reflected_type()));
-
-        return type(
-            root,
-            metadata::find_owner_of_method_def(_context->element()).token(),
-            core::internal_key());
+        return type(metadata::find_owner_of_method_def(_context->member_token()).token(), core::internal_key());
     }
 
     auto method::reflected_type() const -> type
     {
         core::assert_initialized(*this);
-
-        return _reflected_type.realize();
+        return type(_reflected_type, core::internal_key());
     }
 
     auto method::declaring_module() const -> module
     {
         core::assert_initialized(*this);
-
         return declaring_type().defining_module();
     }
 
     auto method::contains_generic_parameters() const -> bool
     {
-        core::assert_initialized(*this);
-
-        // TODO contains_generic_parameters not yet implemented
-        return false;
+        core::assert_not_yet_implemented();
     }
 
     auto method::attributes() const -> metadata::method_flags
     {
         core::assert_initialized(*this);
-
         return row().flags();
     }
 
     auto method::calling_convention() const -> metadata::calling_convention
     {
         core::assert_initialized(*this);
-
         metadata::signature_attribute const convention(_context
-            ->element_signature(detail::loader_context::from(reflected_type()))
+            ->member_signature()
             .calling_convention());
-
         return static_cast<metadata::calling_convention>(static_cast<core::size_type>(convention));
     }
 
@@ -80,27 +68,24 @@ namespace cxxreflect { namespace reflection {
     {
         core::assert_initialized(*this);
 
-        return _context->element().value();
+        return _context->member_token().value();
     }
 
     auto method::name() const -> core::string_reference
     {
         core::assert_initialized(*this);
-
         return row().name();
     }
 
     auto method::is_abstract() const -> bool
     {
         core::assert_initialized(*this);
-
         return row().flags().is_set(metadata::method_attribute::abstract);
     }
 
     auto method::is_assembly() const -> bool
     {
         core::assert_initialized(*this);
-
         return row().flags().with_mask(metadata::method_attribute::member_access_mask)
             == metadata::method_attribute::assembly;
     }
@@ -108,7 +93,6 @@ namespace cxxreflect { namespace reflection {
     auto method::is_constructor() const -> bool
     {
         core::assert_initialized(*this);
-
         if (!is_special_name())
             return false;
 
@@ -119,7 +103,6 @@ namespace cxxreflect { namespace reflection {
     auto method::is_family() const -> bool
     {
         core::assert_initialized(*this);
-
         return row().flags().with_mask(metadata::method_attribute::member_access_mask)
             == metadata::method_attribute::family;
     }
@@ -127,7 +110,6 @@ namespace cxxreflect { namespace reflection {
     auto method::is_family_and_assembly() const -> bool
     {
         core::assert_initialized(*this);
-
         return row().flags().with_mask(metadata::method_attribute::member_access_mask)
             == metadata::method_attribute::family_and_assembly;
     }
@@ -135,7 +117,6 @@ namespace cxxreflect { namespace reflection {
     auto method::is_family_or_assembly() const -> bool
     {
         core::assert_initialized(*this);
-
         return row().flags().with_mask(metadata::method_attribute::member_access_mask)
             == metadata::method_attribute::family_or_assembly;
     }
@@ -143,7 +124,6 @@ namespace cxxreflect { namespace reflection {
     auto method::is_final() const -> bool
     {
         core::assert_initialized(*this);
-
         return row().flags().is_set(metadata::method_attribute::final);
     }
 
@@ -151,13 +131,11 @@ namespace cxxreflect { namespace reflection {
     {
         core::assert_initialized(*this);
 
-        detail::loader_context const& root(detail::loader_context::from(reflected_type()));
-
-        auto const generic_parameters(metadata::find_generic_params_range(_context->element()));
-        if (generic_parameters.first == generic_parameters.second)
+        auto const generic_parameters(metadata::find_generic_params(_context->member_token()));
+        if (generic_parameters.empty())
             return false;
 
-        if (_context->element_signature(root).generic_parameter_count() > 0)
+        if (_context->member_signature().generic_parameter_count() > 0)
             return true;
 
         return false;
@@ -167,13 +145,11 @@ namespace cxxreflect { namespace reflection {
     {
         core::assert_initialized(*this);
 
-        detail::loader_context const& root(detail::loader_context::from(reflected_type()));
-
-        auto const generic_parameters(metadata::find_generic_params_range(_context->element()));
-        if (generic_parameters.first == generic_parameters.second)
+        auto const generic_parameters(metadata::find_generic_params(_context->member_token()));
+        if (generic_parameters.empty())
             return false;
 
-        if (_context->element_signature(root).generic_parameter_count() > 0)
+        if (_context->member_signature().generic_parameter_count() > 0)
             return true;
 
         return false;
@@ -182,14 +158,12 @@ namespace cxxreflect { namespace reflection {
     auto method::is_hide_by_signature() const -> bool
     {
         core::assert_initialized(*this);
-
         return row().flags().is_set(metadata::method_attribute::hide_by_sig);
     }
 
     auto method::is_private() const -> bool
     {
         core::assert_initialized(*this);
-
         return row().flags().with_mask(metadata::method_attribute::member_access_mask)
             == metadata::method_attribute::private_;
     }
@@ -197,7 +171,6 @@ namespace cxxreflect { namespace reflection {
     auto method::is_public() const -> bool
     {
         core::assert_initialized(*this);
-
         return row().flags().with_mask(metadata::method_attribute::member_access_mask)
             == metadata::method_attribute::public_;
     }
@@ -205,21 +178,18 @@ namespace cxxreflect { namespace reflection {
     auto method::is_special_name() const -> bool
     {
         core::assert_initialized(*this);
-
         return row().flags().is_set(metadata::method_attribute::special_name);
     }
 
     auto method::is_static() const -> bool
     {
         core::assert_initialized(*this);
-
         return row().flags().is_set(metadata::method_attribute::static_);
     }
 
     auto method::is_virtual() const -> bool
     {
         core::assert_initialized(*this);
-
         return row().flags().is_set(metadata::method_attribute::virtual_);
     }
 
@@ -233,29 +203,20 @@ namespace cxxreflect { namespace reflection {
         return !is_initialized();
     }
 
-    auto method::begin_custom_attributes() const -> custom_attribute_iterator
+    auto method::custom_attributes() const -> detail::custom_attribute_range
     {
         core::assert_initialized(*this);
 
-        return custom_attribute::begin_for(declaring_module(), _context->element(), core::internal_key());
+        return custom_attribute::get_for(_context->member_token(), core::internal_key());
     }
 
-    auto method::end_custom_attributes() const -> custom_attribute_iterator
-    {
-        core::assert_initialized(*this);
-
-        return custom_attribute::end_for(declaring_module(), _context->element(), core::internal_key());
-    }
-
-    auto method::begin_parameters() const -> parameter_iterator
+    auto method::parameters() const -> parameter_range
     {
         core::assert_initialized(*this);
 
         typedef metadata::token_with_arithmetic<metadata::param_token>::type incrementable_param_token;
 
-        detail::loader_context const& root(detail::loader_context::from(reflected_type()));
-
-        metadata::method_def_row  const md_row(row_from(_context->element()));
+        metadata::method_def_row  const md_row(row_from(_context->member_token()));
         incrementable_param_token first_parameter(md_row.first_parameter());
         incrementable_param_token const last_parameter(md_row.last_parameter());
 
@@ -265,39 +226,25 @@ namespace cxxreflect { namespace reflection {
         if (first_parameter != last_parameter && row_from(first_parameter).sequence() == 0)
             ++first_parameter;
 
-        return parameter_iterator(*this, detail::parameter_data(
-            first_parameter,
-            _context->element_signature(root).begin_parameters(),
-            core::internal_key()));
-    }
+        auto const signatures(_context->member_signature().parameters());
 
-    auto method::end_parameters() const -> parameter_iterator
-    {
-        core::assert_initialized(*this);
-
-        detail::loader_context const& root(detail::loader_context::from(reflected_type()));
-
-        return parameter_iterator(*this, detail::parameter_data(
-            row_from(_context->element()).last_parameter(),
-            _context->element_signature(root).end_parameters(),
-            core::internal_key()));
+        return parameter_range(
+            parameter_iterator(*this, detail::parameter_data(first_parameter, begin(signatures), core::internal_key())),
+            parameter_iterator(*this, detail::parameter_data(last_parameter, end(signatures), core::internal_key())));
     }
 
     auto method::parameter_count() const -> core::size_type
     {
         core::assert_initialized(*this);
 
-        detail::loader_context const& root(detail::loader_context::from(reflected_type()));
-        return _context->element_signature(root).parameter_count();
+        return _context->member_signature().parameter_count();
     }
 
     auto method::return_parameter() const -> parameter
     {
         core::assert_initialized(*this);
 
-        detail::loader_context const& root(detail::loader_context::from(reflected_type()));
-
-        metadata::method_def_row const md_row(row_from(_context->element()));
+        metadata::method_def_row const md_row(row_from(_context->member_token()));
         metadata::param_token const first_parameter(md_row.first_parameter());
         metadata::param_token const last_parameter(md_row.last_parameter());
 
@@ -309,7 +256,7 @@ namespace cxxreflect { namespace reflection {
         return parameter(
             *this,
             first_parameter,
-            _context->element_signature(root).return_type(),
+            _context->member_signature().return_type(),
             core::internal_key());
     }
 
@@ -317,12 +264,7 @@ namespace cxxreflect { namespace reflection {
     {
         core::assert_initialized(*this);
 
-        detail::loader_context const& root(detail::loader_context::from(reflected_type()));
-
-        return type(
-            declaring_module(),
-            metadata::blob(_context->element_signature(root).return_type()),
-            core::internal_key());
+        return type(metadata::blob(_context->member_signature().return_type()), core::internal_key());
     }
 
     auto operator==(method const& lhs, method const& rhs) -> bool
@@ -341,7 +283,7 @@ namespace cxxreflect { namespace reflection {
         return lhs._context < rhs._context;
     }
 
-    auto method::context(core::internal_key) const -> detail::method_context const&
+    auto method::context(core::internal_key) const -> detail::method_table_entry const&
     {
         core::assert_initialized(*this);
 
@@ -352,7 +294,7 @@ namespace cxxreflect { namespace reflection {
     {
         core::assert_initialized(*this);
 
-        return row_from(_context->element());
+        return row_from(_context->member_token());
     }
 
 } }

@@ -154,7 +154,7 @@ namespace cxxreflect { namespace core {
 
     #ifdef CXXREFLECT_ENABLE_DEBUG_ASSERTIONS
 
-    inline auto assert_fail(const_character_iterator const message = L"") -> void
+    inline auto CXXREFLECT_NORETURN assert_fail(const_character_iterator const message = L"") -> void
     {
         throw assertion_error(message);
     }
@@ -172,7 +172,7 @@ namespace cxxreflect { namespace core {
             throw assertion_error(message);
     }
 
-    inline auto assert_unreachable() -> void
+    inline auto CXXREFLECT_NORETURN assert_unreachable() -> void
     {
         throw assertion_error(L"unreachable code");
     }
@@ -205,6 +205,12 @@ namespace cxxreflect { namespace core {
     }
 
     #endif
+
+    // Not-yet-implemented errors are always enabled, for obvious reasons.
+    inline auto CXXREFLECT_NORETURN assert_not_yet_implemented() -> void
+    {
+        throw assertion_error(L"not yet implemented");
+    }
 
     /// @}
 

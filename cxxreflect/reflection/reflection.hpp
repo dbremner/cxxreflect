@@ -6,11 +6,17 @@
 #ifndef CXXREFLECT_REFLECTION_REFLECTION_HPP_
 #define CXXREFLECT_REFLECTION_REFLECTION_HPP_
 
+#include "cxxreflect/reflection/detail/forward_declarations.hpp"
+#include "cxxreflect/reflection/detail/assembly_context.hpp"
+#include "cxxreflect/reflection/detail/loader_context.hpp"
+#include "cxxreflect/reflection/detail/member_iterator.hpp"
+#include "cxxreflect/reflection/detail/parameter_data.hpp"
+
 #include "cxxreflect/reflection/assembly.hpp"
 #include "cxxreflect/reflection/assembly_name.hpp"
 #include "cxxreflect/reflection/constant.hpp"
 #include "cxxreflect/reflection/custom_attribute.hpp"
-#include "cxxreflect/reflection/event.hpp"
+#include "cxxreflect/reflection/custom_modifier_iterator.hpp"
 #include "cxxreflect/reflection/field.hpp"
 #include "cxxreflect/reflection/file.hpp"
 #include "cxxreflect/reflection/guid.hpp"

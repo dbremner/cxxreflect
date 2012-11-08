@@ -39,6 +39,7 @@ namespace cxxreflect { namespace reflection {
         };
 
         constant();
+        constant(metadata::constant_token const& element, core::internal_key);
 
         auto get_kind() const -> kind;
 
@@ -57,10 +58,11 @@ namespace cxxreflect { namespace reflection {
         // TODO auto as_string()    const -> core::string_reference;
         
         auto is_initialized() const -> bool;
+        auto operator!()      const -> bool;
 
-    public: // internal members
+        friend auto operator==(constant const&, constant const&) -> bool;
 
-        constant(metadata::constant_token const& element, core::internal_key);
+        CXXREFLECT_GENERATE_EQUALITY_OPERATORS(constant)
 
         static auto create_for(metadata::has_constant_token const& parent, core::internal_key) -> constant;
 

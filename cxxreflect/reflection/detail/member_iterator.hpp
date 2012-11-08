@@ -7,7 +7,6 @@
 #define CXXREFLECT_REFLECTION_DETAIL_MEMBER_ITERATOR_HPP_
 
 #include "cxxreflect/reflection/detail/forward_declarations.hpp"
-#include "cxxreflect/reflection/detail/loader_contexts.hpp"
 
 namespace cxxreflect { namespace reflection { namespace detail {
 
@@ -15,8 +14,8 @@ namespace cxxreflect { namespace reflection { namespace detail {
     <
         typename Type,
         typename Member,
-        typename MemberContext,
-        bool (*Filter)(metadata::binding_flags, Type const&, MemberContext const&)
+        typename InnerIterator,
+        bool (*Filter)(metadata::binding_flags, Type const&, typename InnerIterator::value_type const&)
     >
     class member_iterator
     {
@@ -27,8 +26,7 @@ namespace cxxreflect { namespace reflection { namespace detail {
         typedef Member                     reference;
         typedef core::indirectable<Member> pointer;
         typedef core::difference_type      difference_type;
-
-        typedef MemberContext const*       inner_iterator;
+        typedef InnerIterator              inner_iterator;
         
         member_iterator()
         {
@@ -41,8 +39,6 @@ namespace cxxreflect { namespace reflection { namespace detail {
             : _current(current), _last(last), _reflected_type(reflected_type), _filter(filter)
         {
             core::assert_initialized(reflected_type);
-            core::assert_not_null(current);
-            core::assert_not_null(last);
 
             filter_advance();
         }
@@ -50,13 +46,13 @@ namespace cxxreflect { namespace reflection { namespace detail {
         auto operator*() const -> reference
         {
             assert_dereferenceable();
-            return value_type(_reflected_type, _current.get(), core::internal_key());
+            return value_type(_reflected_type, *_current.get(), core::internal_key());
         }
 
         auto operator->() const -> pointer
         {
             assert_dereferenceable();
-            return value_type(_reflected_type, _current.get(), core::internal_key());
+            return value_type(_reflected_type, *_current.get(), core::internal_key());
         }
 
         auto operator++() -> member_iterator&
@@ -76,7 +72,7 @@ namespace cxxreflect { namespace reflection { namespace detail {
 
         auto is_initialized() const -> bool
         {
-            return _current.get() != nullptr && _last.get() !=  nullptr;
+            return _reflected_type.is_initialized();
         }
 
         auto is_dereferenceable() const -> bool

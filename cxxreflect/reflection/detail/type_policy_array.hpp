@@ -10,39 +10,28 @@
 
 namespace cxxreflect { namespace reflection { namespace detail {
 
-    /// \ingroup cxxreflect_reflection_type_policies
-    ///
-    /// @{
-
-
-
-
-
-    /// A type policy for array type specializations (TypeSpec simple and general types)
-    class array_type_policy : public specialization_type_policy
+    /// A base type policy for array type specializations
+    class array_type_policy final : public specialization_type_policy
     {
     public:
 
-        virtual auto base_type(type_def_or_signature_with_module const&) const -> type_def_or_signature_with_module;
+        virtual auto is_array (unresolved_type_context const&) const -> bool override;
+        virtual auto is_nested(unresolved_type_context const&) const -> bool override;
 
-        virtual auto is_abstract      (type_def_or_signature_with_module const&) const -> bool;
-        virtual auto is_array         (type_def_or_signature_with_module const&) const -> bool;
-        virtual auto is_interface     (type_def_or_signature_with_module const&) const -> bool;
-        virtual auto is_marshal_by_ref(type_def_or_signature_with_module const&) const -> bool;
-        virtual auto is_nested        (type_def_or_signature_with_module const&) const -> bool;
-        virtual auto is_sealed        (type_def_or_signature_with_module const&) const -> bool;
-        virtual auto is_serializable  (type_def_or_signature_with_module const&) const -> bool;
-        virtual auto is_value_type    (type_def_or_signature_with_module const&) const -> bool;
 
-        virtual auto layout    (type_def_or_signature_with_module const&) const -> type_attribute_layout;
-        virtual auto visibility(type_def_or_signature_with_module const&) const -> type_attribute_visibility;
+
+        virtual auto base_type(resolved_type_context const&) const -> unresolved_type_context override;
+
+        virtual auto is_abstract      (resolved_type_context const&) const -> bool override;
+        virtual auto is_interface     (resolved_type_context const&) const -> bool override;
+        virtual auto is_marshal_by_ref(resolved_type_context const&) const -> bool override;
+        virtual auto is_sealed        (resolved_type_context const&) const -> bool override;
+        virtual auto is_serializable  (resolved_type_context const&) const -> bool override;
+        virtual auto is_value_type    (resolved_type_context const&) const -> bool override;
+
+        virtual auto layout    (resolved_type_context const&) const -> type_layout     override;
+        virtual auto visibility(resolved_type_context const&) const -> type_visibility override;
     };
-
-
-
-
-
-    /// @}
 
 } } }
 

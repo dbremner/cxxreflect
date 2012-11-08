@@ -4,20 +4,26 @@
 //     (See accompanying file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)    //
 
 #include "cxxreflect/reflection/precompiled_headers.hpp"
-#include "cxxreflect/reflection/assembly.hpp"
-#include "cxxreflect/reflection/detail/loader_contexts.hpp"
+#include "cxxreflect/reflection/detail/assembly_context.hpp"
+#include "cxxreflect/reflection/detail/loader_context.hpp"
+#include "cxxreflect/reflection/detail/module_context.hpp"
 #include "cxxreflect/reflection/detail/type_name_builder.hpp"
-#include "cxxreflect/reflection/module.hpp"
-#include "cxxreflect/reflection/type.hpp"
+#include "cxxreflect/reflection/detail/type_policy.hpp"
+#include "cxxreflect/reflection/detail/type_resolution.hpp"
+#include "cxxreflect/reflection/assembly_name.hpp"
+
+
+
+
 
 namespace cxxreflect { namespace reflection { namespace detail {
 
-    auto type_name_builder::build_type_name(type const& t, mode const m) -> core::string
+    auto type_name_builder::build_type_name(metadata::type_def_ref_or_signature const& t, mode const m) -> core::string
     {
         return type_name_builder(t, m);
     }
 
-    type_name_builder::type_name_builder(type const& t, mode const m)
+    type_name_builder::type_name_builder(metadata::type_def_ref_or_signature const& t, mode const m)
     {
         _buffer.reserve(1024);
 
@@ -32,151 +38,165 @@ namespace cxxreflect { namespace reflection { namespace detail {
         return result;
     }
 
-    auto type_name_builder::accumulate_type_name(type const& t, mode const m) -> bool
+    auto type_name_builder::accumulate_type_name(metadata::type_def_ref_or_signature const& t, mode const m) -> bool
     {
         core::assert_true([&]{ return t.is_initialized(); });
 
-        return t.is_type_def()
-            ? accumulate_type_def_name(t, m)
-            : accumulate_type_spec_name(t, m);
+        if (t.is_blob())
+            return accumulate_type_signature_name(t.as_blob().as<metadata::type_signature>(), m);
+
+        metadata::type_def_ref_token const& token(t.as_token());
+        switch (token.table())
+        {
+        case metadata::table_id::type_def: return accumulate_type_def_name(token.as<metadata::type_def_token>(), m);
+        case metadata::table_id::type_ref: return accumulate_type_ref_name(token.as<metadata::type_ref_token>(), m);
+        default: core::assert_unreachable();
+        }
     }
 
-    auto type_name_builder::accumulate_type_def_name(type const& t, mode const m) -> bool
+    auto type_name_builder::accumulate_type_def_name(metadata::type_def_token const& t, mode const m) -> bool
     {
-        core::assert_true([&]{ return t.is_type_def(); });
+        metadata::type_def_row const& r(row_from(t));
+        type_policy const& policy(type_policy::get_for(t));
 
         if (m == mode::simple_name)
         {
-            _buffer += t.get_type_def_row().name().c_str();
+            _buffer += r.name().c_str();
             return true;
         }
 
         // Otherwise, we have either a simple name or an assembly qualified name:
-        if (t.is_nested())
+        if (policy.is_nested(t))
         {
-            accumulate_type_def_name(t.declaring_type(), mode::full_name);
+            accumulate_type_def_name(policy.declaring_type(t).as_token().as<metadata::type_def_token>(), mode::full_name);
             _buffer.push_back(L'+');
         }
-        else if (t.namespace_name().size() > 0)
+        else if (r.namespace_name().size() > 0)
         {
-            _buffer += t.namespace_name().c_str();
+            _buffer += r.namespace_name().c_str();
             _buffer.push_back(L'.');
         }
 
-        _buffer += t.get_type_def_row().name().c_str();
+        _buffer += r.name().c_str();
 
         accumulate_assembly_qualification_if_required(t, m);
         return true;
     }
 
-    auto type_name_builder::accumulate_type_spec_name(type const& t, mode const m) -> bool
+    auto type_name_builder::accumulate_type_ref_name(metadata::type_ref_token const& t, mode const m) -> bool
     {
-        core::assert_true([&]{ return t.is_type_spec(); });
+        metadata::type_ref_row const& r(row_from(t));
+        type_policy const& policy(type_policy::get_for(t));
 
-        metadata::type_signature const signature(t.get_type_spec_signature());
+        if (m == mode::simple_name)
+        {
+            _buffer += r.name().c_str();
+            return true;
+        }
 
+        // Otherwise, we have either a simple name or an assembly qualified name:
+        if (policy.is_nested(t))
+        {
+            accumulate_type_def_name(policy.declaring_type(t).as_token().as<metadata::type_def_token>(), mode::full_name);
+            _buffer.push_back(L'+');
+        }
+        else if (r.namespace_name().size() > 0)
+        {
+            _buffer += r.namespace_name().c_str();
+            _buffer.push_back(L'.');
+        }
+
+        _buffer += r.name().c_str();
+
+        accumulate_assembly_qualification_if_required(t, m);
+        return true;
+    }
+
+    auto type_name_builder::accumulate_type_signature_name(metadata::type_signature const& t, mode const m) -> bool
+    {
         // A TypeSpec for an uninstantiated generic type has no name:
-        if (m != mode::simple_name && metadata::signature_instantiator::requires_instantiation(signature))
+        if (m != mode::simple_name && metadata::signature_instantiator::requires_instantiation(t))
             return false;
 
-        switch (signature.get_kind())
+        switch (t.get_kind())
         {
-        case metadata::type_signature::kind::class_type:       return accumulate_class_type_spec_name           (t, m);
-        case metadata::type_signature::kind::function_pointer: return accumulate_method_signature_spec_name     (t, m);
-        case metadata::type_signature::kind::general_array:    return accumulate_general_array_type_spec_name   (t, m);
-        case metadata::type_signature::kind::generic_instance: return accumulate_generic_instance_type_spec_name(t, m);
-        case metadata::type_signature::kind::pointer:          return accumulate_pointer_type_spec_name         (t, m);
-        case metadata::type_signature::kind::primitive:        return accumulate_primitive_type_spec_name       (t, m);
-        case metadata::type_signature::kind::simple_array:     return accumulate_simple_array_type_spec_name    (t, m);
-        case metadata::type_signature::kind::variable:         return accumulate_variable_type_spec_name        (t, m);
-        default: core::assert_fail(L"unreachable code");       return false;
+        case metadata::type_signature::kind::class_type:       return accumulate_class_type_signature_name           (t, m);
+        case metadata::type_signature::kind::function_pointer: return accumulate_function_pointer_signature_name     (t, m);
+        case metadata::type_signature::kind::general_array:    return accumulate_general_array_type_signature_name   (t, m);
+        case metadata::type_signature::kind::generic_instance: return accumulate_generic_instance_type_signature_name(t, m);
+        case metadata::type_signature::kind::pointer:          return accumulate_pointer_type_signature_name         (t, m);
+        case metadata::type_signature::kind::primitive:        return accumulate_primitive_type_signature_name       (t, m);
+        case metadata::type_signature::kind::simple_array:     return accumulate_simple_array_type_signature_name    (t, m);
+        case metadata::type_signature::kind::variable:         return accumulate_variable_type_signature_name        (t, m);
+        default: core::assert_unreachable();
         }
     }
 
-    auto type_name_builder::accumulate_class_type_spec_name(type const& t, mode const m) -> bool
+    auto type_name_builder::accumulate_class_type_signature_name(metadata::type_signature const& t, mode const m) -> bool
     {
-        core::assert_true([&]{ return t.get_type_spec_signature().is_kind(metadata::type_signature::kind::class_type); });
+        core::assert_true([&]{ return t.is_kind(metadata::type_signature::kind::class_type); });
 
-        metadata::database const* const scope(&t.get_type_spec_signature().class_type().scope());
-
-        module const scope_module(scope != nullptr
-            ? module(&loader_context::from(t).module_from_scope(*scope), core::internal_key())
-            : t.defining_module());
-
-        type const class_type(
-            scope_module,
-            t.get_type_spec_signature().class_type(),
-            core::internal_key());
+        metadata::type_def_ref_or_signature const& class_type(compute_type(t.class_type()));
 
         if (!accumulate_type_name(class_type, without_assembly_qualification(m)))
             return false;
 
-        if (t.get_type_spec_signature().is_by_ref())
+        if (t.is_by_ref())
             _buffer.push_back(L'&');
 
         accumulate_assembly_qualification_if_required(class_type, m);
         return true;
     }
 
-    auto type_name_builder::accumulate_method_signature_spec_name(type const& t, mode) -> bool
+    auto type_name_builder::accumulate_function_pointer_signature_name(metadata::type_signature const& t, mode) -> bool
     {
-        core::assert_true([&]{ return t.get_type_spec_signature().is_kind(metadata::type_signature::kind::function_pointer); });
+        core::assert_true([&]{ return t.is_kind(metadata::type_signature::kind::function_pointer); });
 
         // TODO We need to figure out how to write the function pointer form:
-        throw core::logic_error(L"not yet implemented");
+        core::assert_not_yet_implemented();
     }
 
-    auto type_name_builder::accumulate_general_array_type_spec_name(type const& t, mode const m) -> bool
+    auto type_name_builder::accumulate_general_array_type_signature_name(metadata::type_signature const& t, mode const m) -> bool
     {
-        core::assert_true([&]{ return t.get_type_spec_signature().is_kind(metadata::type_signature::kind::general_array); });
+        core::assert_true([&]{ return t.is_kind(metadata::type_signature::kind::general_array); });
 
-        type const array_type(
-            t.defining_module(),
-            metadata::blob(t.get_type_spec_signature().array_type()),
-            core::internal_key());
+        metadata::type_def_ref_or_signature const& array_type(compute_type(metadata::blob(t.array_type())));
 
         if (!accumulate_type_name(array_type, without_assembly_qualification(m)))
             return false;
 
         _buffer.push_back(L'[');
-        for (unsigned i(1); i < t.get_type_spec_signature().array_shape().rank(); ++i)
+        for (unsigned i(1); i < t.array_shape().rank(); ++i)
             _buffer.push_back(L',');
         _buffer.push_back(L']');
 
-        if (t.get_type_spec_signature().is_by_ref())
+        if (t.is_by_ref())
             _buffer.push_back(L'&');
 
         accumulate_assembly_qualification_if_required(array_type, m);
         return true;
     }
 
-    auto type_name_builder::accumulate_generic_instance_type_spec_name(type const& t, mode const m) -> bool
+    auto type_name_builder::accumulate_generic_instance_type_signature_name(metadata::type_signature const& t, mode const m) -> bool
     {
-        core::assert_true([&]{ return t.get_type_spec_signature().is_kind(metadata::type_signature::kind::generic_instance); });
+        core::assert_true([&]{ return t.is_kind(metadata::type_signature::kind::generic_instance); });
 
-        type const generic_type(
-            t.defining_module(),
-            t.get_type_spec_signature().generic_type(),
-            core::internal_key());
+        metadata::type_def_ref_or_signature const& generic_type(compute_type(t.generic_type()));
 
         if (!accumulate_type_name(generic_type, without_assembly_qualification(m)))
             return false;
 
-        metadata::type_signature const signature(t.get_type_spec_signature());
-
         if (m == mode::simple_name)
         {
-            if (signature.is_by_ref())
+            if (t.is_by_ref())
                 _buffer.push_back(L'&');
             return true;
         }
 
         _buffer.push_back(L'[');
 
-        auto const first(signature.begin_generic_arguments());
-        auto const last(signature.end_generic_arguments());
         bool is_first(true);
-        bool const success(std::all_of(first, last, [&](metadata::type_signature const& arg) -> bool
+        bool const success(core::all(t.generic_arguments(), [&](metadata::type_signature const& arg) -> bool
         {
             if (!is_first)
                 _buffer.push_back(L',');
@@ -185,7 +205,7 @@ namespace cxxreflect { namespace reflection { namespace detail {
 
             _buffer.push_back(L'[');
 
-            type const argument_type(t.defining_module(), metadata::blob(arg), core::internal_key());
+            metadata::type_def_ref_or_signature const& argument_type(compute_type(metadata::blob(arg)));
             if (!accumulate_type_name(argument_type, mode::assembly_qualified_name))
                 return false;
 
@@ -198,68 +218,56 @@ namespace cxxreflect { namespace reflection { namespace detail {
 
         _buffer.push_back(L']');
 
-        if (signature.is_by_ref())
+        if (t.is_by_ref())
             _buffer.push_back(L'&');
 
         accumulate_assembly_qualification_if_required(generic_type, m);
         return true;
     }
 
-    auto type_name_builder::accumulate_pointer_type_spec_name(type const& t, mode const m) -> bool
+    auto type_name_builder::accumulate_pointer_type_signature_name(metadata::type_signature const& t, mode const m) -> bool
     {
-        core::assert_true([&]{ return t.get_type_spec_signature().is_kind(metadata::type_signature::kind::pointer); });
+        core::assert_true([&]{ return t.is_kind(metadata::type_signature::kind::pointer); });
 
-        type const pointer_type(
-            t.defining_module(),
-            metadata::blob(t.get_type_spec_signature().pointer_type()),
-            core::internal_key());
+        metadata::type_def_ref_or_signature const& pointer_type(compute_type(metadata::blob(t.pointer_type())));
 
         if (!accumulate_type_name(pointer_type, without_assembly_qualification(m)))
             return false;
 
         _buffer.push_back(L'*');
 
-        if (t.get_type_spec_signature().is_by_ref())
+        if (t.is_by_ref())
             _buffer.push_back(L'&');
 
         accumulate_assembly_qualification_if_required(pointer_type, m);
         return true;
     }
 
-    auto type_name_builder::accumulate_primitive_type_spec_name(type const& t, mode const m) -> bool
+    auto type_name_builder::accumulate_primitive_type_signature_name(metadata::type_signature const& t, mode const m) -> bool
     {
-        core::assert_true([&]{ return t.get_type_spec_signature().is_kind(metadata::type_signature::kind::primitive); });
+        core::assert_true([&]{ return t.is_kind(metadata::type_signature::kind::primitive); });
 
-        metadata::element_type const e_type(t.get_type_spec_signature().primitive_type());
+        metadata::element_type const e_type(t.primitive_type());
 
-        detail::loader_context const& loader(detail::loader_context::from(t));
+        detail::loader_context const& loader(detail::loader_context::from(t.scope()));
 
         metadata::type_def_token const type_def(loader.resolve_fundamental_type(e_type));
 
-
-        type const primitive_type(
-            module(&loader.module_from_scope(type_def.scope()), core::internal_key()),
-            type_def,
-            core::internal_key());
-
-        if (!accumulate_type_name(primitive_type, without_assembly_qualification(m)))
+        if (!accumulate_type_name(type_def, without_assembly_qualification(m)))
             return false;
 
-        if (t.get_type_spec_signature().is_by_ref())
+        if (t.is_by_ref())
             _buffer.push_back(L'&');
 
-        accumulate_assembly_qualification_if_required(primitive_type, m);
+        accumulate_assembly_qualification_if_required(type_def, m);
         return true;
     }
 
-    auto type_name_builder::accumulate_simple_array_type_spec_name(type const& t, mode const m) -> bool
+    auto type_name_builder::accumulate_simple_array_type_signature_name(metadata::type_signature const& t, mode const m) -> bool
     {
-        core::assert_true([&]{ return t.get_type_spec_signature().is_kind(metadata::type_signature::kind::simple_array); });
+        core::assert_true([&]{ return t.is_kind(metadata::type_signature::kind::simple_array); });
 
-        type const array_type(
-            t.defining_module(),
-            metadata::blob(t.get_type_spec_signature().array_type()),
-            core::internal_key());
+        metadata::type_def_ref_or_signature const& array_type(compute_type(metadata::blob(t.array_type())));
 
         if (!accumulate_type_name(array_type, without_assembly_qualification(m)))
             return false;
@@ -267,56 +275,54 @@ namespace cxxreflect { namespace reflection { namespace detail {
         _buffer.push_back(L'[');
         _buffer.push_back(L']');
 
-        if (t.get_type_spec_signature().is_by_ref())
+        if (t.is_by_ref())
             _buffer.push_back(L'&');
 
         accumulate_assembly_qualification_if_required(array_type, m);
         return true;
     }
 
-    auto type_name_builder::accumulate_variable_type_spec_name(type const& t, mode const m) -> bool
+    auto type_name_builder::accumulate_variable_type_signature_name(metadata::type_signature const& t, mode const m) -> bool
     {
-        core::assert_true([&]{ return t.get_type_spec_signature().is_kind(metadata::type_signature::kind::variable); });
+        core::assert_true([&]{ return t.is_kind(metadata::type_signature::kind::variable); });
 
         if (m == mode::assembly_qualified_name || m == mode::full_name)
             return false;
 
-        metadata::type_signature const signature(t.get_type_spec_signature());
-
         core::assert_true([&]() -> bool
         {
-            metadata::element_type const type_code(signature.get_element_type());
+            metadata::element_type const type_code(t.get_element_type());
             return type_code == metadata::element_type::annotated_mvar || type_code == metadata::element_type::annotated_var;
         });
 
-        core::size_type                    const variable_number(signature.variable_number());
-        metadata::type_or_method_def_token const variable_context(signature.variable_context());
+        core::size_type                    const variable_number(t.variable_number());
+        metadata::type_or_method_def_token const variable_context(t.variable_context());
 
         core::assert_initialized(variable_context);
 
-        metadata::generic_param_row_iterator_pair const generic_parameters(metadata::find_generic_params_range(variable_context));
+        metadata::generic_param_row_range const generic_parameters(metadata::find_generic_params(variable_context));
 
-        if (core::distance(generic_parameters.first, generic_parameters.second) < variable_number)
+        if (generic_parameters.size() < variable_number)
             throw core::runtime_error(L"invalid generic parameter number");
 
-        metadata::generic_param_row const parameter_row(*(generic_parameters.first + variable_number));
+        metadata::generic_param_row const parameter_row(*(generic_parameters.begin() + variable_number));
 
         _buffer += parameter_row.name().c_str();
 
-        if (signature.is_by_ref())
+        if (t.is_by_ref())
             _buffer.push_back(L'&');
 
         return true;
     }
 
-    auto type_name_builder::accumulate_assembly_qualification_if_required(type const& t, mode const m) -> void
+    auto type_name_builder::accumulate_assembly_qualification_if_required(metadata::type_def_ref_or_signature const& t, mode const m) -> void
     {
         if (m != mode::assembly_qualified_name)
             return;
 
         _buffer.push_back(L',');
         _buffer.push_back(L' ');
-        _buffer += t.defining_assembly().name().full_name().c_str();
+        _buffer += module_context::from(t.scope()).assembly().name().full_name().c_str();
     }
 
     auto type_name_builder::without_assembly_qualification(mode const m) -> mode

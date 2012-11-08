@@ -7,8 +7,6 @@
 #define CXXREFLECT_REFLECTION_PROPERTY_HPP_
 
 #include "cxxreflect/reflection/detail/forward_declarations.hpp"
-#include "cxxreflect/reflection/detail/independent_handles.hpp"
-#include "cxxreflect/reflection/detail/loader_contexts.hpp"
 
 namespace cxxreflect { namespace reflection {
 
@@ -16,8 +14,11 @@ namespace cxxreflect { namespace reflection {
     {
     public:
 
-        typedef void /* TODO */ accessor_iterator;
-        typedef void /* TODO */ parameter_iterator;
+        // TODO typedef void accessor_iterator;
+        // TODO typedef void parameter_iterator;
+
+        // TODO typedef core::iterator_range<accessor_iterator > accessor_range;
+        // TODO typedef core::iterator_range<parameter_iterator> parameter_range;
 
         property();
 
@@ -36,19 +37,16 @@ namespace cxxreflect { namespace reflection {
         auto name()          const -> core::string_reference;
         auto property_type() const -> type;
 
-        auto begin_custom_attributes() const -> custom_attribute_iterator;
-        auto end_custom_attributes()   const -> custom_attribute_iterator;
+        auto custom_attributes() const -> detail::custom_attribute_range;
 
         auto default_value() const -> constant;
 
-        // TODO auto begin_accessors() const -> accessor_iterator;
-        // TODO auto end_accessors()   const -> accessor_iterator;
+        // TODO auto accessors() const -> accessor_range;
 
         auto get_method() const -> method;
         auto set_method() const -> method;
 
-        // TODO auto begin_index_parameters() const -> parameter_iterator;
-        // TODO auto end_index_parameters()   const -> parameter_iterator;
+        // TODO auto index_parameters() const -> parameter_range;
 
         auto is_initialized() const -> bool;
         auto operator!()      const -> bool;
@@ -66,16 +64,16 @@ namespace cxxreflect { namespace reflection {
 
     public: // internal members
 
-        property(type const& reflected_type, detail::property_context const* context, core::internal_key);
+        property(type const& reflected_type, detail::property_table_entry const* context, core::internal_key);
 
-        auto context(core::internal_key) const -> detail::property_context const&;
+        auto context(core::internal_key) const -> detail::property_table_entry const&;
 
     private:
 
         auto row() const -> metadata::property_row;
 
-        detail::type_handle                                   _reflected_type;
-        core::checked_pointer<detail::property_context const> _context;
+        metadata::type_def_or_signature                           _reflected_type;
+        core::checked_pointer<detail::property_table_entry const> _context;
     };
 
 } }

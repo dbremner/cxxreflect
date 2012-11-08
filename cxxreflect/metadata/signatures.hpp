@@ -252,6 +252,7 @@ namespace cxxreflect { namespace metadata {
 
         auto begin_bytes() const -> core::const_byte_iterator;
         auto end_bytes()   const -> core::const_byte_iterator;
+        auto bytes()       const -> core::const_byte_range;
 
         auto is_initialized() const -> bool;
 
@@ -301,6 +302,9 @@ namespace cxxreflect { namespace metadata {
         typedef detail::counting_iterator<core::size_type, &array_shape::read_size>      size_iterator;
         typedef detail::counting_iterator<core::size_type, &array_shape::read_low_bound> low_bound_iterator;
 
+        typedef core::iterator_range<size_iterator>      size_range;
+        typedef core::iterator_range<low_bound_iterator> low_bound_range;
+
         array_shape();
         array_shape(database const* scope, core::const_byte_iterator first, core::const_byte_iterator last);
 
@@ -309,10 +313,12 @@ namespace cxxreflect { namespace metadata {
         auto size_count()       const -> core::size_type;
         auto begin_sizes()      const -> size_iterator;
         auto end_sizes()        const -> size_iterator;
+        auto sizes()            const -> size_range;
 
         auto low_bound_count()  const -> core::size_type;
         auto begin_low_bounds() const -> low_bound_iterator;
         auto end_low_bounds()   const -> low_bound_iterator;
+        auto low_bounds()       const -> low_bound_range;
 
         auto compute_size()     const -> core::size_type;
         auto seek_to(part p)    const -> core::const_byte_iterator;
@@ -404,6 +410,8 @@ namespace cxxreflect { namespace metadata {
 
         typedef detail::counting_iterator<type_signature, &property_signature::read_parameter> parameter_iterator;
 
+        typedef core::iterator_range<parameter_iterator> parameter_range;
+
         enum class part
         {
             begin,
@@ -421,6 +429,7 @@ namespace cxxreflect { namespace metadata {
         auto parameter_count()  const -> core::size_type;
         auto begin_parameters() const -> parameter_iterator;
         auto end_parameters()   const -> parameter_iterator;
+        auto parameters()       const -> parameter_range;
         auto type()             const -> type_signature;
 
         auto compute_size()     const -> core::size_type;
@@ -452,6 +461,8 @@ namespace cxxreflect { namespace metadata {
             &method_signature::read_parameter,
             &method_signature::parameter_end_check
         > parameter_iterator;
+
+        typedef core::iterator_range<parameter_iterator> parameter_range;
 
         enum class part
         {
@@ -488,8 +499,10 @@ namespace cxxreflect { namespace metadata {
         auto parameter_count()         const -> core::size_type;
         auto begin_parameters()        const -> parameter_iterator;
         auto end_parameters()          const -> parameter_iterator;
+        auto parameters()              const -> parameter_range;
         auto begin_vararg_parameters() const -> parameter_iterator;
         auto end_vararg_parameters()   const -> parameter_iterator;
+        auto vararg_parameters()       const -> parameter_range;
 
         auto compute_size()  const -> core::size_type;
         auto seek_to(part p) const -> core::const_byte_iterator;
@@ -577,6 +590,9 @@ namespace cxxreflect { namespace metadata {
             &type_signature::read_type
         > generic_argument_iterator;
 
+        typedef core::iterator_range<custom_modifier_iterator>  custom_modifier_range;
+        typedef core::iterator_range<generic_argument_iterator> generic_argument_range;
+
         type_signature();
         type_signature(database const* scope, core::const_byte_iterator first, core::const_byte_iterator last);
 
@@ -590,6 +606,7 @@ namespace cxxreflect { namespace metadata {
         // FieldSig, PropertySig, Param, RetType signatures, and PTR and SZARRAY Type signatures:
         auto begin_custom_modifiers() const -> custom_modifier_iterator;
         auto end_custom_modifiers()   const -> custom_modifier_iterator;
+        auto custom_modifiers()       const -> custom_modifier_range;
 
         // Param and RetType signatures:
         auto is_by_ref() const -> bool;
@@ -622,6 +639,7 @@ namespace cxxreflect { namespace metadata {
         auto generic_argument_count()         const -> core::size_type;
         auto begin_generic_arguments()        const -> generic_argument_iterator;
         auto end_generic_arguments()          const -> generic_argument_iterator;
+        auto generic_arguments()              const -> generic_argument_range;
 
         // PTR:
         auto is_pointer()             const -> bool;
@@ -821,10 +839,9 @@ namespace cxxreflect { namespace metadata {
         template <typename Signature, typename Part>
         static auto copy_bytes_into(internal_buffer& buffer, Signature const& s, Part first, Part last) -> void;
 
-        template <typename ForwardIterator>
+        template <typename ForwardRange>
         static auto instantiate_range_into(internal_buffer& buffer,
-                                           ForwardIterator  first,
-                                           ForwardIterator  last,
+                                           ForwardRange     range,
                                            context const&   arguments) -> void;
 
         static auto requires_instantiation_internal(array_shape        const& s) -> bool;

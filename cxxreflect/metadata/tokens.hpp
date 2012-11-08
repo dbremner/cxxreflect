@@ -710,6 +710,11 @@ namespace cxxreflect { namespace metadata {
     )> custom_attribute_type_token;
 
     typedef restricted_token<(table_mask)(
+        (integer_table_mask)table_mask::field      |
+        (integer_table_mask)table_mask::method_def
+    )> field_or_method_def_token;
+
+    typedef restricted_token<(table_mask)(
         (integer_table_mask)table_mask::field    |
         (integer_table_mask)table_mask::param    |
         (integer_table_mask)table_mask::property
@@ -796,6 +801,11 @@ namespace cxxreflect { namespace metadata {
         (integer_table_mask)table_mask::type_def  |
         (integer_table_mask)table_mask::type_spec
     )> type_def_spec_token;
+
+    typedef restricted_token<(table_mask)(
+        (integer_table_mask)table_mask::type_def |
+        (integer_table_mask)table_mask::type_ref
+    )> type_def_ref_token;
 
     typedef restricted_token<(table_mask)(
         (integer_table_mask)table_mask::type_def  |
@@ -1232,6 +1242,11 @@ namespace cxxreflect { namespace metadata {
         (integer_table_mask)table_mask::type_def  |
         (integer_table_mask)table_mask::type_spec
     )> type_def_spec_or_signature;
+
+    typedef restricted_token_or_blob<(table_mask)(
+        (integer_table_mask)table_mask::type_def  |
+        (integer_table_mask)table_mask::type_ref
+    )> type_def_ref_or_signature;
 
     typedef restricted_token_or_blob<(table_mask)(
         (integer_table_mask)table_mask::type_def  |

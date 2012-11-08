@@ -14,7 +14,7 @@ namespace cxxreflect { namespace reflection {
     }
 
     file::file(assembly const& a, metadata::file_token const f, core::internal_key)
-        : _assembly(a), _file(f)
+        : _assembly(&a.context(core::internal_key())), _file(f)
     {
         core::assert_initialized(a);
         core::assert_initialized(f);
@@ -38,7 +38,7 @@ namespace cxxreflect { namespace reflection {
     {
         core::assert_initialized(*this);
 
-        return _assembly.realize();
+        return assembly(_assembly.get(), core::internal_key());
     }
 
     auto file::contains_metadata() const -> bool

@@ -6,7 +6,11 @@
 #ifndef CXXREFLECT_REFLECTION_LOADER_CONFIGURATION_HPP_
 #define CXXREFLECT_REFLECTION_LOADER_CONFIGURATION_HPP_
 
-#include "cxxreflect/core/core.hpp"
+#include "cxxreflect/reflection/detail/forward_declarations.hpp"
+
+
+
+
 
 namespace cxxreflect { namespace reflection { namespace detail {
 
@@ -15,6 +19,8 @@ namespace cxxreflect { namespace reflection { namespace detail {
     class base_loader_configuration
     {
     public:
+
+        virtual auto is_filtered_type(metadata::type_def_token const& token) const -> bool = 0;
 
         virtual auto system_namespace() const -> core::string_reference = 0;
 
@@ -34,6 +40,11 @@ namespace cxxreflect { namespace reflection { namespace detail {
         {
         }
 
+        virtual auto is_filtered_type(metadata::type_def_token const& token) const -> bool
+        {
+            return _x.is_filtered_type(token);
+        }
+
         virtual auto system_namespace() const -> core::string_reference
         {
             return _x.system_namespace();
@@ -49,14 +60,11 @@ namespace cxxreflect { namespace reflection { namespace detail {
         T _x;
     };
 
-    class default_loader_configuration
-    {
-    public:
-
-        auto system_namespace() const -> core::string_reference;
-    };
-
 } } }
+
+
+
+
 
 namespace cxxreflect { namespace reflection {
 
@@ -78,6 +86,7 @@ namespace cxxreflect { namespace reflection {
         auto operator=(loader_configuration const&) -> loader_configuration&;
         auto operator=(loader_configuration&&)      -> loader_configuration&;
 
+        auto is_filtered_type(metadata::type_def_token const& token) const -> bool;
         auto system_namespace() const -> core::string_reference;
 
         auto is_initialized() const -> bool;
@@ -85,6 +94,41 @@ namespace cxxreflect { namespace reflection {
     private:
 
         detail::unique_base_loader_configuration _x;
+    };
+
+
+
+
+
+    class loader_configuration_all_types_filter_policy
+    {
+    public:
+
+        auto is_filtered_type(metadata::type_def_token const& token) const -> bool;
+    };
+
+    class loader_configuration_public_types_filter_policy
+    {
+    public:
+
+        auto is_filtered_type(metadata::type_def_token const& token) const -> bool;
+    };
+
+    class loader_configuration_system_system_namespace_policy
+    {
+    public:
+
+        auto system_namespace() const -> core::string_reference;
+    };
+
+
+
+
+
+    class default_loader_configuration
+        : public loader_configuration_all_types_filter_policy,
+          public loader_configuration_system_system_namespace_policy
+    {
     };
 
 } }

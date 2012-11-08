@@ -10,7 +10,6 @@
 
 #ifdef CXXREFLECT_ENABLE_WINDOWS_RUNTIME_INTEGRATION
 
-#include "cxxreflect/windows_runtime/detail/module_type_index.hpp"
 #include "cxxreflect/windows_runtime/enumerator.hpp"
 
 #include <atomic>
@@ -31,11 +30,10 @@ namespace cxxreflect { namespace windows_runtime {
 
         auto locate_assembly(reflection::assembly_name const& target_assembly) const -> reflection::module_location;
 
-        auto locate_assembly(reflection::assembly_name const& target_assembly,
-                             core::string              const& full_type_name) const -> reflection::module_location;
+        auto locate_namespace(core::string_reference const& namespace_name) const -> reflection::module_location;
 
         auto locate_module(reflection::assembly_name const& requesting_assembly,
-                           core::string              const& module_name) const -> reflection::module_location;
+                           core::string_reference    const& module_name) const -> reflection::module_location;
 
         // TODO We should replace this with something less expensive.  Since we must synchronize
         // access to _metadata_files, direct iterator access is impossible.  This will suffice
@@ -61,6 +59,8 @@ namespace cxxreflect { namespace windows_runtime {
 
         // Returns 'Platform', since all of our system types are in the 'Platform' namespace.
         auto system_namespace() const -> core::string_reference;
+
+        auto is_filtered_type(metadata::type_def_token const& token) const -> bool;
     };
 
 
@@ -71,9 +71,9 @@ namespace cxxreflect { namespace windows_runtime {
     {
     public:
 
-        package_loader(package_module_locator const& locator, std::unique_ptr<reflection::loader> loader);
+        package_loader(package_module_locator const& locator, std::unique_ptr<reflection::loader_root> loader);
 
-        auto loader()  const -> reflection::loader const&;
+        auto loader()  const -> reflection::loader;
         auto locator() const -> package_module_locator const&;
 
         auto get_type(core::string_reference const full_name) const -> reflection::type;
@@ -108,11 +108,8 @@ namespace cxxreflect { namespace windows_runtime {
         package_loader(package_loader const&);
         auto operator=(package_loader const&) -> package_loader&;
 
-        auto get_or_create_type_index(metadata::database const& scope) const -> detail::module_type_index const&;
-
         package_module_locator                                                 _locator;
-        std::unique_ptr<reflection::loader>                                    _loader;
-        std::map<metadata::database const*, detail::module_type_index> mutable _type_index;
+        std::unique_ptr<reflection::loader_root>                               _loader;
         core::recursive_mutex                                          mutable _sync;
     };
 

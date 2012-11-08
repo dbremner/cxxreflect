@@ -7,8 +7,6 @@
 #define CXXREFLECT_REFLECTION_FILE_HPP_
 
 #include "cxxreflect/reflection/detail/forward_declarations.hpp"
-#include "cxxreflect/reflection/detail/independent_handles.hpp"
-#include "cxxreflect/reflection/detail/loader_contexts.hpp"
 
 namespace cxxreflect { namespace reflection {
 
@@ -17,6 +15,7 @@ namespace cxxreflect { namespace reflection {
     public:
 
         file();
+        file(assembly const& a, metadata::file_token f, core::internal_key);
 
         auto attributes()         const -> metadata::file_flags;
         auto name()               const -> core::string_reference;
@@ -33,16 +32,12 @@ namespace cxxreflect { namespace reflection {
         CXXREFLECT_GENERATE_COMPARISON_OPERATORS(file)
         CXXREFLECT_GENERATE_SAFE_BOOL_CONVERSION(file)
 
-    public: // internal members
-
-        file(assembly const& a, metadata::file_token f, core::internal_key);
-
     private:
 
         auto row() const -> metadata::file_row;
 
-        detail::assembly_handle _assembly;
-        metadata::file_token    _file;
+        core::checked_pointer<detail::assembly_context const> _assembly;
+        metadata::file_token                                  _file;
     };
 
 } }

@@ -16,11 +16,8 @@
   <ItemGroup>
     <ClCompile Include="main.cpp" />
   </ItemGroup>
-  <ItemDefinitionGroup>
-    <PostBuildEvent>
-      <Command>copy $(TargetPath) $(ProjectDir)..\</Command>
-      <Message>Copying $(TargetName) to utility\</Message>
-    </PostBuildEvent>
-  </ItemDefinitionGroup>
+  <Target Name="CopyToUtilities" AfterTargets="Build">
+    <Exec IgnoreExitCode="true" Command="copy $(TargetPath) $(ProjectDir)..\" />
+  </Target>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
 </Project>

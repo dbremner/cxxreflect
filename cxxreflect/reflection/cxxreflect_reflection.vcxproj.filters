@@ -2,136 +2,110 @@
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
     <Filter Include="headers">
-      <UniqueIdentifier>{69bbaa1e-3dfb-491c-bd16-2bfed00dae0b}</UniqueIdentifier>
+      <UniqueIdentifier>{8b1ba97b-8101-4ac4-b421-26289f2ef052}</UniqueIdentifier>
     </Filter>
     <Filter Include="sources">
-      <UniqueIdentifier>{b9ac3504-077b-4b11-a4ce-4b95f6c7e7f5}</UniqueIdentifier>
+      <UniqueIdentifier>{1ec09ea7-71db-4982-8027-9873ed88a245}</UniqueIdentifier>
     </Filter>
     <Filter Include="headers\detail">
-      <UniqueIdentifier>{3b8f8d89-f358-40b6-8aec-e72d13b25250}</UniqueIdentifier>
+      <UniqueIdentifier>{bba03b90-f785-463e-8978-0c1ae26f1e37}</UniqueIdentifier>
     </Filter>
     <Filter Include="sources\detail">
-      <UniqueIdentifier>{5df94c3e-16d5-416d-a442-a7c60cc27613}</UniqueIdentifier>
+      <UniqueIdentifier>{ef147852-ea1d-40d4-a54a-4fde98d9c3a7}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="assembly.hpp">
-      <Filter>headers</Filter>
-    </ClInclude>
-    <ClInclude Include="assembly_name.hpp">
-      <Filter>headers</Filter>
-    </ClInclude>
-    <ClInclude Include="constant.hpp">
-      <Filter>headers</Filter>
-    </ClInclude>
-    <ClInclude Include="custom_attribute.hpp">
-      <Filter>headers</Filter>
-    </ClInclude>
-    <ClInclude Include="event.hpp">
-      <Filter>headers</Filter>
-    </ClInclude>
-    <ClInclude Include="field.hpp">
-      <Filter>headers</Filter>
-    </ClInclude>
-    <ClInclude Include="file.hpp">
-      <Filter>headers</Filter>
-    </ClInclude>
-    <ClInclude Include="guid.hpp">
-      <Filter>headers</Filter>
-    </ClInclude>
-    <ClInclude Include="loader.hpp">
-      <Filter>headers</Filter>
-    </ClInclude>
-    <ClInclude Include="loader_configuration.hpp">
-      <Filter>headers</Filter>
-    </ClInclude>
-    <ClInclude Include="method.hpp">
-      <Filter>headers</Filter>
-    </ClInclude>
-    <ClInclude Include="module.hpp">
-      <Filter>headers</Filter>
-    </ClInclude>
-    <ClInclude Include="module_locator.hpp">
-      <Filter>headers</Filter>
-    </ClInclude>
-    <ClInclude Include="parameter.hpp">
-      <Filter>headers</Filter>
-    </ClInclude>
-    <ClInclude Include="property.hpp">
-      <Filter>headers</Filter>
-    </ClInclude>
-    <ClInclude Include="reflection.hpp">
-      <Filter>headers</Filter>
-    </ClInclude>
-    <ClInclude Include="type.hpp">
-      <Filter>headers</Filter>
-    </ClInclude>
-    <ClInclude Include="utility.hpp">
-      <Filter>headers</Filter>
-    </ClInclude>
-    <ClInclude Include="detail\element_contexts.hpp">
-      <Filter>headers\detail</Filter>
-    </ClInclude>
-    <ClInclude Include="detail\forward_declarations.hpp">
-      <Filter>headers\detail</Filter>
-    </ClInclude>
-    <ClInclude Include="detail\independent_handles.hpp">
-      <Filter>headers\detail</Filter>
-    </ClInclude>
-    <ClInclude Include="detail\loader_contexts.hpp">
-      <Filter>headers\detail</Filter>
-    </ClInclude>
-    <ClInclude Include="detail\member_iterator.hpp">
-      <Filter>headers\detail</Filter>
-    </ClInclude>
-    <ClInclude Include="detail\type_hierarchy_utility.hpp">
-      <Filter>headers\detail</Filter>
-    </ClInclude>
-    <ClInclude Include="detail\type_name_builder.hpp">
-      <Filter>headers\detail</Filter>
-    </ClInclude>
-    <ClInclude Include="precompiled_headers.hpp">
-      <Filter>headers</Filter>
-    </ClInclude>
-    <ClInclude Include="detail\type_policy.hpp">
-      <Filter>headers\detail</Filter>
-    </ClInclude>
-    <ClInclude Include="detail\type_policy_definition.hpp">
-      <Filter>headers\detail</Filter>
-    </ClInclude>
-    <ClInclude Include="detail\type_policy_specialization.hpp">
-      <Filter>headers\detail</Filter>
-    </ClInclude>
-    <ClInclude Include="detail\type_policy_by_ref.hpp">
-      <Filter>headers\detail</Filter>
-    </ClInclude>
-    <ClInclude Include="detail\type_policy_array.hpp">
-      <Filter>headers\detail</Filter>
-    </ClInclude>
-    <ClInclude Include="detail\type_policy_pointer.hpp">
-      <Filter>headers\detail</Filter>
-    </ClInclude>
-    <ClInclude Include="detail\type_policy_generic_instance.hpp">
-      <Filter>headers\detail</Filter>
-    </ClInclude>
-    <ClInclude Include="detail\type_policy_generic_variable.hpp">
-      <Filter>headers\detail</Filter>
-    </ClInclude>
-    <ClInclude Include="detail\custom_modifier_iterator.hpp">
-      <Filter>headers\detail</Filter>
-    </ClInclude>
-  </ItemGroup>
-  <ItemGroup>
-    <ClCompile Include="assembly.cpp">
+    <ClCompile Include="precompiled_headers.cpp">
+      <Filter>sources</Filter>
+    </ClCompile>
+    <ClCompile Include="module_locator.cpp">
       <Filter>sources</Filter>
     </ClCompile>
     <ClCompile Include="assembly_name.cpp">
       <Filter>sources</Filter>
     </ClCompile>
+    <ClCompile Include="loader_configuration.cpp">
+      <Filter>sources</Filter>
+    </ClCompile>
+    <ClCompile Include="module.cpp">
+      <Filter>sources</Filter>
+    </ClCompile>
+    <ClCompile Include="assembly.cpp">
+      <Filter>sources</Filter>
+    </ClCompile>
+    <ClCompile Include="loader.cpp">
+      <Filter>sources</Filter>
+    </ClCompile>
+    <ClCompile Include="type.cpp">
+      <Filter>sources</Filter>
+    </ClCompile>
+    <ClCompile Include="detail\type_resolution.cpp">
+      <Filter>sources\detail</Filter>
+    </ClCompile>
+    <ClCompile Include="detail\type_policy.cpp">
+      <Filter>sources\detail</Filter>
+    </ClCompile>
+    <ClCompile Include="detail\type_policy_reference.cpp">
+      <Filter>sources\detail</Filter>
+    </ClCompile>
+    <ClCompile Include="detail\type_policy_definition.cpp">
+      <Filter>sources\detail</Filter>
+    </ClCompile>
+    <ClCompile Include="detail\type_hierarchy.cpp">
+      <Filter>sources\detail</Filter>
+    </ClCompile>
+    <ClCompile Include="detail\type_policy_specialization.cpp">
+      <Filter>sources\detail</Filter>
+    </ClCompile>
+    <ClCompile Include="detail\type_policy_array.cpp">
+      <Filter>sources\detail</Filter>
+    </ClCompile>
+    <ClCompile Include="detail\type_policy_by_ref.cpp">
+      <Filter>sources\detail</Filter>
+    </ClCompile>
+    <ClCompile Include="detail\type_policy_pointer.cpp">
+      <Filter>sources\detail</Filter>
+    </ClCompile>
+    <ClCompile Include="detail\type_policy_generic_instantiation.cpp">
+      <Filter>sources\detail</Filter>
+    </ClCompile>
+    <ClCompile Include="detail\type_policy_generic_variable.cpp">
+      <Filter>sources\detail</Filter>
+    </ClCompile>
+    <ClCompile Include="detail\module_context.cpp">
+      <Filter>sources\detail</Filter>
+    </ClCompile>
+    <ClCompile Include="detail\assembly_context.cpp">
+      <Filter>sources\detail</Filter>
+    </ClCompile>
+    <ClCompile Include="detail\loader_context.cpp">
+      <Filter>sources\detail</Filter>
+    </ClCompile>
+    <ClCompile Include="detail\type_name_builder.cpp">
+      <Filter>sources\detail</Filter>
+    </ClCompile>
     <ClCompile Include="constant.cpp">
       <Filter>sources</Filter>
     </ClCompile>
+    <ClCompile Include="detail\parameter_data.cpp">
+      <Filter>sources\detail</Filter>
+    </ClCompile>
+    <ClCompile Include="guid.cpp">
+      <Filter>sources</Filter>
+    </ClCompile>
+    <ClCompile Include="parameter.cpp">
+      <Filter>sources</Filter>
+    </ClCompile>
+    <ClCompile Include="detail\membership.cpp">
+      <Filter>sources\detail</Filter>
+    </ClCompile>
     <ClCompile Include="custom_attribute.cpp">
+      <Filter>sources</Filter>
+    </ClCompile>
+    <ClCompile Include="method.cpp">
+      <Filter>sources</Filter>
+    </ClCompile>
+    <ClCompile Include="property.cpp">
       <Filter>sources</Filter>
     </ClCompile>
     <ClCompile Include="field.cpp">
@@ -140,77 +114,127 @@
     <ClCompile Include="file.cpp">
       <Filter>sources</Filter>
     </ClCompile>
-    <ClCompile Include="guid.cpp">
+    <ClCompile Include="custom_modifier_iterator.cpp">
       <Filter>sources</Filter>
     </ClCompile>
-    <ClCompile Include="loader_configuration.cpp">
-      <Filter>sources</Filter>
-    </ClCompile>
-    <ClCompile Include="method.cpp">
-      <Filter>sources</Filter>
-    </ClCompile>
-    <ClCompile Include="module.cpp">
-      <Filter>sources</Filter>
-    </ClCompile>
-    <ClCompile Include="module_locator.cpp">
-      <Filter>sources</Filter>
-    </ClCompile>
-    <ClCompile Include="parameter.cpp">
-      <Filter>sources</Filter>
-    </ClCompile>
-    <ClCompile Include="reflection_loader.cpp">
-      <Filter>sources</Filter>
-    </ClCompile>
-    <ClCompile Include="type.cpp">
-      <Filter>sources</Filter>
-    </ClCompile>
-    <ClCompile Include="detail\element_contexts.cpp">
-      <Filter>sources\detail</Filter>
-    </ClCompile>
-    <ClCompile Include="detail\independent_handles.cpp">
-      <Filter>sources\detail</Filter>
-    </ClCompile>
-    <ClCompile Include="detail\loader_contexts.cpp">
-      <Filter>sources\detail</Filter>
-    </ClCompile>
-    <ClCompile Include="detail\type_hierarchy_utility.cpp">
-      <Filter>sources\detail</Filter>
-    </ClCompile>
-    <ClCompile Include="detail\type_name_builder.cpp">
-      <Filter>sources\detail</Filter>
-    </ClCompile>
-    <ClCompile Include="precompiled_headers.cpp">
-      <Filter>sources</Filter>
-    </ClCompile>
-    <ClCompile Include="detail\type_policy.cpp">
-      <Filter>sources\detail</Filter>
-    </ClCompile>
-    <ClCompile Include="detail\type_policy_definition.cpp">
-      <Filter>sources\detail</Filter>
-    </ClCompile>
-    <ClCompile Include="detail\type_policy_specialization.cpp">
-      <Filter>sources\detail</Filter>
-    </ClCompile>
-    <ClCompile Include="detail\type_policy_by_ref.cpp">
-      <Filter>sources\detail</Filter>
-    </ClCompile>
-    <ClCompile Include="detail\type_policy_array.cpp">
-      <Filter>sources\detail</Filter>
-    </ClCompile>
-    <ClCompile Include="detail\type_policy_pointer.cpp">
-      <Filter>sources\detail</Filter>
-    </ClCompile>
-    <ClCompile Include="detail\type_policy_generic_instance.cpp">
-      <Filter>sources\detail</Filter>
-    </ClCompile>
-    <ClCompile Include="detail\type_policy_generic_variable.cpp">
-      <Filter>sources\detail</Filter>
-    </ClCompile>
-    <ClCompile Include="property.cpp">
-      <Filter>sources</Filter>
-    </ClCompile>
-    <ClCompile Include="detail\custom_modifier_iterator.cpp">
-      <Filter>sources\detail</Filter>
-    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="precompiled_headers.hpp">
+      <Filter>headers</Filter>
+    </ClInclude>
+    <ClInclude Include="assembly_name.hpp">
+      <Filter>headers</Filter>
+    </ClInclude>
+    <ClInclude Include="module_locator.hpp">
+      <Filter>headers</Filter>
+    </ClInclude>
+    <ClInclude Include="loader_configuration.hpp">
+      <Filter>headers</Filter>
+    </ClInclude>
+    <ClInclude Include="assembly.hpp">
+      <Filter>headers</Filter>
+    </ClInclude>
+    <ClInclude Include="loader.hpp">
+      <Filter>headers</Filter>
+    </ClInclude>
+    <ClInclude Include="module.hpp">
+      <Filter>headers</Filter>
+    </ClInclude>
+    <ClInclude Include="type.hpp">
+      <Filter>headers</Filter>
+    </ClInclude>
+    <ClInclude Include="detail\membership.hpp">
+      <Filter>headers\detail</Filter>
+    </ClInclude>
+    <ClInclude Include="detail\forward_declarations.hpp">
+      <Filter>headers\detail</Filter>
+    </ClInclude>
+    <ClInclude Include="detail\type_policy.hpp">
+      <Filter>headers\detail</Filter>
+    </ClInclude>
+    <ClInclude Include="detail\type_policy_array.hpp">
+      <Filter>headers\detail</Filter>
+    </ClInclude>
+    <ClInclude Include="detail\type_policy_by_ref.hpp">
+      <Filter>headers\detail</Filter>
+    </ClInclude>
+    <ClInclude Include="detail\type_policy_definition.hpp">
+      <Filter>headers\detail</Filter>
+    </ClInclude>
+    <ClInclude Include="detail\type_policy_generic_variable.hpp">
+      <Filter>headers\detail</Filter>
+    </ClInclude>
+    <ClInclude Include="detail\type_policy_pointer.hpp">
+      <Filter>headers\detail</Filter>
+    </ClInclude>
+    <ClInclude Include="detail\type_policy_specialization.hpp">
+      <Filter>headers\detail</Filter>
+    </ClInclude>
+    <ClInclude Include="detail\type_policy_reference.hpp">
+      <Filter>headers\detail</Filter>
+    </ClInclude>
+    <ClInclude Include="detail\type_resolution.hpp">
+      <Filter>headers\detail</Filter>
+    </ClInclude>
+    <ClInclude Include="detail\type_hierarchy.hpp">
+      <Filter>headers\detail</Filter>
+    </ClInclude>
+    <ClInclude Include="detail\type_policy_generic_instantiation.hpp">
+      <Filter>headers\detail</Filter>
+    </ClInclude>
+    <ClInclude Include="detail\loader_context.hpp">
+      <Filter>headers\detail</Filter>
+    </ClInclude>
+    <ClInclude Include="detail\module_context.hpp">
+      <Filter>headers\detail</Filter>
+    </ClInclude>
+    <ClInclude Include="detail\assembly_context.hpp">
+      <Filter>headers\detail</Filter>
+    </ClInclude>
+    <ClInclude Include="detail\type_name_builder.hpp">
+      <Filter>headers\detail</Filter>
+    </ClInclude>
+    <ClInclude Include="detail\member_iterator.hpp">
+      <Filter>headers\detail</Filter>
+    </ClInclude>
+    <ClInclude Include="method.hpp">
+      <Filter>headers</Filter>
+    </ClInclude>
+    <ClInclude Include="parameter.hpp">
+      <Filter>headers</Filter>
+    </ClInclude>
+    <ClInclude Include="constant.hpp">
+      <Filter>headers</Filter>
+    </ClInclude>
+    <ClInclude Include="detail\parameter_data.hpp">
+      <Filter>headers\detail</Filter>
+    </ClInclude>
+    <ClInclude Include="custom_attribute.hpp">
+      <Filter>headers</Filter>
+    </ClInclude>
+    <ClInclude Include="guid.hpp">
+      <Filter>headers</Filter>
+    </ClInclude>
+    <ClInclude Include="property.hpp">
+      <Filter>headers</Filter>
+    </ClInclude>
+    <ClInclude Include="field.hpp">
+      <Filter>headers</Filter>
+    </ClInclude>
+    <ClInclude Include="file.hpp">
+      <Filter>headers</Filter>
+    </ClInclude>
+    <ClInclude Include="event.hpp">
+      <Filter>headers</Filter>
+    </ClInclude>
+    <ClInclude Include="reflection.hpp">
+      <Filter>headers</Filter>
+    </ClInclude>
+    <ClInclude Include="custom_modifier_iterator.hpp">
+      <Filter>headers</Filter>
+    </ClInclude>
+    <ClInclude Include="utility.hpp">
+      <Filter>headers</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

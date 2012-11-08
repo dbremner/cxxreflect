@@ -7,8 +7,6 @@
 #define CXXREFLECT_REFLECTION_FIELD_HPP_
 
 #include "cxxreflect/reflection/detail/forward_declarations.hpp"
-#include "cxxreflect/reflection/detail/independent_handles.hpp"
-#include "cxxreflect/reflection/detail/loader_contexts.hpp"
 
 namespace cxxreflect { namespace reflection {
 
@@ -43,8 +41,7 @@ namespace cxxreflect { namespace reflection {
 
         auto name() const -> core::string_reference;
 
-        auto begin_custom_attributes() const -> custom_attribute_iterator;
-        auto end_custom_attributes()   const -> custom_attribute_iterator;
+        auto custom_attributes() const -> detail::custom_attribute_range;
 
         auto is_initialized() const -> bool;
         auto operator!()      const -> bool;
@@ -69,16 +66,16 @@ namespace cxxreflect { namespace reflection {
 
     public: // internal members
 
-        field(type const& reflected_type, detail::field_context const* context, core::internal_key);
+        field(type const& reflected_type, detail::field_table_entry const* context, core::internal_key);
 
-        auto context(core::internal_key) const -> detail::field_context const&;
+        auto context(core::internal_key) const -> detail::field_table_entry const&;
 
     private:
 
         auto row() const -> metadata::field_row;
 
-        detail::type_handle                                _reflected_type;
-        core::checked_pointer<detail::field_context const> _context;
+        metadata::type_def_or_signature                        _reflected_type;
+        core::checked_pointer<detail::field_table_entry const> _context;
     };
 
 } }

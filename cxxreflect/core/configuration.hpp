@@ -103,13 +103,7 @@
 
 
 
-#if defined(_MSC_VER)
-#    define CXXREFLECT_STDLIB_HAS_UNDERLYING_TYPE
-#elif defined (__MINGW32__)
-#    undef CXXREFLECT_STDLIB_HAS_UNDERLYING_TYPE
-#else
-#    error Compiling for an unknown target
-#endif
+
 
 #define CXXREFLECT_COMPILER_VISUALCPP 1
 #define CXXREFLECT_COMPILER_OTHER     2
@@ -121,11 +115,26 @@
 #endif
 
 
+// The latest MinGW with which we've tried to build does not include an underlying_type; we supply
+// our own primitive replacement, but we only want to use it if we must:
+#if CXXREFLECT_COMPILER == CXXREFLECT_COMPILER_VISUALCPP
+#    define CXXREFLECT_STDLIB_HAS_UNDERLYING_TYPE
+#else
+#    undef CXXREFLECT_STDLIB_HAS_UNDERLYING_TYPE
+#endif
 
 // Windows Runtime and C++/CLI are mutually exclusive, so if we are being built in a C++/CLI
 // translation unit, we disable support for Windows Runtime:
-#if defined(__cplusplus_cli) || !defined(_MSC_VER)
+#if defined(__cplusplus_cli) || CXXREFLECT_COMPILER != CXXREFLECT_COMPILER_VISUALCPP
 #   undef CXXREFLECT_ENABLE_WINDOWS_RUNTIME_INTEGRATION
+#endif
+
+// The noreturn macro is used to annotate functions that do not return, usually to suppress compiler
+// warnings where these functions are used.
+#if CXXREFLECT_COMPILER == CXXREFLECT_COMPILER_VISUALCPP
+#    define CXXREFLECT_NORETURN __declspec(noreturn) 
+#else
+#    define CXXREFLECT_NORETURN
 #endif
 
 // If support for Windows Runtime is enabled and we are being built in a C++/CX translation unit,

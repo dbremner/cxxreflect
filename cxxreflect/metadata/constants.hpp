@@ -918,7 +918,7 @@ namespace cxxreflect { namespace metadata {
     typedef restricted_token<table_mask::t> t ## _token;                                \
                                                                                         \
     typedef row_iterator<table_id::t> t ## _row_iterator;                               \
-    typedef std::pair<t ## _row_iterator, t ## _row_iterator> t ## _row_iterator_pair
+    typedef core::iterator_range<t ## _row_iterator> t ## _row_range
 
     CXXREFLECT_GENERATE(assembly                );
     CXXREFLECT_GENERATE(assembly_os             );

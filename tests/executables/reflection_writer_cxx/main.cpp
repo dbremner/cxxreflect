@@ -52,6 +52,7 @@ namespace
         os << pad.c_str() << L"     -- BaseType [" << (t.base_type() ? t.base_type().full_name().c_str() : L"NO BASE TYPE") << L"]\n";
         os << pad.c_str() << L"         -- AssemblyQualifiedName [" << (t.base_type() ? t.base_type().assembly_qualified_name().c_str() : L"NO BASE TYPE") << L"]\n";
 
+        /* TODO
         #define F(n) (t.n() ? 1 : 0)
         os << pad.c_str() << L"     -- IsTraits [" 
            << F(is_abstract) << F(is_ansi_class) << F(is_array) << F(is_auto_class) << F(is_auto_layout) << F(is_by_ref) << F(is_class) << F(is_com_object) << L"] ["
@@ -60,6 +61,7 @@ namespace
            << F(is_nested_public) << F(is_not_public) << F(is_pointer) << F(is_primitive) << F(is_public) << F(is_sealed) << F(is_serializable) << F(is_special_name) << L"] ["
            << F(is_unicode_class) << F(is_value_type) << F(is_visible) << L"     ]\n";
         #undef F
+        */
 
         os << pad.c_str() << L"     -- Name [" << t.simple_name().c_str() << L"]\n";
         os << pad.c_str() << L"     -- Namespace [" << t.namespace_name().c_str() << L"]\n";
@@ -77,19 +79,19 @@ namespace
     {
         os << L"Assembly [" << a.name().full_name().c_str() << L"]\n";
         os << L"!!Begin Modules\n";
-        std::for_each(a.begin_modules(), a.end_modules(), [&](cxr::module const& x)
+        cxr::for_all(a.modules(), [&](cxr::module const& x)
         {
-            os << L" -- module [" << x.name().c_str() << L"] [$" << cxr::hex_format(x.metadata_token()) << L"]\n";
+            os << L" -- module [" << x.name().c_str() << L"]\n";
         });
         os << L"!!End Modules\n";
         os << L"!!BeginAssemblyReferences\n";
-        std::for_each(a.begin_referenced_assembly_names(), a.end_referenced_assembly_names(), [&](cxr::assembly_name const& x)
+        cxr::for_all(a.referenced_assembly_names(), [&](cxr::assembly_name const& x)
         {
             os << L" -- AssemblyName [" << x.full_name().c_str() << L"]\n";
         });
         os << L"!!EndAssemblyReferences\n";
         os << L"!!BeginTypes\n";
-        std::for_each(a.begin_types(), a.end_types(), [&](cxr::type const& x)
+        cxr::for_all(a.types(), [&](cxr::type const& x)
         {
             if (is_known_problem_type(x))
                 return;
@@ -124,7 +126,7 @@ namespace
     {
         os << L"     -- Method [" << m.name().c_str() << L"] [$" << cxr::hex_format(m.metadata_token()) << L"]\n";
         os << L"        !!BeginParameters\n";
-        std::for_each(m.begin_parameters(), m.end_parameters(), [&](cxr::parameter const& p)
+        cxr::for_all(m.parameters(), [&](cxr::parameter const& p)
         {
             write(os, p);
         });
@@ -155,7 +157,7 @@ namespace
         write_basic_type_traits(os, t, 0);
 
         os << L"    !!BeginInterfaces\n";
-        std::vector<cxr::type> all_interfaces(t.begin_interfaces(), t.end_interfaces());
+        std::vector<cxr::type> all_interfaces(begin(t.interfaces()), end(t.interfaces()));
         std::sort(all_interfaces.begin(), all_interfaces.end(), cxr::metadata_token_less_than_comparer());
         std::for_each(all_interfaces.begin(), all_interfaces.end(), [&](cxr::type const& it)
         {
@@ -178,7 +180,7 @@ namespace
         os << L"    !!EndCustomAttributes\n";
         */
         os << L"    !!BeginConstructors\n";
-        std::vector<cxr::method> all_constructors(t.begin_constructors(all_binding_flags), t.end_constructors());
+        std::vector<cxr::method> all_constructors(begin(t.constructors(all_binding_flags)), end(t.constructors()));
         std::sort(all_constructors.begin(), all_constructors.end(), cxr::metadata_token_less_than_comparer());
         std::for_each(all_constructors.begin(), all_constructors.end(), [&](cxr::method const& m)
         {
@@ -187,7 +189,7 @@ namespace
         os << L"    !!EndConstructors\n";
 
         os << L"    !!BeginMethods\n";
-        std::vector<cxr::method> all_methods(t.begin_methods(all_binding_flags), t.end_methods());
+        std::vector<cxr::method> all_methods(begin(t.methods(all_binding_flags)), end(t.methods()));
         std::sort(all_methods.begin(), all_methods.end(), cxr::metadata_token_less_than_comparer());
         std::for_each(all_methods.begin(), all_methods.end(), [&](cxr::method const& m)
         {
@@ -195,7 +197,7 @@ namespace
         });
         os << L"    !!EndMethods\n";
         os << L"    !!BeginFields\n";
-        std::vector<cxr::field> all_fields(t.begin_fields(all_binding_flags), t.end_fields());
+        std::vector<cxr::field> all_fields(begin(t.fields(all_binding_flags)), end(t.fields()));
         std::sort(all_fields.begin(), all_fields.end(), cxr::metadata_token_less_than_comparer());
         std::for_each(all_fields.begin(), all_fields.end(), [&](cxr::field const& f)
         {
@@ -215,12 +217,12 @@ auto main() -> int
     cxr::string const input_path(L"c:\\Windows\\Microsoft.NET\\Framework\\v4.0.30319\\mscorlib.dll");
     cxr::string const output_path(L"c:\\jm\\reflection_writer_cxx.txt");
 
-    cxr::directory_based_module_locator::directory_set directories;
-    directories.insert(L"c:\\Windows\\Microsoft.NET\\Framework\\v4.0.30319");
+    cxr::search_path_module_locator::search_path_sequence directories;
+    directories.push_back(L"c:\\Windows\\Microsoft.NET\\Framework\\v4.0.30319");
 
-    cxr::loader const loader((cxr::directory_based_module_locator(directories)));
+    cxr::loader_root const loader(cxr::create_loader_root(cxr::search_path_module_locator(directories), cxr::default_loader_configuration()));
 
-    cxr::assembly a(loader.load_assembly(input_path.c_str()));
+    cxr::assembly a(loader.get().load_assembly(input_path.c_str()));
 
     cxr::file_handle os(output_path.c_str(), cxr::file_mode::write);
     write(os, a);

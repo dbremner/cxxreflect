@@ -50,7 +50,7 @@ namespace cxxreflect_test
             else if (p == known_property::primary_assembly_path())
                 return L"c:\\windows\\Microsoft.NET\\Framework\\v4.0.30319\\mscorlib.dll";
             else if (p == known_property::test_assemblies_path())
-                return L"c:\\jm\\cxxreflect_new\\build\\output\\Win32\\Debug\\test_assemblies";
+                return L"c:\\jm\\code\\cxxreflect\\build\\output\\Win32\\Debug\\cil_assemblies";
             else
                 throw test_error(L"failed to find property:  " + p);
         }

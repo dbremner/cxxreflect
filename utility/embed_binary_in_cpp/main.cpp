@@ -161,15 +161,14 @@ auto main(int argc, char** argv) -> int
     {
         std::cout << "Uh oh.  An exception occurred during execution :'(\n"
                   << e.what();
-
-        return EXIT_FAILURE;
     }
     catch (...)
     {
         std::cout << "Uh oh.  An unknown exception occurred during execution :'(\n";
-
-        return EXIT_FAILURE;
     }
 
+    // Note:  We return success even if an exception is thrown, to ensure that the build does not
+    // fail when multiple configurations are built in parallel.  We'll still get the error text,
+    // which is sufficient for debugging purposes.
     return EXIT_SUCCESS;
 }

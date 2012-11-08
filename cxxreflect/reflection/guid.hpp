@@ -6,7 +6,7 @@
 #ifndef CXXREFLECT_REFLECTION_GUID_HPP_
 #define CXXREFLECT_REFLECTION_GUID_HPP_
 
-#include "cxxreflect/core/core.hpp"
+#include "cxxreflect/reflection/detail/forward_declarations.hpp"
 
 namespace cxxreflect { namespace reflection {
 

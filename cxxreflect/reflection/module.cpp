@@ -4,8 +4,26 @@
 //     (See accompanying file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)    //
 
 #include "cxxreflect/reflection/precompiled_headers.hpp"
+#include "cxxreflect/reflection/detail/assembly_context.hpp"
+#include "cxxreflect/reflection/detail/module_context.hpp"
 #include "cxxreflect/reflection/assembly.hpp"
+#include "cxxreflect/reflection/loader.hpp"
 #include "cxxreflect/reflection/module.hpp"
+#include "cxxreflect/reflection/type.hpp"
+
+
+
+
+
+namespace cxxreflect { namespace reflection { namespace detail {
+
+    auto module_type_iterator_constructor::operator()(std::nullptr_t, detail::module_type_def_index_iterator const it) const
+        -> type
+    {
+        return type(*it, core::internal_key());
+    }
+    
+} } }
 
 namespace cxxreflect { namespace reflection {
 
@@ -19,82 +37,55 @@ namespace cxxreflect { namespace reflection {
         core::assert_not_null(context);
     }
 
-    module::module(assembly const& defining_assembly, core::size_type const module_index, core::internal_key)
+    module::module(assembly const& defining_assembly, core::size_type const index, core::internal_key)
+        : _context(defining_assembly.context(core::internal_key()).modules().at(index).get())
     {
         core::assert_initialized(defining_assembly);
-
-        _context.get() = defining_assembly.context(core::internal_key()).modules().at(module_index).get();
-        core::assert_initialized(_context);
     }
 
     auto module::defining_assembly() const -> assembly
     {
         core::assert_initialized(*this);
-
         return assembly(&_context->assembly(), core::internal_key());
     }
 
-    auto module::metadata_token() const -> core::size_type
+    auto module::location() const -> module_location const&
     {
         core::assert_initialized(*this);
-
-        // We can cheat here:  every metadata database contains exactly one module row :-)
-        return 0x00000001;
+        return _context->location();
     }
 
     auto module::name() const -> core::string_reference
     {
         core::assert_initialized(*this);
-
-        metadata::database const& scope(_context->database());
-
-        return scope[metadata::module_token(&scope, metadata::table_id::module, 0)].name();
+        return row_from(metadata::module_token(&_context->database(), metadata::table_id::module, 0)).name();
     }
 
-    auto module::path() const -> core::string_reference
+    auto module::types() const -> type_range
     {
         core::assert_initialized(*this);
 
-        module_location const location(_context->location());
-
-        return location.is_file() ? location.file_path() : core::string_reference(L"");
+        auto const& underlying_range(_context->type_def_index());
+        return type_range(
+            type_iterator(nullptr, underlying_range.begin()),
+            type_iterator(nullptr, underlying_range.end()));
     }
 
-    auto module::begin_custom_attributes() const -> custom_attribute_iterator
+    auto module::find_type(core::string_reference const& namespace_name,
+                           core::string_reference const& simple_name) const -> type
     {
         core::assert_initialized(*this);
+        metadata::type_def_token const t(_context->type_def_index().find(namespace_name, simple_name));
+        if (!t.is_initialized())
+            return type();
 
-        throw core::logic_error(L"not yet implemented");
+        return type(t, core::internal_key());
     }
 
-    auto module::end_custom_attributes() const -> custom_attribute_iterator
+    auto module::context(core::internal_key) const -> detail::module_context const&
     {
         core::assert_initialized(*this);
-
-        throw core::logic_error(L"not yet implemented");
-    }
-
-    auto module::begin_types() const -> type_iterator
-    {
-        core::assert_initialized(*this);
-
-        // We intentionally skip the type at index 0; this isn't a real type, it's the internal
-        // <module> "type" containing module-scope thingies.
-        return type_iterator(
-            *this,
-            metadata::type_def_token(&_context->database(), metadata::table_id::type_def, 1));
-    }
-
-    auto module::end_types() const -> type_iterator
-    {
-        core::assert_initialized(*this);
-
-        return type_iterator(
-            *this,
-            metadata::type_def_token(
-                &_context->database(),
-                metadata::table_id::type_def,
-                _context->database().tables()[metadata::table_id::type_def].row_count()));
+        return *_context;
     }
 
     auto module::is_initialized() const -> bool
@@ -109,25 +100,12 @@ namespace cxxreflect { namespace reflection {
 
     auto operator==(module const& lhs, module const& rhs) -> bool
     {
-        core::assert_initialized(lhs);
-        core::assert_initialized(rhs);
-
         return lhs._context == rhs._context;
     }
 
     auto operator<(module const& lhs, module const& rhs) -> bool
     {
-        core::assert_initialized(lhs);
-        core::assert_initialized(rhs);
-
         return lhs._context < rhs._context;
-    }
-
-    auto module::context(core::internal_key) const -> detail::module_context const&
-    {
-        core::assert_initialized(*this);
-
-        return *_context;
     }
 
 } }

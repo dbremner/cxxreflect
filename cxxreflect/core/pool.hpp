@@ -104,7 +104,7 @@ namespace cxxreflect { namespace core {
         {
             assert_true([&]{ return _head == nullptr; });
 
-            slab_type new_slab(new node_type[_slab_size.get()]);
+            slab_type new_slab(make_unique_array<node_type>(_slab_size.get()));
             for (unsigned i(0); i != _slab_size.get() - 1; ++i)
             {
                 new_slab[i]._next_free_node = &new_slab[i + 1];

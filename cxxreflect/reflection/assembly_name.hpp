@@ -6,17 +6,13 @@
 #ifndef CXXREFLECT_REFLECTION_ASSEMBLY_NAME_HPP_
 #define CXXREFLECT_REFLECTION_ASSEMBLY_NAME_HPP_
 
-#include "cxxreflect/metadata/metadata.hpp"
 #include "cxxreflect/reflection/detail/forward_declarations.hpp"
 
+
+
+
+
 namespace cxxreflect { namespace reflection {
-
-    /// \ingroup cxxreflect_reflection
-    /// @{
-
-
-
-
 
     /// A four-component version number (of the form "0.0.0.0")
     ///
@@ -68,6 +64,9 @@ namespace cxxreflect { namespace reflection {
     {
     public:
 
+        typedef version          version_type;
+        typedef public_key_token public_key_token_type;
+
         assembly_name();
 
         assembly_name(core::string_reference simple_name,
@@ -82,9 +81,9 @@ namespace cxxreflect { namespace reflection {
                       core::string_reference   path = L"");
 
         auto simple_name()      const -> core::string const&;
-        auto version()          const -> reflection::version const&;
+        auto version()          const -> version_type const&;
         auto culture_info()     const -> core::string const&;
-        auto public_key_token() const -> public_key_token const&;
+        auto public_key_token() const -> public_key_token_type const&;
         auto flags()            const -> metadata::assembly_flags;
         auto path()             const -> core::string const&;
         auto full_name()        const -> core::string const&;
@@ -96,22 +95,19 @@ namespace cxxreflect { namespace reflection {
 
     public: // internal members
 
-        assembly_name(assembly const& unused, metadata::assembly_or_assembly_ref_token token, core::internal_key);
-        assembly_name(metadata::assembly_or_assembly_ref_token token, core::internal_key);
+        assembly_name(std::nullptr_t, metadata::assembly_or_assembly_ref_token token, core::internal_key);
         assembly_name(metadata::assembly_or_assembly_ref_token token, core::string_reference path, core::internal_key);
 
     private:
         
-        core::string                                          _simple_name;
-        reflection::version                                   _version;
-        core::string                                          _culture_info;
-        core::value_initialized<reflection::public_key_token> _public_key_token;
-        metadata::assembly_flags                              _flags;
-        core::string                                          _path;
-        core::string mutable                                  _full_name;
+        core::string                                   _simple_name;
+        version_type                                   _version;
+        core::string                                   _culture_info;
+        core::value_initialized<public_key_token_type> _public_key_token;
+        metadata::assembly_flags                       _flags;
+        core::string                                   _path;
+        core::string mutable                           _full_name;
     };
-
-    /// @}
 
 } }
 

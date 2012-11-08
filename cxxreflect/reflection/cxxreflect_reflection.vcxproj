@@ -9,7 +9,7 @@
 <Project DefaultTargets="Build" ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <PropertyGroup>
     <ConfigurationType>StaticLibrary</ConfigurationType>
-    <ProjectGuid>{F615A647-5914-4701-9BE2-B15DBDE54501}</ProjectGuid>
+    <ProjectGuid>{7B708C91-9FF0-438C-9A2B-C9711480F37E}</ProjectGuid>
   </PropertyGroup>
   <Import Project="..\cxxreflect.props" />
   <ItemDefinitionGroup>
@@ -24,28 +24,32 @@
     <ClInclude Include="assembly_name.hpp" />
     <ClInclude Include="constant.hpp" />
     <ClInclude Include="custom_attribute.hpp" />
-    <ClInclude Include="detail\custom_modifier_iterator.hpp" />
-    <ClInclude Include="detail\element_contexts.hpp" />
+    <ClInclude Include="custom_modifier_iterator.hpp" />
+    <ClInclude Include="detail\assembly_context.hpp" />
     <ClInclude Include="detail\forward_declarations.hpp" />
-    <ClInclude Include="detail\independent_handles.hpp" />
-    <ClInclude Include="detail\loader_contexts.hpp" />
+    <ClInclude Include="detail\loader_context.hpp" />
+    <ClInclude Include="detail\membership.hpp" />
     <ClInclude Include="detail\member_iterator.hpp" />
-    <ClInclude Include="detail\type_policy_definition.hpp" />
-    <ClInclude Include="detail\type_hierarchy_utility.hpp" />
-    <ClInclude Include="detail\type_policy.hpp" />
+    <ClInclude Include="detail\module_context.hpp" />
+    <ClInclude Include="detail\parameter_data.hpp" />
+    <ClInclude Include="detail\type_hierarchy.hpp" />
     <ClInclude Include="detail\type_name_builder.hpp" />
+    <ClInclude Include="detail\type_policy.hpp" />
     <ClInclude Include="detail\type_policy_array.hpp" />
     <ClInclude Include="detail\type_policy_by_ref.hpp" />
-    <ClInclude Include="detail\type_policy_generic_instance.hpp" />
+    <ClInclude Include="detail\type_policy_definition.hpp" />
+    <ClInclude Include="detail\type_policy_generic_instantiation.hpp" />
     <ClInclude Include="detail\type_policy_generic_variable.hpp" />
     <ClInclude Include="detail\type_policy_pointer.hpp" />
+    <ClInclude Include="detail\type_policy_reference.hpp" />
     <ClInclude Include="detail\type_policy_specialization.hpp" />
+    <ClInclude Include="detail\type_resolution.hpp" />
     <ClInclude Include="event.hpp" />
     <ClInclude Include="field.hpp" />
     <ClInclude Include="file.hpp" />
     <ClInclude Include="guid.hpp" />
-    <ClInclude Include="loader.hpp" />
     <ClInclude Include="loader_configuration.hpp" />
+    <ClInclude Include="loader.hpp" />
     <ClInclude Include="method.hpp" />
     <ClInclude Include="module.hpp" />
     <ClInclude Include="module_locator.hpp" />
@@ -61,24 +65,29 @@
     <ClCompile Include="assembly_name.cpp" />
     <ClCompile Include="constant.cpp" />
     <ClCompile Include="custom_attribute.cpp" />
-    <ClCompile Include="detail\custom_modifier_iterator.cpp" />
-    <ClCompile Include="detail\element_contexts.cpp" />
-    <ClCompile Include="detail\independent_handles.cpp" />
-    <ClCompile Include="detail\loader_contexts.cpp" />
-    <ClCompile Include="detail\type_policy.cpp" />
-    <ClCompile Include="detail\type_hierarchy_utility.cpp" />
+    <ClCompile Include="custom_modifier_iterator.cpp" />
+    <ClCompile Include="detail\assembly_context.cpp" />
+    <ClCompile Include="detail\loader_context.cpp" />
+    <ClCompile Include="detail\membership.cpp" />
+    <ClCompile Include="detail\module_context.cpp" />
+    <ClCompile Include="detail\parameter_data.cpp" />
+    <ClCompile Include="detail\type_hierarchy.cpp" />
     <ClCompile Include="detail\type_name_builder.cpp" />
+    <ClCompile Include="detail\type_policy.cpp" />
     <ClCompile Include="detail\type_policy_array.cpp" />
     <ClCompile Include="detail\type_policy_by_ref.cpp" />
     <ClCompile Include="detail\type_policy_definition.cpp" />
-    <ClCompile Include="detail\type_policy_generic_instance.cpp" />
+    <ClCompile Include="detail\type_policy_generic_instantiation.cpp" />
     <ClCompile Include="detail\type_policy_generic_variable.cpp" />
     <ClCompile Include="detail\type_policy_pointer.cpp" />
+    <ClCompile Include="detail\type_policy_reference.cpp" />
     <ClCompile Include="detail\type_policy_specialization.cpp" />
+    <ClCompile Include="detail\type_resolution.cpp" />
     <ClCompile Include="field.cpp" />
     <ClCompile Include="file.cpp" />
     <ClCompile Include="guid.cpp" />
     <ClCompile Include="loader_configuration.cpp" />
+    <ClCompile Include="loader.cpp" />
     <ClCompile Include="method.cpp" />
     <ClCompile Include="module.cpp" />
     <ClCompile Include="module_locator.cpp" />
@@ -87,7 +96,6 @@
       <PrecompiledHeader>Create</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="property.cpp" />
-    <ClCompile Include="reflection_loader.cpp" />
     <ClCompile Include="type.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

@@ -60,6 +60,12 @@ namespace cxxreflect { namespace metadata {
         return _last.get();
     }
 
+    auto base_signature::bytes() const -> core::const_byte_range
+    {
+        core::assert_initialized(*this);
+        return core::const_byte_range(_first.get(), _last.get());
+    }
+
     auto base_signature::is_initialized() const -> bool
     {
         return _scope.get() != nullptr && _first.get() != nullptr && _last.get() != nullptr;
@@ -120,6 +126,12 @@ namespace cxxreflect { namespace metadata {
         return size_iterator(&scope(), nullptr, nullptr, n, n);
     }
 
+    auto array_shape::sizes() const -> size_range
+    {
+        core::assert_initialized(*this);
+        return size_range(begin_sizes(), end_sizes());
+    }
+
     auto array_shape::low_bound_count() const -> core::size_type
     {
         core::assert_initialized(*this);
@@ -138,6 +150,11 @@ namespace cxxreflect { namespace metadata {
 
         core::size_type const n(low_bound_count());
         return low_bound_iterator(&scope(), nullptr, nullptr, n, n);
+    }
+
+    auto array_shape::low_bounds() const -> low_bound_range
+    {
+        return low_bound_range(begin_low_bounds(), end_low_bounds());
     }
 
     auto array_shape::compute_size() const -> core::size_type
@@ -364,6 +381,13 @@ namespace cxxreflect { namespace metadata {
         return parameter_iterator(&scope(), nullptr, nullptr, n, n);
     }
 
+    auto property_signature::parameters() const -> parameter_range
+    {
+        core::assert_initialized(*this);
+        
+        return parameter_range(begin_parameters(), end_parameters());
+    }
+
     auto property_signature::type() const -> type_signature
     {
         core::assert_initialized(*this);
@@ -553,6 +577,13 @@ namespace cxxreflect { namespace metadata {
         return parameter_iterator(&scope(), nullptr, nullptr, n, n);
     }
 
+    auto method_signature::parameters() const -> parameter_range
+    {
+        core::assert_initialized(*this);
+
+        return parameter_range(begin_parameters(), end_parameters());
+    }
+
     auto method_signature::begin_vararg_parameters() const -> parameter_iterator
     {
         core::assert_initialized(*this);
@@ -573,6 +604,19 @@ namespace cxxreflect { namespace metadata {
         core::size_type const vararg_parameters(total_parameters - actual_parameters);
 
         return parameter_iterator(&scope(), nullptr, nullptr, vararg_parameters, vararg_parameters);
+    }
+
+    auto method_signature::vararg_parameters() const -> parameter_range
+    {
+        core::assert_initialized(*this);
+
+        core::size_type const total_parameters(parameter_count());
+        core::size_type const actual_parameters(core::distance(begin_parameters(), end_parameters()));
+        core::size_type const vararg_parameters(total_parameters - actual_parameters);
+
+        return parameter_range(
+            parameter_iterator(&scope(), seek_to(part::first_vararg_param), end_bytes(), 0, vararg_parameters),
+            parameter_iterator(&scope(), nullptr, nullptr, vararg_parameters, vararg_parameters));
     }
 
     auto method_signature::compute_size() const -> core::size_type
@@ -954,6 +998,12 @@ namespace cxxreflect { namespace metadata {
         return custom_modifier_iterator();
     }
 
+    auto type_signature::custom_modifiers() const -> custom_modifier_range
+    {
+        core::assert_initialized(*this);
+        return custom_modifier_range(begin_custom_modifiers(), end_custom_modifiers());
+    }
+
     auto type_signature::is_by_ref() const -> bool
     {
         core::assert_initialized(*this);
@@ -1119,6 +1169,13 @@ namespace cxxreflect { namespace metadata {
 
         core::size_type const count(detail::peek_sig_compressed_uint32(seek_to(part::generic_instance_argument_count), end_bytes()));
         return generic_argument_iterator(&scope(), nullptr, nullptr, count, count);
+    }
+
+    auto type_signature::generic_arguments() const -> generic_argument_range
+    {
+        assert_kind(kind::generic_instance);
+
+        return generic_argument_range(begin_generic_arguments(), end_generic_arguments());
     }
 
     auto type_signature::is_pointer() const -> bool
@@ -1650,13 +1707,13 @@ namespace cxxreflect { namespace metadata {
 
         copy_bytes_into(buffer, s, part::begin, part::ret_type);
         instantiate_into(buffer, s.return_type(), c);
-        instantiate_range_into(buffer, s.begin_parameters(), s.end_parameters(), c);
+        instantiate_range_into(buffer, s.parameters(), c);
 
         if (s.begin_vararg_parameters() == s.end_vararg_parameters())
             return;
 
         copy_bytes_into(buffer, s, part::sentinel, part::first_vararg_param);
-        instantiate_range_into(buffer, s.begin_vararg_parameters(), s.end_vararg_parameters(), c);
+        instantiate_range_into(buffer, s.vararg_parameters(), c);
     }
 
     auto signature_instantiator::instantiate_into(internal_buffer& buffer, property_signature const& s, context const& c) -> void
@@ -1723,7 +1780,7 @@ namespace cxxreflect { namespace metadata {
         case type_signature::kind::generic_instance:
         {
             copy_bytes_into(buffer, s, part::begin, part::first_generic_instance_argument);
-            instantiate_range_into(buffer, s.begin_generic_arguments(), s.end_generic_arguments(), c);
+            instantiate_range_into(buffer, s.generic_arguments(), c);
             break;
         }
         case type_signature::kind::pointer:
@@ -1777,7 +1834,7 @@ namespace cxxreflect { namespace metadata {
                     }
                     else
                     {
-                        core::assert_fail(L"unreachable code");
+                        core::assert_unreachable();
                     }
                 }
                 else
@@ -1794,13 +1851,13 @@ namespace cxxreflect { namespace metadata {
             }
             else
             {
-                core::assert_fail(L"unreachable code");
+                core::assert_unreachable();
             }
             break;
         }
         default:
         {
-            throw core::logic_error(L"not yet implemented");
+            core::assert_not_yet_implemented();
         }
         }
     }
@@ -1816,15 +1873,14 @@ namespace cxxreflect { namespace metadata {
         std::copy(s.seek_to(first), s.seek_to(last), std::back_inserter(buffer));
     }
 
-    template <typename ForwardIterator>
+    template <typename ForwardRange>
     auto signature_instantiator::instantiate_range_into(internal_buffer      & buffer,
-                                                        ForwardIterator const  first,
-                                                        ForwardIterator const  last,
+                                                        ForwardRange    const  range,
                                                         context         const& context) -> void
     {
         core::assert_initialized(context);
 
-        std::for_each(first, last, [&](decltype(*first) s) { instantiate_into(buffer, s, context); });
+        core::for_all(range, [&](decltype(*begin(range)) s) { instantiate_into(buffer, s, context); });
     }
 
     template <typename Signature>
@@ -1909,8 +1965,7 @@ namespace cxxreflect { namespace metadata {
             return s.get_element_type() == element_type::mvar || s.get_element_type() == element_type::var;
 
         default:
-            core::assert_fail(L"unreachable code");
-            return false;
+            core::assert_unreachable();
         }
     }
 

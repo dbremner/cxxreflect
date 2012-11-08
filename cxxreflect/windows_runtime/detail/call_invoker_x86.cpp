@@ -86,14 +86,14 @@ namespace cxxreflect { namespace windows_runtime { namespace detail {
 
         // Next, we iterate over the arguments and parameters, convert each argument to the correct
         // parameter type, and push the argument into the frame:
-        auto p_it(method.begin_parameters());
-        auto a_it(arguments.begin());
-        for (; p_it != method.end_parameters() && a_it != arguments.end(); ++p_it, ++a_it)
+        auto p_it(begin(method.parameters()));
+        auto a_it(begin(arguments));
+        for (; p_it != end(method.parameters()) && a_it != end(arguments); ++p_it, ++a_it)
         {
             convert_and_insert(p_it->parameter_type(), arguments.resolve(*a_it), frame);
         }
 
-        if (p_it != method.end_parameters() || a_it != arguments.end())
+        if (p_it != end(method.parameters()) || a_it != end(arguments))
         {
             throw invocation_error(L"method arity does not match argument count");
         }
@@ -143,13 +143,13 @@ namespace cxxreflect { namespace windows_runtime { namespace detail {
         {
         case metadata::element_type::boolean:
         {
-            throw core::logic_error(L"not yet implemented");
+            core::assert_not_yet_implemented();
             break;
         }
 
         case metadata::element_type::character:
         {
-            throw core::logic_error(L"not yet implemented");
+            core::assert_not_yet_implemented();
             break;
         }
 
@@ -208,13 +208,13 @@ namespace cxxreflect { namespace windows_runtime { namespace detail {
 
         case metadata::element_type::value_type:
         {
-            throw core::logic_error(L"not yet implemented");
+            core::assert_not_yet_implemented();
             break;
         }
 
         default:
         {
-            throw core::logic_error(L"not yet implemented");
+            core::assert_not_yet_implemented();
         }
         }
     }

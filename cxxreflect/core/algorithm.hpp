@@ -11,55 +11,11 @@
 namespace cxxreflect { namespace core {
 
     /// Tests whether all of the elements in a range match the given predicate
-    template <typename InputIterator, typename Predicate>
-    auto all(InputIterator const first, InputIterator const last, Predicate predicate) -> bool
+    template <typename Range, typename Predicate>
+    auto all(Range&& range, Predicate predicate) -> bool
     {
-        for (InputIterator it(first); it != last; ++it)
-        {
-            if (!predicate(*it))
-                return false;
-        }
-
-        return true;
-    }
-
-    /// Tests whether all of the elements in a range compare equal to the given value
-    template <typename InputIterator, typename T>
-    auto all_are(InputIterator const first, InputIterator const last, T const& value) -> bool
-    {
-        for (InputIterator it(first); it != last; ++it)
-        {
-            if (*it != value)
-                return false;
-        }
-
-        return true;
-    }
-
-    /// Tests whether any of the elements in a range match the given predicate
-    template <typename InputIterator, typename Predicate>
-    auto any(InputIterator const first, InputIterator const last, Predicate predicate) -> bool
-    {
-        for (InputIterator it(first); it != last; ++it)
-        {
-            if (predicate(*it))
-                return true;
-        }
-
-        return false;
-    }
-
-    /// Tests whether any of the elements in a range compare equal to the given value
-    template <typename InputIterator, typename T>
-    auto any_are(InputIterator const first, InputIterator const last, T const& value) -> bool
-    {
-        for (InputIterator it(first); it != last; ++it)
-        {
-            if (*it == value)
-                return true;
-        }
-
-        return false;
+        using std::begin; using std::end;
+        return std::all_of(begin(range), end(range), predicate);
     }
 
 
@@ -263,6 +219,42 @@ namespace cxxreflect { namespace core {
         }
 
         return std::make_pair(last0, last1);
+    }
+
+    template <typename Range, typename Predicate>
+    auto find_if(Range&& range, Predicate&& predicate) -> decltype(range.begin())
+    {
+        using std::begin; using std::end;
+
+        return std::find_if(begin(range), end(range), std::forward<Predicate>(predicate));
+    }
+
+
+
+
+
+    template <typename Range, typename Function>
+    auto for_all(Range&& range, Function&& f) -> Function
+    {
+        using std::begin; using std::end;
+
+        return std::for_each(begin(range), end(range), std::forward<Function>(f));
+    }
+
+    template <typename Range, typename OutputIterator, typename Function>
+    auto transform_all(Range&& range, OutputIterator&& output, Function&& f) -> OutputIterator
+    {
+        using std::begin; using std::end;
+
+        return std::transform(begin(range), end(range), std::forward<OutputIterator>(output), std::forward<Function>(f));
+    }
+
+    template <typename Range0, typename Range1, typename OutputIterator, typename Function>
+    auto transform_all(Range0&& range0, Range1&& range1, OutputIterator&& output, Function&& f) -> OutputIterator
+    {
+        using std::begin; using std::end;
+
+        return std::transform(begin(range0), end(range0), begin(range1), std::forward<OutputIterator>(output), std::forward<Function>(f));
     }
 
 

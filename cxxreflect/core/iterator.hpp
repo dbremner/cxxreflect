@@ -222,8 +222,9 @@ namespace cxxreflect { namespace core {
     template <typename Current,
               typename Result,
               typename Parameter,
+              typename Constructor = constructor_forwarder<Result>,
               typename Transformer = identity_transformer,
-              typename Category = std::random_access_iterator_tag>
+              typename Category    = std::random_access_iterator_tag>
     class instantiating_iterator
     {
     public:
@@ -244,13 +245,13 @@ namespace cxxreflect { namespace core {
         {
         }
 
-        auto get()        const -> reference { return Result(_parameter, Transformer()(_current), internal_key()); }
-        auto operator*()  const -> reference { return Result(_parameter, Transformer()(_current), internal_key()); }
-        auto operator->() const -> pointer   { return Result(_parameter, Transformer()(_current), internal_key()); }
+        auto get()        const -> reference { return Constructor()(_parameter, Transformer()(_current)); }
+        auto operator*()  const -> reference { return Constructor()(_parameter, Transformer()(_current)); }
+        auto operator->() const -> pointer   { return Constructor()(_parameter, Transformer()(_current)); }
 
         reference operator[](difference_type const n) const
         {
-            return Result(_parameter, Transformer()(_current + n));
+            return Constructor()(_parameter, Transformer()(_current + n));
         }
 
         friend auto operator==(instantiating_iterator const& lhs, instantiating_iterator const& rhs) -> bool
@@ -270,6 +271,41 @@ namespace cxxreflect { namespace core {
 
         Parameter _parameter;
         Current   _current;
+    };
+
+
+
+
+
+    template <typename Iterator>
+    class iterator_range
+    {
+    public:
+
+        typedef Iterator                            iterator_type;
+        typedef std::iterator_traits<iterator_type> traits_type;
+        typedef typename traits_type::value_type    value_type;
+        typedef typename traits_type::reference     reference_type;
+
+        iterator_range()
+        {
+        }
+
+        iterator_range(iterator_type const first, iterator_type const last)
+            : _first(first), _last(last)
+        {
+        }
+
+        auto begin() const -> iterator_type { return _first.get(); }
+        auto end()   const -> iterator_type { return _last.get();  }
+
+        auto empty() const -> bool      { return _first.get() == _last.get(); }
+        auto size()  const -> size_type { return _last.get()  - _first.get(); }
+
+    private:
+
+        value_initialized<iterator_type> _first;
+        value_initialized<iterator_type> _last;
     };
 
 
@@ -418,9 +454,10 @@ namespace cxxreflect { namespace core {
             // case if we have a stride iterator into an empty range.
         }
 
-        auto get()        const -> reference { return value(); }
-        auto operator*()  const -> reference { return value(); }
-        auto operator->() const -> pointer   { return value(); }
+        auto stride()     const -> size_type { return _stride.get(); }
+        auto get()        const -> reference { return value();       }
+        auto operator*()  const -> reference { return value();       }
+        auto operator->() const -> pointer   { return value();       }
 
         auto operator++() -> stride_iterator&
         {
@@ -494,6 +531,9 @@ namespace cxxreflect { namespace core {
 
         friend auto operator==(stride_iterator const& lhs, stride_iterator const& rhs) -> bool
         {
+            if (lhs.is_initialized() != rhs.is_initialized())
+                return false;
+
             assert_comparable(lhs, rhs);
             return lhs._current.get() == rhs._current.get();
         }

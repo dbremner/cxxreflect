@@ -10,38 +10,30 @@
 
 namespace cxxreflect { namespace reflection { namespace detail {
 
-    /// \ingroup cxxreflect_reflection_type_policies
-    ///
-    /// @{
-
-
-
-
-
-    /// A type policy for generic instance type variables
-    class generic_variable_type_policy : public specialization_type_policy
+    /// A base type policy for generic type variables
+    class generic_variable_type_policy final : public specialization_type_policy
     {
     public:
 
-        virtual auto attributes    (type_def_or_signature_with_module const&) const -> metadata::type_flags;
-        virtual auto declaring_type(type_def_or_signature_with_module const&) const -> type_def_or_signature_with_module;
+        virtual auto is_nested(unresolved_type_context const&) const -> bool override;
 
-        virtual auto is_generic_parameter(type_def_or_signature_with_module const&) const -> bool;
-        virtual auto is_nested           (type_def_or_signature_with_module const&) const -> bool;
-        virtual auto is_value_type       (type_def_or_signature_with_module const&) const -> bool;
-        virtual auto is_visible          (type_def_or_signature_with_module const&) const -> bool;
-        
-        virtual auto layout        (type_def_or_signature_with_module const&) const -> type_attribute_layout;
-        virtual auto namespace_name(type_def_or_signature_with_module const&) const -> core::string_reference;
-        virtual auto string_format (type_def_or_signature_with_module const&) const -> type_attribute_string_format;
-        virtual auto visibility    (type_def_or_signature_with_module const&) const -> type_attribute_visibility;
+        virtual auto namespace_name(unresolved_type_context const&) const -> core::string_reference override;
+
+        virtual auto declaring_type(unresolved_type_context const&) const -> unresolved_type_context override;
+
+
+
+        virtual auto attributes(resolved_type_context const&) const -> metadata::type_flags override;
+
+        virtual auto is_generic_parameter(resolved_type_context const&) const -> bool override;
+        virtual auto is_value_type       (resolved_type_context const&) const -> bool override;
+        virtual auto is_visible          (resolved_type_context const&) const -> bool override;
+
+        virtual auto layout        (resolved_type_context const&) const -> type_layout        override;
+        // TODO? virtual auto metadata_token(resolved_type_context const&) const -> core::size_type              override;
+        virtual auto string_format (resolved_type_context const&) const -> type_string_format override;
+        virtual auto visibility    (resolved_type_context const&) const -> type_visibility    override;
     };
-
-
-
-
-
-    /// @}
 
 } } }
 

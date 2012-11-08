@@ -374,7 +374,7 @@ namespace cxxreflect_test { namespace {
             c.verify_equals(cor_pack_size,  cxr_row.packing_size());
             c.verify_equals(cor_class_size, cxr_row.class_size());
 
-            std::for_each(cor_field_offsets.begin(), cor_field_offsets.end(), [&](COR_FIELD_OFFSET const& cor_offset)
+            cxr::for_all(cor_field_offsets, [&](COR_FIELD_OFFSET const& cor_offset)
             {
                 cxr::field_token const cxr_field_token(&cxr_database, cor_offset.ridOfField);
                 cxr::field_row   const cxr_field_row(cxr_database[cxr_field_token]);
@@ -508,9 +508,7 @@ namespace cxxreflect_test { namespace {
 
             // Verify the AddOn, RemoveOn, Fire, and Other methods for this property (this, combined
             // with the similar code to verify the Properties table, verifies the MethodSemantics):
-            std::for_each(cxr::begin_method_semantics(cxr_token),
-                          cxr::end_method_semantics  (cxr_token),
-                          [&](cxr::method_semantics_row const& cxr_semantics_row)
+            cxr::for_all(cxr::find_method_semantics(cxr_token), [&](cxr::method_semantics_row const& cxr_semantics_row)
             {
                 switch (cxr_semantics_row.semantics().integer())
                 {
@@ -653,9 +651,7 @@ namespace cxxreflect_test { namespace {
     {
         CComQIPtr<IMetaDataImport, &IID_IMetaDataImport> cor_import(cor_database);
 
-        std::for_each(cxr_database.begin<cxr::table_id::field_marshal>(),
-                      cxr_database.end<cxr::table_id::field_marshal>(),
-                      [&](cxr::field_marshal_row const& cxr_row)
+        cxr::for_all(cxr_database.table<cxr::table_id::field_marshal>(), [&](cxr::field_marshal_row const& cxr_row)
         {
             PCCOR_SIGNATURE cor_signature(nullptr);
             ULONG           cor_signature_length(0);
@@ -678,9 +674,7 @@ namespace cxxreflect_test { namespace {
     {
         CComQIPtr<IMetaDataImport, &IID_IMetaDataImport> cor_import(cor_database);
 
-        std::for_each(cxr_database.begin<cxr::table_id::field_rva>(),
-                      cxr_database.end<cxr::table_id::field_rva>(),
-                      [&](cxr::field_rva_row const& cxr_row)
+        cxr::for_all(cxr_database.table<cxr::table_id::field_rva>(), [&](cxr::field_rva_row const& cxr_row)
         {
             ULONG cor_rva(0);
             DWORD cor_flags(0);
@@ -1032,10 +1026,9 @@ namespace cxxreflect_test { namespace {
             cxr::type_def_row   const cxr_row(cxr_database[cxr_token]);
 
             std::vector<std::pair<mdToken, mdToken>> cxr_methods;
-            std::transform(cxr::begin_method_impls(cxr_row.token()),
-                           cxr::end_method_impls(cxr_row.token()),
-                           std::back_inserter(cxr_methods),
-                           [&](cxr::method_impl_row const& cxr_method_row)
+            cxr::transform_all(cxr::find_method_impls(cxr_row.token()),
+                               std::back_inserter(cxr_methods),
+                               [&](cxr::method_impl_row const& cxr_method_row)
             {
                 return std::make_pair(
                     cxr_method_row.method_body().value(),
@@ -1288,9 +1281,7 @@ namespace cxxreflect_test { namespace {
 
             // Verify the Getter, Setter, and Other methods for this property (this, combined with
             // the similar code to verify the Event table, verifies the MethodSemantics table):
-            std::for_each(cxr::begin_method_semantics(cxr_row.token()),
-                          cxr::end_method_semantics  (cxr_row.token()),
-                          [&](cxr::method_semantics_row const& cxr_semantics_row)
+            cxr::for_all(cxr::find_method_semantics(cxr_row.token()), [&](cxr::method_semantics_row const& cxr_semantics_row)
             {
                 switch (cxr_semantics_row.semantics().integer())
                 {
@@ -1339,9 +1330,7 @@ namespace cxxreflect_test { namespace {
     {
         CComQIPtr<IMetaDataImport, &IID_IMetaDataImport> cor_import(cor_database);
 
-        std::for_each(cxr_database.begin<cxr::table_id::property_map>(),
-                      cxr_database.end<cxr::table_id::property_map>(),
-                      [&](cxr::property_map_row const& cxr_row)
+        cxr::for_all(cxr_database.table<cxr::table_id::property_map>(), [&](cxr::property_map_row const& cxr_row)
         {
             mdToken const cor_token(cxr_row.parent().value());
 

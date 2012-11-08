@@ -4,7 +4,12 @@
 //     (See accompanying file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)    //
 
 #include "cxxreflect/reflection/precompiled_headers.hpp"
+#include "cxxreflect/reflection/assembly_name.hpp"
 #include "cxxreflect/reflection/module_locator.hpp"
+
+
+
+
 
 namespace cxxreflect { namespace reflection {
 
@@ -69,8 +74,7 @@ namespace cxxreflect { namespace reflection {
         if (is_memory())
             return L"<memory:" + core::to_string(begin(memory_range())) + L">";
 
-        core::assert_fail(L"unreachable code");
-        return core::string();
+        core::assert_unreachable();
     }
 
     auto operator==(module_location const& lhs, module_location const& rhs) -> bool
@@ -87,8 +91,7 @@ namespace cxxreflect { namespace reflection {
         if (lhs._kind.get() == module_location::kind::memory)
             return std::equal_to<core::const_byte_iterator>()(begin(lhs._memory_range), begin(rhs._memory_range));
 
-        core::assert_fail(L"unreachable code");
-        return false;
+        core::assert_unreachable();
     }
 
     auto operator<(module_location const& lhs, module_location const& rhs) -> bool
@@ -112,8 +115,7 @@ namespace cxxreflect { namespace reflection {
         if (lhs._kind.get() == module_location::kind::memory)
             return std::less<core::const_byte_iterator>()(begin(lhs._memory_range), begin(rhs._memory_range));
 
-        core::assert_fail(L"unreachable code");
-        return false;
+        core::assert_unreachable();
     }
 
 
@@ -152,15 +154,14 @@ namespace cxxreflect { namespace reflection {
         return _x->locate_assembly(target_assembly);
     }
 
-    auto module_locator::locate_assembly(assembly_name const& target_assembly,
-                                         core::string  const& full_type_name) const -> module_location
+    auto module_locator::locate_namespace(core::string_reference const& namespace_name) const -> module_location
     {
         core::assert_initialized(*this);
-        return _x->locate_assembly(target_assembly, full_type_name);
+        return _x->locate_namespace(namespace_name);
     }
 
     auto module_locator::locate_module(assembly_name const& requesting_assembly,
-                                       core::string  const& module_name) const -> module_location
+                                       core::string_reference  const& module_name) const -> module_location
     {
         core::assert_initialized(*this);
         return _x->locate_module(requesting_assembly, module_name);
@@ -175,17 +176,17 @@ namespace cxxreflect { namespace reflection {
 
 
 
-    directory_based_module_locator::directory_based_module_locator(directory_set const& directories)
-        : _directories(directories)
+    search_path_module_locator::search_path_module_locator(search_path_sequence const& sequence)
+        : _sequence(sequence)
     {
-        core::assert_true([&]{ return !directories.empty(); });
+        core::assert_true([&]{ return !sequence.empty(); });
     }
 
-    auto directory_based_module_locator::locate_assembly(assembly_name const& target_assembly) const 
+    auto search_path_module_locator::locate_assembly(assembly_name const& target_assembly) const
         -> module_location
     {
-        wchar_t const* const extensions[] = { L".dll", L".exe" };
-        for (auto dir_it(begin(_directories)); dir_it != end(_directories); ++dir_it)
+        std::array<core::const_character_iterator, 2> const extensions = { L".dll", L".exe" };
+        for (auto dir_it(begin(_sequence)); dir_it != end(_sequence); ++dir_it)
         {
             for (auto ext_it(begin(extensions)); ext_it != end(extensions); ++ext_it)
             {
@@ -198,16 +199,15 @@ namespace cxxreflect { namespace reflection {
         return module_location();
     }
 
-    auto directory_based_module_locator::locate_assembly(assembly_name const& target_assembly,
-                                                         core::string  const& full_type_name) const
+    auto search_path_module_locator::locate_namespace(core::string_reference const& namespace_name) const
         -> module_location
     {
         // This implementation does not utilize namespace-based resolution
-        return locate_assembly(target_assembly);
+        throw core::runtime_error(L"the search path loader does not support namespace-based searches");
     }
 
-    auto directory_based_module_locator::locate_module(assembly_name const& requesting_assembly,
-                                                       core::string  const& module_name) const
+    auto search_path_module_locator::locate_module(assembly_name          const& requesting_assembly,
+                                                   core::string_reference const& module_name) const
         -> module_location
     {
         core::string const& requesting_path(requesting_assembly.path());
@@ -216,7 +216,7 @@ namespace cxxreflect { namespace reflection {
             return module_location();
 
         core::string path(begin(requesting_path), it.base());
-        path += module_name;
+        path += module_name.c_str();
 
         if (core::externals::file_exists(path.c_str()))
             return module_location(path.c_str());

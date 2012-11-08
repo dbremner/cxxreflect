@@ -27,7 +27,7 @@ namespace cxxreflect { namespace windows_runtime { namespace detail {
                            void                       * result,
                            variant_argument_pack const& arguments) -> core::hresult
         {
-            throw core::logic_error(L"not yet implemented");
+            core::assert_not_yet_implemented();
         }
     };
 

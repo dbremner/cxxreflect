@@ -7,7 +7,6 @@
 
 #ifdef CXXREFLECT_ENABLE_WINDOWS_RUNTIME_INTEGRATION
 
-#include "cxxreflect/reflection/detail/type_hierarchy_utility.hpp"
 #include "cxxreflect/windows_runtime/inspection.hpp"
 #include "cxxreflect/windows_runtime/loader.hpp"
 #include "cxxreflect/windows_runtime/utility.hpp"
@@ -127,7 +126,7 @@ namespace cxxreflect { namespace windows_runtime { namespace detail {
         }
         else if (_type.get() == metadata::element_type::value_type)
         {
-            throw core::logic_error(L"not yet implemented");
+            core::assert_not_yet_implemented();
         }
         else
         {
@@ -135,7 +134,7 @@ namespace cxxreflect { namespace windows_runtime { namespace detail {
                 .loader()
                 .context(core::internal_key()));
 
-            return reflection::type(root, root.resolve_fundamental_type(_type.get()), core::internal_key());
+            return reflection::type(root.resolve_fundamental_type(_type.get()), core::internal_key());
         }
     }
 

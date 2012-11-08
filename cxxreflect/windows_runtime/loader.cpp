@@ -88,35 +88,23 @@ namespace cxxreflect { namespace windows_runtime {
         throw core::logic_error(L"unexpected call to package_module_locator::locate_assembly");
     }
 
-    auto package_module_locator::locate_assembly(reflection::assembly_name const& target_assembly,
-                                                 core::string              const& full_type_name) const
+    auto package_module_locator::locate_namespace(core::string_reference const& namespace_name) const
         -> reflection::module_location
     {
-        core::string const simple_name(core::to_lowercase(target_assembly.simple_name()));
+        core::string const simple_name(core::to_lowercase(core::string(namespace_name.c_str())));
 
         // Redirect platform and mscorlib references to our in-module replacement assembly.  Neither
         // of these are resolvable at runtime.
-        if (simple_name == L"platform" || simple_name == L"mscorlib")
+        if (simple_name == L"platform" || simple_name == L"system")
         {
             return platform_types_location();
         }
 
-        // The name of the assembly must be a prefix of the name of the type.
-        core::string const lowercase_full_type_name(core::to_lowercase(full_type_name));
-        if (!core::starts_with(lowercase_full_type_name.c_str(), simple_name.c_str()))
-            throw core::runtime_error(L"provided assembly/type pair does not match Windows Runtime naming rules");
-
-        core::string namespace_name(full_type_name);
-        detail::remove_rightmost_type_name_component(namespace_name);
-        if (namespace_name.empty())
-            throw core::runtime_error(L"provided type has no namespace to resolve");
-
-        return reflection::module_location(find_metadata_for_namespace(namespace_name));
-        
+        return reflection::module_location(find_metadata_for_namespace(namespace_name.c_str()));
     }
 
     auto package_module_locator::locate_module(reflection::assembly_name const& requesting_assembly,
-                                               core::string              const& module_name) const
+                                               core::string_reference    const& module_name) const
         -> reflection::module_location
     {
         // Windows Runtime does not have multi-module metadata files
@@ -190,20 +178,26 @@ namespace cxxreflect { namespace windows_runtime {
         return L"Platform";
     }
 
+    auto package_loader_configuration::is_filtered_type(metadata::type_def_token const& token) const -> bool
+    {
+        return row_from(token).flags().with_mask(metadata::type_attribute::visibility_mask)
+            != metadata::type_attribute::public_;
+    }
 
 
 
 
 
-    package_loader::package_loader(package_module_locator const& locator, std::unique_ptr<reflection::loader> loader)
+
+    package_loader::package_loader(package_module_locator const& locator, std::unique_ptr<reflection::loader_root> loader)
         : _locator(locator), _loader(std::move(loader))
     {
         core::assert_not_null(_loader.get());
     }
 
-    auto package_loader::loader() const -> reflection::loader const&
+    auto package_loader::loader() const -> reflection::loader
     {
-        return *_loader;
+        return _loader->get();
     }
 
     auto package_loader::locator() const -> package_module_locator const&
@@ -238,16 +232,7 @@ namespace cxxreflect { namespace windows_runtime {
         if (!assembly)
             return reflection::type();
 
-        metadata::database        const& scope(assembly.context(core::internal_key()).manifest_module().database());
-        detail::module_type_index const& index(get_or_create_type_index(scope));
-        metadata::type_def_token  const& token(index.find(namespace_name, simple_name));
-        if (!token.is_initialized())
-            return reflection::type();
-
-        return reflection::type(
-            reflection::detail::loader_context::from(token.scope()),
-            token,
-            core::internal_key());
+        return assembly.find_type(namespace_name, simple_name);
     }
 
     auto package_loader::get_implementers(reflection::type const& interface_type) const
@@ -267,8 +252,7 @@ namespace cxxreflect { namespace windows_runtime {
         typedef package_module_locator::path_map             sequence;
         typedef package_module_locator::path_map::value_type element;
 
-        sequence const metadata_files(locator().metadata_files());
-        std::for_each(begin(metadata_files), end(metadata_files), [&](element const& f)
+        core::for_all(locator().metadata_files(), [&](element const& f)
         {
             if (!include_windows_types && core::starts_with(f.first.c_str(), L"windows"))
                 return;
@@ -276,9 +260,9 @@ namespace cxxreflect { namespace windows_runtime {
             // TODO We can do better filtering than this by checking assembly references.
             // TODO Add caching of the obtained data.
             reflection::assembly const a(loader().load_assembly(reflection::module_location(f.second.c_str())));
-            std::for_each(a.begin_types(), a.end_types(), [&](reflection::type const& t)
+            core::for_all(a.types(), [&](reflection::type const& t)
             {
-                if (std::find(t.begin_interfaces(), t.end_interfaces(), interface_type) != t.end_interfaces())
+                if (std::find(begin(t.interfaces()), end(t.interfaces()), interface_type) != end(t.interfaces()))
                     implementers.push_back(t);
             });
         });
@@ -297,11 +281,10 @@ namespace cxxreflect { namespace windows_runtime {
             metadata::binding_attribute::public_ |
             metadata::binding_attribute::static_);
 
-        auto const first(enumeration_type.begin_fields(flags));
-        auto const last(enumeration_type.end_fields());
+        auto const fields(enumeration_type.fields(flags));
 
         std::vector<enumerator> result;
-        std::transform(first, last, std::back_inserter(result), [&](reflection::field const& field) -> enumerator
+        core::transform_all(fields, std::back_inserter(result), [&](reflection::field const& field) -> enumerator
         {
             reflection::constant const constant(field.constant_value());
 
@@ -326,14 +309,13 @@ namespace cxxreflect { namespace windows_runtime {
 
         reflection::method const activatable_constructor(get_activatable_attribute_factory_constructor());
 
-        auto const activatable_attribute_it(std::find_if(activatable_type.begin_custom_attributes(),
-                                                         activatable_type.end_custom_attributes(),
-                                                         [&](reflection::custom_attribute const& attribute)
+        auto const activatable_attribute_it(core::find_if(activatable_type.custom_attributes(),
+                                                          [&](reflection::custom_attribute const& attribute)
         {
             return attribute.constructor() == activatable_constructor;
         }));
 
-        if (activatable_attribute_it == activatable_type.end_custom_attributes())
+        if (activatable_attribute_it == end(activatable_type.custom_attributes()))
             throw core::runtime_error(L"type has no activation factory");
 
         core::string const factory_type_name(activatable_attribute_it->single_string_argument());
@@ -348,25 +330,14 @@ namespace cxxreflect { namespace windows_runtime {
         reflection::type const guid_attribute_type(get_guid_attribute_type());
 
         // TODO We can cache the GUID Type and compare using its identity instead, for performance.
-        auto const it(std::find_if(runtime_type.begin_custom_attributes(),
-                                   runtime_type.end_custom_attributes(),
-                                   [&](reflection::custom_attribute const& attribute)
+        auto const it(core::find_if(runtime_type.custom_attributes(),
+                                    [&](reflection::custom_attribute const& attribute)
         {
             return attribute.constructor().declaring_type() == guid_attribute_type;
         }));
 
         // TODO We need to make sure that a type has only one GuidAttribute.
-        return it != runtime_type.end_custom_attributes() ? it->single_guid_argument() : reflection::guid();
-    }
-
-    auto package_loader::get_or_create_type_index(metadata::database const& scope) const -> detail::module_type_index const&
-    {
-        auto const lock(_sync.lock());
-        auto const it(_type_index.find(&scope));
-        if (it != end(_type_index))
-            return it->second;
-
-        return _type_index.insert(std::make_pair(&scope, detail::module_type_index(&scope))).first->second;
+        return it != end(runtime_type.custom_attributes()) ? it->single_guid_argument() : reflection::guid();
     }
 
     #define CXXREFLECT_WINDOWS_RUNTIME_LOADER_DEFINE_PROPERTY(XTYPE, XNAME, ...)  \
@@ -408,20 +379,18 @@ namespace cxxreflect { namespace windows_runtime {
             metadata::binding_attribute::public_ |
             metadata::binding_attribute::instance);
 
-        auto const first_constructor(attribute_type.begin_constructors(flags));
-        auto const last_constructor(attribute_type.end_constructors());
+        auto const constructors(attribute_type.constructors(flags));
 
-        auto const constructor_it(std::find_if(first_constructor, last_constructor, [&](reflection::method const& c)
+        auto const constructor_it(core::find_if(constructors, [&](reflection::method const& c)
         {
             // TODO We should also check parameter types.
-            return core::distance(c.begin_parameters(), c.end_parameters()) == 2;
+            return std::distance(begin(c.parameters()), end(c.parameters())) == 2;
         }));
 
-        if (constructor_it == last_constructor)
+        if (constructor_it == end(constructors))
             throw core::runtime_error(L"failed to find activation factory type for type");
 
         return *constructor_it;
-
     });
 
     #undef CXXREFLECT_WINDOWS_RUNTIME_LOADER_DEFINE_PROPERTY

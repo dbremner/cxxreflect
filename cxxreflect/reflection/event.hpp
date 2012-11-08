@@ -7,8 +7,6 @@
 #define CXXREFLECT_REFLECTION_EVENT_HPP_
 
 #include "cxxreflect/reflection/detail/forward_declarations.hpp"
-#include "cxxreflect/reflection/detail/independent_handles.hpp"
-#include "cxxreflect/reflection/detail/loader_contexts.hpp"
 
 namespace cxxreflect { namespace reflection {
 
@@ -17,6 +15,9 @@ namespace cxxreflect { namespace reflection {
     public:
 
         event();
+        event(type const& reflected_type, detail::event_table_entry const* context, core::internal_key);
+
+        auto context(core::internal_key) const -> detail::event_table_entry const&;
 
         auto declaring_type() const -> type;
         auto reflected_type() const -> type;
@@ -50,18 +51,12 @@ namespace cxxreflect { namespace reflection {
         CXXREFLECT_GENERATE_COMPARISON_OPERATORS(event)
         CXXREFLECT_GENERATE_SAFE_BOOL_CONVERSION(event)
 
-    public: // internal members
-
-        event(type const& reflected_type, detail::event_context const* context, core::internal_key);
-
-        auto context(core::internal_key) const -> detail::event_context const&;
-
     private:
 
         auto row() const -> metadata::event_row;
 
-        detail::type_handle                                _reflected_type;
-        core::checked_pointer<detail::event_context const> _context;
+        metadata::type_def_or_signature                        _reflected_type;
+        core::checked_pointer<detail::event_table_entry const> _context;
     };
 
 } }

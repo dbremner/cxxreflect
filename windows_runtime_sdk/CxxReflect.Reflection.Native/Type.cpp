@@ -30,9 +30,10 @@ namespace CxxReflect { namespace Reflection { namespace Native { namespace {
         });
     }
 
+    template <typename ResultType>
     auto GetTypeProperty(cxr::weak_ref<cxrabi::ILoader>& loader,
                          cxr::type const& type,
-                         cxr::type(cxr::type::*f)() const,
+                         ResultType(cxr::type::*f)() const,
                          cxrabi::IType** const value) -> HRESULT
     {
         return cxr::call_with_runtime_convention([&]() -> HRESULT

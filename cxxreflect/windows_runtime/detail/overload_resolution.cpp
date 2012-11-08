@@ -7,8 +7,8 @@
 
 #ifdef CXXREFLECT_ENABLE_WINDOWS_RUNTIME_INTEGRATION
 
-#include "cxxreflect/reflection/detail/type_hierarchy_utility.hpp"
 #include "cxxreflect/windows_runtime/detail/overload_resolution.hpp"
+#include "cxxreflect/reflection/detail/type_hierarchy.hpp"
 
 namespace cxxreflect { namespace windows_runtime { namespace detail {
 
@@ -72,8 +72,8 @@ namespace cxxreflect { namespace windows_runtime { namespace detail {
             return compute_numeric_conversion_rank(p_kind, a_kind);
         }
 
-        // TODO Hmmm, what other types can we have?  :-)
-        throw core::logic_error(L"not yet implemented");
+        // Hmmm, what other types can we have?  :-)
+        core::assert_not_yet_implemented();
     }
 
     auto overload_resolver::compute_class_conversion_rank(reflection::type const& parameter_type,
@@ -109,14 +109,13 @@ namespace cxxreflect { namespace windows_runtime { namespace detail {
         // the interface:
         if (parameter_type.is_interface())
         {
-            auto const it(std::find(argument_type.begin_interfaces(), argument_type.end_interfaces(), parameter_type));
-            return it != argument_type.end_interfaces()
+            auto const it(std::find(begin(argument_type.interfaces()), end(argument_type.interfaces()), parameter_type));
+            return it != end(argument_type.interfaces())
                 ? conversion_rank::derived_to_interface_conversion
                 : conversion_rank::no_match;
         }
 
-        core::assert_fail(L"unreachable code");
-        return core::default_value();
+        core::assert_unreachable();
     }
 
     auto overload_resolver::compute_numeric_conversion_rank(metadata::element_type parameter_type,
@@ -189,15 +188,13 @@ namespace cxxreflect { namespace windows_runtime { namespace detail {
         {
             // First check to see that the arity matches.  If the arity doesn't match, this method
             // is not a viable candidate:
-            if (core::distance(current.begin_parameters(), current.end_parameters()) != argument_types.size())
+            if (core::distance(begin(current.parameters()), end(current.parameters())) != argument_types.size())
                 return;
 
             // Compute the conversion rank of this method by computing the conversion rank to each
             // parameter from its corresponding argument.
             std::vector<conversion_rank> current_rank(argument_types.size(), conversion_rank::no_match);
-            std::transform(current.begin_parameters(), current.end_parameters(),
-                           begin(argument_types),
-                           begin(current_rank),
+            core::transform_all(current.parameters(), argument_types, begin(current_rank),
                            [&](reflection::parameter const& p, reflection::type const& a)
             {
                 return compute_conversion_rank(p.parameter_type(), a);
@@ -269,14 +266,13 @@ namespace cxxreflect { namespace windows_runtime { namespace detail {
         core::assert_initialized(t);
 
         // Shortcut:  If the type isn't from the system assembly, it isn't one of the system types:
-        if (!reflection::detail::is_system_assembly(t.defining_assembly()))
+        if (!reflection::detail::is_system_assembly(t.defining_assembly().context(core::internal_key())))
             return t.is_value_type() ? metadata::element_type::value_type : metadata::element_type::class_type;
 
-        reflection::detail::loader_context const& root(reflection::detail::loader_context::from(t));
+        reflection::detail::loader_context const& root(reflection::detail::loader_context::from(t.context(core::internal_key()).scope()));
 
         #define CXXREFLECT_GENERATE(A)                                    \
             reflection::type const A ## _type(                            \
-                root,                                                     \
                 root.resolve_fundamental_type(metadata::element_type::A), \
                 core::internal_key());                                    \
                                                                           \

@@ -7,20 +7,47 @@
 
 -->
 <Project DefaultTargets="Build" ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  
+  <ItemGroup>
+    <ProjectToBuild Include="cxxreflect.sln">  <Properties>SolutionDir=$(MSBuildProjectDirectory)\;Configuration=Release;Platform=Win32    </Properties>  </ProjectToBuild>
+    <ProjectToBuild Include="cxxreflect.sln">  <Properties>SolutionDir=$(MSBuildProjectDirectory)\;Configuration=Release(ZW);Platform=Win32</Properties>  </ProjectToBuild>
+    <ProjectToBuild Include="cxxreflect.sln">  <Properties>SolutionDir=$(MSBuildProjectDirectory)\;Configuration=Debug;Platform=Win32      </Properties>  </ProjectToBuild>
+    <ProjectToBuild Include="cxxreflect.sln">  <Properties>SolutionDir=$(MSBuildProjectDirectory)\;Configuration=Debug(ZW);Platform=Win32  </Properties>  </ProjectToBuild>
+
+    <ProjectToBuild Include="cxxreflect.sln">  <Properties>SolutionDir=$(MSBuildProjectDirectory)\;Configuration=Release;Platform=x64      </Properties>  </ProjectToBuild>
+    <ProjectToBuild Include="cxxreflect.sln">  <Properties>SolutionDir=$(MSBuildProjectDirectory)\;Configuration=Release(ZW);Platform=x64  </Properties>  </ProjectToBuild>
+    <ProjectToBuild Include="cxxreflect.sln">  <Properties>SolutionDir=$(MSBuildProjectDirectory)\;Configuration=Debug;Platform=x64        </Properties>  </ProjectToBuild>
+    <ProjectToBuild Include="cxxreflect.sln">  <Properties>SolutionDir=$(MSBuildProjectDirectory)\;Configuration=Debug(ZW);Platform=x64    </Properties>  </ProjectToBuild>
+
+    <ProjectToBuild Include="cxxreflect.sln">  <Properties>SolutionDir=$(MSBuildProjectDirectory)\;Configuration=Release;Platform=ARM      </Properties>  </ProjectToBuild>
+    <ProjectToBuild Include="cxxreflect.sln">  <Properties>SolutionDir=$(MSBuildProjectDirectory)\;Configuration=Release(ZW);Platform=ARM  </Properties>  </ProjectToBuild>
+    <ProjectToBuild Include="cxxreflect.sln">  <Properties>SolutionDir=$(MSBuildProjectDirectory)\;Configuration=Debug;Platform=ARM        </Properties>  </ProjectToBuild>
+    <ProjectToBuild Include="cxxreflect.sln">  <Properties>SolutionDir=$(MSBuildProjectDirectory)\;Configuration=Debug(ZW);Platform=ARM    </Properties>  </ProjectToBuild>
+  </ItemGroup>
+  
   <Target Name="Build">
-    <MSBuild Projects="cxxreflect.sln" Properties="SolutionDir=$(MSBuildProjectDirectory)\;Configuration=Release;Platform=Win32"     Targets="$(BuildCommand)" />
-    <MSBuild Projects="cxxreflect.sln" Properties="SolutionDir=$(MSBuildProjectDirectory)\;Configuration=Release;Platform=x64"       Targets="$(BuildCommand)" />
-    <MSBuild Projects="cxxreflect.sln" Properties="SolutionDir=$(MSBuildProjectDirectory)\;Configuration=Release;Platform=ARM"       Targets="$(BuildCommand)" />
-    <MSBuild Projects="cxxreflect.sln" Properties="SolutionDir=$(MSBuildProjectDirectory)\;Configuration=Release(ZW);Platform=Win32" Targets="$(BuildCommand)" />
-    <MSBuild Projects="cxxreflect.sln" Properties="SolutionDir=$(MSBuildProjectDirectory)\;Configuration=Release(ZW);Platform=x64"   Targets="$(BuildCommand)" />
-    <MSBuild Projects="cxxreflect.sln" Properties="SolutionDir=$(MSBuildProjectDirectory)\;Configuration=Release(ZW);Platform=ARM"   Targets="$(BuildCommand)" />
-
-    <MSBuild Projects="cxxreflect.sln" Properties="SolutionDir=$(MSBuildProjectDirectory)\;Configuration=Debug;Platform=Win32"       Targets="$(BuildCommand)" />
-    <MSBuild Projects="cxxreflect.sln" Properties="SolutionDir=$(MSBuildProjectDirectory)\;Configuration=Debug;Platform=x64"         Targets="$(BuildCommand)" />
-    <MSBuild Projects="cxxreflect.sln" Properties="SolutionDir=$(MSBuildProjectDirectory)\;Configuration=Debug;Platform=ARM"         Targets="$(BuildCommand)" />
-    <MSBuild Projects="cxxreflect.sln" Properties="SolutionDir=$(MSBuildProjectDirectory)\;Configuration=Debug(ZW);Platform=Win32"   Targets="$(BuildCommand)" />
-    <MSBuild Projects="cxxreflect.sln" Properties="SolutionDir=$(MSBuildProjectDirectory)\;Configuration=Debug(ZW);Platform=x64"     Targets="$(BuildCommand)" />
-    <MSBuild Projects="cxxreflect.sln" Properties="SolutionDir=$(MSBuildProjectDirectory)\;Configuration=Debug(ZW);Platform=ARM"     Targets="$(BuildCommand)" />
+    
+    <!--
+    First, we need to build the utilities that we use in the build process.  These must be built
+    before the rest of the CxxReflect Solution.  They will be built for each configuration as well,
+    but because the results get copied directly to the utility\ folder, we need to make sure a copy
+    of the executable is present before we begin the rest of the build.
+    
+    (Actually, the full build is racy:  multiple configuration builds will attempt to emplace the
+    utility binaries while those binaries may be in use.  We ignore failures in the projects, so
+    this should not cause build failures.)
+    -->
+    <MSBuild
+      Projects="utility\create_sln_from_filesystem\create_sln_from_filesystem.vcxproj;utility\embed_binary_in_cpp\embed_binary_in_cpp.vcxproj"
+      Properties="SolutionDir=$(MSBuildProjectDirectory)\;Configuration=Release;Platform=Win32"
+      BuildInParallel="true"
+    />
+    
+    <!--
+    Then we can build the whole Solution (all configurations, specified above):
+    -->
+    <MSBuild Projects="@(ProjectToBuild)" BuildInParallel="true" Targets="$(BuildCommand)" />
+    
   </Target>
+  
 </Project>
-

@@ -423,6 +423,12 @@ namespace cxxreflect { namespace metadata {
             return row_iterator<Id>(this, tables()[Id].row_count());
         }
 
+        template <table_id Id>
+        auto table() const -> core::iterator_range<row_iterator<Id>>
+        {
+            return core::iterator_range<row_iterator<Id>>(begin<Id>(), end<Id>());
+        }
+
         /// Gets the row to which `token` refers
         ///
         /// The `Mask` must have exactly one bit set, and it must be a bit for a valid table.  If

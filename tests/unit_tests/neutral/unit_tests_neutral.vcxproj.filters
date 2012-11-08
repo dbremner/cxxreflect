@@ -15,6 +15,12 @@
     <ClCompile Include="reflection\basic_alpha.cpp">
       <Filter>reflection</Filter>
     </ClCompile>
+    <ClCompile Include="reflection\basic_loader.cpp">
+      <Filter>reflection</Filter>
+    </ClCompile>
+    <ClCompile Include="reflection\basic_types.cpp">
+      <Filter>reflection</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="precompiled_headers.hpp" />

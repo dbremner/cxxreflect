@@ -6,8 +6,11 @@
 #ifndef CXXREFLECT_REFLECTION_MODULE_LOCATOR_HPP_
 #define CXXREFLECT_REFLECTION_MODULE_LOCATOR_HPP_
 
-#include "cxxreflect/core/core.hpp"
-#include "cxxreflect/reflection/assembly_name.hpp"
+#include "cxxreflect/reflection/detail/forward_declarations.hpp"
+
+
+
+
 
 namespace cxxreflect { namespace reflection {
 
@@ -51,6 +54,10 @@ namespace cxxreflect { namespace reflection {
 
 } }
 
+
+
+
+
 namespace cxxreflect { namespace reflection { namespace detail {
 
     typedef std::unique_ptr<class base_module_locator> unique_base_module_locator;
@@ -61,11 +68,10 @@ namespace cxxreflect { namespace reflection { namespace detail {
 
         virtual auto locate_assembly(assembly_name const& target_assembly) const -> module_location = 0;
 
-        virtual auto locate_assembly(assembly_name const& target_assembly,
-                                     core::string  const& full_type_name) const -> module_location = 0;
+        virtual auto locate_namespace(core::string_reference const& namespace_name) const -> module_location = 0;
 
-        virtual auto locate_module(assembly_name const& requesting_assembly,
-                                   core::string  const& module_name) const -> module_location = 0;
+        virtual auto locate_module(assembly_name          const& requesting_assembly,
+                                   core::string_reference const& module_name) const -> module_location = 0;
 
         virtual auto copy() const -> unique_base_module_locator = 0;
 
@@ -83,19 +89,18 @@ namespace cxxreflect { namespace reflection { namespace detail {
         {
         }
 
-        virtual auto locate_assembly(assembly_name const& target_assembly) const -> module_location
+        virtual auto locate_assembly(assembly_name const& target_assembly) const -> module_location override
         {
             return _x.locate_assembly(target_assembly);
         }
 
-        virtual auto locate_assembly(assembly_name const& target_assembly,
-                                     core::string  const& full_type_name) const -> module_location
+        virtual auto locate_namespace(core::string_reference const& namespace_name) const -> module_location override
         {
-            return _x.locate_assembly(target_assembly, full_type_name);
+            return _x.locate_namespace(namespace_name);
         }
 
-        virtual auto locate_module(assembly_name const& requesting_assembly,
-                                   core::string  const& module_name) const -> module_location
+        virtual auto locate_module(assembly_name          const& requesting_assembly,
+                                   core::string_reference const& module_name) const -> module_location override
         {
             return _x.locate_module(requesting_assembly, module_name);
         }
@@ -111,6 +116,10 @@ namespace cxxreflect { namespace reflection { namespace detail {
     };
 
 } } }
+
+
+
+
 
 namespace cxxreflect { namespace reflection {
 
@@ -134,11 +143,10 @@ namespace cxxreflect { namespace reflection {
 
         auto locate_assembly(assembly_name const& target_assembly) const -> module_location;
 
-        auto locate_assembly(assembly_name const& target_assembly,
-                             core::string  const& full_type_name) const -> module_location;
+        auto locate_namespace(core::string_reference const& namespace_name) const -> module_location;
 
-        auto locate_module(assembly_name const& requesting_assembly,
-                           core::string  const& module_name) const -> module_location;
+        auto locate_module(assembly_name          const& requesting_assembly,
+                           core::string_reference const& module_name) const -> module_location;
 
         auto is_initialized() const -> bool;
 
@@ -151,25 +159,24 @@ namespace cxxreflect { namespace reflection {
 
 
 
-    class directory_based_module_locator
+    class search_path_module_locator
     {
     public:
 
-        typedef std::set<core::string> directory_set;
+        typedef std::vector<core::string> search_path_sequence;
 
-        directory_based_module_locator(directory_set const& directories);
+        search_path_module_locator(search_path_sequence const& sequence);
 
         auto locate_assembly(assembly_name const& target_assembly) const -> module_location;
 
-        auto locate_assembly(assembly_name const& target_assembly,
-                             core::string  const& full_type_name) const -> module_location;
+        auto locate_namespace(core::string_reference const& namespace_name) const -> module_location;
 
-        auto locate_module(assembly_name const& requesting_assembly,
-                           core::string  const& module_name) const -> module_location;
+        auto locate_module(assembly_name          const& requesting_assembly,
+                           core::string_reference const& module_name) const -> module_location;
 
     private:
 
-        directory_set _directories;
+        search_path_sequence _sequence;
     };
 
 } }

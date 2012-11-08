@@ -58,85 +58,61 @@ namespace cxxreflect { namespace reflection {
 
     auto constant::as_boolean() const -> bool
     {
-        core::assert_initialized(*this);
-
         return check_and_read_single_primitive<std::uint8_t>(row().value()) != 0;
     }
 
     auto constant::as_character() const -> wchar_t
     {
-        core::assert_initialized(*this);
-
         return check_and_read_single_primitive<wchar_t>(row().value());
     }
 
     auto constant::as_int8() const -> std::int8_t
     {
-        core::assert_initialized(*this);
-
         return check_and_read_single_primitive<std::int8_t>(row().value());
     }
 
     auto constant::as_uint8() const -> std::uint8_t
     {
-        core::assert_initialized(*this);
-
         return check_and_read_single_primitive<std::uint8_t>(row().value());
     }
 
     auto constant::as_int16() const -> std::int16_t
     {
-        core::assert_initialized(*this);
-
         return check_and_read_single_primitive<std::int16_t>(row().value());
     }
 
     auto constant::as_uint16() const -> std::uint16_t
     {
-        core::assert_initialized(*this);
-
         return check_and_read_single_primitive<std::uint16_t>(row().value());
     }
 
     auto constant::as_int32() const -> std::int32_t
     {
-        core::assert_initialized(*this);
-
         return check_and_read_single_primitive<std::int32_t>(row().value());
     }
 
     auto constant::as_uint32() const -> std::uint32_t
     {
-        core::assert_initialized(*this);
-
         return check_and_read_single_primitive<std::uint32_t>(row().value());
     }
 
     auto constant::as_int64() const -> std::int64_t
     {
-        core::assert_initialized(*this);
-
         return check_and_read_single_primitive<std::int64_t>(row().value());
     }
 
     auto constant::as_uint64() const -> std::uint64_t
     {
-        core::assert_initialized(*this);
-
         return check_and_read_single_primitive<std::uint64_t>(row().value());
     }
 
     auto constant::as_float() const -> float
     {
-        core::assert_initialized(*this);
-
         return check_and_read_single_primitive<float>(row().value());
     }
 
     auto constant::as_double() const -> double
     {
-        core::assert_initialized(*this);
-
         return check_and_read_single_primitive<double>(row().value());
     }
         
@@ -148,7 +124,6 @@ namespace cxxreflect { namespace reflection {
     auto constant::row() const -> metadata::constant_row
     {
         core::assert_initialized(*this);
-
         return row_from(_constant);
     }
 
@@ -158,6 +133,11 @@ namespace cxxreflect { namespace reflection {
 
         metadata::constant_row const row(metadata::find_constant(parent));
         return row.is_initialized() ? constant(row.token(), core::internal_key()) : constant();
+    }
+
+    auto operator==(constant const& lhs, constant const& rhs) -> bool
+    {
+        return lhs._constant == rhs._constant;
     }
 
 } }

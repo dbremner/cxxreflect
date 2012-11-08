@@ -21,6 +21,15 @@ namespace cxxreflect { namespace metadata {
     {
     public:
 
+        /// Resolves a MemberRef token into the Field or MethodDef token to which it refers
+        ///
+        /// If the target of the reference cannot be found or if an error occurs, the implementer is
+        /// to throw a `metadata_error`.  Note that the referenced member may be a member of a
+        /// generic type; if it is, its signature may require instantiation.  The returned member
+        /// will be the uninstantiated declaration.  To get the instantiated member, re-resolve it
+        /// via its declaring type (from the MemberRef).
+        virtual auto resolve_member(member_ref_token) const -> field_or_method_def_token = 0;
+
         /// Resolves a TypeRef token into the TypeDef or TypeSpec token to which it refers
         ///
         /// The argument is a TypeDef, TypeRef, or TypeSpec token.  If it is a TypeDef or TypeSpec
@@ -40,7 +49,7 @@ namespace cxxreflect { namespace metadata {
         ///
         /// The type resolver is responsible for resolving the type in the type universe's 
         /// system assembly.  If it fails to resolve the type, it must throw a `metadata_error`.
-        virtual auto resolve_fundamental_type(element_type e) const -> type_def_token = 0;
+        virtual auto resolve_fundamental_type(element_type) const -> type_def_token = 0;
 
         virtual ~type_resolver() { }
     };

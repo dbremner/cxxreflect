@@ -4,6 +4,8 @@
 //     (See accompanying file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)    //
 
 #include "cxxreflect/reflection/precompiled_headers.hpp"
+#include "cxxreflect/reflection/detail/loader_context.hpp"
+#include "cxxreflect/reflection/detail/member_iterator.hpp"
 #include "cxxreflect/reflection/custom_attribute.hpp"
 #include "cxxreflect/reflection/guid.hpp"
 #include "cxxreflect/reflection/method.hpp"
@@ -16,11 +18,8 @@ namespace cxxreflect { namespace reflection {
     {
     }
 
-    custom_attribute::custom_attribute(module                           const& declaring_module,
-                                       metadata::custom_attribute_token const& attribute,
-                                       core::internal_key)
+    custom_attribute::custom_attribute(std::nullptr_t, metadata::custom_attribute_token const& attribute, core::internal_key)
     {
-        core::assert_initialized(declaring_module);
         core::assert_initialized(attribute);
 
         metadata::custom_attribute_row const attribute_row(row_from(attribute));
@@ -36,19 +35,19 @@ namespace cxxreflect { namespace reflection {
             metadata::method_def_token const ctor_token(attribute_row.type().as<metadata::method_def_token>());
             metadata::type_def_token   const owner_token(metadata::find_owner_of_method_def(ctor_token).token());
 
-            type const t(declaring_module, owner_token, core::internal_key());
+            type const t(owner_token, core::internal_key());
 
-            auto const ctor_it(std::find_if(t.begin_constructors(flags),
-                                            t.end_constructors(),
-                                            [&](method const& ctor)
+            auto const constructors(t.constructors(flags));
+            auto const constructor_it(core::find_if(constructors, [&](method const& ctor)
             {
                 return ctor.metadata_token() == ctor_token.value();
             }));
 
-            if (ctor_it == t.end_constructors())
+            if (constructor_it == end(constructors))
                 throw core::runtime_error(L"failed to find constructor for attribute");
 
-            _constructor =  detail::method_handle(*ctor_it);
+            _reflected_type    = constructor_it->reflected_type().context(core::internal_key());
+            _constructor.get() = &constructor_it->context(core::internal_key());
             break;
         }
 
@@ -61,42 +60,42 @@ namespace cxxreflect { namespace reflection {
             {
             case metadata::table_id::type_ref:
             {
-                type const t(declaring_module, owner_token.as<metadata::type_ref_token>(), core::internal_key());
+                type const t(owner_token.as<metadata::type_ref_token>(), core::internal_key());
                 if (ref_row.name() == L".ctor")
                 {
                     // TODO Correct detection of contructors
 
-                    if (t.begin_constructors(flags) == t.end_constructors())
-                        throw core::logic_error(L"not yet implemented");
+                    if (t.constructors(flags).empty())
+                        core::assert_not_yet_implemented();
 
-                    detail::loader_context const& root(detail::loader_context::from(declaring_module));
+                    detail::loader_context const& root(detail::loader_context::from(owner_token.scope()));
 
                     metadata::signature_comparer const compare(&root);
 
-                    auto const ctor_it(std::find_if(t.begin_constructors(flags),
-                                                    t.end_constructors(),
-                                                    [&](method const& ctor)
+                    auto const constructors(t.constructors(flags));
+                    auto const constructor_it(core::find_if(constructors, [&](method const& ctor)
                     {
                         return compare(
                             ref_row.signature().as<metadata::method_signature>(),
-                            ctor.context(core::internal_key()).element_signature(root));
+                            ctor.context(core::internal_key()).member_signature());
                     }));
 
-                    if (ctor_it == t.end_constructors())
+                    if (constructor_it == end(constructors))
                         throw core::runtime_error(L"failed to find constructor for attribute");
 
-                    _constructor = detail::method_handle(*ctor_it);
+                    _reflected_type    = constructor_it->reflected_type().context(core::internal_key());
+                    _constructor.get() = &constructor_it->context(core::internal_key());
                     break;
                 }
                 else
                 {
-                    throw core::logic_error(L"not yet implemented");
+                    core::assert_not_yet_implemented();
                 }
             }
 
             default:
             {
-                throw core::logic_error(L"not yet implemented");
+                core::assert_not_yet_implemented();
             }
             }
 
@@ -105,7 +104,7 @@ namespace cxxreflect { namespace reflection {
 
         default:
         {
-            core::assert_fail(L"unreachable code");
+            core::assert_unreachable();
         }
         }
     }
@@ -121,14 +120,8 @@ namespace cxxreflect { namespace reflection {
     {
         core::assert_initialized(*this);
 
-        return _constructor.realize();
+        return method(type(_reflected_type, core::internal_key()), _constructor.get(), core::internal_key());
     }
-
-    // TODO auto custom_attribute::begin_positional_arguments() const -> positional_argument_iterator;
-    // TODO auto custom_attribute::end_positional_arguments()   const -> positional_argument_iterator;
-
-    // TODO auto custom_attribute::begin_named_arguments() const -> named_argument_iterator;
-    // TODO auto custom_attribute::end_named_arguments()   const -> named_argument_iterator;
 
     auto custom_attribute::single_string_argument() const -> core::string
     {
@@ -218,32 +211,17 @@ namespace cxxreflect { namespace reflection {
         return lhs._attribute < rhs._attribute;
     }
 
-    auto custom_attribute::begin_for(module                               const& declaring_module,
-                                     metadata::has_custom_attribute_token const& parent,
-                                     core::internal_key) -> custom_attribute_iterator
+    auto custom_attribute::get_for(metadata::has_custom_attribute_token const& parent, core::internal_key) -> detail::custom_attribute_range
     {
-        core::assert_initialized(declaring_module);
         core::assert_initialized(parent);
 
-        metadata::custom_attribute_row_iterator const it(metadata::begin_custom_attributes(parent));
-        if (!it.is_initialized())
-            return custom_attribute_iterator();
+        auto const range(metadata::find_custom_attributes(parent));
+        if (range.empty())
+            return detail::custom_attribute_range();
 
-        return custom_attribute_iterator(declaring_module, it.token());
-    }
-
-    auto custom_attribute::end_for(module                               const& declaring_module,
-                                   metadata::has_custom_attribute_token const& parent,
-                                   core::internal_key) -> custom_attribute_iterator
-    {
-        core::assert_initialized(declaring_module);
-        core::assert_initialized(parent);
-
-        metadata::custom_attribute_row_iterator const it(metadata::end_custom_attributes(parent));
-        if (!it.is_initialized())
-            return custom_attribute_iterator();
-
-        return custom_attribute_iterator(declaring_module, it.token());
+        return detail::custom_attribute_range(
+            detail::custom_attribute_iterator(nullptr, range.begin().token()),
+            detail::custom_attribute_iterator(nullptr, range.end().token()));
     }
 
 } }

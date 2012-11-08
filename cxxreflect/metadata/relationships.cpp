@@ -111,7 +111,7 @@ namespace cxxreflect { namespace metadata {
 
 
 
-    auto find_custom_attribute_range(has_custom_attribute_token const& parent) -> custom_attribute_row_iterator_pair
+    auto find_custom_attributes(has_custom_attribute_token const& parent) -> custom_attribute_row_range
     {
         core::assert_initialized(parent);
 
@@ -121,26 +121,26 @@ namespace cxxreflect { namespace metadata {
             table_id::custom_attribute,
             column_id::custom_attribute_parent));
 
-        return std::make_pair(
+        return custom_attribute_row_range(
             custom_attribute_row_iterator::from_row_pointer(&parent.scope(), begin(range)),
             custom_attribute_row_iterator::from_row_pointer(&parent.scope(), end(range)));
     }
     
     auto begin_custom_attributes(has_custom_attribute_token const& parent) -> custom_attribute_row_iterator
     {
-        return find_custom_attribute_range(parent).first;
+        return begin(find_custom_attributes(parent));
     }
 
     auto end_custom_attributes(has_custom_attribute_token const& parent) -> custom_attribute_row_iterator
     {
-        return find_custom_attribute_range(parent).second;
+        return end(find_custom_attributes(parent));
     }
 
 
 
 
 
-    auto find_events_range(type_def_token const& parent) -> event_row_iterator_pair
+    auto find_events(type_def_token const& parent) -> event_row_range
     {
         core::assert_initialized(parent);
 
@@ -152,7 +152,7 @@ namespace cxxreflect { namespace metadata {
 
         // Not every type has events; if this is such a type, return an empty range:
         if (range.empty())
-            return std::make_pair(
+            return event_row_range(
                 event_row_iterator(&parent.scope(), 0),
                 event_row_iterator(&parent.scope(), 0));
 
@@ -162,26 +162,26 @@ namespace cxxreflect { namespace metadata {
             throw core::metadata_error(L"event map table has non-unique parent index");
 
         event_map_row const map_row(*event_map_row_iterator::from_row_pointer(&parent.scope(), begin(range)));
-        return std::make_pair(
+        return event_row_range(
             event_row_iterator(&parent.scope(), map_row.first_event().index()),
             event_row_iterator(&parent.scope(), map_row.last_event().index()));
     }
 
     auto begin_events(type_def_token const& parent) -> event_row_iterator
     {
-        return find_events_range(parent).first;
+        return begin(find_events(parent));
     }
 
     auto end_events(type_def_token const& parent) -> event_row_iterator
     {
-        return find_events_range(parent).second;
+        return end(find_events(parent));
     }
 
 
 
 
 
-    auto find_generic_params_range(type_or_method_def_token const& parent) -> generic_param_row_iterator_pair
+    auto find_generic_params(type_or_method_def_token const& parent) -> generic_param_row_range
     {
         core::assert_initialized(parent);
 
@@ -191,7 +191,7 @@ namespace cxxreflect { namespace metadata {
             table_id::generic_param,
             column_id::generic_param_parent));
 
-        return std::make_pair(
+        return generic_param_row_range(
             generic_param_row_iterator::from_row_pointer(&parent.scope(), begin(range)),
             generic_param_row_iterator::from_row_pointer(&parent.scope(), end(range)));
     }
@@ -200,28 +200,28 @@ namespace cxxreflect { namespace metadata {
     {
         core::assert_initialized(parent);
 
-        auto const range(find_generic_params_range(parent));
-        if (core::distance(range.first, range.second) < index)
+        auto const range(find_generic_params(parent));
+        if (core::distance(begin(range), end(range)) < index)
             throw core::runtime_error(L"generic param index out of range");
 
-        return *std::next(range.first, index);
+        return *std::next(begin(range), index);
     }
 
     auto begin_generic_params(type_or_method_def_token const& parent) -> generic_param_row_iterator
     {
-        return find_generic_params_range(parent).first;
+        return begin(find_generic_params(parent));
     }
 
     auto end_generic_params(type_or_method_def_token const& parent) -> generic_param_row_iterator
     {
-        return find_generic_params_range(parent).second;
+        return end(find_generic_params(parent));
     }
 
 
 
 
 
-    auto find_generic_param_constraints_range(generic_param_token const& parent) -> generic_param_constraint_row_iterator_pair
+    auto find_generic_param_constraints(generic_param_token const& parent) -> generic_param_constraint_row_range
     {
         core::assert_initialized(parent);
 
@@ -231,26 +231,26 @@ namespace cxxreflect { namespace metadata {
             table_id::generic_param_constraint,
             column_id::generic_param_constraint_parent));
 
-        return std::make_pair(
+        return generic_param_constraint_row_range(
             generic_param_constraint_row_iterator::from_row_pointer(&parent.scope(), begin(range)),
             generic_param_constraint_row_iterator::from_row_pointer(&parent.scope(), end(range)));
     }
 
     auto begin_generic_param_constraints(generic_param_token const& parent) -> generic_param_constraint_row_iterator
     {
-        return find_generic_param_constraints_range(parent).first;
+        return begin(find_generic_param_constraints(parent));
     }
 
     auto end_generic_param_constraints(generic_param_token const& parent) -> generic_param_constraint_row_iterator
     {
-        return find_generic_param_constraints_range(parent).second;
+        return end(find_generic_param_constraints(parent));
     }
 
 
 
 
 
-    auto find_interface_impl_range(type_def_token const& parent) -> interface_impl_row_iterator_pair
+    auto find_interface_impls(type_def_token const& parent) -> interface_impl_row_range
     {
         core::assert_initialized(parent);
 
@@ -260,26 +260,26 @@ namespace cxxreflect { namespace metadata {
             table_id::interface_impl,
             column_id::interface_impl_parent));
 
-        return std::make_pair(
+        return interface_impl_row_range(
             interface_impl_row_iterator::from_row_pointer(&parent.scope(), begin(range)),
             interface_impl_row_iterator::from_row_pointer(&parent.scope(), end(range)));
     }
 
     auto begin_interface_impls(type_def_token const& parent) -> interface_impl_row_iterator
     {
-        return find_interface_impl_range(parent).first;
+        return begin(find_interface_impls(parent));
     }
 
     auto end_interface_impls(type_def_token const& parent) -> interface_impl_row_iterator
     {
-        return find_interface_impl_range(parent).second;
+        return end(find_interface_impls(parent));
     }
 
 
 
 
 
-    auto find_method_impl_range(type_def_token const& parent) -> method_impl_row_iterator_pair
+    auto find_method_impls(type_def_token const& parent) -> method_impl_row_range
     {
         core::assert_initialized(parent);
 
@@ -289,26 +289,26 @@ namespace cxxreflect { namespace metadata {
             table_id::method_impl,
             column_id::method_impl_parent));
         
-        return std::make_pair(
+        return method_impl_row_range(
             method_impl_row_iterator::from_row_pointer(&parent.scope(), begin(range)),
             method_impl_row_iterator::from_row_pointer(&parent.scope(), end(range)));
     }
     
     auto begin_method_impls(type_def_token const& parent) -> method_impl_row_iterator
     {
-        return find_method_impl_range(parent).first;
+        return begin(find_method_impls(parent));
     }
 
     auto end_method_impls(type_def_token const& parent) -> method_impl_row_iterator
     {
-        return find_method_impl_range(parent).second;
+        return end(find_method_impls(parent));
     }
 
 
 
 
 
-    auto find_method_semantics_range(has_semantics_token const& parent) -> method_semantics_row_iterator_pair
+    auto find_method_semantics(has_semantics_token const& parent) -> method_semantics_row_range
     {
         core::assert_initialized(parent);
 
@@ -318,26 +318,26 @@ namespace cxxreflect { namespace metadata {
             table_id::method_semantics,
             column_id::method_semantics_parent));
 
-        return std::make_pair(
+        return method_semantics_row_range(
             method_semantics_row_iterator::from_row_pointer(&parent.scope(), begin(range)),
             method_semantics_row_iterator::from_row_pointer(&parent.scope(), end(range)));
     }
 
     auto begin_method_semantics(has_semantics_token const& parent) -> method_semantics_row_iterator
     {
-        return find_method_semantics_range(parent).first;
+        return begin(find_method_semantics(parent));
     }
 
     auto end_method_semantics(has_semantics_token const& parent) -> method_semantics_row_iterator
     {
-        return find_method_semantics_range(parent).second;
+        return end(find_method_semantics(parent));
     }
 
 
 
 
 
-    auto find_properties_range(type_def_token const& parent) -> property_row_iterator_pair
+    auto find_properties(type_def_token const& parent) -> property_row_range
     {
         core::assert_initialized(parent);
 
@@ -349,7 +349,7 @@ namespace cxxreflect { namespace metadata {
 
         // Not every type has properties; if this is such a type, return an empty range:
         if (range.empty())
-            return std::make_pair(
+            return property_row_range(
                 property_row_iterator(&parent.scope(), 0),
                 property_row_iterator(&parent.scope(), 0));
 
@@ -359,19 +359,19 @@ namespace cxxreflect { namespace metadata {
             throw core::metadata_error(L"property map table has non-unique parent index");
 
         property_map_row const map_row(*property_map_row_iterator::from_row_pointer(&parent.scope(), begin(range)));
-        return std::make_pair(
+        return property_row_range(
             property_row_iterator(&parent.scope(), map_row.first_property().index()),
             property_row_iterator(&parent.scope(), map_row.last_property().index()));
     }
 
     auto begin_properties(type_def_token const& parent) -> property_row_iterator
     {
-        return find_properties_range(parent).first;
+        return begin(find_properties(parent));
     }
 
     auto end_properties(type_def_token const& parent) -> property_row_iterator
     {
-        return find_properties_range(parent).second;
+        return end(find_properties(parent));
     }
 
 } }

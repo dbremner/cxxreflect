@@ -20,6 +20,8 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="reflection\basic_loader.cpp" />
+    <ClCompile Include="reflection\basic_types.cpp" />
     <ClCompile Include="metadata\database_correctness.cpp" />
     <ClCompile Include="metadata\tokens.cpp" />
     <ClCompile Include="precompiled_headers.cpp">

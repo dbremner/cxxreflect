@@ -6,6 +6,10 @@
 #include "cxxreflect/reflection/precompiled_headers.hpp"
 #include "cxxreflect/reflection/assembly_name.hpp"
 
+
+
+
+
 namespace cxxreflect { namespace reflection { namespace {
 
     auto compute_public_key_token(metadata::blob const key, bool const is_full_public_key) -> public_key_token
@@ -65,11 +69,15 @@ namespace cxxreflect { namespace reflection { namespace {
             return;
 
         default:
-            core::assert_fail(L"unreachable code");
+            core::assert_unreachable();
         }
     }
-        
+
 } } }
+
+
+
+
 
 namespace cxxreflect { namespace reflection {
 
@@ -167,7 +175,7 @@ namespace cxxreflect { namespace reflection {
 
 
 
-    
+
     assembly_name::assembly_name()
     {
     }
@@ -194,14 +202,8 @@ namespace cxxreflect { namespace reflection {
     {
     }
 
-    assembly_name::assembly_name(assembly                                 const&,
+    assembly_name::assembly_name(std::nullptr_t,
                                  metadata::assembly_or_assembly_ref_token const  token,
-                                 core::internal_key)
-    {
-        build_assembly_name(*this, token, core::string_reference());
-    }
-
-    assembly_name::assembly_name(metadata::assembly_or_assembly_ref_token const  token,
                                  core::internal_key)
     {
         build_assembly_name(*this, token, core::string_reference());
@@ -260,14 +262,14 @@ namespace cxxreflect { namespace reflection {
 
         buffer << L", PublicKeyToken=";
         bool const public_key_is_null(
-            std::find_if(begin(_public_key_token.get()), end(_public_key_token.get()), [](core::byte const x)
+            std::find_if(begin(_public_key_token.get()), end(_public_key_token.get()), [&](core::byte const x)
             {
                 return x != 0;
             }) ==  end(_public_key_token.get()));
 
         if (!public_key_is_null)
         {
-            std::array<core::character, 17> public_key_string = { { 0 } };
+            std::array<core::character, 17> public_key_string = { 0 };
             for (core::size_type n(0); n < _public_key_token.get().size(); n += 1)
             {
                 std::swprintf(public_key_string.data() + (n * 2), 3, L"%02x", _public_key_token.get()[n]);
@@ -291,35 +293,14 @@ namespace cxxreflect { namespace reflection {
 
     auto operator==(assembly_name const& lhs, assembly_name const& rhs) -> bool
     {
-        return lhs.simple_name()      == rhs.simple_name()
-            && lhs.version()          == rhs.version()
-            && lhs.culture_info()     == rhs.culture_info()
-            && lhs.public_key_token() == rhs.public_key_token();
+        return std::tie(lhs._simple_name, lhs._version, lhs._culture_info, lhs._public_key_token.get())
+            == std::tie(rhs._simple_name, rhs._version, rhs._culture_info, rhs._public_key_token.get());
     }
 
     auto operator<(assembly_name const& lhs, assembly_name const& rhs) -> bool
     {
-        if (lhs._simple_name < rhs._simple_name)
-            return true;
-
-        if (lhs._simple_name > rhs._simple_name)
-            return false;
-
-        if (lhs._version < rhs._version)
-            return true;
-
-        if (lhs._version > rhs._version)
-            return false;
-
-        if (lhs._culture_info < rhs._culture_info)
-            return true;
-
-        if (lhs._culture_info > rhs._culture_info)
-            return false;
-
-        return lhs._public_key_token.get() < rhs._public_key_token.get();
+        return std::tie(lhs._simple_name, lhs._version, lhs._culture_info, lhs._public_key_token.get())
+            <  std::tie(rhs._simple_name, rhs._version, rhs._culture_info, rhs._public_key_token.get());
     }
-
-    
 
 } }

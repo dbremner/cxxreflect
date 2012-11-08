@@ -25,7 +25,6 @@
     <ClCompile Include="detail\call_invoker_utility.cpp" />
     <ClCompile Include="detail\call_invoker_x64.cpp" />
     <ClCompile Include="detail\call_invoker_x86.cpp" />
-    <ClCompile Include="detail\module_type_index.cpp" />
     <ClCompile Include="detail\overload_resolution.cpp" />
     <ClCompile Include="detail\runtime_utility.cpp" />
     <ClCompile Include="enumerator.cpp" />
@@ -50,7 +49,6 @@
     <ClInclude Include="detail\call_invoker_x86.hpp" />
     <ClInclude Include="detail\overload_resolution.hpp" />
     <ClInclude Include="detail\runtime_utility.hpp" />
-    <ClInclude Include="detail\module_type_index.hpp" />
     <ClInclude Include="enumerator.hpp" />
     <ClInclude Include="externals\winrt_externals.hpp" />
     <ClInclude Include="initialization.hpp" />

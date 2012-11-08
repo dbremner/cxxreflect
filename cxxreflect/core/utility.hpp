@@ -98,6 +98,14 @@ public:                                                                         
 
 
 
+// A static assertion whose message is simply the condition that failed.  This is useful pretty much
+// everywhere, so we define it here.
+#define CXXREFLECT_STATIC_ASSERT(...) static_assert((__VA_ARGS__), # __VA_ARGS__)
+
+
+
+
+
 namespace cxxreflect { namespace core { namespace detail {
 
     template <typename T>
@@ -306,6 +314,56 @@ namespace cxxreflect { namespace core {
     private:
 
         pointer _value;
+    };
+
+
+
+
+
+    template <typename T>
+    class constructor_forwarder
+    {
+    public:
+
+        auto operator()() const -> T 
+        {
+            return T();
+        }
+
+        template <typename P0>
+        auto operator()(P0&& p0) const -> T
+        {
+            return T(std::forward<P0>(p0));
+        }
+
+        template <typename P0, typename P1>
+        auto operator()(P0&& p0, P1&& p1) const -> T
+        {
+            return T(std::forward<P0>(p0), std::forward<P1>(p1));
+        }
+    };
+
+    template <typename T>
+    class internal_constructor_forwarder
+    {
+    public:
+
+        auto operator()() const -> T 
+        {
+            return T(internal_key());
+        }
+
+        template <typename P0>
+        auto operator()(P0&& p0) const -> T
+        {
+            return T(std::forward<P0>(p0), internal_key());
+        }
+
+        template <typename P0, typename P1>
+        auto operator()(P0&& p0, P1&& p1) const -> T
+        {
+            return T(std::forward<P0>(p0), std::forward<P1>(p1), internal_key());
+        }
     };
 
 
@@ -616,6 +674,14 @@ namespace cxxreflect { namespace core {
         return p;
     }
 
+    template <typename T>
+    auto make_unique_array(size_type const n) -> std::unique_ptr<T[]>
+    {
+        std::unique_ptr<T[]> p(new T[n]());
+
+        return p;
+    }
+
 
 
 
@@ -719,7 +785,12 @@ namespace cxxreflect { namespace core {
         {
         }
 
-        unique_byte_array(const_byte_iterator const first, const_byte_iterator const last, release_function release)
+        /// Constructs a new `unique_byte_array` from an array of bytes and optional release function
+        ///
+        /// The release function is optional:  if it is provided, it will be called when this object
+        /// is destroyed  (unless it is moved-from).  If it is not provided, no cleanup will be done.
+        /// The use case for no-cleanup is an array of bytes with static storage duration.
+        unique_byte_array(const_byte_iterator const first, const_byte_iterator const last, release_function release = nullptr)
             : _first(first), _last(last), _release(std::move(release))
         {
         }

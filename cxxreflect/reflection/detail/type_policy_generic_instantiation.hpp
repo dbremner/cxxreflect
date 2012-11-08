@@ -10,30 +10,20 @@
 
 namespace cxxreflect { namespace reflection { namespace detail {
 
-    /// \ingroup cxxreflect_reflection_type_policies
-    ///
-    /// @{
-
-
-
-
-
-    /// A type policy for generic instance type specializations (TypeSpec GenericInst types)
-    class generic_instance_type_policy : public specialization_type_policy
+    /// A base type policy for generic type instantiations type specializations (signatures)
+    class generic_instantiation_type_policy final : public specialization_type_policy
     {
     public:
 
-        virtual auto is_generic_type(type_def_or_signature_with_module const&) const -> bool;
-        virtual auto is_visible     (type_def_or_signature_with_module const&) const -> bool;
-        
-        virtual auto metadata_token(type_def_or_signature_with_module const&) const -> core::size_type;
+        virtual auto is_generic_type_instantiation(unresolved_type_context const&) const -> bool override;
+
+
+
+        virtual auto is_generic_type(resolved_type_context const&) const -> bool override;
+        virtual auto is_visible     (resolved_type_context const&) const -> bool override;
+
+        virtual auto metadata_token(resolved_type_context const&) const -> core::size_type override;
     };
-
-
-
-
-
-    /// @}
 
 } } }
 

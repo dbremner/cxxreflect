@@ -31,12 +31,10 @@ namespace cxxreflect { namespace windows_runtime {
 
             package_module_locator locator(current_package_root);
 
-            std::unique_ptr<reflection::loader> loader_instance(core::make_unique<reflection::loader>(
-                locator,
-                package_loader_configuration()));
+            std::unique_ptr<reflection::loader_root> loader_instance(core::make_unique<reflection::loader_root>(std::move(reflection::create_loader_root(locator, package_loader_configuration()))));
 
             // Load the embedded platform assembly
-            loader_instance->load_assembly(reflection::module_location(core::const_byte_range(
+            loader_instance->get().load_assembly(reflection::module_location(core::const_byte_range(
                 generated::begin_platform_types_embedded(),
                 generated::end_platform_types_embedded())));
 
@@ -46,7 +44,7 @@ namespace cxxreflect { namespace windows_runtime {
             sequence const metadata_files(locator.metadata_files());
             std::for_each(begin(metadata_files), end(metadata_files), [&](element const& e)
             {
-                loader_instance->load_assembly(reflection::module_location(e.second.c_str()));
+                loader_instance->get().load_assembly(reflection::module_location(e.second.c_str()));
             });
 
             std::unique_ptr<package_loader> context(core::make_unique<package_loader>(

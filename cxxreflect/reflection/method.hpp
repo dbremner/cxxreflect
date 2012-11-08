@@ -6,8 +6,7 @@
 #ifndef CXXREFLECT_REFLECTION_METHOD_HPP_
 #define CXXREFLECT_REFLECTION_METHOD_HPP_
 
-#include "cxxreflect/metadata/metadata.hpp"
-#include "cxxreflect/reflection/detail/independent_handles.hpp"
+#include "cxxreflect/reflection/detail/forward_declarations.hpp"
 
 namespace cxxreflect { namespace reflection {
 
@@ -16,8 +15,15 @@ namespace cxxreflect { namespace reflection {
     public:
 
         typedef core::instantiating_iterator<
-            detail::parameter_data, parameter, method, core::identity_transformer, std::forward_iterator_tag
+            detail::parameter_data,
+            parameter,
+            method,
+            core::internal_constructor_forwarder<parameter>,
+            core::identity_transformer,
+            std::forward_iterator_tag
         > parameter_iterator;
+
+        typedef core::iterator_range<parameter_iterator> parameter_range;
 
         method();
 
@@ -50,12 +56,9 @@ namespace cxxreflect { namespace reflection {
         auto is_initialized()               const -> bool;
         auto operator!()                    const -> bool;
 
-        auto begin_custom_attributes() const -> custom_attribute_iterator;
-        auto end_custom_attributes()   const -> custom_attribute_iterator;
-
-        auto begin_parameters() const -> parameter_iterator;
-        auto end_parameters()   const -> parameter_iterator;
-        auto parameter_count()  const -> core::size_type;
+        auto custom_attributes() const -> detail::custom_attribute_range;
+        auto parameters()        const -> parameter_range;
+        auto parameter_count()   const -> core::size_type;
 
         auto return_parameter() const -> parameter;
         auto return_type()      const -> type;
@@ -86,16 +89,16 @@ namespace cxxreflect { namespace reflection {
 
     public: // Internal Members
 
-        method(type const& reflected_type, detail::method_context const* context, core::internal_key);
+        method(type const& reflected_type, detail::method_table_entry const* context, core::internal_key);
 
-        auto context(core::internal_key) const -> detail::method_context const&;
+        auto context(core::internal_key) const -> detail::method_table_entry const&;
 
     private:
 
         auto row() const -> metadata::method_def_row;
 
-        detail::type_handle                                 _reflected_type;
-        core::checked_pointer<detail::method_context const> _context;
+        metadata::type_def_or_signature                         _reflected_type;
+        core::checked_pointer<detail::method_table_entry const> _context;
     };
 
 } }
