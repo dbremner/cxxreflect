@@ -40,7 +40,7 @@
       <Project>{035dcfc2-3bad-4b6a-adbc-90647a9675eb}</Project>
     </ProjectReference>
     <ProjectReference Include="reflection\cxxreflect_reflection.vcxproj">
-      <Project>{f615a647-5914-4701-9be2-b15dbde54501}</Project>
+      <Project>{7B708C91-9FF0-438C-9A2B-C9711480F37E}</Project>
     </ProjectReference>
     <ProjectReference Include="windows_runtime\cxxreflect_windows_runtime.vcxproj">
       <Project>{fd75e829-fe31-4cec-acd3-294dab75ae9f}</Project>
