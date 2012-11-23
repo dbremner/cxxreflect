@@ -1195,7 +1195,7 @@ namespace cxxreflect { namespace reflection { namespace detail {
                 continue;
             }
 
-            if (new_member.slot() == old_member.slot())
+            if (new_member.slot().is_initialized() && new_member.slot() == old_member.slot())
             {
                 core::assert_true([&]{ return slot_override_it == table_end; });
                 slot_override_it = table_it;
