@@ -86,6 +86,70 @@ namespace cxxreflect { namespace windows_runtime {
         return it != last_constructor;
     }
 
+    auto get_default_interface(reflection::type const& type) -> reflection::type
+    {
+        core::assert_initialized(type);
+
+        if (type.is_interface())
+            return type;
+
+        if (type.is_value_type())
+            return reflection::type();
+
+        metadata::type_def_or_signature const context(type.context(core::internal_key()));
+        core::assert_true([&]{ return context.is_token(); });
+
+        auto const interface_impls(metadata::find_interface_impls(context.as_token()));
+        auto const default_interface_impl(core::find_if(interface_impls, [&](metadata::interface_impl_row const& impl) -> bool
+        {
+            auto const custom_attributes(metadata::find_custom_attributes(impl.token()));
+            auto const default_attribute(core::find_if(custom_attributes, [&](metadata::custom_attribute_row const& attribute) -> bool
+            {
+                metadata::custom_attribute_type_token const attribute_ctor(attribute.type());
+                switch (attribute_ctor.table())
+                {
+                case metadata::table_id::method_def:
+                {
+                    metadata::method_def_token const real_attribute_ctor(attribute_ctor.as<metadata::method_def_token>());
+                    metadata::type_def_row     const attribute_type(metadata::find_owner_of_method_def(real_attribute_ctor));
+
+                    return attribute_type.namespace_name() == L"Windows.Foundation.Metadata"
+                        && attribute_type.name() == L"DefaultAttribute";
+                }
+                case metadata::table_id::member_ref:
+                {
+                    metadata::member_ref_token const unresolved_attribute_ctor(attribute_ctor.as<metadata::member_ref_token>());
+
+                    metadata::type_resolver const& resolver(reflection::detail::loader_context::from(context.scope()));
+                    metadata::field_or_method_def_token const resolved_attribute_ctor(resolver.resolve_member(unresolved_attribute_ctor));
+                    metadata::method_def_token const real_attribute_ctor(resolved_attribute_ctor.as<metadata::method_def_token>());
+                    metadata::type_def_row const attribute_type(metadata::find_owner_of_method_def(real_attribute_ctor));
+
+                    ::OutputDebugString(attribute_type.namespace_name().c_str());
+                    ::OutputDebugString(L"/");
+                    ::OutputDebugString(attribute_type.name().c_str());
+                    ::OutputDebugString(L"\n");
+
+                    return attribute_type.namespace_name() == L"Windows.Foundation.Metadata"
+                        && attribute_type.name() == L"DefaultAttribute";
+                }
+                default:
+                {
+                    core::assert_unreachable();
+                }
+                }
+                return false; // TODO
+            }));
+
+            return default_attribute != end(custom_attributes);
+        }));
+
+        if (default_interface_impl == end(interface_impls))
+            return reflection::type();
+
+        return reflection::type(default_interface_impl->interface_(), core::internal_key());
+    }
+
     auto get_guid(reflection::type const& type) -> reflection::guid
     {
         return global_package_loader::get().get_guid(type);

@@ -186,13 +186,16 @@ namespace cxxreflect { namespace reflection {
     template <typename TL, typename DL, typename TR, typename DR>
     auto operator==(detail::common_type_functionality<TL, DL> const& lhs, detail::common_type_functionality<TR, DR> const& rhs) -> bool
     {
+        if (!lhs.is_initialized() || !rhs.is_initialized())
+            return lhs.is_initialized() == rhs.is_initialized();
+
         return lhs.context(core::internal_key()) == rhs.context(core::internal_key());
     }
 
     template <typename TL, typename DL, typename TR, typename DR>
     auto operator!=(detail::common_type_functionality<TL, DL> const& lhs, detail::common_type_functionality<TR, DR> const& rhs) -> bool
     {
-        return lhs.context(core::internal_key()) != rhs.context(core::internal_key());
+        return !(lhs == rhs);
     }
 
     template <typename TL, typename DL, typename TR, typename DR>
@@ -204,19 +207,19 @@ namespace cxxreflect { namespace reflection {
     template <typename TL, typename DL, typename TR, typename DR>
     auto operator>(detail::common_type_functionality<TL, DL> const& lhs, detail::common_type_functionality<TR, DR> const& rhs) -> bool
     {
-        return lhs.context(core::internal_key()) > rhs.context(core::internal_key());
+        return rhs < lhs;
     }
 
     template <typename TL, typename DL, typename TR, typename DR>
     auto operator<=(detail::common_type_functionality<TL, DL> const& lhs, detail::common_type_functionality<TR, DR> const& rhs) -> bool
     {
-        return lhs.context(core::internal_key()) <= rhs.context(core::internal_key());
+        return !(rhs < lhs);
     }
 
     template <typename TL, typename DL, typename TR, typename DR>
     auto operator>=(detail::common_type_functionality<TL, DL> const& lhs, detail::common_type_functionality<TR, DR> const& rhs) -> bool
     {
-        return lhs.context(core::internal_key()) >= rhs.context(core::internal_key());
+        return !(lhs < rhs);
     }
 
 } }

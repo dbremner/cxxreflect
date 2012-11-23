@@ -24,6 +24,7 @@
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="DefaultInterfaceTestTypes.cpp" />
     <ClCompile Include="IProvideANumber.cpp" />
     <ClCompile Include="Types.cpp" />
   </ItemGroup>

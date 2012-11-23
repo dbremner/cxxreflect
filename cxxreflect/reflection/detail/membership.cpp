@@ -863,8 +863,6 @@ namespace cxxreflect { namespace reflection { namespace detail { namespace {
             if (!instantiator.would_instantiate(signature))
                 return interim_type(token, instantiating_type.best_match(), core::const_byte_range());
 
-            // TODO URGENT Incorporate MethodImpl information here or in an overload
-
             return interim_type(token, instantiating_type.best_match(), instantiate(signature, instantiator));
         }
 

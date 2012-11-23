@@ -45,6 +45,9 @@
     <ClCompile Include="windows_runtime\basic_alpha_methodimpl_support.cpp">
       <Filter>windows_runtime</Filter>
     </ClCompile>
+    <ClCompile Include="windows_runtime\basic_alpha_default_interface.cpp">
+      <Filter>windows_runtime</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="precompiled_headers.hpp" />

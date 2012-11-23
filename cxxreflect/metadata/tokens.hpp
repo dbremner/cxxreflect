@@ -885,7 +885,7 @@ namespace cxxreflect { namespace metadata {
         /// metadata library.  If it is not, it must match the interface of those signature types.
         /// The provided signature must be initialized.
         template <typename Signature>
-        blob(Signature const& signature)
+        blob(Signature const& signature, typename std::enable_if<std::is_base_of<class base_signature, Signature>::value>::type* = nullptr)
             : _scope(&signature.scope()), _first(signature.begin_bytes()), _last(signature.end_bytes())
         {
             core::assert_initialized(signature);

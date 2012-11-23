@@ -44,6 +44,7 @@
       <PrecompiledHeader>Create</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="static_initialization.cpp" />
+    <ClCompile Include="windows_runtime\basic_alpha_default_interface.cpp" />
     <ClCompile Include="windows_runtime\basic_alpha_enumerations.cpp" />
     <ClCompile Include="windows_runtime\basic_alpha_methodimpl_support.cpp" />
     <ClCompile Include="windows_runtime_sdk\basic_alpha_sdk.cpp" />

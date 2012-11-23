@@ -42,9 +42,9 @@ namespace cxxreflect { namespace reflection { namespace detail { namespace {
 namespace cxxreflect { namespace reflection { namespace detail {
 
     loader_context::loader_context(module_locator locator, loader_configuration configuration)
-            : _locator(std::move(locator)), _configuration(std::move(configuration))
-        {
-        }
+        : _locator(std::move(locator)), _configuration(std::move(configuration))
+    {
+    }
 
     auto loader_context::get_or_load_assembly(module_location const& location) const -> assembly_context const&
     {
@@ -265,13 +265,15 @@ namespace cxxreflect { namespace reflection { namespace detail {
 
         metadata::signature_comparer const signatures_are_equal(this);
 
-        auto const membership(_membership.get_membership(detail::resolve_type(ref_row.parent().as<metadata::type_ref_spec_token>())));
+        metadata::type_def_or_signature const resolved_parent(detail::resolve_type(ref_row.parent().as<metadata::type_ref_spec_token>()));
+        auto const membership(_membership.get_membership(resolved_parent));
         if (is_field_signature)
         {
             auto const fields(membership.get_fields());
             auto const field(core::find_if(fields, [&](field_table_entry const* const f) -> bool
             {
-                return row_from(f->member_token()).name() == ref_row.name()
+                return metadata::find_owner_of_field(f->member_token()).token() == resolved_parent.as_token()
+                    && row_from(f->member_token()).name() == ref_row.name()
                     && signatures_are_equal(f->member_signature(), ref_row.signature().as<metadata::field_signature>());
             }));
 
@@ -286,7 +288,8 @@ namespace cxxreflect { namespace reflection { namespace detail {
             auto const methods(membership.get_methods());
             auto const method(core::find_if(methods, [&](method_table_entry const* const m) -> bool
             {
-                return row_from(m->member_token()).name() == ref_row.name()
+                return metadata::find_owner_of_method_def(m->member_token()).token() == resolved_parent.as_token()
+                    && row_from(m->member_token()).name() == ref_row.name()
                     && signatures_are_equal(m->member_signature(), ref_row.signature().as<metadata::method_signature>());
             }));
 

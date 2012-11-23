@@ -3,5 +3,6 @@
   <ItemGroup>
     <ClCompile Include="Types.cpp" />
     <ClCompile Include="IProvideANumber.cpp" />
+    <ClCompile Include="DefaultInterfaceTestTypes.cpp" />
   </ItemGroup>
 </Project>
