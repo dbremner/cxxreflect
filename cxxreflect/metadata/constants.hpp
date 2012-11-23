@@ -700,6 +700,7 @@ namespace cxxreflect { namespace metadata {
 
         import                     = 0x00001000,
         serializable               = 0x00002000,
+        windows_runtime            = 0x00004000,
 
         string_format_mask         = 0x00030000,
         ansi_class                 = 0x00000000,

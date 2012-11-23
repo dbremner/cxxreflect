@@ -62,7 +62,7 @@ namespace cxxreflect { namespace reflection { namespace detail {
 
         static auto insert_member(interim_sequence_type         & member_table,
                                   interim_type             const& new_member,
-                                  core::size_type          const  inherited_member_count) -> void;
+                                  core::size_type          const  inherited_member_count) -> core::size_type;
     };
 
     template <>
@@ -88,7 +88,7 @@ namespace cxxreflect { namespace reflection { namespace detail {
 
         static auto insert_member(interim_sequence_type         & member_table,
                                   interim_type             const& new_member,
-                                  core::size_type          const  inherited_member_count) -> void;
+                                  core::size_type          const  inherited_member_count) -> core::size_type;
     };
 
     template <>
@@ -126,7 +126,7 @@ namespace cxxreflect { namespace reflection { namespace detail {
 
         static auto insert_member(interim_sequence_type         & member_table,
                                   interim_type             const& new_member,
-                                  core::size_type          const  inherited_member_count) -> void;
+                                  core::size_type          const  inherited_member_count) -> core::size_type;
 
         /// Gets the type of the intefrace referred to by the given parent token
         ///
@@ -164,9 +164,13 @@ namespace cxxreflect { namespace reflection { namespace detail {
                           metadata::method_def_token      const& method);
 
             auto declaring_type()  const -> metadata::type_def_or_signature const&;
-            auto declared_method() const -> metadata::method_def_token const&;
+            auto declared_method() const -> metadata::method_def_token      const&;
 
             auto is_initialized() const -> bool;
+
+            friend auto operator==(override_slot const&, override_slot const&) -> bool;
+
+            CXXREFLECT_GENERATE_EQUALITY_OPERATORS(override_slot)
 
         private:
 
@@ -174,8 +178,8 @@ namespace cxxreflect { namespace reflection { namespace detail {
             metadata::method_def_token      _declared_method;
         };
 
-        typedef member_table_entry_with_override_slot   interim_type;
-        typedef std::vector<interim_type>               interim_sequence_type;
+        typedef member_table_entry_with_override_slot interim_type;
+        typedef std::vector<interim_type>             interim_sequence_type;
 
         static auto get_members  (metadata::type_def_token const& type) -> row_range_type;
 
@@ -183,7 +187,7 @@ namespace cxxreflect { namespace reflection { namespace detail {
 
         static auto insert_member(interim_sequence_type         & member_table,
                                   interim_type             const& new_member,
-                                  core::size_type          const  inherited_member_count) -> void;
+                                  core::size_type          const  inherited_member_count) -> core::size_type;
     };
 
     template <>
@@ -209,7 +213,7 @@ namespace cxxreflect { namespace reflection { namespace detail {
 
         static auto insert_member(interim_sequence_type         & member_table,
                                   interim_type             const& new_member,
-                                  core::size_type          const  inherited_member_count) -> void;
+                                  core::size_type          const  inherited_member_count) -> core::size_type;
     };
 
 

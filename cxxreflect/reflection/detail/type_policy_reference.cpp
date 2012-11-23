@@ -67,14 +67,14 @@ namespace cxxreflect { namespace reflection { namespace detail {
     {
         assert_reference(t);
 
-        return row_from(t.as_token().as<metadata::type_ref_token>()).name();
+        return row_from(t.as_token().as<metadata::type_ref_token>()).namespace_name();
     }
 
     auto reference_type_policy::primary_name(unresolved_type_context const& t) const -> core::string_reference
     {
         assert_reference(t);
 
-        return row_from(t.as_token().as<metadata::type_ref_token>()).namespace_name();
+        return row_from(t.as_token().as<metadata::type_ref_token>()).name();
     }
 
     auto reference_type_policy::declaring_type(unresolved_type_context const& t) const -> unresolved_type_context

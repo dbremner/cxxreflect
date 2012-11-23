@@ -180,8 +180,7 @@ namespace cxxreflect { namespace windows_runtime {
 
     auto package_loader_configuration::is_filtered_type(metadata::type_def_token const& token) const -> bool
     {
-        return row_from(token).flags().with_mask(metadata::type_attribute::visibility_mask)
-            != metadata::type_attribute::public_;
+        return !row_from(token).flags().is_set(metadata::type_attribute::windows_runtime);
     }
 
 

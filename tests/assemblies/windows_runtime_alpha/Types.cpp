@@ -16,4 +16,56 @@ namespace TestComponents { namespace Alpha {
         Saturday  = 6
     };
 
+    public interface struct SimpleMethodImplTestInterface
+    {
+        virtual void InterfaceFunctionShouldNotAppear() = 0;
+    };
+
+    public ref struct SimpleMethodImplTestBaseClass
+        : Windows::UI::Xaml::DependencyObject,
+          SimpleMethodImplTestInterface
+    {
+        virtual void BaseClassFunctionShouldNotAppear()
+            = SimpleMethodImplTestInterface::InterfaceFunctionShouldNotAppear
+        {
+        }
+    };
+
+    public ref struct SimpleMethodImplTestDerivedClass sealed
+        : SimpleMethodImplTestBaseClass
+    {
+        virtual void DerivedClassFunctionShouldAppear()
+            = SimpleMethodImplTestInterface::InterfaceFunctionShouldNotAppear
+        {
+        }
+    };
+
+    public interface struct HidingMethodImplTestInterface
+    {
+        virtual void F() = 0;
+    };
+
+    public ref struct HidingMethodImplTestBaseClass
+        : Windows::UI::Xaml::DependencyObject,
+          HidingMethodImplTestInterface
+    {
+        virtual void G()
+            = HidingMethodImplTestInterface::F
+        {
+        }
+
+        void H()
+        {
+        }
+    };
+
+    public ref struct HidingMethodImplTestDerivedClass sealed
+        : HidingMethodImplTestBaseClass
+    {
+        virtual void H()
+            = HidingMethodImplTestInterface::F
+        {
+        }
+    };
+
 } }

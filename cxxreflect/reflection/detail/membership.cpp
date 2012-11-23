@@ -6,6 +6,7 @@
 #include "cxxreflect/reflection/precompiled_headers.hpp"
 #include "cxxreflect/reflection/detail/loader_context.hpp"
 #include "cxxreflect/reflection/detail/membership.hpp"
+#include "cxxreflect/reflection/detail/type_resolution.hpp"
 
 
 
@@ -272,6 +273,57 @@ namespace cxxreflect { namespace reflection { namespace detail { namespace {
 
 
 
+    auto compute_slot_for(metadata::method_def_token const& method, metadata::type_def_or_signature const& type)
+        -> method_traits::override_slot
+    {
+        core::assert_initialized(method);
+
+        metadata::method_def_row   const method_row      (row_from(method));
+        metadata::method_signature const method_signature(method_row.signature().as<metadata::method_signature>());
+        metadata::type_def_token   const defining_type   (metadata::find_owner_of_method_def(method).token());
+
+        auto const implementations  (metadata::find_method_impls(defining_type));
+        auto const implementation_it(core::find_if(implementations, [&](metadata::method_impl_row const& r)
+        {
+            return r.method_body() == method;
+        }));
+
+        if (implementation_it == end(implementations))
+            return method_traits::override_slot();
+
+        metadata::method_impl_row const implementation(*implementation_it);
+
+        auto const overridden_method(implementation.method_declaration());
+        switch (overridden_method.table())
+        {
+        case metadata::table_id::method_def:
+        {
+            metadata::method_def_token const real_overridden_method(overridden_method.as<metadata::method_def_token>());
+            return method_traits::override_slot(
+                resolve_type(metadata::find_owner_of_method_def(real_overridden_method).token()),
+                real_overridden_method);
+        }
+        case metadata::table_id::member_ref:
+        {
+            metadata::member_ref_token        const real_overridden_method  (overridden_method.as<metadata::member_ref_token>());
+            metadata::member_ref_parent_token const overridden_method_parent(row_from(real_overridden_method).parent());
+
+            return method_traits::override_slot(
+                resolve_type(overridden_method_parent.as<metadata::type_ref_spec_token>()),
+                loader_context::from(method.scope()).resolve_member(real_overridden_method).as<metadata::method_def_token>());
+        }
+        default:
+        {
+            // The other two scopes--module_ref and method_def--are not reachable in this context
+            core::assert_unreachable();
+        }
+        }
+    }
+
+
+
+
+
     template <member_kind MemberTag>
     class built_table
     {
@@ -427,7 +479,7 @@ namespace cxxreflect { namespace reflection { namespace detail { namespace {
                     instantiator_arguments);
             }
 
-            core::size_type const inherited_element_count(core::convert_integer(new_table.size()));
+            core::size_type inherited_element_count(core::convert_integer(new_table.size()));
 
             // Next, we enumerate the elements defined by 'type' itself, and insert them into the
             // table.  Due to overriding and hiding, these may not create new elements inthe table;
@@ -450,7 +502,7 @@ namespace cxxreflect { namespace reflection { namespace detail { namespace {
                 // Create the new context, insert it into the table, and perform post-recurse:
                 interim_type const new_context(create_element(element_row.token(), type, instantiator, traits_type()));
 
-                traits_type::insert_member(new_table, new_context, inherited_element_count);
+                inherited_element_count = traits_type::insert_member(new_table, new_context, inherited_element_count);
 
                 post_insertion_recurse_with_context(new_context, new_table, inherited_element_count, traits_type());
             });
@@ -556,7 +608,7 @@ namespace cxxreflect { namespace reflection { namespace detail { namespace {
         /// base class hierarchy is insufficient for interface classes.
         auto post_insertion_recurse_with_context(interim_type          const& context,
                                                  interim_sequence_type      & table,
-                                                 core::size_type       const  inherited_element_count,
+                                                 core::size_type              inherited_element_count,
                                                  member_traits<member_kind::interface_>) const -> void
         {
             entry_type const& typed_context(*entry_type::from(&context));
@@ -599,7 +651,7 @@ namespace cxxreflect { namespace reflection { namespace detail { namespace {
                         instantiator,
                         traits_type()));
 
-                    traits_type::insert_member(table, new_entry, inherited_element_count);
+                    inherited_element_count = traits_type::insert_member(table, new_entry, inherited_element_count);
 
                     // TODO This should check whether insert_element inserted a new element; if it did
                     // not, we don't need to recurse.
@@ -607,7 +659,7 @@ namespace cxxreflect { namespace reflection { namespace detail { namespace {
                 }
                 else
                 {
-                    traits_type::insert_member(table, new_entry->realize(), inherited_element_count);
+                    inherited_element_count = traits_type::insert_member(table, new_entry->realize(), inherited_element_count);
 
                     // TODO This should check whether insert_element inserted a new element; if it did
                     // not, we don't need to recurse.
@@ -874,12 +926,13 @@ namespace cxxreflect { namespace reflection { namespace detail {
 
     auto event_traits::insert_member(interim_sequence_type& member_table,
                                      interim_type    const& new_member,
-                                     core::size_type const  inherited_member_count) -> void
+                                     core::size_type const  inherited_member_count) -> core::size_type
     {
         core::assert_initialized(new_member);
 
         // TODO Do we need to handle hiding or overriding for events?
         member_table.push_back(new_member);
+        return inherited_member_count;
     }
 
 
@@ -904,12 +957,13 @@ namespace cxxreflect { namespace reflection { namespace detail {
 
     auto field_traits::insert_member(interim_sequence_type& member_table,
                                      interim_type    const& new_member,
-                                     core::size_type const  inherited_member_count) -> void
+                                     core::size_type const  inherited_member_count) -> core::size_type
     {
         core::assert_initialized(new_member);
 
         // TODO Do we need to handle hiding or overriding for fields?
         member_table.push_back(new_member);
+        return inherited_member_count;
     }
 
 
@@ -945,7 +999,7 @@ namespace cxxreflect { namespace reflection { namespace detail {
 
     auto interface_traits::insert_member(interim_sequence_type& member_table,
                                          interim_type    const& new_member,
-                                         core::size_type const  inherited_member_count) -> void
+                                         core::size_type const  inherited_member_count) -> core::size_type
     {
         core::assert_initialized(new_member);
 
@@ -982,9 +1036,11 @@ namespace cxxreflect { namespace reflection { namespace detail {
             return compare(old_signature, new_signature);
         }));
 
-        return it == end(member_table)
+        it == end(member_table)
             ? (void)member_table.push_back(new_member)
             : (void)(*it = new_member);
+
+        return inherited_member_count;
     }
 
     auto interface_traits::get_interface_type(token_type const& parent)
@@ -1041,6 +1097,29 @@ namespace cxxreflect { namespace reflection { namespace detail {
     {
         return _declaring_type.is_initialized() && _declared_method.is_initialized();
     }
+
+    auto operator==(method_traits::override_slot const& lhs, method_traits::override_slot const& rhs) -> bool
+    {
+        if (lhs.is_initialized() != rhs.is_initialized())
+            return false;
+
+        if (!lhs.is_initialized())
+            return true;
+
+        if (lhs.declared_method() != rhs.declared_method())
+            return false;
+
+        if (lhs.declaring_type().is_blob() != rhs.declaring_type().is_blob())
+            return false;
+
+        if (!lhs.declaring_type().is_blob())
+            return lhs.declaring_type().as_token() == rhs.declaring_type().as_token();
+
+        metadata::signature_comparer const compare(&loader_context::from(lhs.declaring_type().scope()));
+        return compare(
+            lhs.declaring_type().as_blob().as<metadata::type_signature>(),
+            rhs.declaring_type().as_blob().as<metadata::type_signature>());
+    }
     
     auto method_traits::get_members(metadata::type_def_token const& type) -> row_range_type
     {
@@ -1060,7 +1139,7 @@ namespace cxxreflect { namespace reflection { namespace detail {
 
     auto method_traits::insert_member(interim_sequence_type& member_table,
                                       interim_type    const& new_member,
-                                      core::size_type const  inherited_member_count) -> void
+                                      core::size_type const  inherited_member_count) -> core::size_type
     {
         core::assert_initialized(new_member);
         core::assert_true([&]{ return inherited_member_count <= member_table.size(); });
@@ -1077,15 +1156,35 @@ namespace cxxreflect { namespace reflection { namespace detail {
             new_method_def.flags().is_set(metadata::method_attribute::static_))
         {
             member_table.push_back(new_member);
-            return;
+            return inherited_member_count;
         }
 
-        bool is_new_method(true);
-
         auto const table_begin(member_table.rbegin() + (member_table.size() - inherited_member_count));
-        auto const table_end(member_table.rend());
-        auto const table_it(std::find_if(table_begin, table_end, [&](interim_type const& old_member) -> bool
+        auto const table_end  (member_table.rend());
+
+        // There are two ways that a new method may override a method from the base class:  it may
+        // override by name and signature or it may override by slot (via the MethodImpl table).  We
+        // must search for both possible overridden methods in the base table because we may override
+        // by slot and hide by name and signature.  For example, consider:
+        //
+        //     ref struct B {
+        //         virtual void F();
+        //         virtual void G();
+        //     };
+        //
+        //     ref struct D : B {
+        //         virtual void G() = B::F;
+        //     };
+        //
+        // Here, D::G overrides B::F, but when we process it we must also remove B::G from the table
+        // otherwise there will be two methods with identical names and signatures and would thus be
+        // indistinguishable during overload resolution.  *sigh*
+        auto slot_override_it     (table_end);
+        auto signature_override_it(table_end);
+
+        for (auto table_it(table_begin); table_it != table_end; ++table_it)
         {
+            interim_type               const& old_member(*table_it);
             method_table_entry         const& typed_old_member(*method_table_entry::from(&old_member));
             metadata::method_def_row   const  old_method_def(row_from(typed_old_member.member_token()));
             metadata::method_signature const  old_method_sig(typed_old_member.member_signature());
@@ -1094,27 +1193,64 @@ namespace cxxreflect { namespace reflection { namespace detail {
             // do not hide any names by name or signature; we only hide overridden virtual methods.
             // This matches the runtime behavior of the CLR, not the compiler behavior.
             if (!old_method_def.flags().is_set(metadata::method_attribute::virtual_))
-                return false;
+            {
+                continue;
+            }
 
-            // TODO Add support for the method_impl table
+            if (new_member.slot() == old_member.slot())
+            {
+                core::assert_true([&]{ return slot_override_it == table_end; });
+                slot_override_it = table_it;
+                continue;
+            }
+
             if (old_method_def.name() != new_method_def.name())
-                return false;
+            {
+                continue;
+            }
 
             metadata::signature_comparer const compare(&resolver);
 
             // If the signature of the method in the derived class is different from the signature
             // of the method in the base class, it is not an override:
             if (!compare(old_method_sig, new_method_sig))
-                return false;
+            {
+                continue;
+            }
 
             // If the base class method is final, the derived class method is a new method:
-            is_new_method = old_method_def.flags().is_set(metadata::method_attribute::final);
-            return true;
-        }));
+            if (old_method_def.flags().is_set(metadata::method_attribute::final))
+            {
+                continue;
+            }
 
-        return is_new_method
-            ? (void)member_table.push_back(new_member)
-            : (void)(*table_it = new_member);
+            if (signature_override_it != table_end)
+                throw core::metadata_error(L"method signatures not unique");
+
+            signature_override_it = table_it;
+        }
+
+        if (slot_override_it == table_end && signature_override_it == table_end)
+        {
+            member_table.push_back(new_member);
+            return inherited_member_count;
+        }
+        else if (slot_override_it != table_end && signature_override_it == table_end)
+        {
+            *slot_override_it = new_member;
+            return inherited_member_count;
+        }
+        else if (slot_override_it == table_end && signature_override_it != table_end)
+        {
+            *signature_override_it = new_member;
+            return inherited_member_count;
+        }
+        else
+        {
+            *slot_override_it = new_member;
+            member_table.erase(std::prev(signature_override_it.base()));
+            return inherited_member_count - 1;
+        }
     }
 
 
@@ -1136,13 +1272,14 @@ namespace cxxreflect { namespace reflection { namespace detail {
     }
 
     auto property_traits::insert_member(interim_sequence_type& member_table,
-                                     interim_type    const& new_member,
-                                     core::size_type const  inherited_member_count) -> void
+                                        interim_type    const& new_member,
+                                        core::size_type const  inherited_member_count) -> core::size_type
     {
         core::assert_initialized(new_member);
 
         // TODO Do we need to handle hiding or overriding for properties?
         member_table.push_back(new_member);
+        return inherited_member_count;
     }
 
 
@@ -1235,7 +1372,9 @@ namespace cxxreflect { namespace reflection { namespace detail {
         : _entry(context.member_token()), _override_slot(slot)
     {
         core::assert_initialized(context);
-        // TODO core::assert_initialized(slot);
+
+        if (!_override_slot.is_initialized())
+            _override_slot = compute_slot_for(_entry.member_token().as<metadata::method_def_token>(), metadata::type_def_or_signature());
     }
 
     member_table_entry_with_override_slot::member_table_entry_with_override_slot(metadata::unrestricted_token    const& member_token,
@@ -1245,7 +1384,11 @@ namespace cxxreflect { namespace reflection { namespace detail {
         : _entry(member_token, instantiating_type, instantiated_signature), _override_slot(slot)
     {
         core::assert_initialized(member_token);
-        // TODO core::assert_initialized(slot);
+
+        if (!_override_slot.is_initialized())
+            _override_slot = compute_slot_for(
+                _entry.member_token().as<metadata::method_def_token>(),
+                _entry.instantiating_type());
     }
 
     member_table_entry_with_override_slot::operator member_table_entry_with_instantiation const&() const
@@ -1631,8 +1774,9 @@ namespace cxxreflect { namespace reflection { namespace detail {
         _storage->create_table<MemberTag>(*_context, core::internal_key());
         auto const new_table(_context->get_table<MemberTag>());
 
-        core::assert_true([&]{ return new_table.has_value(); });
-        return new_table.value();
+        return new_table.has_value()
+            ? new_table.value()
+            : typename member_table_iterator_generator<MemberTag>::range_type();
     }
 
     template auto membership_handle::get_table<member_kind::event     >() const -> member_table_iterator_generator<member_kind::event     >::range_type;

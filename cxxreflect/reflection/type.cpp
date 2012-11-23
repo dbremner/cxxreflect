@@ -207,8 +207,8 @@ namespace cxxreflect { namespace reflection { namespace detail {
     common_type_functionality<T, D>::common_type_functionality(token_type const& token)
         : _token(token)
     {
-        core::assert_initialized(token);
-        _policy.get() = &type_policy::get_for(token);
+        if (token.is_initialized())
+            _policy.get() = &type_policy::get_for(token);
     }
 
     template <typename T, typename D>
@@ -243,7 +243,7 @@ namespace cxxreflect { namespace reflection {
     }
 
     unresolved_type::unresolved_type(metadata::type_def_ref_spec_or_signature const& token, core::internal_key)
-        : common_type_functionality(detail::compute_type(token))
+        : common_type_functionality(token.is_initialized() ? detail::compute_type(token) : metadata::type_def_ref_or_signature())
     {
     }
 
@@ -329,12 +329,16 @@ namespace cxxreflect { namespace reflection {
     }
 
     type::type(metadata::type_def_ref_spec_or_signature const& token, core::internal_key)
-        : common_type_functionality(detail::resolve_type(token))
+        : common_type_functionality(token.is_initialized()
+            ? detail::resolve_type(token)
+            : metadata::type_def_or_signature())
     {
     }
 
     type::type(unresolved_type const& source)
-        : common_type_functionality(detail::resolve_type(source.context(core::internal_key())))
+        : common_type_functionality(source.is_initialized()
+            ? detail::resolve_type(source.context(core::internal_key()))
+            : metadata::type_def_or_signature())
     {
     }
 

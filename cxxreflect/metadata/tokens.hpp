@@ -814,9 +814,19 @@ namespace cxxreflect { namespace metadata {
     )> type_def_ref_spec_token;
 
     typedef restricted_token<(table_mask)(
+        (integer_table_mask)table_mask::type_def  |
+        (integer_table_mask)table_mask::type_spec
+    )> type_def_spec_token;
+
+    typedef restricted_token<(table_mask)(
         (integer_table_mask)table_mask::type_def   |
         (integer_table_mask)table_mask::method_def
     )> type_or_method_def_token;
+
+    typedef restricted_token<(table_mask)(
+        (integer_table_mask)table_mask::type_ref  |
+        (integer_table_mask)table_mask::type_spec
+    )> type_ref_spec_token;
 
 
 

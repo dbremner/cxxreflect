@@ -8,6 +8,7 @@
 #include "cxxreflect/reflection/detail/loader_context.hpp"
 #include "cxxreflect/reflection/detail/module_context.hpp"
 #include "cxxreflect/reflection/detail/type_hierarchy.hpp"
+#include "cxxreflect/reflection/detail/type_resolution.hpp"
 #include "cxxreflect/reflection/assembly.hpp"
 #include "cxxreflect/reflection/assembly_name.hpp"
 #include "cxxreflect/reflection/loader.hpp"
@@ -216,7 +217,85 @@ namespace cxxreflect { namespace reflection { namespace detail {
 
     auto loader_context::resolve_member_ref(metadata::member_ref_token const ref) const -> metadata::field_or_method_def_token
     {
-        core::assert_not_yet_implemented();
+        core::assert_initialized(ref);
+
+        module_context    const& module(module_context::from(ref.scope()));
+        module_member_ref_cache& resolution_cache(module.member_ref_cache());
+
+        // First check to see if we've already resolved the member reference:
+        metadata::field_or_method_def_token const cached_result(resolution_cache.get(ref));
+        if (cached_result.is_initialized())
+            return cached_result;
+
+        // Ok, we don't have a cached result; let's resolve the reference:
+        metadata::member_ref_row const ref_row(row_from(ref));
+
+        metadata::type_def_token const parent_type([&]() -> metadata::type_def_token
+        {
+            metadata::member_ref_parent_token const parent(ref_row.parent());
+            switch (parent.table())
+            {
+            case metadata::table_id::type_ref:
+                return resolve_type_ref(parent.as<metadata::type_ref_token>());
+
+            case metadata::table_id::module_ref:
+                // This class table is used only for global members
+                core::assert_not_yet_implemented();
+
+            case metadata::table_id::method_def:
+                // This class table is only used for call site varargs usage
+                core::assert_not_yet_implemented();
+
+            case metadata::table_id::type_spec:
+                return resolve_primary_type(compute_type(parent.as<metadata::type_spec_token>()));
+
+            default:
+                core::assert_unreachable();
+            }
+        }());
+
+        metadata::blob const member_blob(ref_row.signature());
+        if (member_blob.begin() == member_blob.end())
+            throw core::metadata_error(L"invalid metadata:  signature is empty");
+
+        bool const is_field_signature(metadata::signature_flags(*member_blob.begin())
+            .with_mask(metadata::signature_attribute::calling_convention_mask) == metadata::signature_attribute::field);
+
+        metadata::field_or_method_def_token result;
+
+        metadata::signature_comparer const signatures_are_equal(this);
+
+        auto const membership(_membership.get_membership(detail::resolve_type(ref_row.parent().as<metadata::type_ref_spec_token>())));
+        if (is_field_signature)
+        {
+            auto const fields(membership.get_fields());
+            auto const field(core::find_if(fields, [&](field_table_entry const* const f) -> bool
+            {
+                return row_from(f->member_token()).name() == ref_row.name()
+                    && signatures_are_equal(f->member_signature(), ref_row.signature().as<metadata::field_signature>());
+            }));
+
+            if (field == end(fields))
+                throw core::metadata_error(L"referenced field does not exist");
+
+            resolution_cache.set(ref, (*field)->member_token());
+            return (*field)->member_token();
+        }
+        else // it's a method signature
+        {
+            auto const methods(membership.get_methods());
+            auto const method(core::find_if(methods, [&](method_table_entry const* const m) -> bool
+            {
+                return row_from(m->member_token()).name() == ref_row.name()
+                    && signatures_are_equal(m->member_signature(), ref_row.signature().as<metadata::method_signature>());
+            }));
+
+            if (method == end(methods))
+                throw core::metadata_error(L"referenced method does not exist");
+
+            resolution_cache.set(ref, (*method)->member_token());
+            return (*method)->member_token();
+        }
     }
 
     auto loader_context::resolve_type_ref(metadata::type_ref_token const ref) const -> metadata::type_def_token
@@ -226,13 +305,19 @@ namespace cxxreflect { namespace reflection { namespace detail {
         module_context  const& module(module_context::from(ref.scope()));
         module_type_ref_cache& resolution_cache(module.type_ref_cache());
 
-        // First check to see if we've already resolved the module reference:
+        // First check to see if we've already resolved the type reference:
         metadata::type_def_token const cached_result(resolution_cache.get(ref));
         if (cached_result.is_initialized())
             return cached_result;
 
         // Ok, we don't have a cached result; let's resolve the reference:
         metadata::type_ref_row const ref_row(row_from(ref));
+
+        // Select the namespace to be used for resolution:
+        core::string_reference const acutal_namespace(ref_row.namespace_name());
+        core::string_reference const usable_namespace(ref_row.namespace_name() == core::string_reference::from_literal(L"System")
+            ? system_namespace()
+            : ref_row.namespace_name());
 
         metadata::resolution_scope_token const resolution_scope(ref_row.resolution_scope());
 
@@ -248,36 +333,44 @@ namespace cxxreflect { namespace reflection { namespace detail {
             {
             // If we have a module, then the type def is defined in the same scope as the type ref:
             case metadata::table_id::module:
+            {
                 return module.database();
+            }
 
             // If we have a module ref, then the type def is in another module of this assembly.
             // (Actually, it could also be defined in this module, too, but that would be weird.
             // The resolution here does the right thing, regardless:
             case metadata::table_id::module_ref:
+            {
                 return resolve_module_ref(resolution_scope.as<metadata::module_ref_token>());
+            }
 
             // If we have an assembly ref, then the type def is in another assembly, which we must
             // resolve.
             case metadata::table_id::assembly_ref:
-                return resolve_assembly_ref(resolution_scope.as<metadata::assembly_ref_token>());
+            {
+                metadata::assembly_ref_token const assembly_ref_scope(resolution_scope.as<metadata::assembly_ref_token>());
+                return is_windows_runtime_assembly_ref(assembly_ref_scope)
+                    ? resolve_namespace(usable_namespace)
+                    : resolve_assembly_ref(assembly_ref_scope);
+            }
 
             // If we have a type ref, this is a nested type.  We need to resolve the target type ref
             // to find the enclosing type.  The nested type will be defined in the same scope.
             case metadata::table_id::type_ref:
+            {
                 core::assert_not_yet_implemented();
+            }
 
             // There are no other valid resolution scope tables:
             default:
+            {
                 core::assert_unreachable();
+            }
             }
         }());
 
         module_context const& target_module(module_context::from(target_scope));
-
-        core::string_reference const acutal_namespace(ref_row.namespace_name());
-        core::string_reference const usable_namespace(ref_row.namespace_name() == core::string_reference::from_literal(L"System")
-            ? system_namespace()
-            : ref_row.namespace_name());
 
         // Find the target type in the module:
         metadata::type_def_token const result(target_module.type_def_index().find(usable_namespace, ref_row.name()));
