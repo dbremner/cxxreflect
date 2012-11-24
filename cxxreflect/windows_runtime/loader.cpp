@@ -74,17 +74,12 @@ namespace cxxreflect { namespace windows_runtime {
     {
         core::string const simple_name(core::to_lowercase(target_assembly.simple_name()));
 
-        // Redirect platform and mscorlib references to our in-module replacement assembly.  Neither
-        // of these are resolvable at runtime.
+        // Redirect platform and mscorlib references to our in-module replacement assembly:
         if (simple_name == L"platform" || simple_name == L"mscorlib")
-        {
             return platform_types_location();
-        }
 
-        // TODO We are not expecting to have to locate an assembly without a type name, so we expect
-        // the other overload of locate_assembly to be called all of the time.  If we find that this
-        // function actually is called, we should see whether we need to implement futher logic here
-        // or if we need to change the calling code to call the other overload.
+        // We should never attempt to resolve an assembly by name in a Windows Runtime package type
+        // universe.  Instead, all resolution should be done via locate_namespace().
         throw core::logic_error(L"unexpected call to package_module_locator::locate_assembly");
     }
 
@@ -93,12 +88,9 @@ namespace cxxreflect { namespace windows_runtime {
     {
         core::string const simple_name(core::to_lowercase(core::string(namespace_name.c_str())));
 
-        // Redirect platform and mscorlib references to our in-module replacement assembly.  Neither
-        // of these are resolvable at runtime.
+        // Redirect platform and mscorlib references to our in-module replacement assembly:
         if (simple_name == L"platform" || simple_name == L"system")
-        {
             return platform_types_location();
-        }
 
         return reflection::module_location(find_metadata_for_namespace(namespace_name.c_str()));
     }
@@ -108,7 +100,7 @@ namespace cxxreflect { namespace windows_runtime {
         -> reflection::module_location
     {
         // Windows Runtime does not have multi-module metadata files
-        return reflection::module_location();
+        throw core::logic_error(L"unexpected call to package_module_locator::locate_module");
     }
 
     auto package_module_locator::metadata_files() const -> path_map

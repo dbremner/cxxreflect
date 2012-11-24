@@ -36,16 +36,19 @@
   <ItemGroup>
     <ClCompile Include="precompiled_headers.cpp" />
     <ClCompile Include="static_initialization.cpp" />
-    <ClCompile Include="windows_runtime\basic_alpha_enumerations.cpp">
-      <Filter>windows_runtime</Filter>
-    </ClCompile>
     <ClCompile Include="windows_runtime_sdk\basic_alpha_sdk.cpp">
       <Filter>windows_runtime_sdk</Filter>
     </ClCompile>
-    <ClCompile Include="windows_runtime\basic_alpha_methodimpl_support.cpp">
+    <ClCompile Include="windows_runtime\alpha_interface_declarer.cpp">
       <Filter>windows_runtime</Filter>
     </ClCompile>
-    <ClCompile Include="windows_runtime\basic_alpha_default_interface.cpp">
+    <ClCompile Include="windows_runtime\alpha_default_interface.cpp">
+      <Filter>windows_runtime</Filter>
+    </ClCompile>
+    <ClCompile Include="windows_runtime\alpha_enumeration_enumerators.cpp">
+      <Filter>windows_runtime</Filter>
+    </ClCompile>
+    <ClCompile Include="windows_runtime\alpha_methodimpl_support.cpp">
       <Filter>windows_runtime</Filter>
     </ClCompile>
   </ItemGroup>

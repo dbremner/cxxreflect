@@ -48,7 +48,7 @@ namespace cxxreflect_test {
     }
 
     // Verify that we can create a loader and load an assembly.
-    CXXREFLECTTEST_DEFINE_TEST(aggregation_basic_loader_test)
+    CXXREFLECTTEST_DEFINE_TEST(reflection_basic_loader_test)
     {
         cxr::loader_root const root(create_test_loader(c));
         c.verify(root.is_initialized());
@@ -65,7 +65,7 @@ namespace cxxreflect_test {
 
     // Verify that loader_configuration::is_filtered_type is respected when we search for types and
     // enumerate types.
-    CXXREFLECTTEST_DEFINE_TEST(aggregation_basic_loader_configuration_is_filtered_type)
+    CXXREFLECTTEST_DEFINE_TEST(reflection_basic_loader_configuration_is_filtered_type)
     {
         class test_loader_configuration
             : public cxr::loader_configuration_public_types_filter_policy,
@@ -97,7 +97,7 @@ namespace cxxreflect_test {
         });
     }
 
-    CXXREFLECTTEST_DEFINE_TEST(aggregation_basic_loader_methods)
+    CXXREFLECTTEST_DEFINE_TEST(reflection_basic_loader_methods)
     {
         cxr::loader_root const root(create_test_loader(c));
         c.verify(root.is_initialized());

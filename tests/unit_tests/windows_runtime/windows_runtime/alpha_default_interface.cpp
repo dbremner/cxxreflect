@@ -20,7 +20,7 @@ namespace co
 
 namespace cxxreflect_test { namespace unit_tests_windows_runtime {
 
-    CXXREFLECTTEST_DEFINE_TEST(basic_alpha_default_interface)
+    CXXREFLECTTEST_DEFINE_TEST(alpha_default_interface)
     {
         cxr::type const type_TestClass        (cxr::get_type(L"TestComponents.Alpha.DefaultInterface.TestClass"        ));
         cxr::type const type_TestEnum         (cxr::get_type(L"TestComponents.Alpha.DefaultInterface.TestEnum"         ));

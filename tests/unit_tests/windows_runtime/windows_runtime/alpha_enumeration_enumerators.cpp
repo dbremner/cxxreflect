@@ -20,7 +20,7 @@ namespace co
 
 namespace cxxreflect_test { namespace unit_tests_windows_runtime {
 
-    CXXREFLECTTEST_DEFINE_TEST(basic_alpha_enumerations)
+    CXXREFLECTTEST_DEFINE_TEST(alpha_enumeration_enumerators)
     {
         auto enumerators(cxr::get_enumerators(cxr::get_type(L"TestComponents.Alpha.DayOfWeek")));
 

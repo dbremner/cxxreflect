@@ -20,9 +20,9 @@ namespace co
 
 namespace cxxreflect_test { namespace unit_tests_windows_runtime {
 
-    CXXREFLECTTEST_DEFINE_TEST(basic_alpha_methodimpl_simple)
+    CXXREFLECTTEST_DEFINE_TEST(alpha_methodimpl_support_simple)
     {
-        auto const type(cxr::get_type(L"TestComponents.Alpha.SimpleMethodImplTestDerivedClass"));
+        auto const type(cxr::get_type(L"TestComponents.Alpha.MethodImpl.SimpleDerivedClass"));
         auto const methods(type.methods(cxxreflect::metadata::binding_attribute::all_instance));
 
         bool saw_InterfaceFunctionShouldNotAppear(false);
@@ -43,9 +43,9 @@ namespace cxxreflect_test { namespace unit_tests_windows_runtime {
         c.verify(saw_DerivedClassFunctionShouldAppear );
     }
 
-    CXXREFLECTTEST_DEFINE_TEST(basic_alpha_methodimpl_hiding)
+    CXXREFLECTTEST_DEFINE_TEST(alpha_methodimpl_support_hiding)
     {
-        auto const type(cxr::get_type(L"TestComponents.Alpha.HidingMethodImplTestDerivedClass"));
+        auto const type(cxr::get_type(L"TestComponents.Alpha.MethodImpl.HidingDerivedClass"));
         auto const methods(type.methods(cxxreflect::metadata::binding_attribute::all_instance));
 
         bool saw_F(false);

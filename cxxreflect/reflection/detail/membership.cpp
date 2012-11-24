@@ -273,57 +273,6 @@ namespace cxxreflect { namespace reflection { namespace detail { namespace {
 
 
 
-    auto compute_slot_for(metadata::method_def_token const& method, metadata::type_def_or_signature const& type)
-        -> method_traits::override_slot
-    {
-        core::assert_initialized(method);
-
-        metadata::method_def_row   const method_row      (row_from(method));
-        metadata::method_signature const method_signature(method_row.signature().as<metadata::method_signature>());
-        metadata::type_def_token   const defining_type   (metadata::find_owner_of_method_def(method).token());
-
-        auto const implementations  (metadata::find_method_impls(defining_type));
-        auto const implementation_it(core::find_if(implementations, [&](metadata::method_impl_row const& r)
-        {
-            return r.method_body() == method;
-        }));
-
-        if (implementation_it == end(implementations))
-            return method_traits::override_slot();
-
-        metadata::method_impl_row const implementation(*implementation_it);
-
-        auto const overridden_method(implementation.method_declaration());
-        switch (overridden_method.table())
-        {
-        case metadata::table_id::method_def:
-        {
-            metadata::method_def_token const real_overridden_method(overridden_method.as<metadata::method_def_token>());
-            return method_traits::override_slot(
-                resolve_type(metadata::find_owner_of_method_def(real_overridden_method).token()),
-                real_overridden_method);
-        }
-        case metadata::table_id::member_ref:
-        {
-            metadata::member_ref_token        const real_overridden_method  (overridden_method.as<metadata::member_ref_token>());
-            metadata::member_ref_parent_token const overridden_method_parent(row_from(real_overridden_method).parent());
-
-            return method_traits::override_slot(
-                resolve_type(overridden_method_parent.as<metadata::type_ref_spec_token>()),
-                loader_context::from(method.scope()).resolve_member(real_overridden_method).as<metadata::method_def_token>());
-        }
-        default:
-        {
-            // The other two scopes--module_ref and method_def--are not reachable in this context
-            core::assert_unreachable();
-        }
-        }
-    }
-
-
-
-
-
     template <member_kind MemberTag>
     class built_table
     {
@@ -1251,6 +1200,52 @@ namespace cxxreflect { namespace reflection { namespace detail {
         }
     }
 
+    auto method_traits::compute_override_slot(token_type const& member) -> override_slot
+    {
+        core::assert_initialized(member);
+
+        metadata::method_def_row   const method_row      (row_from(member));
+        metadata::method_signature const method_signature(method_row.signature().as<metadata::method_signature>());
+        metadata::type_def_token   const defining_type   (metadata::find_owner_of_method_def(member).token());
+
+        auto const implementations  (metadata::find_method_impls(defining_type));
+        auto const implementation_it(core::find_if(implementations, [&](metadata::method_impl_row const& r)
+        {
+            return r.method_body() == member;
+        }));
+
+        if (implementation_it == end(implementations))
+            return method_traits::override_slot();
+
+        metadata::method_impl_row const implementation(*implementation_it);
+
+        auto const overridden_method(implementation.method_declaration());
+        switch (overridden_method.table())
+        {
+        case metadata::table_id::method_def:
+        {
+            metadata::method_def_token const real_overridden_method(overridden_method.as<metadata::method_def_token>());
+            return method_traits::override_slot(
+                resolve_type(metadata::find_owner_of_method_def(real_overridden_method).token()),
+                real_overridden_method);
+        }
+        case metadata::table_id::member_ref:
+        {
+            metadata::member_ref_token        const real_overridden_method  (overridden_method.as<metadata::member_ref_token>());
+            metadata::member_ref_parent_token const overridden_method_parent(row_from(real_overridden_method).parent());
+
+            return method_traits::override_slot(
+                resolve_type(overridden_method_parent.as<metadata::type_ref_spec_token>()),
+                loader_context::from(member.scope()).resolve_member(real_overridden_method).as<metadata::method_def_token>());
+        }
+        default:
+        {
+            // The other two scopes--module_ref and method_def--are not reachable in this context
+            core::assert_unreachable();
+        }
+        }
+    }
+
 
 
 
@@ -1372,7 +1367,7 @@ namespace cxxreflect { namespace reflection { namespace detail {
         core::assert_initialized(context);
 
         if (!_override_slot.is_initialized())
-            _override_slot = compute_slot_for(_entry.member_token().as<metadata::method_def_token>(), metadata::type_def_or_signature());
+            _override_slot = method_traits::compute_override_slot(_entry.member_token().as<metadata::method_def_token>());
     }
 
     member_table_entry_with_override_slot::member_table_entry_with_override_slot(metadata::unrestricted_token    const& member_token,
@@ -1384,9 +1379,7 @@ namespace cxxreflect { namespace reflection { namespace detail {
         core::assert_initialized(member_token);
 
         if (!_override_slot.is_initialized())
-            _override_slot = compute_slot_for(
-                _entry.member_token().as<metadata::method_def_token>(),
-                _entry.instantiating_type());
+            _override_slot = method_traits::compute_override_slot(_entry.member_token().as<metadata::method_def_token>());
     }
 
     member_table_entry_with_override_slot::operator member_table_entry_with_instantiation const&() const

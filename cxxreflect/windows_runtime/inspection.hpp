@@ -52,6 +52,7 @@ namespace cxxreflect { namespace windows_runtime {
 
     auto get_default_interface(reflection::type const&) -> reflection::type;
     auto get_guid(reflection::type const&) -> reflection::guid;
+    auto get_interface_declarer(reflection::method const&) -> reflection::method;
 
 
 

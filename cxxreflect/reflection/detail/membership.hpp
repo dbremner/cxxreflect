@@ -188,6 +188,8 @@ namespace cxxreflect { namespace reflection { namespace detail {
         static auto insert_member(interim_sequence_type         & member_table,
                                   interim_type             const& new_member,
                                   core::size_type          const  inherited_member_count) -> core::size_type;
+
+        static auto compute_override_slot(token_type const& member) -> override_slot;
     };
 
     template <>

@@ -25,7 +25,9 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="DefaultInterfaceTestTypes.cpp" />
+    <ClCompile Include="InterfaceDeclarerTestTypes.cpp" />
     <ClCompile Include="IProvideANumber.cpp" />
+    <ClCompile Include="MethodImplTestTypes.cpp" />
     <ClCompile Include="Types.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

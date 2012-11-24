@@ -54,7 +54,7 @@ namespace cxxreflect_test {
         return a;
     }
 
-    CXXREFLECTTEST_DEFINE_BETA_TEST(aggregation_beta_types_enumerate_types)
+    CXXREFLECTTEST_DEFINE_BETA_TEST(reflection_basic_beta_types_enumerate_types)
     {
         c.verify(beta.find_type(L"", L"ZArgument").is_initialized());
         c.verify(beta.find_type(L"", L"ZReturn").is_initialized());

@@ -210,7 +210,7 @@ configuration of the project:
   -->
   <PropertyGroup>
     <CodeAnalysisRuleSet>AllRules.ruleset</CodeAnalysisRuleSet>
-    <PlatformToolset>v110</PlatformToolset>
+    <PlatformToolset Condition="'$(PlatformToolset)' == '' or '$(PlatformToolset)' == 'v100'">v110</PlatformToolset>
   </PropertyGroup>
 
   <PropertyGroup Condition="$(Configuration.Contains('Debug'))">

@@ -4,5 +4,7 @@
     <ClCompile Include="Types.cpp" />
     <ClCompile Include="IProvideANumber.cpp" />
     <ClCompile Include="DefaultInterfaceTestTypes.cpp" />
+    <ClCompile Include="InterfaceDeclarerTestTypes.cpp" />
+    <ClCompile Include="MethodImplTestTypes.cpp" />
   </ItemGroup>
 </Project>
