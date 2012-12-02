@@ -25,6 +25,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="DefaultInterfaceTestTypes.cpp" />
+    <ClCompile Include="GenericInterfaceImplementations.cpp" />
     <ClCompile Include="InterfaceDeclarerTestTypes.cpp" />
     <ClCompile Include="IProvideANumber.cpp" />
     <ClCompile Include="MethodImplTestTypes.cpp" />

@@ -46,8 +46,10 @@
     <ClCompile Include="static_initialization.cpp" />
     <ClCompile Include="windows_runtime\alpha_default_interface.cpp" />
     <ClCompile Include="windows_runtime\alpha_enumeration_enumerators.cpp" />
+    <ClCompile Include="windows_runtime\alpha_generic_interface_implementers.cpp" />
     <ClCompile Include="windows_runtime\alpha_interface_declarer.cpp" />
     <ClCompile Include="windows_runtime\alpha_methodimpl_support.cpp" />
+    <ClCompile Include="windows_runtime\windows_type_universe_realization.cpp" />
     <ClCompile Include="windows_runtime_sdk\basic_alpha_sdk.cpp" />
   </ItemGroup>
   <ItemGroup>

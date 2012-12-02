@@ -87,4 +87,5 @@
 .class public auto ansi windowsruntime Platform.OutOfMemoryException        extends Platform.Object { }
 .class public auto ansi windowsruntime Platform.STAThreadAttribute          extends Platform.Object { }
 .class public auto ansi windowsruntime Platform.SizeT                       extends Platform.Object { }
+.class public auto ansi windowsruntime Platform.String                      extends Platform.Object { }
 .class public auto ansi windowsruntime Platform.TypeCode                    extends Platform.Object { }

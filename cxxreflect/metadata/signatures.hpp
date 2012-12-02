@@ -568,15 +568,16 @@ namespace cxxreflect { namespace metadata {
 
             generic_instance_type_code      = static_cast<core::size_type>(kind::generic_instance) + 0x05,
             generic_instance_type           = static_cast<core::size_type>(kind::generic_instance) + 0x06,
-            generic_instance_argument_count = static_cast<core::size_type>(kind::generic_instance) + 0x07,
-            first_generic_instance_argument = static_cast<core::size_type>(kind::generic_instance) + 0x08,
+            generic_instance_scope          = static_cast<core::size_type>(kind::generic_instance) + 0x07,
+            generic_instance_argument_count = static_cast<core::size_type>(kind::generic_instance) + 0x08,
+            first_generic_instance_argument = static_cast<core::size_type>(kind::generic_instance) + 0x09,
 
             pointer_type                    = static_cast<core::size_type>(kind::pointer)          + 0x05,
 
             variable_number                 = static_cast<core::size_type>(kind::variable)         + 0x05,
             variable_context                = static_cast<core::size_type>(kind::variable)         + 0x06,
 
-            end              = 0x09
+            end              = 0x10
         };
 
         typedef detail::sentinel_iterator<

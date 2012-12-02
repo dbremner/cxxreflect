@@ -194,19 +194,12 @@ namespace cxxreflect { namespace reflection { namespace detail { namespace {
 
 
     /// Creates arguments for signature instantiation from the type signature `signature_blob`
-    ///
-    /// The signature must be a type signature or must be uninitialized.  The `scope` must be
-    /// non-null and, if the `signature_blob` is initialized, its scope must be the same as `scope`.
-    /// The signature must be a `generic_instance` type signature; if it is not, the metadata is
-    /// invalid.
-    auto create_instantiator_arguments(metadata::database const* const scope,
-                                       type_def_and_signature    const type) -> metadata::signature_instantiation_arguments
+    auto create_instantiator_arguments(type_def_and_signature const& type) -> metadata::signature_instantiation_arguments
     {
-        core::assert_not_null(scope);
-        core::assert_true([&]{ return !type.has_signature() || scope == &type.signature().scope(); });
+        core::assert_true([&]{ return type.has_type_def(); });
 
         if (!type.has_signature())
-            return metadata::signature_instantiation_arguments(scope);
+            return metadata::signature_instantiation_arguments(&type.type_def().scope());
 
         metadata::type_signature const signature(type.signature().as<metadata::type_signature>());
 
@@ -407,7 +400,7 @@ namespace cxxreflect { namespace reflection { namespace detail { namespace {
             // We'll use different instantiators throughout the table creation process, but the
             // instantiator arguments are always the same.  They are also potentially expensive to
             // construct, so we'll construct them once here:
-            auto const instantiator_arguments(create_instantiator_arguments(&type.type_def().scope(), type));
+            auto const instantiator_arguments(create_instantiator_arguments(type));
 
             interim_sequence_type new_table;
 
@@ -572,9 +565,7 @@ namespace cxxreflect { namespace reflection { namespace detail { namespace {
             auto const interface_table(create_table(interface_type.best_match()).iterator_range());
 
             // We instantiate each interface from the context of the interface:
-            instantiator_arguments_type const instantiator_arguments(create_instantiator_arguments(
-                &interface_type.type_def().scope(),
-                interface_type));
+            instantiator_arguments_type const instantiator_arguments(create_instantiator_arguments(interface_type));
 
             instantiator_type const instantiator(
                 &instantiator_arguments,
@@ -810,20 +801,24 @@ namespace cxxreflect { namespace reflection { namespace detail { namespace {
             signature_type const signature(signature_blob.as<signature_type>());
 
             if (!instantiator.would_instantiate(signature))
-                return interim_type(token, instantiating_type.best_match(), core::const_byte_range());
+                return interim_type(token, instantiating_type.best_match(), metadata::blob());
 
             return interim_type(token, instantiating_type.best_match(), instantiate(signature, instantiator));
         }
 
         /// Instantiates the `signature` via `instantiator`, storing the result in `_storage`
         template <typename Signature>
-        auto instantiate(Signature const& signature, instantiator_type const& instantiator) const -> core::const_byte_range
+        auto instantiate(Signature const& signature, instantiator_type const& instantiator) const -> metadata::blob
         {
             core::assert_initialized(signature);
             core::assert_true([&]{ return instantiator.would_instantiate(signature); });
 
             Signature const& instantiation(instantiator.instantiate(signature));
-            return _storage->allocate_signature(core::const_byte_range(instantiation.begin_bytes(), instantiation.end_bytes()), core::internal_key());
+
+            core::const_byte_range const transient_bytes (instantiation.begin_bytes(), instantiation.end_bytes());
+            core::const_byte_range const persistent_bytes(_storage->allocate_signature(transient_bytes, core::internal_key()));
+
+            return metadata::blob(&signature.scope(), begin(persistent_bytes), end(persistent_bytes));
         }
 
         core::checked_pointer<metadata::type_resolver const>         _resolver;
@@ -1318,7 +1313,7 @@ namespace cxxreflect { namespace reflection { namespace detail {
     member_table_entry_with_instantiation::member_table_entry_with_instantiation(
         metadata::unrestricted_token    const& member_token_,
         metadata::type_def_or_signature const& instantiating_type_,
-        core::const_byte_range          const& instantiated_signature_)
+        metadata::blob                  const& instantiated_signature_)
         : _member_token          (member_token_          ),
           _instantiating_type    (instantiating_type_    ),
           _instantiated_signature(instantiated_signature_)
@@ -1333,14 +1328,14 @@ namespace cxxreflect { namespace reflection { namespace detail {
         return _member_token;
     }
 
-    auto member_table_entry_with_instantiation::instantiating_type() const -> metadata::type_def_or_signature
+    auto member_table_entry_with_instantiation::instantiating_type() const -> metadata::type_def_or_signature const&
     {
         core::assert_initialized(*this);
 
         return _instantiating_type;
     }
 
-    auto member_table_entry_with_instantiation::instantiated_signature() const -> core::const_byte_range
+    auto member_table_entry_with_instantiation::instantiated_signature() const -> metadata::blob const&
     {
         core::assert_initialized(*this);
 
@@ -1372,7 +1367,7 @@ namespace cxxreflect { namespace reflection { namespace detail {
 
     member_table_entry_with_override_slot::member_table_entry_with_override_slot(metadata::unrestricted_token    const& member_token,
                                                                                  metadata::type_def_or_signature const& instantiating_type,
-                                                                                 core::const_byte_range          const& instantiated_signature,
+                                                                                 metadata::blob                  const& instantiated_signature,
                                                                                  override_slot                   const& slot)
         : _entry(member_token, instantiating_type, instantiated_signature), _override_slot(slot)
     {
@@ -1401,7 +1396,7 @@ namespace cxxreflect { namespace reflection { namespace detail {
         return _entry.instantiating_type();
     }
 
-    auto member_table_entry_with_override_slot::instantiated_signature() const -> core::const_byte_range const&
+    auto member_table_entry_with_override_slot::instantiated_signature() const -> metadata::blob const&
     {
         core::assert_initialized(*this);
 
@@ -1440,12 +1435,7 @@ namespace cxxreflect { namespace reflection { namespace detail {
         core::assert_initialized(*this);
 
         if (has_instantiated_signature())
-        {
-            return signature_type(
-                &instantiating_type().scope(),
-                begin(instantiated_signature()),
-                end(instantiated_signature()));
-        }
+            return instantiated_signature().as<signature_type>();
         
         metadata::blob const signature(traits_type::get_signature(member_token()));
         if (!signature.is_initialized())
@@ -1480,12 +1470,12 @@ namespace cxxreflect { namespace reflection { namespace detail {
     }
     
     template <member_kind MemberTag>
-    auto member_table_entry_facade<MemberTag>::instantiated_signature() const -> core::const_byte_range
+    auto member_table_entry_facade<MemberTag>::instantiated_signature() const -> metadata::blob
     {
         core::assert_initialized(*this);
         core::assert_true([&]{ return has_instantiated_signature(); });
 
-        return !is_instantiated() ? core::const_byte_range() : entry_with_instantiation().instantiated_signature();
+        return !is_instantiated() ? metadata::blob() : entry_with_instantiation().instantiated_signature();
     }
 
     template <member_kind MemberTag>

@@ -6,5 +6,6 @@
     <ClCompile Include="DefaultInterfaceTestTypes.cpp" />
     <ClCompile Include="InterfaceDeclarerTestTypes.cpp" />
     <ClCompile Include="MethodImplTestTypes.cpp" />
+    <ClCompile Include="GenericInterfaceImplementations.cpp" />
   </ItemGroup>
 </Project>

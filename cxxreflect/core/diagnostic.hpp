@@ -186,7 +186,7 @@ namespace cxxreflect { namespace core {
 
     #else
 
-    inline auto assert_fail(const_character_iterator = L"") -> void
+    inline auto CXXREFLECT_NORETURN assert_fail(const_character_iterator = L"") -> void
     {
     }
 
@@ -196,6 +196,10 @@ namespace cxxreflect { namespace core {
 
     template <typename Callable>
     auto assert_true(Callable&&, const_character_iterator = L"") -> void
+    {
+    }
+
+    inline auto CXXREFLECT_NORETURN assert_unreachable() -> void
     {
     }
     

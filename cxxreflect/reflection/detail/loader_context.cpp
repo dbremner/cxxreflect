@@ -266,6 +266,7 @@ namespace cxxreflect { namespace reflection { namespace detail {
         metadata::signature_comparer const signatures_are_equal(this);
 
         metadata::type_def_or_signature const resolved_parent(detail::resolve_type(ref_row.parent().as<metadata::type_ref_spec_token>()));
+
         auto const membership(_membership.get_membership(resolved_parent));
         if (is_field_signature)
         {
@@ -288,9 +289,29 @@ namespace cxxreflect { namespace reflection { namespace detail {
             auto const methods(membership.get_methods());
             auto const method(core::find_if(methods, [&](method_table_entry const* const m) -> bool
             {
-                return metadata::find_owner_of_method_def(m->member_token()).token() == resolved_parent.as_token()
-                    && row_from(m->member_token()).name() == ref_row.name()
-                    && signatures_are_equal(m->member_signature(), ref_row.signature().as<metadata::method_signature>());
+                // First check that the declarer is the right type:
+                if (resolved_parent.is_token())
+                {
+                    if (metadata::find_owner_of_method_def(m->member_token()).token() != resolved_parent.as_token())
+                        return false;
+                }
+                else
+                {
+                    auto const it(m->instantiating_type());
+                    core::assert_true([&]{ return m->has_instantiating_type() && m->instantiating_type().is_blob(); });
+
+                    if (!signatures_are_equal(
+                            m->instantiating_type().as_blob().as<metadata::type_signature>(), 
+                            resolved_parent.as_blob().as<metadata::type_signature>()))
+                        return false;
+                }
+
+                if (row_from(m->member_token()).name() != ref_row.name())
+                    return false;
+
+                return signatures_are_equal(
+                    row_from(m->member_token()).signature().as<metadata::method_signature>(),
+                    ref_row.signature().as<metadata::method_signature>());
             }));
 
             if (method == end(methods))

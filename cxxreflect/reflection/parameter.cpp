@@ -128,7 +128,11 @@ namespace cxxreflect { namespace reflection {
     {
         core::assert_initialized(*this);
 
-        return constant(metadata::find_constant(_parameter).token(), core::internal_key());
+        metadata::constant_row const& row(metadata::find_constant(_parameter));
+        if (!row.is_initialized())
+            return constant();
+
+        return constant(row.token(), core::internal_key());
     }
 
     auto parameter::custom_attributes() const -> detail::custom_attribute_range

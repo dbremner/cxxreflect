@@ -268,11 +268,11 @@ namespace cxxreflect { namespace reflection { namespace detail {
         member_table_entry_with_instantiation(member_table_entry const& context);
         member_table_entry_with_instantiation(metadata::unrestricted_token    const& member_token_,
                                               metadata::type_def_or_signature const& instantiating_type_,
-                                              core::const_byte_range          const& instantiated_signature_);
+                                              metadata::blob                  const& instantiated_signature_);
 
-        auto member_token()           const -> metadata::unrestricted_token const&;
-        auto instantiating_type()     const -> metadata::type_def_or_signature;
-        auto instantiated_signature() const -> core::const_byte_range;
+        auto member_token()           const -> metadata::unrestricted_token    const&;
+        auto instantiating_type()     const -> metadata::type_def_or_signature const&;
+        auto instantiated_signature() const -> metadata::blob                  const&;
 
         auto is_initialized() const -> bool;
 
@@ -281,7 +281,7 @@ namespace cxxreflect { namespace reflection { namespace detail {
         metadata::unrestricted_token    _member_token;
 
         metadata::type_def_or_signature _instantiating_type;
-        core::const_byte_range          _instantiated_signature;
+        metadata::blob                  _instantiated_signature;
     };
 
     /// Represents a `member_table_entry_with_instantiation`, plus an `override_slot`
@@ -298,7 +298,7 @@ namespace cxxreflect { namespace reflection { namespace detail {
 
         member_table_entry_with_override_slot(metadata::unrestricted_token    const& member_token,
                                               metadata::type_def_or_signature const& instantiating_type,
-                                              core::const_byte_range          const& instantiated_signature,
+                                              metadata::blob                  const& instantiated_signature,
                                               override_slot                   const& slot = override_slot());
 
         /// This type is implicitly convertible to `member_table_entry_with_instantiation`
@@ -306,10 +306,10 @@ namespace cxxreflect { namespace reflection { namespace detail {
         /// This allows plug-in compatibility with the rest of the table building logic.
         operator member_table_entry_with_instantiation const&() const;
 
-        auto member_token()           const -> metadata::unrestricted_token const&;
+        auto member_token()           const -> metadata::unrestricted_token    const&;
         auto instantiating_type()     const -> metadata::type_def_or_signature const&;
-        auto instantiated_signature() const -> core::const_byte_range const&;
-        auto slot()                   const -> override_slot const&;
+        auto instantiated_signature() const -> metadata::blob                  const&;
+        auto slot()                   const -> override_slot                   const&;
 
         auto is_initialized() const -> bool;
 
@@ -376,7 +376,7 @@ namespace cxxreflect { namespace reflection { namespace detail {
         auto instantiating_type()     const -> metadata::type_def_or_signature;
 
         auto has_instantiated_signature() const -> bool;
-        auto instantiated_signature()     const -> core::const_byte_range;
+        auto instantiated_signature()     const -> metadata::blob;
 
         auto is_initialized()  const -> bool;
         auto is_instantiated() const -> bool;

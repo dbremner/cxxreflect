@@ -851,6 +851,11 @@ namespace cxxreflect { namespace metadata {
                     r = detail::read_sig_type_def_ref_spec(current, end_bytes());
                 }
 
+                if (part_code > extract_part(part::generic_instance_scope) && is_cross_module_type_reference)
+                {
+                    detail::read_sig_pointer(current, end_bytes());
+                }
+
                 core::size_type argument_count(0);
                 if (part_code > extract_part(part::generic_instance_argument_count))
                 {
@@ -1094,7 +1099,7 @@ namespace cxxreflect { namespace metadata {
         assert_kind(kind::class_type);
 
         database const* other_scope(nullptr);
-        if (get_element_type() == element_type::cross_module_type_reference)
+        if (is_cross_module_type_reference())
         {
             other_scope = reinterpret_cast<database const*>(detail::peek_sig_pointer(
                 seek_to(part::class_type_scope),
@@ -1140,8 +1145,18 @@ namespace cxxreflect { namespace metadata {
     auto type_signature::generic_type() const -> type_def_ref_spec_token
     {
         assert_kind(kind::generic_instance);
+
+        database const* other_scope(nullptr);
+        if (is_cross_module_type_reference())
+        {
+            other_scope = reinterpret_cast<database const*>(detail::peek_sig_pointer(
+                seek_to(part::generic_instance_scope),
+                end_bytes()));
+        }
+
+        database const* const actual_scope(other_scope != nullptr ? other_scope : &scope());
         return type_def_ref_spec_token(
-            &scope(),
+            actual_scope,
             detail::peek_sig_type_def_ref_spec(seek_to(part::generic_instance_type), end_bytes()));
     }
 
@@ -1371,7 +1386,7 @@ namespace cxxreflect { namespace metadata {
             if (lhs.is_generic_class_type_instance() != rhs.is_generic_class_type_instance())
                 return false;
 
-            if (lhs.generic_type() != rhs.generic_type())
+            if (!(*this)(lhs.generic_type(), rhs.generic_type()))
                 return false;
 
             if (lhs.generic_argument_count() != rhs.generic_argument_count())
@@ -1635,7 +1650,7 @@ namespace cxxreflect { namespace metadata {
                 signatures.back().data() + signatures.back().size());
         });
 
-        return signature_instantiation_arguments(&type.scope(), std::move(arguments), std::move(signatures));
+        return signature_instantiation_arguments(&type_source.scope(), std::move(arguments), std::move(signatures));
     }
 
     template <typename Signature>
@@ -1668,7 +1683,7 @@ namespace cxxreflect { namespace metadata {
 
         _buffer.clear();
         instantiate_into(_buffer, signature, _context);
-        return Signature(&_context.arguments().scope(), _buffer.data(), _buffer.data() + _buffer.size());
+        return Signature(&signature.scope(), _buffer.data(), _buffer.data() + _buffer.size());
     }
 
     template auto signature_instantiator::instantiate(array_shape        const&) const -> array_shape;
@@ -1779,8 +1794,22 @@ namespace cxxreflect { namespace metadata {
         }
         case type_signature::kind::generic_instance:
         {
-            copy_bytes_into(buffer, s, part::begin, part::first_generic_instance_argument);
-            instantiate_range_into(buffer, s.generic_arguments(), c);
+            if (s.is_cross_module_type_reference())
+            {
+                copy_bytes_into(buffer, s, part::begin, part::end);
+            }
+            else
+            {
+                copy_bytes_into(buffer, s, part::begin, part::type_code);
+                buffer.push_back(static_cast<core::byte>(element_type::cross_module_type_reference));
+                copy_bytes_into(buffer, s, part::type_code, part::generic_instance_argument_count);
+
+                database const* const scope(&c.arguments().scope());
+                std::copy(core::begin_bytes(scope), core::end_bytes(scope), std::back_inserter(buffer));
+
+                copy_bytes_into(buffer, s, part::generic_instance_argument_count, part::first_generic_instance_argument);
+                instantiate_range_into(buffer, s.generic_arguments(), c);
+            }
             break;
         }
         case type_signature::kind::pointer:
