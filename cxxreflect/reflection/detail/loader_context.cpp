@@ -261,64 +261,51 @@ namespace cxxreflect { namespace reflection { namespace detail {
         bool const is_field_signature(metadata::signature_flags(*member_blob.begin())
             .with_mask(metadata::signature_attribute::calling_convention_mask) == metadata::signature_attribute::field);
 
-        metadata::field_or_method_def_token result;
+        metadata::signature_comparer  const signatures_are_equal(this);
 
-        metadata::signature_comparer const signatures_are_equal(this);
-
-        metadata::type_def_or_signature const resolved_parent(detail::resolve_type(ref_row.parent().as<metadata::type_ref_spec_token>()));
+        metadata::type_ref_spec_token const unresolved_parent(ref_row.parent().as<metadata::type_ref_spec_token>());
+        metadata::type_def_token      const resolved_parent  (resolve_primary_type(compute_type(unresolved_parent)));
 
         auto const membership(_membership.get_membership(resolved_parent));
         if (is_field_signature)
         {
-            auto const fields(membership.get_fields());
-            auto const field(core::find_if(fields, [&](field_table_entry const* const f) -> bool
+            auto const fields(find_fields(resolved_parent));
+            auto const field(core::find_if(fields, [&](metadata::field_row const& f) -> bool
             {
-                return metadata::find_owner_of_field(f->member_token()).token() == resolved_parent.as_token()
-                    && row_from(f->member_token()).name() == ref_row.name()
-                    && signatures_are_equal(f->member_signature(), ref_row.signature().as<metadata::field_signature>());
+                if (f.name() != ref_row.name())
+                    return false;
+
+                metadata::field_signature const row_signature(f.signature().as<metadata::field_signature>());
+                metadata::field_signature const ref_signature(ref_row.signature().as<metadata::field_signature>());
+
+                return signatures_are_equal(row_signature, ref_signature);
             }));
 
             if (field == end(fields))
                 throw core::metadata_error(L"referenced field does not exist");
 
-            resolution_cache.set(ref, (*field)->member_token());
-            return (*field)->member_token();
+            resolution_cache.set(ref, field->token());
+            return field->token();
         }
         else // it's a method signature
         {
-            auto const methods(membership.get_methods());
-            auto const method(core::find_if(methods, [&](method_table_entry const* const m) -> bool
+            auto const methods(find_method_defs(resolved_parent));
+            auto const method(core::find_if(methods, [&](metadata::method_def_row const& m) -> bool
             {
-                // First check that the declarer is the right type:
-                if (resolved_parent.is_token())
-                {
-                    if (metadata::find_owner_of_method_def(m->member_token()).token() != resolved_parent.as_token())
-                        return false;
-                }
-                else
-                {
-                    auto const it(m->instantiating_type());
-                    core::assert_true([&]{ return m->has_instantiating_type() && m->instantiating_type().is_blob(); });
-
-                    if (!signatures_are_equal(
-                            m->instantiating_type().as_blob().as<metadata::type_signature>(), 
-                            resolved_parent.as_blob().as<metadata::type_signature>()))
-                        return false;
-                }
-
-                if (row_from(m->member_token()).name() != ref_row.name())
+                if (m.name() != ref_row.name())
                     return false;
 
-                return signatures_are_equal(
-                    row_from(m->member_token()).signature().as<metadata::method_signature>(),
-                    ref_row.signature().as<metadata::method_signature>());
+                metadata::method_signature const row_signature(m.signature().as<metadata::method_signature>());
+                metadata::method_signature const ref_signature(ref_row.signature().as<metadata::method_signature>());
+
+                return signatures_are_equal(row_signature, ref_signature);
             }));
 
             if (method == end(methods))
                 throw core::metadata_error(L"referenced method does not exist");
 
-            resolution_cache.set(ref, (*method)->member_token());
-            return (*method)->member_token();
+            resolution_cache.set(ref, method->token());
+            return method->token();
         }
     }
 

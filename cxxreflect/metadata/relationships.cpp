@@ -125,16 +125,6 @@ namespace cxxreflect { namespace metadata {
             custom_attribute_row_iterator::from_row_pointer(&parent.scope(), begin(range)),
             custom_attribute_row_iterator::from_row_pointer(&parent.scope(), end(range)));
     }
-    
-    auto begin_custom_attributes(has_custom_attribute_token const& parent) -> custom_attribute_row_iterator
-    {
-        return begin(find_custom_attributes(parent));
-    }
-
-    auto end_custom_attributes(has_custom_attribute_token const& parent) -> custom_attribute_row_iterator
-    {
-        return end(find_custom_attributes(parent));
-    }
 
 
 
@@ -167,14 +157,18 @@ namespace cxxreflect { namespace metadata {
             event_row_iterator(&parent.scope(), map_row.last_event().index()));
     }
 
-    auto begin_events(type_def_token const& parent) -> event_row_iterator
-    {
-        return begin(find_events(parent));
-    }
 
-    auto end_events(type_def_token const& parent) -> event_row_iterator
+
+
+
+    auto find_fields(type_def_token const& parent) -> field_row_range
     {
-        return end(find_events(parent));
+        core::assert_initialized(parent);
+
+        type_def_row const row(row_from(parent));
+        return field_row_range(
+            field_row_iterator(&parent.scope(), row.first_field().index()),
+            field_row_iterator(&parent.scope(), row.last_field().index()));
     }
 
 
@@ -207,16 +201,6 @@ namespace cxxreflect { namespace metadata {
         return *std::next(begin(range), index);
     }
 
-    auto begin_generic_params(type_or_method_def_token const& parent) -> generic_param_row_iterator
-    {
-        return begin(find_generic_params(parent));
-    }
-
-    auto end_generic_params(type_or_method_def_token const& parent) -> generic_param_row_iterator
-    {
-        return end(find_generic_params(parent));
-    }
-
 
 
 
@@ -234,16 +218,6 @@ namespace cxxreflect { namespace metadata {
         return generic_param_constraint_row_range(
             generic_param_constraint_row_iterator::from_row_pointer(&parent.scope(), begin(range)),
             generic_param_constraint_row_iterator::from_row_pointer(&parent.scope(), end(range)));
-    }
-
-    auto begin_generic_param_constraints(generic_param_token const& parent) -> generic_param_constraint_row_iterator
-    {
-        return begin(find_generic_param_constraints(parent));
-    }
-
-    auto end_generic_param_constraints(generic_param_token const& parent) -> generic_param_constraint_row_iterator
-    {
-        return end(find_generic_param_constraints(parent));
     }
 
 
@@ -265,14 +239,18 @@ namespace cxxreflect { namespace metadata {
             interface_impl_row_iterator::from_row_pointer(&parent.scope(), end(range)));
     }
 
-    auto begin_interface_impls(type_def_token const& parent) -> interface_impl_row_iterator
-    {
-        return begin(find_interface_impls(parent));
-    }
 
-    auto end_interface_impls(type_def_token const& parent) -> interface_impl_row_iterator
+
+
+
+    auto find_method_defs(type_def_token const& parent) -> method_def_row_range
     {
-        return end(find_interface_impls(parent));
+        core::assert_initialized(parent);
+
+        type_def_row const row(row_from(parent));
+        return method_def_row_range(
+            method_def_row_iterator(&parent.scope(), row.first_method().index()),
+            method_def_row_iterator(&parent.scope(), row.last_method().index()));
     }
 
 
@@ -293,16 +271,6 @@ namespace cxxreflect { namespace metadata {
             method_impl_row_iterator::from_row_pointer(&parent.scope(), begin(range)),
             method_impl_row_iterator::from_row_pointer(&parent.scope(), end(range)));
     }
-    
-    auto begin_method_impls(type_def_token const& parent) -> method_impl_row_iterator
-    {
-        return begin(find_method_impls(parent));
-    }
-
-    auto end_method_impls(type_def_token const& parent) -> method_impl_row_iterator
-    {
-        return end(find_method_impls(parent));
-    }
 
 
 
@@ -321,16 +289,6 @@ namespace cxxreflect { namespace metadata {
         return method_semantics_row_range(
             method_semantics_row_iterator::from_row_pointer(&parent.scope(), begin(range)),
             method_semantics_row_iterator::from_row_pointer(&parent.scope(), end(range)));
-    }
-
-    auto begin_method_semantics(has_semantics_token const& parent) -> method_semantics_row_iterator
-    {
-        return begin(find_method_semantics(parent));
-    }
-
-    auto end_method_semantics(has_semantics_token const& parent) -> method_semantics_row_iterator
-    {
-        return end(find_method_semantics(parent));
     }
 
 
@@ -362,16 +320,6 @@ namespace cxxreflect { namespace metadata {
         return property_row_range(
             property_row_iterator(&parent.scope(), map_row.first_property().index()),
             property_row_iterator(&parent.scope(), map_row.last_property().index()));
-    }
-
-    auto begin_properties(type_def_token const& parent) -> property_row_iterator
-    {
-        return begin(find_properties(parent));
-    }
-
-    auto end_properties(type_def_token const& parent) -> property_row_iterator
-    {
-        return end(find_properties(parent));
     }
 
 } }

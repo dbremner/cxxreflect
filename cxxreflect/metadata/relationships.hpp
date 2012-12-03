@@ -57,84 +57,19 @@ namespace cxxreflect { namespace metadata {
 
 
 
-    /// Finds the constant value row that belongs to the given `parent`
-    ///
-    /// A `parent` may not have a constant value.  If the `parent` does not have a constant value,
-    /// an uninitialized row is returned.  A `parent` may have at most one constant value.  If the
-    /// `parent` has more than one associated constant value, a `metadata_error` is thrown.
-    auto find_constant(has_constant_token const& parent) -> constant_row;
-
-    /// Finds the field layout row that belongs to the given `parent` field
-    ///
-    /// A `parent` field may not have a layout row.  If the `parent` does not have a field layout
-    /// row, an uninitialized row is returned.  A `parent` may have at most one field layout row.
-    /// If the `parent` has more than one associated field layout row, a `metadata_error` is thrown.
-    auto find_field_layout(field_token const& parent) -> field_layout_row;
-
-
-
-
-
-    auto find_custom_attributes (has_custom_attribute_token const& parent) -> custom_attribute_row_range;
-    // auto begin_custom_attributes(has_custom_attribute_token const& parent) -> custom_attribute_row_iterator;
-    // auto end_custom_attributes  (has_custom_attribute_token const& parent) -> custom_attribute_row_iterator;
-
-
-
-
-
-    auto find_events (type_def_token const& parent) -> event_row_range;
-    // auto begin_events(type_def_token const& parent) -> event_row_iterator;
-    // auto end_events  (type_def_token const& parent) -> event_row_iterator;
-
-
-
-
-
-    auto find_generic_params (type_or_method_def_token const& parent) -> generic_param_row_range;
-    auto find_generic_param  (type_or_method_def_token const& parent, core::size_type index) -> generic_param_row;
-    // auto begin_generic_params(type_or_method_def_token const& parent) -> generic_param_row_iterator;
-    // auto end_generic_params  (type_or_method_def_token const& parent) -> generic_param_row_iterator;
-
-
-
-
-
-    auto find_generic_param_constraints (generic_param_token const& parent) -> generic_param_constraint_row_range;
-    // auto begin_generic_param_constraints(generic_param_token const& parent) -> generic_param_constraint_row_iterator;
-    // auto end_generic_param_constraints  (generic_param_token const& parent) -> generic_param_constraint_row_iterator;
-
-
-
-
-
-    auto find_interface_impls (type_def_token const& parent) -> interface_impl_row_range;
-    // auto begin_interface_impls(type_def_token const& parent) -> interface_impl_row_iterator;
-    // auto end_interface_impls  (type_def_token const& parent) -> interface_impl_row_iterator;
-
-
-
-
-
-    auto find_method_impls (type_def_token const& parent) -> method_impl_row_range;
-    // auto begin_method_impls(type_def_token const& parent) -> method_impl_row_iterator;
-    // auto end_method_impls  (type_def_token const& parent) -> method_impl_row_iterator;
-
-
-
-
-
-    auto find_method_semantics (has_semantics_token const& parent) -> method_semantics_row_range;
-    // auto begin_method_semantics(has_semantics_token const& parent) -> method_semantics_row_iterator;
-    // auto end_method_semantics  (has_semantics_token const& parent) -> method_semantics_row_iterator;
-
-
-
-
-
-    auto find_properties (type_def_token const& parent) -> property_row_range;
-    // auto begin_properties(type_def_token const& parent) -> property_row_iterator;
-    // auto end_properties  (type_def_token const& parent) -> property_row_iterator;
+    auto find_constant                 (has_constant_token         const& parent) -> constant_row;
+    auto find_field_layout             (field_token                const& parent) -> field_layout_row;
+    auto find_custom_attributes        (has_custom_attribute_token const& parent) -> custom_attribute_row_range;
+    auto find_events                   (type_def_token             const& parent) -> event_row_range;
+    auto find_fields                   (type_def_token             const& parent) -> field_row_range;
+    auto find_generic_params           (type_or_method_def_token   const& parent) -> generic_param_row_range;
+    auto find_generic_param            (type_or_method_def_token   const& parent, core::size_type index) -> generic_param_row;
+    auto find_generic_param_constraints(generic_param_token        const& parent) -> generic_param_constraint_row_range;
+    auto find_interface_impls          (type_def_token             const& parent) -> interface_impl_row_range;
+    auto find_method_defs              (type_def_token             const& parent) -> method_def_row_range;
+    auto find_method_impls             (type_def_token             const& parent) -> method_impl_row_range;
+    auto find_method_semantics         (has_semantics_token        const& parent) -> method_semantics_row_range;
+    auto find_properties               (type_def_token             const& parent) -> property_row_range;
 
 
 
