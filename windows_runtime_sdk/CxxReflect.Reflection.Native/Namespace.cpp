@@ -5,8 +5,6 @@
 
 #include "Namespace.hpp"
 
-#include <collection.h>
-
 namespace CxxReflect { namespace Reflection { namespace Native {
 
     Namespace::Namespace(cxrabi::ILoader* const loader, cxr::assembly const& assembly, cxr::string_reference const& name)

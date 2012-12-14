@@ -1,0 +1,79 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<!--
+
+//                            Copyright James P. McNellis 2011 - 2012.                            //
+//                   Distributed under the Boost Software License, Version 1.0.                   //
+//     (See accompanying file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)    //
+
+-->
+<Project DefaultTargets="Build" ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup Label="Globals">
+    <AppContainerApplication>true</AppContainerApplication>
+    <ConfigurationType>Application</ConfigurationType>
+    <DefaultLanguage>en-US</DefaultLanguage>
+    <PackageCertificateKeyFile>unit_tests_windows_runtime_app.pfx</PackageCertificateKeyFile>
+    <ProjectGuid>{D02BA2A0-66F5-453D-86F2-493E2BDCF858}</ProjectGuid>
+    <RootNamespace>unit_tests_windows_runtime_app</RootNamespace>
+  </PropertyGroup>
+  <Import Project="$(SolutionDir)\cxxreflect\cxxreflect.props" />
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <AdditionalOptions>/DCXXREFLECT_USE_TEST_FRAMEWORK %(AdditionalOptions)</AdditionalOptions>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClInclude Include="pch.h" />
+    <ClInclude Include="App.xaml.h">
+      <DependentUpon>App.xaml</DependentUpon>
+    </ClInclude>
+    <ClInclude Include="MainPage.xaml.h">
+      <DependentUpon>MainPage.xaml</DependentUpon>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ApplicationDefinition Include="App.xaml">
+      <SubType>Designer</SubType>
+    </ApplicationDefinition>
+    <Page Include="Common\StandardStyles.xaml">
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="MainPage.xaml">
+      <SubType>Designer</SubType>
+    </Page>
+  </ItemGroup>
+  <ItemGroup>
+    <AppxManifest Include="Package.appxmanifest">
+      <SubType>Designer</SubType>
+    </AppxManifest>
+    <None Include="unit_tests_windows_runtime_app.pfx" />
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="Assets\Logo.png" />
+    <Image Include="Assets\SmallLogo.png" />
+    <Image Include="Assets\StoreLogo.png" />
+    <Image Include="Assets\SplashScreen.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="App.xaml.cpp">
+      <DependentUpon>App.xaml</DependentUpon>
+    </ClCompile>
+    <ClCompile Include="MainPage.xaml.cpp">
+      <DependentUpon>MainPage.xaml</DependentUpon>
+    </ClCompile>
+    <ClCompile Include="pch.cpp" />
+    <ClCompile Include="..\windows_runtime\*\*.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\windows_runtime_sdk\CxxReflect.Reflection.Native\CxxReflect.Reflection.Native.vcxproj">
+      <Project>{11406f69-cf9e-4f61-b00c-6600a56b0a49}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\..\..\windows_runtime_sdk\CxxReflect.Reflection\CxxReflect.Reflection.vcxproj">
+      <Project>{fed56876-34e0-41e0-9c2b-b458648bbe5b}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\..\assemblies\windows_runtime_alpha\TestComponents.Alpha.vcxproj">
+      <Project>{c340a193-b0dc-45b2-8975-73081d1b6784}</Project>
+    </ProjectReference>
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+</Project>

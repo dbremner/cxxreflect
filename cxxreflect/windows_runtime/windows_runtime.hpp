@@ -25,6 +25,8 @@
 #include "cxxreflect/windows_runtime/detail/call_invoker_x64.hpp"
 #include "cxxreflect/windows_runtime/detail/call_invoker_x86.hpp"
 
+#include "cxxreflect/windows_runtime/externals/winrt_externals.hpp"
+
 // Ensure that we do not include the Utility header in the public interface:  It includes Windows.h
 // and other Windows headers and we don't want to pollute the global and macro namespaces of library
 // users if we don't have to.

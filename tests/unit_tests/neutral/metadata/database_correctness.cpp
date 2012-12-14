@@ -17,6 +17,11 @@
 
 #include "tests/unit_tests/neutral/precompiled_headers.hpp"
 
+// TODO:  We should be able to make this work on ARM.  Currently, one of these headers is causing us
+// to link against shlwapi, which is not available for ARM in the Windows SDK.  Until we fix this,
+// we cannot run this test on ARM.
+#if CXXREFLECT_ARCHITECTURE != CXXREFLECT_ARCHITECTURE_ARM
+
 #include <atlbase.h>
 #include <cor.h>
 #include <metahost.h>
@@ -1567,3 +1572,5 @@ namespace cxxreflect_test {
     #undef CXXREFLECTTEST_REGISTER_TABLE_TEST
     
 }
+
+#endif

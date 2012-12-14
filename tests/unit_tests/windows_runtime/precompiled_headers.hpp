@@ -9,7 +9,9 @@
 #include "cxxreflect/cxxreflect.hpp"
 #include "tests/unit_tests/infrastructure/test_driver.hpp"
 
+#ifndef CXXREFLECT_USE_TEST_FRAMEWORK
 #include <CppUnitTest.h>
+#endif
 
 namespace win {
 

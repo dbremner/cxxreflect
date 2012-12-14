@@ -133,6 +133,15 @@ namespace cxxreflect { namespace externals {
     {
     }
 
+    // TODO Dynamically load the Win32 API functions so that we can link this into ARM binaries as
+    // well.  For some reason, the linker is requiring a definition for UrlCanonicalize and
+    // GetFileAttributes, even if we do not make use of the win32_externals (this is odd since the
+    // win32_externals won't even be present in the final binary).
+    //
+    // For the time being, we disable compilation of the win32_externals on ARM because we don't
+    // have a shlwapi.lib against which to link.
+    #if CXXREFLECT_ARCHITECTURE != CXXREFLECT_ARCHITECTURE_ARM
+
     auto win32_externals::compute_sha1_hash(core::const_byte_iterator const first, core::const_byte_iterator const last) const
         -> core::sha1_hash
     {
@@ -175,5 +184,7 @@ namespace cxxreflect { namespace externals {
     {
         return ::GetFileAttributes(file_path) != INVALID_FILE_ATTRIBUTES;
     }
+
+    #endif
 
 } }

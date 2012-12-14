@@ -21,14 +21,10 @@
       <AdditionalIncludeDirectories>$(OutDir)\..\CxxReflect.Reflection;$(OutDir)\..\CxxReflect.Reflection.Native\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <PreprocessorDefinitions>_WINRT_DLL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <BrowseInformation Condition="'$(Configuration)|$(Platform)'=='Debug(ZW)|Win32'">true</BrowseInformation>
     </ClCompile>
     <Midl>
       <AdditionalIncludeDirectories>$(SolutionDir)\windows_runtime_sdk\CxxReflect.Reflection;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </Midl>
-    <Bscmake>
-      <PreserveSbr Condition="'$(Configuration)|$(Platform)'=='Debug(ZW)|Win32'">true</PreserveSbr>
-    </Bscmake>
   </ItemDefinitionGroup>
   <ItemGroup>
     <Midl Include="CxxReflect.Reflection.Native.idl" />

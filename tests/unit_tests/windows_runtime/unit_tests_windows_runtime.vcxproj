@@ -2,11 +2,11 @@
 <Project DefaultTargets="Build" ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <PropertyGroup>
     <AppContainerApplication>true</AppContainerApplication>
-    <AppxPackage>True</AppxPackage>
+    <AppxPackage>true</AppxPackage>
     <AppxPackageIncludePrivateSymbols>true</AppxPackageIncludePrivateSymbols>
     <ConfigurationType>DynamicLibrary</ConfigurationType>
     <DefaultLanguage>en-US</DefaultLanguage>
-    <PackageCertificateKeyFile>unit_tests_windows_runtime.pfx</PackageCertificateKeyFile>
+    <PackageCertificateKeyFile>..\infrastructure\unit_tests.pfx</PackageCertificateKeyFile>
     <ProjectGuid>{5D28BCBF-82F0-4CEE-8471-3B486DDEB838}</ProjectGuid>
     <RootNamespace>unit_tests_windows_runtime</RootNamespace>
   </PropertyGroup>
@@ -26,18 +26,16 @@
   <ItemGroup>
     <SDKReference Include="CppUnitTestFramework, Version=11.0" />
     <SDKReference Include="TestPlatform, Version=11.0" />
-  </ItemGroup>
-  <ItemGroup>
     <AppxManifest Include="package.appxmanifest">
       <SubType>Designer</SubType>
     </AppxManifest>
-    <None Include="unit_tests_windows_runtime.pfx" />
+    <None Include="..\infrastructure\unit_tests.pfx" />
   </ItemGroup>
   <ItemGroup>
-    <Image Include="Images\UnitTestLogo.png" />
-    <Image Include="Images\UnitTestSmallLogo.png" />
-    <Image Include="Images\UnitTestSplashScreen.png" />
-    <Image Include="Images\UnitTestStoreLogo.png" />
+    <Image Include="miscellaneous\UnitTestLogo.png" />
+    <Image Include="miscellaneous\UnitTestSmallLogo.png" />
+    <Image Include="miscellaneous\UnitTestSplashScreen.png" />
+    <Image Include="miscellaneous\UnitTestStoreLogo.png" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="precompiled_headers.cpp">

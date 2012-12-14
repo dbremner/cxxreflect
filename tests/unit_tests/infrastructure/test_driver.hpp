@@ -235,6 +235,8 @@ namespace cxxreflect_test
     #define CXXREFLECTTEST_STRINGIZE_(q) # q 
     #define CXXREFLECTTEST_STRINGIZE(q) CXXREFLECTTEST_STRINGIZE_(q)
 
+    #ifndef CXXREFLECT_USE_TEST_FRAMEWORK
+
     #define CXXREFLECTTEST_REGISTER_NAMED(name, f)                          \
         TEST_CLASS(name ## _test)                                           \
         {                                                                   \
@@ -248,6 +250,16 @@ namespace cxxreflect_test
                 f(c);                                                       \
             }                                                               \
         }
+
+    #else
+
+    #define CXXREFLECTTEST_REGISTER_NAMED(name, f) \
+    static size_type const CXXREFLECTTEST_CONCATENATE(name, _test_token)( \
+        cxxreflect_test::driver::register_test(CXXREFLECTTEST_CONCATENATE( \
+            L, CXXREFLECTTEST_STRINGIZE(name)), f));
+
+
+    #endif
 
     #define CXXREFLECTTEST_REGISTER(name) \
         CXXREFLECTTEST_REGISTER_NAMED(name, name)

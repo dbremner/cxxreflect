@@ -12,16 +12,16 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <Image Include="Images\UnitTestLogo.png">
+    <Image Include="miscellanoues\UnitTestLogo.png">
       <Filter>miscellaneous</Filter>
     </Image>
-    <Image Include="Images\UnitTestSmallLogo.png">
+    <Image Include="miscellanoues\UnitTestSmallLogo.png">
       <Filter>miscellaneous</Filter>
     </Image>
-    <Image Include="Images\UnitTestSplashScreen.png">
+    <Image Include="miscellanoues\UnitTestSplashScreen.png">
       <Filter>miscellaneous</Filter>
     </Image>
-    <Image Include="Images\UnitTestStoreLogo.png">
+    <Image Include="miscellanoues\UnitTestStoreLogo.png">
       <Filter>miscellaneous</Filter>
     </Image>
   </ItemGroup>
@@ -29,9 +29,6 @@
     <AppxManifest Include="package.appxmanifest">
       <Filter>miscellaneous</Filter>
     </AppxManifest>
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="unit_tests_windows_runtime.pfx" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="precompiled_headers.cpp" />
@@ -60,5 +57,10 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="precompiled_headers.hpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\infrastructure\unit_tests.pfx">
+      <Filter>miscellaneous</Filter>
+    </None>
   </ItemGroup>
 </Project>

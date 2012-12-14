@@ -57,6 +57,10 @@ configuration of the project:
     <!-- IsUnitTests is true if this is a unit tests project -->
     <CxxReflectIsUnitTests Condition="$(MSBuildProjectName.Contains('unit_tests'))">true</CxxReflectIsUnitTests>
     <CxxReflectIsUnitTests Condition="'$(CxxReflectIsUnitTests)' == ''">false</CxxReflectIsUnitTests>
+
+    <!-- IsSdkComponent is true if this is a project that is included in the CxxReflect Windows Runtime SDK. -->
+    <CxxReflectIsSdkComponent Condition="'$(MSBuildProjectName.Length)' &gt; 11 and '$(MSBuildProjectName.Substring(0, 11))' == 'CxxReflect.'">true</CxxReflectIsSdkComponent>
+    <CxxReflectIsSdkComponent Condition="'$(CxxReflectIsCxxReflectPart)' == ''">false</CxxReflectIsSdkComponent>
   </PropertyGroup>
 
   
@@ -73,18 +77,18 @@ configuration of the project:
   -->
   <PropertyGroup Condition="'$(MSBuildProjectExtension)' == '.vcxproj' or '$(MSBuildProjectExtension)' == '.proj'">
     <!-- Non-ZW configs are enabled for the CxxReflect libraries and all non-Windows Runtime projects -->
-    <CxxReflectIncludeNonZWConfigurations Condition="'$(CxxReflectIsCxxReflect)' == 'true' or '$(AppContainerApplication)' != 'true'">true</CxxReflectIncludeNonZWConfigurations>
+    <CxxReflectIncludeNonZWConfigurations Condition="'$(CxxReflectIsCxxReflect)' == 'true' or '$(AppContainerApplication)' != 'true' or '$(CxxReflectIsSdkComponent)' == 'true'">true</CxxReflectIncludeNonZWConfigurations>
     <CxxReflectIncludeNonZWConfigurations Condition="'$(CxxReflectIncludeNonZWConfigurations)' == ''">false</CxxReflectIncludeNonZWConfigurations>
 
     <!-- ZW configs are enabled for the CxxReflect libraries and all Windows Runtime projects -->
-    <CxxReflectIncludeZWConfigurations Condition="'$(CxxReflectIsCxxReflect)' == 'true' or '$(AppContainerApplication)' == 'true'">true</CxxReflectIncludeZWConfigurations>
+    <CxxReflectIncludeZWConfigurations Condition="'$(CxxReflectIsCxxReflect)' == 'true' or '$(AppContainerApplication)' == 'true' or '$(CxxReflectIsSdkComponent)' == 'true' or '$(CxxReflectIsUnitTests)' == 'true'">true</CxxReflectIncludeZWConfigurations>
     <CxxReflectIncludeZWConfigurations Condition="'$(CxxReflectIncludeZWConfigurations)' == ''">false</CxxReflectIncludeZWConfigurations>
 
     <!-- AnyCPU is disabled for all C++ projects -->
     <CxxReflectIncludeAnyCPUConfigurations>false</CxxReflectIncludeAnyCPUConfigurations>
 
     <!-- Only library projects and Windows Runtime applications can be built for ARM -->
-    <CxxReflectIncludeArmConfigurations Condition="('$(ConfigurationType)' != 'Application' or '$(AppContainerApplication)' == 'true') and '$(CxxReflectIsUnitTests)' != true">true</CxxReflectIncludeArmConfigurations>
+    <CxxReflectIncludeArmConfigurations Condition="('$(ConfigurationType)' != 'Application' or '$(AppContainerApplication)' == 'true') and '$(CxxReflectExcludeFromArm)' != true">true</CxxReflectIncludeArmConfigurations>
     <CxxReflectIncludeArmConfigurations Condition="'$(CxxReflectIncludeArmConfigurations)' == ''">false</CxxReflectIncludeArmConfigurations>
   </PropertyGroup>
 
@@ -121,9 +125,9 @@ configuration of the project:
     <ProjectConfiguration Include="Release|Win32"> <Configuration>Release</Configuration> <Platform>Win32</Platform> </ProjectConfiguration>
     <ProjectConfiguration Include="Release|x64">   <Configuration>Release</Configuration> <Platform>x64</Platform>   </ProjectConfiguration>
   </ItemGroup>
-  <ItemGroup Condition="'$(CxxReflectIncludeNonZWConfigurations)' == 'true' and '$(CxxReflectIncludeArmConfigurations)' == 'true'">
-    <ProjectConfiguration Include="Debug|ARM">     <Configuration>Debug</Configuration>   <Platform>ARM</Platform>   </ProjectConfiguration>
-    <ProjectConfiguration Include="Release|ARM">   <Configuration>Release</Configuration> <Platform>ARM</Platform>   </ProjectConfiguration>
+  <ItemGroup Condition="'$(CxxReflectIsCxxReflect)' == 'true'">
+    <ProjectConfiguration Include="Debug|ARM">   <Configuration>Debug</Configuration>   <Platform>ARM</Platform> </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|ARM"> <Configuration>Release</Configuration> <Platform>ARM</Platform> </ProjectConfiguration>
   </ItemGroup>
 
   <!-- /ZW Project Configurations -->
@@ -133,7 +137,7 @@ configuration of the project:
     <ProjectConfiguration Include="Release(ZW)|Win32"> <Configuration>Release(ZW)</Configuration> <Platform>Win32</Platform> </ProjectConfiguration>
     <ProjectConfiguration Include="Release(ZW)|x64">   <Configuration>Release(ZW)</Configuration> <Platform>x64</Platform>   </ProjectConfiguration>
   </ItemGroup>
-  <ItemGroup Condition="'$(CxxReflectIncludeNonZWConfigurations)' == 'true' and '$(CxxReflectIncludeArmConfigurations)' == 'true'">
+  <ItemGroup Condition="'$(CxxReflectIncludeZWConfigurations)' == 'true' and '$(CxxReflectIncludeArmConfigurations)' == 'true'">
     <ProjectConfiguration Include="Debug(ZW)|ARM">     <Configuration>Debug(ZW)</Configuration>   <Platform>ARM</Platform>   </ProjectConfiguration>
     <ProjectConfiguration Include="Release(ZW)|ARM">   <Configuration>Release(ZW)</Configuration> <Platform>ARM</Platform>   </ProjectConfiguration>
   </ItemGroup>
@@ -236,7 +240,7 @@ configuration of the project:
   -->
   <ItemDefinitionGroup>
     <BuildLog>
-      <Path>$(SolutionDir)\build\intermediate\$(Platform)\$(Configuration)\$(MSBuildProjectName)\$(MsBuildProjectName).log</Path>
+      <Path>$(SolutionDir)build\i\$(Platform)\$(Configuration)\$(MSBuildProjectName)\$(MsBuildProjectName).log</Path>
     </BuildLog>
   </ItemDefinitionGroup>
 
@@ -271,15 +275,16 @@ configuration of the project:
   If anyone knows how to move the Generated Files folder too, I would love to know. :'(
   -->  
   <PropertyGroup>
-    <IntDir>$(SolutionDir)\build\intermediate\$(Platform)\$(Configuration)\$(MSBuildProjectName)\</IntDir>
+    <IntDir>$(SolutionDir)build\i\$(Platform)\$(Configuration)\$(MSBuildProjectName)\</IntDir>
     
-    <OutDir Condition="'$(CxxReflectIsCxxReflect)' == 'true'">$(SolutionDir)\build\output\$(Platform)\$(Configuration)\cxxreflect\</OutDir>
-    <OutDir Condition="'$(CxxReflectIsCxxReflect)' == 'false'">$(SolutionDir)\build\output\$(Platform)\$(Configuration)\$(MSBuildProjectName)\</OutDir>
+    <OutDir Condition="'$(CxxReflectIsCxxReflect)' == 'true'">$(SolutionDir)build\o\$(Platform)\$(Configuration)\cxxreflect\</OutDir>
+    <OutDir Condition="'$(CxxReflectIsCxxReflect)' == 'false'">$(SolutionDir)build\o\$(Platform)\$(Configuration)\$(MSBuildProjectName)\</OutDir>
 
-    <AppxPackageDir>$(SolutionDir)\build\app_packages\$(Platform)\$(Configuration)\$(MSBuildProjectName)\</AppxPackageDir>
+    <AppxPackageDir>$(SolutionDir)build\a\$(Platform)\$(Configuration)\$(MSBuildProjectName)\</AppxPackageDir>
     <GeneratedFilesDir>$(IntDir)\generated\</GeneratedFilesDir>
+    <MinimalCoreWin>true</MinimalCoreWin>
     <TestResultsSubdirectory>build\test_results</TestResultsSubdirectory>
-    <CxxReflectOutDir>$(SolutionDir)\build\output\$(Platform)\$(Configuration)\cxxreflect\</CxxReflectOutDir>
+    <CxxReflectOutDir>$(SolutionDir)build\o\$(Platform)\$(Configuration)\cxxreflect\</CxxReflectOutDir>
 
     <!-- Disable AppX package validation because MSBuild hates us. -->
     <AppxPackageValidationEnabled>false</AppxPackageValidationEnabled>
@@ -298,20 +303,23 @@ configuration of the project:
   -->
   <ItemDefinitionGroup>
     <BuildLog>
-      <Path>$(SolutionDir)\build\intermediate\$(Platform)\$(Configuration)\$(MSBuildProjectName)\$(MsBuildProjectName).log</Path>
+      <Path>$(SolutionDir)build\i\$(Platform)\$(Configuration)\$(MSBuildProjectName)\$(MsBuildProjectName).log</Path>
     </BuildLog>
     <ClCompile>
       <AdditionalIncludeDirectories>$(IncludePath);$(SolutionDir);$(VCInstallDir)Include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <AdditionalOptions>/D_SCL_SECURE_NO_WARNINGS /DCXXREFLECT_PROJECT_NAME=$(ProjectName) /bigobj %(AdditionalOptions)</AdditionalOptions>
+      <CompileAsWinRT Condition="'$(CxxReflectIsZWEnabled)' == 'true'">true</CompileAsWinRT>
+      <CompileAsWinRT Condition="'$(CxxReflectIsZWEnabled)' != 'true'">false</CompileAsWinRT>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <!--
       C4100 (unreferenced parameter) is emitted by various XAML-generated files and library headers
+      C4453 (WebHostHidden blah blah blah) is emitted by the XAML test projects
       C4505 (unreferenced local function has been removed) is emitted by the unit test framework headers :'(
       C4512 (op= could not be generated) is a silly warning that we aren't interested in :-)
       C4691 (Windows.oundation not referenced) is emitted when building the Windows Runtime unit tests; not sure why yet.
       C4702 (unreachable code) is hit in release builds by debug statements that are unreachable
       -->
-      <DisableSpecificWarnings>4100;4505;4512;4691;4702</DisableSpecificWarnings>
+      <DisableSpecificWarnings>4100;4453;4505;4512;4691;4702</DisableSpecificWarnings>
       <ErrorReporting>None</ErrorReporting>
       <MinimalRebuild>false</MinimalRebuild>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
@@ -328,7 +336,8 @@ configuration of the project:
       <AdditionalOptions>/ignore:4264 /ignore:4221 %(AdditionalOptions)</AdditionalOptions>
     </Lib>
     <Link>
-      <AdditionalDependencies>runtimeobject.lib;advapi32.lib;shlwapi.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies Condition="'$(Platform)' != 'ARM'">shlwapi.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>runtimeobject.lib;advapi32.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalLibraryDirectories>$(CxxReflectOutDir);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalOptions>/ignore:4264 /ignore:4221 %(AdditionalOptions)</AdditionalOptions>
       <GenerateDebugInformation>true</GenerateDebugInformation>
@@ -371,7 +380,7 @@ configuration of the project:
   Any test projects will automatically inherit these settings because they will correctly set the
   AppContainerApplication property to true.
   -->
-  <ItemDefinitionGroup Condition="'$(CxxReflectIsZWEnabled)' == 'true' and '$(CxxReflectIsCxxReflectPart)' == 'true'">
+  <ItemDefinitionGroup Condition="'$(CxxReflectIsZWEnabled)' == 'true'">
     <ClCompile>
       <AdditionalOptions>/ZW %(AdditionalOptions)</AdditionalOptions>
       <AdditionalUsingDirectories>
@@ -456,7 +465,7 @@ configuration of the project:
   <Choose>
     <When Condition="'$(CxxReflectIsCxxReflect)' != 'true' and '$(CxxReflectIsStandalone)' != 'true'">
       <ItemGroup>
-        <ProjectReference Include="$(SolutionDir)\cxxreflect\cxxreflect.vcxproj">
+        <ProjectReference Include="$(SolutionDir)cxxreflect\cxxreflect.vcxproj">
           <Project>{1323C7D0-55D3-2A4A-EC85-6693FC4678FE}</Project>
         </ProjectReference>
       </ItemGroup>

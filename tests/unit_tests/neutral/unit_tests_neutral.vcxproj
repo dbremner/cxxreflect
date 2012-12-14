@@ -5,9 +5,17 @@
     <ProjectGuid>{2F515CF8-CE89-4192-B017-8227D21FCD54}</ProjectGuid>
     <RootNamespace>unit_tests_neutral</RootNamespace>
   </PropertyGroup>
+  <PropertyGroup Condition="'$(Platform)' == 'ARM'">
+    <AppContainerApplication>true</AppContainerApplication>
+    <AppxPackage>true</AppxPackage>
+    <AppxPackageIncludePrivateSymbols>true</AppxPackageIncludePrivateSymbols>
+    <DefaultLanguage>en-US</DefaultLanguage>
+    <PackageCertificateKeyFile>..\infrastructure\unit_tests.pfx</PackageCertificateKeyFile>
+  </PropertyGroup>
   <Import Project="$(SolutionDir)\cxxreflect\cxxreflect.props" />
   <ItemDefinitionGroup>
     <ClCompile>
+      <AdditionalOptions>/DWINAPI_FAMILY=WINAPI_FAMILY_DESKTOP_APP</AdditionalOptions>
       <AdditionalIncludeDirectories>$(VCInstallDir)UnitTest\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>tests/unit_tests/neutral/precompiled_headers.hpp</PrecompiledHeaderFile>
@@ -15,10 +23,17 @@
       <UseFullPaths>true</UseFullPaths>
     </ClCompile>
     <Link>
-      <SubSystem>Windows</SubSystem>
       <AdditionalLibraryDirectories>$(VCInstallDir)UnitTest\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
   </ItemDefinitionGroup>
+  <ItemGroup Condition="'$(Platform)' == 'ARM'">
+    <SDKReference Include="CppUnitTestFramework, Version=11.0" />
+    <SDKReference Include="TestPlatform, Version=11.0" />
+    <AppxManifest Include="package.appxmanifest">
+      <SubType>Designer</SubType>
+    </AppxManifest>
+    <None Include="..\infrastructure\unit_tests.pfx" />
+  </ItemGroup>
   <ItemGroup>
     <ClCompile Include="reflection\basic_loader.cpp" />
     <ClCompile Include="reflection\basic_types.cpp" />

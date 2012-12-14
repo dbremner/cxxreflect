@@ -2,10 +2,10 @@
 <Package xmlns="http://schemas.microsoft.com/appx/2010/manifest">
   <Identity Name="7558379e-9f7f-4905-9ed1-457a39a39463" Publisher="CN=CxxReflect" Version="1.0.0.0" />
   <Properties>
-    <DisplayName>CxxReflect Windows Runtime Unit Tests</DisplayName>
+    <DisplayName>CxxReflect Neutral Unit Tests</DisplayName>
     <PublisherDisplayName>CxxReflect</PublisherDisplayName>
     <Logo>miscellaneous\UnitTestStoreLogo.png</Logo>
-    <Description>CxxReflect Windows Runtime Unit Tests</Description>
+    <Description>CxxReflect Neutral Unit Tests</Description>
   </Properties>
   <Prerequisites>
     <OSMinVersion>6.2.1</OSMinVersion>

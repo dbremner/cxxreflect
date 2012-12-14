@@ -10,6 +10,7 @@
   <PropertyGroup>
     <ProjectGuid>{599226A2-CED5-4AAB-B6AE-9B20EF469C6F}</ProjectGuid>
     <ConfigurationType>StaticLibrary</ConfigurationType>
+    <CxxReflectExcludeFromArm>true</CxxReflectExcludeFromArm>
     <CxxReflectIsStandalone>true</CxxReflectIsStandalone>
   </PropertyGroup>
   <Import Project="$(SolutionDir)\cxxreflect\cxxreflect.props"/>
