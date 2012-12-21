@@ -61,6 +61,9 @@ namespace cxxreflect { namespace reflection {
         nested_family_or_assembly
     };
 
+    using std::begin;
+    using std::end;
+
 } }
 
 namespace cxxreflect { namespace reflection { namespace detail {
@@ -98,6 +101,18 @@ namespace cxxreflect { namespace reflection { namespace detail {
 
     typedef core::iterator_range<custom_attribute_iterator> custom_attribute_range;
 
+    typedef core::instantiating_iterator
+    <
+        metadata::type_signature::generic_argument_iterator,
+        unresolved_type,
+        std::nullptr_t,
+        core::internal_constructor_forwarder<unresolved_type>,
+        core::identity_transformer,
+        std::forward_iterator_tag
+    > generic_argument_iterator;
+
+    typedef core::iterator_range<generic_argument_iterator> generic_argument_range;
+
     template
     <
         typename Type,
@@ -123,9 +138,13 @@ namespace cxxreflect { namespace reflection { namespace detail {
 
     typedef core::iterator_range<module_type_def_index_iterator> module_type_def_index_iterator_range;
 
-    typedef std::unique_ptr<assembly_context> unique_assembly_context;
-    typedef std::unique_ptr<loader_context>   unique_loader_context;
-    typedef std::unique_ptr<module_context>   unique_module_context;
+    CXXREFLECT_DECLARE_INCOMPLETE_DELETE(unique_assembly_context_delete, assembly_context);
+    CXXREFLECT_DECLARE_INCOMPLETE_DELETE(unique_loader_context_delete,   loader_context  );
+    CXXREFLECT_DECLARE_INCOMPLETE_DELETE(unique_module_context_delete,   module_context  );
+
+    typedef std::unique_ptr<assembly_context, unique_assembly_context_delete> unique_assembly_context;
+    typedef std::unique_ptr<loader_context,   unique_loader_context_delete  > unique_loader_context;
+    typedef std::unique_ptr<module_context,   unique_module_context_delete  > unique_module_context;
 
     //
     // Membership
@@ -196,6 +215,9 @@ namespace cxxreflect { namespace reflection { namespace detail {
     typedef core::iterator_range<interface_table_iterator> interface_table_range;
     typedef core::iterator_range<method_table_iterator   > method_table_range;
     typedef core::iterator_range<property_table_iterator > property_table_range;
+
+    using std::begin;
+    using std::end;
 
 } } }
 

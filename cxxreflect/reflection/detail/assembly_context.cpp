@@ -21,7 +21,7 @@ namespace cxxreflect { namespace reflection { namespace detail {
         core::assert_not_null(loader);
         core::assert_initialized(manifest_module_location);
 
-        _modules.emplace_back(core::make_unique<module_context>(this, manifest_module_location));
+        _modules.emplace_back(core::make_unique_with_delete<unique_module_context_delete, module_context>(this, manifest_module_location));
     }
 
     auto assembly_context::loader() const -> loader_context const&
@@ -85,10 +85,12 @@ namespace cxxreflect { namespace reflection { namespace detail {
             if (!location.is_initialized())
                 throw core::runtime_error(L"failed to locate module");
 
-            _modules.push_back(core::make_unique<module_context>(this, location));
+            _modules.push_back(core::make_unique_with_delete<unique_module_context_delete, module_context>(this, location));
         });
 
         _state.set(realization_state::other_modules);
     }
+
+    CXXREFLECT_DEFINE_INCOMPLETE_DELETE(unique_assembly_context_delete, assembly_context)
 
 } } }

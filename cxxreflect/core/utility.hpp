@@ -74,8 +74,29 @@
     CXXREFLECT_GENERATE_ADDITION_OPERATORS(type, get_value, difference, typename)                \
     CXXREFLECT_GENERATE_SUBTRACTION_OPERATORS(type, get_value, difference, typename)
 
-
-
+// Generates nonmember begin/end pairs for the named type so we don't need 'using std::begin'.  Note
+// that we use templates to work around inane name lookup behavior.
+/*#define CXXREFLECT_GENERATE_NONMEMBER_BEGIN_END(x_type)                           \
+    template <typename T>                                                         \
+    friend auto begin(T&& r)                                                      \
+        -> typename std::enable_if<                                               \
+            std::is_same<typename std::decay<T>::type, x_type>::value,            \
+            decltype(r.begin())                                                   \
+        >::type                                                                   \
+    {                                                                             \
+        return r.begin();                                                         \
+    }                                                                             \
+                                                                                  \
+    template <typename T>                                                         \
+    friend auto end(T&& r)                                                        \
+        -> typename std::enable_if<                                               \
+            std::is_same<typename std::decay<T>::type, x_type>::value,            \
+            decltype(r.end())                                                     \
+        >::type                                                                   \
+    {                                                                             \
+        return r.end();                                                           \
+    }
+*/
 
 // Generator for the safe-bool operator
 #define CXXREFLECT_GENERATE_SAFE_BOOL_CONVERSION(type)                                  \
@@ -496,6 +517,33 @@ namespace cxxreflect { namespace core {
 
 
 
+    // These macros allow containers of unique_ptr<incomplete_type> by moving the definition of the
+    // deleter's operator() into a .cpp file where the type is complete.  We cannot use the default
+    // deleter because its operator() may be instantiated by member functions of a container other
+    // than the destructor.  We have no control over which functions may be instantiated, so we
+    // simply create custom deleter types for full control.
+    //
+    // Use CXXREFLECT_DECLARE_INCOMPLETE_DELETE once in one header to define the deleter type.  The
+    // deleter is named 'name' and deletes an object of type 'type'.
+    //
+    // Then use CXXREFLECT_DEFINE_INCOMPLETE_DELETE in one source (.cpp) file in which the 'type'
+    // is complete.
+    #define CXXREFLECT_DECLARE_INCOMPLETE_DELETE(name, type) \
+        struct name                                          \
+        {                                                    \
+            auto operator()(type* p) const -> void;          \
+        }
+
+    #define CXXREFLECT_DEFINE_INCOMPLETE_DELETE(name, type)  \
+        auto name::operator()(type* const p) const -> void   \
+        {                                                    \
+            delete p;                                        \
+        }
+
+
+
+
+
     /// Access key for internal members
     class internal_key
     {
@@ -671,6 +719,58 @@ namespace cxxreflect { namespace core {
                                    std::forward<P2>(a2),
                                    std::forward<P3>(a3),
                                    std::forward<P4>(a4)));
+        return p;
+    }
+
+    template <typename D, typename T>
+    auto make_unique_with_delete() -> std::unique_ptr<T, D>
+    {
+        std::unique_ptr<T, D> p(new T());
+        return p;
+    }
+
+    template <typename D, typename T, typename P0>
+    auto make_unique_with_delete(P0&& a0) -> std::unique_ptr<T, D>
+    {
+        std::unique_ptr<T, D> p(new T(std::forward<P0>(a0)));
+        return p;
+    }
+
+    template <typename D, typename T, typename P0, typename P1>
+    auto make_unique_with_delete(P0&& a0, P1&& a1) -> std::unique_ptr<T, D>
+    {
+        std::unique_ptr<T, D> p(new T(std::forward<P0>(a0),
+                                      std::forward<P1>(a1)));
+        return p;
+    }
+
+    template <typename D, typename T, typename P0, typename P1, typename P2>
+    auto make_unique_with_delete(P0&& a0, P1&& a1, P2&& a2) -> std::unique_ptr<T, D>
+    {
+        std::unique_ptr<T, D> p(new T(std::forward<P0>(a0),
+                                      std::forward<P1>(a1),
+                                      std::forward<P2>(a2)));
+        return p;
+    }
+
+    template <typename D, typename T, typename P0, typename P1, typename P2, typename P3>
+    auto make_unique_with_delete(P0&& a0, P1&& a1, P2&& a2, P3&& a3) -> std::unique_ptr<T, D>
+    {
+        std::unique_ptr<T, D> p(new T(std::forward<P0>(a0),
+                                      std::forward<P1>(a1),
+                                      std::forward<P2>(a2),
+                                      std::forward<P3>(a3)));
+        return p;
+    }
+
+    template <typename D, typename T, typename P0, typename P1, typename P2, typename P3, typename P4>
+    auto make_unique_with_delete(P0&& a0, P1&& a1, P2&& a2, P3&& a3, P4&& a4) -> std::unique_ptr<T, D>
+    {
+        std::unique_ptr<T, D> p(new T(std::forward<P0>(a0),
+                                      std::forward<P1>(a1),
+                                      std::forward<P2>(a2),
+                                      std::forward<P3>(a3),
+                                      std::forward<P4>(a4)));
         return p;
     }
 

@@ -38,11 +38,11 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Configuration.hpp" />
-    <ClInclude Include="IterableUtility.hpp" />
     <ClInclude Include="Loader.hpp" />
     <ClInclude Include="LoaderFactory.hpp" />
     <ClInclude Include="Namespace.hpp" />
     <ClInclude Include="Type.hpp" />
+    <ClInclude Include="Collections.hpp" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="$(SolutionDir)\windows_runtime_sdk\CxxReflect.Reflection\CxxReflect.Reflection.vcxproj">

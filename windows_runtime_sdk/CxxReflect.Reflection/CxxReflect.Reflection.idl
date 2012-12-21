@@ -10,6 +10,10 @@ import "windows.foundation.idl";
 
 namespace CxxReflect.Reflection {
 
+    //
+    // Forward Declarations of all Types in this IDL file
+    //
+
     interface IConstant;
     interface IEvent;
     interface ILoader;
@@ -19,24 +23,41 @@ namespace CxxReflect.Reflection {
     interface IProperty;
     interface IType;
 
+    runtimeclass Constant;
+    runtimeclass Event;
+    runtimeclass Loader;
+    runtimeclass Method;
+    runtimeclass Namespace;
+    runtimeclass Parameter;
+    runtimeclass Property;
+    runtimeclass Type;
+
+
+
+
+
+    // Declarations and typedefs for all generic interface instantiations used in this file
     declare
     {
-        interface Windows.Foundation.Collections.IIterable<IType*>;
-        interface Windows.Foundation.Collections.IIterator<IType*>;
+        interface Windows.Foundation.Collections.IIterable  <Type*>;
+        interface Windows.Foundation.Collections.IIterator  <Type*>;
+        interface Windows.Foundation.Collections.IVectorView<Type*>;
     }
 
-    typedef Windows.Foundation.Collections.IIterable<IType*> ITypeIterable;
-    typedef Windows.Foundation.Collections.IIterator<IType*> ITypeIterator;
+    typedef Windows.Foundation.Collections.IIterable  <Type*> TypeIterable;
+    typedef Windows.Foundation.Collections.IIterator  <Type*> TypeIterator;
+    typedef Windows.Foundation.Collections.IVectorView<Type*> TypeVectorView;
 
 
 
 
-    [uuid(8ef41924-0f42-42ed-9bc0-13a22888416f), version(COMPONENT_VERSION)]
+
+    [uuid(8ef41924-0f42-42ed-9bc0-13a22888416f), version(COMPONENT_VERSION), exclusiveto(Constant)]
     interface IConstant : IInspectable
     {
     }
 
-    [uuid(f3dc17e3-6237-467d-991c-1d3e44d98e35), version(COMPONENT_VERSION)]
+    [uuid(f3dc17e3-6237-467d-991c-1d3e44d98e35), version(COMPONENT_VERSION), exclusiveto(Event)]
     interface IEvent : IInspectable
     {
     }
@@ -72,7 +93,7 @@ namespace CxxReflect.Reflection {
         /// given all of the available metadata files that are included in the package.  The latter
         /// will be returned if the named namespace could be a nested namespace of a namespace that
         /// does exist in the package.
-        HRESULT FindNamespace([in] HSTRING namespaceName, [out] [retval] INamespace** value);
+        HRESULT FindNamespace([in] HSTRING namespaceName, [out] [retval] Namespace** value);
 
         /// Finds the type with the given name
         ///
@@ -82,38 +103,38 @@ namespace CxxReflect.Reflection {
         ///
         /// If the named type does not exist in the package, nullptr is returned.  Otherwise, a type
         /// object representing the type is returned.
-        HRESULT FindType([in] HSTRING fullName, [out] [retval] IType** value);
-
-        HRESULT GetTypes([out] [retval] ITypeIterable** value);
+        HRESULT FindType([in] HSTRING fullName, [out] [retval] Type** value);
     }
 
 
 
 
 
-    [uuid(b39889ec-9df4-4886-8d9d-e30109b00c2c), version(COMPONENT_VERSION)]
+    [uuid(b39889ec-9df4-4886-8d9d-e30109b00c2c), version(COMPONENT_VERSION), exclusiveto(Method)]
     interface IMethod : IInspectable
     {
     }
 
-    [uuid(6605a025-3585-400b-acec-d49772c0117a), version(COMPONENT_VERSION)]
+    [uuid(6605a025-3585-400b-acec-d49772c0117a), version(COMPONENT_VERSION), exclusiveto(Namespace)]
     interface INamespace : IInspectable
     {
+        [propget] HRESULT Loader([out] [retval] ILoader** value);
         [propget] HRESULT Name([out] [retval] HSTRING* value);
         [propget] HRESULT MetadataFile([out] [retval] HSTRING* value);
+        [propget] HRESULT Types([out] [retval] TypeVectorView** value);
     }
 
-    [uuid(cdf1a0ae-50af-4bf0-bc7e-843ba02b42d1), version(COMPONENT_VERSION)]
+    [uuid(cdf1a0ae-50af-4bf0-bc7e-843ba02b42d1), version(COMPONENT_VERSION), exclusiveto(Parameter)]
     interface IParameter : IInspectable
     {
     }
 
-    [uuid(21f5efac-498f-43b8-a445-bd44bee753db), version(COMPONENT_VERSION)]
+    [uuid(21f5efac-498f-43b8-a445-bd44bee753db), version(COMPONENT_VERSION), exclusiveto(Property)]
     interface IProperty : IInspectable
     {
     }
 
-    [uuid(683ad176-51f2-487c-80bc-3d2705daff3f), version(COMPONENT_VERSION)]
+    [uuid(683ad176-51f2-487c-80bc-3d2705daff3f), version(COMPONENT_VERSION), exclusiveto(Type)]
     interface IType : IInspectable
     {
         [propget] HRESULT IsAbstract([out] [retval] boolean* value);
@@ -121,22 +142,73 @@ namespace CxxReflect.Reflection {
         [propget] HRESULT IsByRef([out] [retval] boolean* value);
         [propget] HRESULT IsClass([out] [retval] boolean* value);
         [propget] HRESULT IsEnum([out] [retval] boolean* value);
-        [propget] HRESULT IsGenericParameter([out] [retval] boolean* value);
+
+        /// Tests whether this type is a generic type
+        ///
+        /// This property returns true if any of IsGenericTypeParameter, IsGenericTypeDefinition, or
+        /// IsGenericTypeInstantiation is true.  It may be accessed for any Type.
         [propget] HRESULT IsGenericType([out] [retval] boolean* value);
+
+        [propget] HRESULT IsGenericTypeParameter([out] [retval] boolean* value);
         [propget] HRESULT IsGenericTypeDefinition([out] [retval] boolean* value);
+        [propget] HRESULT IsGenericTypeInstantiation([out] [retval] boolean* value);
+        [propget] HRESULT GenericTypeArguments([out] [retval] TypeVectorView** value);
+
         [propget] HRESULT IsInterface([out] [retval] boolean* value);
         [propget] HRESULT IsPrimitive([out] [retval] boolean* value);
         [propget] HRESULT IsSealed([out] [retval] boolean* value);
         [propget] HRESULT IsValueType([out] [retval] boolean* value);
 
-        [propget] HRESULT BaseType([out] [retval] IType** value);
-        [propget] HRESULT DeclaringType([out] [retval] IType** value);
-        [propget] HRESULT ElementType([out] [retval] IType** value);
+        [propget] HRESULT BaseType([out] [retval] Type** value);
+        [propget] HRESULT DeclaringType([out] [retval] Type** value);
+        [propget] HRESULT ElementType([out] [retval] Type** value);
 
-        [propget] HRESULT Namespace([out] [retval] INamespace** value);
+        [propget] HRESULT Namespace([out] [retval] Namespace** value);
         
         [propget] HRESULT FullName([out] [retval] HSTRING* value);
         [propget] HRESULT Name([out] [retval] HSTRING* value);
+    }
+
+    [version(COMPONENT_VERSION), threading(both), marshaling_behavior(agile)]
+    runtimeclass Constant
+    {
+        [default] interface IConstant;
+    }
+
+    [version(COMPONENT_VERSION), threading(both), marshaling_behavior(agile)]
+    runtimeclass Event
+    {
+        [default] interface IEvent;
+    }
+
+    [version(COMPONENT_VERSION), threading(both), marshaling_behavior(agile)]
+    runtimeclass Method
+    {
+        [default] interface IMethod;
+    }
+
+    [version(COMPONENT_VERSION), threading(both), marshaling_behavior(agile)]
+    runtimeclass Namespace
+    {
+        [default] interface INamespace;
+    }
+
+    [version(COMPONENT_VERSION), threading(both), marshaling_behavior(agile)]
+    runtimeclass Parameter
+    {
+        [default] interface IParameter;
+    }
+
+    [version(COMPONENT_VERSION), threading(both), marshaling_behavior(agile)]
+    runtimeclass Property
+    {
+        [default] interface IProperty;
+    }
+
+    [version(COMPONENT_VERSION), threading(both), marshaling_behavior(agile)]
+    runtimeclass Type
+    {
+        [default] interface IType;
     }
 
 

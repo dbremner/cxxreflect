@@ -8,20 +8,20 @@
 
 #include "Configuration.hpp"
 
-namespace CxxReflect { namespace Reflection { namespace Native {
+namespace cxxreflect { namespace windows_runtime_sdk {
 
-    class LoaderFactory : public wrl::RuntimeClass<cxrabi::ILoaderFactory>
+    class RuntimeLoaderFactory : public wrl::RuntimeClass<abi::ILoaderFactory>
     {
         InspectableClass(RuntimeClass_CxxReflect_Reflection_Native_LoaderFactory, BaseTrust)
 
     public:
 
-        virtual auto STDMETHODCALLTYPE CreateLoader(IInspectable* argument, cxrabi::LoaderFuture** value) -> HRESULT override;
+        virtual auto STDMETHODCALLTYPE CreateLoader(IInspectable* argument, abi::LoaderFuture** value) -> HRESULT override;
 
     };
 
-    ActivatableClass(LoaderFactory)
+    ActivatableClass(RuntimeLoaderFactory)
 
-} } }
+} }
 
 #endif

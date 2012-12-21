@@ -50,7 +50,11 @@ namespace cxxreflect_test
             else if (p == known_property::primary_assembly_path())
                 return L"c:\\windows\\Microsoft.NET\\Framework\\v4.0.30319\\mscorlib.dll";
             else if (p == known_property::test_assemblies_path())
-                return L"c:\\jm\\code\\cxxreflect\\build\\output\\Win32\\Debug\\cil_assemblies";
+                #ifdef __cplusplus_winrt
+                return ::Windows::ApplicationModel::Package::Current->InstalledLocation->Path->Data();
+                #else
+                return L"c:\\jm\\cxr\\build\\o\\Win32\\Debug\\cil_assemblies";
+                #endif
             else
                 throw test_error(L"failed to find property:  " + p);
         }
@@ -228,6 +232,10 @@ namespace cxxreflect_test
             return *o;
         }
     };
+
+    #ifndef CXXREFLECT_PROJECT_NAME
+    #error No project name :'(
+    #endif
 
     #define CXXREFLECTTEST_CONCATENATE_(q, r) q ## r
     #define CXXREFLECTTEST_CONCATENATE(q, r) CXXREFLECTTEST_CONCATENATE_(q, r)

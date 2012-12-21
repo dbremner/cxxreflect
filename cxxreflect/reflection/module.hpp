@@ -43,6 +43,8 @@ namespace cxxreflect { namespace reflection {
 
         auto types() const -> type_range;
 
+        auto find_namespace(core::string_reference const& namespace_name) const -> type_range;
+
         auto find_type(core::string_reference const& namespace_name,
                        core::string_reference const& simple_name) const -> type;
 

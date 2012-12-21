@@ -26,7 +26,24 @@ namespace cxxreflect_test { namespace unit_tests_windows_runtime {
             cxr::type const t(cxr::get_type(L"TestComponents.Alpha.GenericInterfaceImplementations.IterableObject"));
             c.verify(t.is_initialized());
 
-            cxr::for_all(t.interfaces(), [&](cxr::type const& i) { i.methods(cxr::binding_attribute::all_instance); });
+            // Find the generic interface and examine it:
+            bool saw_iiterable(false);
+            cxr::for_all(t.interfaces(), [&](cxr::type const& i)
+            {
+                i.methods(cxr::binding_attribute::all_instance);
+                if (i.primary_name() == L"IIterable`1")
+                {
+                    c.verify(!saw_iiterable);
+                    c.verify_equals(cxr::distance(i.generic_arguments()), 1u);
+                    c.verify_equals((*i.generic_arguments().begin()).full_name(), L"Platform.Object");
+                    saw_iiterable = true;
+                }
+
+                t.methods(cxr::binding_attribute::all_instance);
+            });
+            c.verify(saw_iiterable);
+
+            // Verify that we can realize the methods without asserting:
             t.methods(cxr::binding_attribute::all_instance);
         }
 
@@ -34,7 +51,12 @@ namespace cxxreflect_test { namespace unit_tests_windows_runtime {
             cxr::type const t(cxr::get_type(L"TestComponents.Alpha.GenericInterfaceImplementations.IIterablePair"));
             c.verify(t.is_initialized());
 
-            cxr::for_all(t.interfaces(), [&](cxr::type const& i) { i.methods(cxr::binding_attribute::all_instance); });
+            cxr::for_all(t.interfaces(), [&](cxr::type const& i)
+            {
+                i.methods(cxr::binding_attribute::all_instance);
+                if (i.is_generic_type_instantiation())
+                    cxr::for_all(i.generic_arguments(), [&](cxr::type const&) { });
+            });
             t.methods(cxr::binding_attribute::all_instance);
         }
 
@@ -42,7 +64,12 @@ namespace cxxreflect_test { namespace unit_tests_windows_runtime {
             cxr::type const t(cxr::get_type(L"TestComponents.Alpha.GenericInterfaceImplementations.VectorViewObject"));
             c.verify(t.is_initialized());
 
-            cxr::for_all(t.interfaces(), [&](cxr::type const& i) { i.methods(cxr::binding_attribute::all_instance); });
+            cxr::for_all(t.interfaces(), [&](cxr::type const& i)
+            {
+                i.methods(cxr::binding_attribute::all_instance);
+                if (i.is_generic_type_instantiation())
+                    cxr::for_all(i.generic_arguments(), [&](cxr::type const&) { });
+            });
             t.methods(cxr::binding_attribute::all_instance);
         }
     }

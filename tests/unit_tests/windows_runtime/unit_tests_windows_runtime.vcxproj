@@ -30,6 +30,9 @@
       <SubType>Designer</SubType>
     </AppxManifest>
     <None Include="..\infrastructure\unit_tests.pfx" />
+    <None Include="$(SolutionDir)build\o\Win32\Release\cil_assemblies\*.dll">
+      <DeploymentContent>true</DeploymentContent>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <Image Include="miscellaneous\UnitTestLogo.png" />

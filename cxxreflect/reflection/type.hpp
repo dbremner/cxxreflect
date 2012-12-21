@@ -22,6 +22,9 @@ namespace cxxreflect { namespace reflection { namespace detail {
         typedef Token       token_type;
         typedef DerivedType derived_type;
 
+        typedef generic_argument_iterator generic_argument_iterator;
+        typedef generic_argument_range    generic_argument_range;
+
         auto context(core::internal_key) const -> token_type const&;
 
         auto assembly_qualified_name() const -> core::string;
@@ -32,6 +35,8 @@ namespace cxxreflect { namespace reflection { namespace detail {
 
         auto declaring_type() const -> derived_type;
         auto element_type()   const -> unresolved_type;
+
+        auto generic_arguments() const -> generic_argument_range;
 
         auto is_array()                      const -> bool;
         auto is_by_ref()                     const -> bool;
@@ -56,6 +61,9 @@ namespace cxxreflect { namespace reflection { namespace detail {
 
     private:
 
+        friend class type;
+        friend class unresolved_type;
+
         token_type                               _token;
         core::checked_pointer<type_policy const> _policy;
     };
@@ -77,6 +85,8 @@ namespace cxxreflect { namespace reflection {
 
         unresolved_type();
         unresolved_type(metadata::type_def_ref_spec_or_signature const& token, core::internal_key);
+        unresolved_type(type const& source);
+        unresolved_type(nullptr_t, metadata::type_signature::generic_argument_iterator const& current, core::internal_key);
         unresolved_type(type const& reflected_type, detail::interface_table_entry const* context, core::internal_key);
 
         auto resolve() const -> type;

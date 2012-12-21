@@ -5,7 +5,7 @@
     <ProjectGuid>{2F515CF8-CE89-4192-B017-8227D21FCD54}</ProjectGuid>
     <RootNamespace>unit_tests_neutral</RootNamespace>
   </PropertyGroup>
-  <PropertyGroup Condition="'$(Platform)' == 'ARM'">
+  <PropertyGroup Condition="'$(Configuration)' == 'Debug(ZW)' or '$(Configuration)' == 'Release(ZW)'">
     <AppContainerApplication>true</AppContainerApplication>
     <AppxPackage>true</AppxPackage>
     <AppxPackageIncludePrivateSymbols>true</AppxPackageIncludePrivateSymbols>
@@ -15,7 +15,7 @@
   <Import Project="$(SolutionDir)\cxxreflect\cxxreflect.props" />
   <ItemDefinitionGroup>
     <ClCompile>
-      <AdditionalOptions>/DWINAPI_FAMILY=WINAPI_FAMILY_DESKTOP_APP</AdditionalOptions>
+      <AdditionalOptions>/DWINAPI_FAMILY=WINAPI_FAMILY_DESKTOP_APP %(AdditionalOptions)</AdditionalOptions>
       <AdditionalIncludeDirectories>$(VCInstallDir)UnitTest\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>tests/unit_tests/neutral/precompiled_headers.hpp</PrecompiledHeaderFile>
@@ -26,13 +26,22 @@
       <AdditionalLibraryDirectories>$(VCInstallDir)UnitTest\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
   </ItemDefinitionGroup>
-  <ItemGroup Condition="'$(Platform)' == 'ARM'">
+  <ItemGroup Condition="'$(Configuration)' == 'Debug(ZW)' or '$(Configuration)' == 'Release(ZW)'">
     <SDKReference Include="CppUnitTestFramework, Version=11.0" />
     <SDKReference Include="TestPlatform, Version=11.0" />
     <AppxManifest Include="package.appxmanifest">
       <SubType>Designer</SubType>
     </AppxManifest>
     <None Include="..\infrastructure\unit_tests.pfx" />
+    <None Include="$(SolutionDir)build\o\Win32\Release\cil_assemblies\*.dll">
+      <DeploymentContent>true</DeploymentContent>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="miscellaneous\UnitTestLogo.png" />
+    <Image Include="miscellaneous\UnitTestSmallLogo.png" />
+    <Image Include="miscellaneous\UnitTestSplashScreen.png" />
+    <Image Include="miscellaneous\UnitTestStoreLogo.png" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="reflection\basic_loader.cpp" />

@@ -41,9 +41,8 @@ namespace cxxreflect { namespace reflection { namespace detail {
         typedef std::vector<core::size_type>                              index_type;
         typedef std::pair<core::string_reference, core::string_reference> type_name_pair;
 
-        typedef module_type_def_index_iterator                  type_def_iterator;
-        typedef core::iterator_range<type_def_iterator>         type_def_iterator_range;
-        typedef std::pair<type_def_iterator, type_def_iterator> type_def_iterator_pair;
+        typedef module_type_def_index_iterator          type_def_iterator;
+        typedef core::iterator_range<type_def_iterator> type_def_iterator_range;
 
         /// The `scope` must be non-null and must point to a valid, initialized `database`.  The
         /// caller is responsible for the lifetime of the scope.  This builds the index and has
@@ -59,7 +58,7 @@ namespace cxxreflect { namespace reflection { namespace detail {
 
         /// Finds the range of types defined in a given namespace.  The types are ordered by
         /// qualified name so all of the types will be together in the index.
-        auto find(core::string_reference const& namespace_name) const -> type_def_iterator_pair;
+        auto find(core::string_reference const& namespace_name) const -> type_def_iterator_range;
 
         auto begin() const -> type_def_iterator;
         auto end()   const -> type_def_iterator;

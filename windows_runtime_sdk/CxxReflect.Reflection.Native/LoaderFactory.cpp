@@ -6,19 +6,19 @@
 #include "Loader.hpp"
 #include "LoaderFactory.hpp"
 
-namespace CxxReflect { namespace Reflection { namespace Native {
+namespace cxxreflect { namespace windows_runtime_sdk {
 
-    auto LoaderFactory::CreateLoader(IInspectable* const argument, cxrabi::LoaderFuture** const value) -> HRESULT
+    auto RuntimeLoaderFactory::CreateLoader(IInspectable* const argument, abi::LoaderFuture** const value) -> HRESULT
     {
         if (value == nullptr)
             return E_INVALIDARG;
 
-        *value = wrl::Make<cxr::task_based_async_operation<cxrabi::ILoader>>(std::async([&]
+        *value = wrl::Make<cxr::task_based_async_operation<abi::ILoader>>(std::async([&]() -> abi::ILoader*
         {
-            return cxr::implicit_cast<cxrabi::ILoader*>(wrl::Make<Loader>(cxr::create_package_loader_future().get()).Detach());
+            return cxr::clone_for_return(wrl::Make<RuntimeLoader>(cxr::create_package_loader_future().get()));
         })).Detach();
 
         return S_OK;
     }
 
-} } }
+} }

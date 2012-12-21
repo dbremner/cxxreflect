@@ -145,6 +145,18 @@ namespace cxxreflect { namespace reflection { namespace detail {
     }
 
     template <typename T, typename D>
+    auto common_type_functionality<T, D>::generic_arguments() const -> generic_argument_range
+    {
+        core::assert_initialized(*this);
+        core::assert_true([&]{ return is_generic_type_instantiation(); });
+
+        metadata::type_signature const signature(_token.as_blob().as<metadata::type_signature>());
+        return generic_argument_range(
+            generic_argument_iterator(nullptr, signature.begin_generic_arguments()),
+            generic_argument_iterator(nullptr, signature.end_generic_arguments()));
+    }
+
+    template <typename T, typename D>
     auto common_type_functionality<T, D>::is_array() const -> bool
     {
         core::assert_initialized(*this);
@@ -244,6 +256,20 @@ namespace cxxreflect { namespace reflection {
 
     unresolved_type::unresolved_type(metadata::type_def_ref_spec_or_signature const& token, core::internal_key)
         : common_type_functionality(token.is_initialized() ? detail::compute_type(token) : metadata::type_def_ref_or_signature())
+    {
+    }
+
+    unresolved_type::unresolved_type(nullptr_t, metadata::type_signature::generic_argument_iterator const& current, core::internal_key)
+        : common_type_functionality(current->is_initialized()
+        ? detail::compute_type(metadata::blob(*current))
+        : metadata::type_def_ref_or_signature())
+    {
+    }
+
+    unresolved_type::unresolved_type(type const& source)
+        : common_type_functionality(source.is_initialized()
+            ? metadata::type_def_ref_or_signature(source.token())
+            : metadata::type_def_ref_or_signature())
     {
     }
 

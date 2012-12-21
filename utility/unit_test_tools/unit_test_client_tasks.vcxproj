@@ -1,0 +1,37 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<!--
+
+//                            Copyright James P. McNellis 2011 - 2012.                            //
+//                   Distributed under the Boost Software License, Version 1.0.                   //
+//     (See accompanying file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)    //
+
+-->
+<Project DefaultTargets="Build" ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <CLRSupport>true</CLRSupport>
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <CxxReflectIsStandalone>true</CxxReflectIsStandalone>
+    <ProjectGuid>{8C562CC2-CBA4-48DA-A94F-A5274455C530}</ProjectGuid>
+    <RootNamespace>unit_test_client</RootNamespace>
+    <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
+  </PropertyGroup>
+  <Import Project="$(SolutionDir)\cxxreflect\cxxreflect.props" />
+  <ItemGroup>
+    <Reference Include="Microsoft.Build" />
+    <Reference Include="Microsoft.Build.Engine" />
+    <Reference Include="Microsoft.Build.Framework" />
+    <Reference Include="Microsoft.Build.Tasks.v4.0" />
+    <Reference Include="Microsoft.Build.Utilities.v4.0" />
+    <Reference Include="System" />
+    <Reference Include="System.Data" />
+    <Reference Include="System.Xml" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="ExecuteUnitTestsLocally.cpp" />
+    <ClCompile Include="ExecuteUnitTestsRemotely.cpp" />
+  </ItemGroup>
+  <Target Name="CopyToUtilities" AfterTargets="Build" Condition="'$(Platform)' == 'Win32'">
+    <Exec IgnoreExitCode="true" Command="copy $(TargetPath) $(ProjectDir)..\" />
+  </Target>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+</Project>

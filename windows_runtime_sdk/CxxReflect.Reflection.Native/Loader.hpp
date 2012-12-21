@@ -8,27 +8,36 @@
 
 #include "Configuration.hpp"
 
-namespace CxxReflect { namespace Reflection { namespace Native {
+namespace cxxreflect { namespace windows_runtime_sdk {
 
-    class Loader : public wrl::RuntimeClass<cxrabi::ILoader>
+    class RuntimeLoader : public wrl::RuntimeClass<abi::ILoader>
     {
         InspectableClass(InterfaceName_CxxReflect_Reflection_ILoader, BaseTrust)
 
     public:
 
-        Loader(std::unique_ptr<cxr::package_loader> loader);
+        RuntimeLoader(std::unique_ptr<cxr::package_loader> loader);
 
-        virtual auto STDMETHODCALLTYPE FindNamespace(HSTRING namespaceName, cxrabi::INamespace** value) -> HRESULT override;
+        virtual auto STDMETHODCALLTYPE FindNamespace(HSTRING namespaceName, abi::INamespace** value) -> HRESULT override;
 
-        virtual auto STDMETHODCALLTYPE FindType(HSTRING fullName, cxrabi::IType** value) -> HRESULT override;
+        virtual auto STDMETHODCALLTYPE FindType(HSTRING fullName, abi::IType** value) -> HRESULT override;
 
-        virtual auto STDMETHODCALLTYPE GetTypes(cxrabi::ITypeIterable** value) -> HRESULT override;
+        auto GetPackageLoader() const -> cxr::package_loader const&;
+
+        auto GetOrCreateNamespace(cxr::string_reference const& namespaceName) -> wrl::ComPtr<RuntimeNamespace> const&;
+        auto GetOrCreateType     (cxr::type             const& type         ) -> wrl::ComPtr<RuntimeType>      const&;
 
     private:
 
-        std::unique_ptr<cxr::package_loader> _loader;
+        std::unique_ptr<cxr::package_loader>                    _loader;
+
+        // These are temporary; we intend to replace these with a low-latency, low-cost, lock-free
+        // object pool once we have the prototype of the SDK completed.
+        cxr::recursive_mutex                                    _sync;
+        std::map<cxr::string, wrl::ComPtr<RuntimeNamespace>>    _namespaces;
+        std::map<cxr::type,   wrl::ComPtr<RuntimeType>>         _types;
     };
 
-} } }
+} }
 
 #endif

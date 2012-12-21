@@ -1,6 +1,6 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Package xmlns="http://schemas.microsoft.com/appx/2010/manifest">
-  <Identity Name="7558379e-9f7f-4905-9ed1-457a39a39463" Publisher="CN=CxxReflect" Version="1.0.0.0" />
+  <Identity Name="7b3f7e26-ccb3-4193-80b6-120517afd2b4" Publisher="CN=CxxReflect" Version="1.0.0.0" />
   <Properties>
     <DisplayName>CxxReflect Windows Runtime Unit Tests</DisplayName>
     <PublisherDisplayName>CxxReflect</PublisherDisplayName>

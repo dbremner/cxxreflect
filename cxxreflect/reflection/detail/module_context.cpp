@@ -56,11 +56,11 @@ namespace cxxreflect { namespace reflection { namespace detail {
         return metadata::type_def_token(_scope.get(), *it);
     }
 
-    auto module_type_def_index::find(core::string_reference const& namespace_name) const -> type_def_iterator_pair
+    auto module_type_def_index::find(core::string_reference const& namespace_name) const -> type_def_iterator_range
     {
         auto const range(std::equal_range(_index.begin(), _index.end(), namespace_name, comparer(_scope.get())));
 
-        return std::make_pair(
+        return type_def_iterator_range(
             type_def_iterator(_scope.get(), range.first),
             type_def_iterator(_scope.get(), range.second));
     }
@@ -207,5 +207,7 @@ namespace cxxreflect { namespace reflection { namespace detail {
 
         core::assert_unreachable();
     }
+
+    CXXREFLECT_DEFINE_INCOMPLETE_DELETE(unique_module_context_delete, module_context)
 
 } } }

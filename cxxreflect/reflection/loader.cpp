@@ -114,7 +114,10 @@ namespace cxxreflect { namespace reflection {
     auto create_loader_root(module_locator locator, loader_configuration configuration) -> loader_root
     {
         return loader_root(
-            core::make_unique<detail::loader_context>(std::move(locator), std::move(configuration)), core::internal_key());
+            core::make_unique_with_delete<detail::unique_loader_context_delete, detail::loader_context>(
+                std::move(locator),
+                std::move(configuration)),
+            core::internal_key());
     }
 
 } }

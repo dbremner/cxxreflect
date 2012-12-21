@@ -479,5 +479,32 @@ configuration of the project:
       <AdditionalDependencies>cxxreflect.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
+  
+  <!--
+  Unit Test Targets
+  
+  These targets are used to execute the unit test projects.  They rely on our custom tasks that run
+  the Visual Studio unit test driver, either locally (for x86/amd64) or remotely (for arm).
+  -->
+  <UsingTask TaskName="ExecuteUnitTestsLocally"  AssemblyFile="$(SolutionDir)utility\unit_test_client_tasks.dll" Condition="'$(CxxReflectIsUnitTests)' == 'true'" />
+  <UsingTask TaskName="ExecuteUnitTestsRemotely" AssemblyFile="$(SolutionDir)utility\unit_test_client_tasks.dll" Condition="'$(CxxReflectIsUnitTests)' == 'true'" />
+
+  <Target Name="CxxReflectRunLocalTests" Condition="'$(CxxReflectIsUnitTests)' == 'true' and '$(Platform)' != 'ARM'">
+    <PropertyGroup>
+      <CxxReflectLocalTestPath Condition="'$(AppContainerApplication)' == 'true'">$(AppxPackageDir)</CxxReflectLocalTestPath>
+      <CxxReflectLocalTestPath Condition="'$(CxxReflectLocalTestPath)' == ''">$(TargetPath)</CxxReflectLocalTestPath>
+
+      <CxxReflectLocalTestKind Condition="'$(AppContainerApplication)' == 'true'">AppX</CxxReflectLocalTestKind>
+      <CxxReflectLocalTestKind Condition="'$(CxxReflectLocalTestKind)' == ''">DLL</CxxReflectLocalTestKind>
+    </PropertyGroup>
+    <ExecuteUnitTestsLocally Path="$(CxxReflectLocalTestPath)" Kind="$(CxxReflectLocalTestKind)" Platform="$(Platform)" />
+  </Target>
+
+  <Target Name="CxxReflectRunRemoteTests" Condition="'$(CxxReflectIsUnitTests)' == 'true' and '$(Platform)' == 'ARM'">
+    <PropertyGroup>
+      <CxxReflectSynchronizationShare Condition="'$(CxxReflectSynchronizationShare)' == ''">$(SolutionDir)build\remote_sync</CxxReflectSynchronizationShare>
+    </PropertyGroup>
+    <ExecuteUnitTestsRemotely SynchronizationShare="$(CxxReflectSynchronizationShare)" Path="$(AppxPackageDir)" />
+  </Target>
 
 </Project>

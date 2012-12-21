@@ -68,7 +68,7 @@ namespace cxxreflect { namespace reflection { namespace detail {
         // Otherwise, load the assembly and insert it into the loaded assemblies collection:
         auto const it1(_assemblies.insert(std::make_pair(
             canonical_uri,
-            core::make_unique<assembly_context>(this, location))));
+            core::make_unique_with_delete<unique_assembly_context_delete, assembly_context>(this, location))));
 
         assembly_context const& assembly(*it1.first->second);
 
@@ -479,5 +479,7 @@ namespace cxxreflect { namespace reflection { namespace detail {
     {
         return module_context::from(scope).assembly().loader();
     }
+
+    CXXREFLECT_DEFINE_INCOMPLETE_DELETE(unique_loader_context_delete, loader_context)
 
 } } }

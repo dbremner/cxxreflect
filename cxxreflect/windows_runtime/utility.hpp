@@ -159,31 +159,55 @@ namespace cxxreflect { namespace windows_runtime { namespace utility {
     /// Wraps the WRL `WeakRef` type in a wrapper that allows direct construction that throws on
     /// failure (instead of returning an HRESULT) and allows resolution to the known interface type
     /// without re-naming the interface type at resolution time.
-    template <typename T>
+    template <typename Interface, typename RuntimeType = Interface>
     class weak_ref
     {
     public:
 
-        explicit weak_ref(T* const mr_pointer)
+        explicit weak_ref(RuntimeType* const mr_pointer)
         {
-            throw_if_null(mr_pointer);
-            throw_on_failure(::Microsoft::WRL::AsWeak(mr_pointer, &_weakling));
+            utility::throw_if_null(mr_pointer);
+            utility::throw_on_failure(::Microsoft::WRL::AsWeak(mr_pointer, &_weakling));
         }
 
-        auto resolve() -> ::Microsoft::WRL::ComPtr<T>
+        weak_ref(weak_ref const& other)
+            : _weakling(other._weakling)
         {
-            ::Microsoft::WRL::ComPtr<T> strong;
+        }
+
+        weak_ref(weak_ref&& other)
+            : _weakling(std::move(other._weakling))
+        {
+        }
+
+        auto operator=(weak_ref const& other) -> weak_ref&
+        {
+            _weakling = other._weakling;
+            return *this;
+        }
+
+        auto operator=(weak_ref&& other) -> weak_ref&
+        {
+            _weakling = std::move(other._weakling);
+            return *this;
+        }
+
+        auto resolve() const -> ::Microsoft::WRL::ComPtr<RuntimeType>
+        {
+            ::Microsoft::WRL::ComPtr<Interface> strong;
             _weakling.As(&strong);
-            return strong;
+            return ::Microsoft::WRL::ComPtr<RuntimeType>(static_cast<RuntimeType*>(strong.Get()));
         }
 
-    private:
-
-        weak_ref(weak_ref const&);
-        auto operator=(weak_ref const&) -> weak_ref&;
-
-        ::Microsoft::WRL::WeakRef _weakling;
+        mutable ::Microsoft::WRL::WeakRef _weakling;
     };
+
+    /// A helper to AddRef an interface pointer for return to a caller.
+    template <typename T>
+    auto clone_for_return(::Microsoft::WRL::ComPtr<T> p) -> T*
+    {
+        return p.Detach();
+    }
 
     /// An RAII container for an array that must be freed via CoTaskMemFree
     ///
@@ -434,7 +458,7 @@ namespace cxxreflect { namespace windows_runtime { namespace utility {
             if (results == nullptr)
                 return E_INVALIDARG;
 
-            *results = _task.get().Get();
+            *results = clone_for_return(_task.get());
             return S_OK;
         }
 

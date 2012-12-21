@@ -112,6 +112,12 @@ namespace cxxreflect { namespace core {
         return static_cast<core::size_type>(std::distance(first, last));
     }
 
+    template <typename Range>
+    auto distance(Range&& r) -> size_type
+    {
+        return core::distance(begin(r), end(r));
+    }
+
 
 
 

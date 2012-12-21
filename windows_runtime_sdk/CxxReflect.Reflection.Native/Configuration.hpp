@@ -20,6 +20,11 @@
 #include <wrl/client.h>
 #include <wrl/wrappers/corewrappers.h>
 
+// C4373:  "virtual function overrides, previous versions of the compiler did not override when
+// parameters only differed by const/volatile qualifiers."  This is all new code and this is what we
+// want the compiler to do.
+#pragma warning(disable: 4373)
+
 namespace cxr
 {
     using namespace cxxreflect::core;
@@ -31,7 +36,7 @@ namespace cxr
     typedef cxxreflect::core::size_type size_type;
 }
 
-namespace cxrabi
+namespace abi
 {
     using namespace ABI::CxxReflect::Reflection;
     using namespace ABI::CxxReflect::Reflection::Native;
@@ -49,10 +54,48 @@ namespace wrl
     typedef wrl::Module<Microsoft::WRL::InProc> InProcModule;
 }
 
-namespace winabi
+namespace win
 {
     using namespace ABI::Windows::Foundation;
     using namespace ABI::Windows::Foundation::Collections;
 }
+
+namespace cxxreflect { namespace windows_runtime_sdk {
+
+    class RuntimeConstant;
+    class RuntimeEvent;
+    class RuntimeLoader;
+    class RuntimeLoaderFactory;
+    class RuntimeMethod;
+    class RuntimeNamespace;
+    class RuntimeParameter;
+    class RuntimeProperty;
+    class RuntimeType;
+
+    template <typename ForwardIterator>
+    class RuntimeIterator;
+
+    template <typename RandomAccessIterator>
+    class RuntimeVectorView;
+
+    typedef cxr::weak_ref<abi::ILoader, RuntimeLoader> WeakRuntimeLoaderRef;
+
+    // When we instantiate the generic collection types, we need to transform between the ABI type
+    // and the actual runtime class type (because the type of the generic interface uses the runtime
+    // class type but the parameters of all of the functions use the ABI type). We have sufficiently
+    // few types that we can just list the mapping here.
+
+    template <typename T> struct ConvertToRuntimeClass     { typedef T                                        Type; };
+    template <typename T> struct ConvertToRuntimeClass<T*> { typedef typename ConvertToRuntimeClass<T>::Type* Type; };
+
+    template <> struct ConvertToRuntimeClass<abi::IConstant > { typedef abi::Constant  Type; };
+    template <> struct ConvertToRuntimeClass<abi::IEvent    > { typedef abi::Event     Type; };
+    template <> struct ConvertToRuntimeClass<abi::IMethod   > { typedef abi::Method    Type; };
+    template <> struct ConvertToRuntimeClass<abi::INamespace> { typedef abi::Namespace Type; };
+    template <> struct ConvertToRuntimeClass<abi::IParameter> { typedef abi::Parameter Type; };
+    template <> struct ConvertToRuntimeClass<abi::IProperty > { typedef abi::Property  Type; };
+    template <> struct ConvertToRuntimeClass<abi::IType     > { typedef abi::Type      Type; };
+
+} }
 
 #endif

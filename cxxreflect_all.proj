@@ -9,24 +9,65 @@
 <Project DefaultTargets="Build" ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   
   <ItemGroup>
-    <ProjectToBuild Include="cxxreflect.sln">  <Properties>SolutionDir=$(MSBuildProjectDirectory)\;Configuration=Release;Platform=Win32    </Properties>  </ProjectToBuild>
-    <ProjectToBuild Include="cxxreflect.sln">  <Properties>SolutionDir=$(MSBuildProjectDirectory)\;Configuration=Release(ZW);Platform=Win32</Properties>  </ProjectToBuild>
-    <ProjectToBuild Include="cxxreflect.sln">  <Properties>SolutionDir=$(MSBuildProjectDirectory)\;Configuration=Debug;Platform=Win32      </Properties>  </ProjectToBuild>
-    <ProjectToBuild Include="cxxreflect.sln">  <Properties>SolutionDir=$(MSBuildProjectDirectory)\;Configuration=Debug(ZW);Platform=Win32  </Properties>  </ProjectToBuild>
+    <CxxReflectProjectToBuild Include="cxxreflect.sln">  <Properties>SolutionDir=$(MSBuildProjectDirectory)\;Configuration=Release;Platform=Win32    </Properties>  </CxxReflectProjectToBuild>
+    <CxxReflectProjectToBuild Include="cxxreflect.sln">  <Properties>SolutionDir=$(MSBuildProjectDirectory)\;Configuration=Release(ZW);Platform=Win32</Properties>  </CxxReflectProjectToBuild>
+    <CxxReflectProjectToBuild Include="cxxreflect.sln">  <Properties>SolutionDir=$(MSBuildProjectDirectory)\;Configuration=Debug;Platform=Win32      </Properties>  </CxxReflectProjectToBuild>
+    <CxxReflectProjectToBuild Include="cxxreflect.sln">  <Properties>SolutionDir=$(MSBuildProjectDirectory)\;Configuration=Debug(ZW);Platform=Win32  </Properties>  </CxxReflectProjectToBuild>
 
-    <ProjectToBuild Include="cxxreflect.sln">  <Properties>SolutionDir=$(MSBuildProjectDirectory)\;Configuration=Release;Platform=x64      </Properties>  </ProjectToBuild>
-    <ProjectToBuild Include="cxxreflect.sln">  <Properties>SolutionDir=$(MSBuildProjectDirectory)\;Configuration=Release(ZW);Platform=x64  </Properties>  </ProjectToBuild>
-    <ProjectToBuild Include="cxxreflect.sln">  <Properties>SolutionDir=$(MSBuildProjectDirectory)\;Configuration=Debug;Platform=x64        </Properties>  </ProjectToBuild>
-    <ProjectToBuild Include="cxxreflect.sln">  <Properties>SolutionDir=$(MSBuildProjectDirectory)\;Configuration=Debug(ZW);Platform=x64    </Properties>  </ProjectToBuild>
+    <CxxReflectProjectToBuild Include="cxxreflect.sln">  <Properties>SolutionDir=$(MSBuildProjectDirectory)\;Configuration=Release;Platform=x64      </Properties>  </CxxReflectProjectToBuild>
+    <CxxReflectProjectToBuild Include="cxxreflect.sln">  <Properties>SolutionDir=$(MSBuildProjectDirectory)\;Configuration=Release(ZW);Platform=x64  </Properties>  </CxxReflectProjectToBuild>
+    <CxxReflectProjectToBuild Include="cxxreflect.sln">  <Properties>SolutionDir=$(MSBuildProjectDirectory)\;Configuration=Debug;Platform=x64        </Properties>  </CxxReflectProjectToBuild>
+    <CxxReflectProjectToBuild Include="cxxreflect.sln">  <Properties>SolutionDir=$(MSBuildProjectDirectory)\;Configuration=Debug(ZW);Platform=x64    </Properties>  </CxxReflectProjectToBuild>
 
-    <ProjectToBuild Include="cxxreflect.sln">  <Properties>SolutionDir=$(MSBuildProjectDirectory)\;Configuration=Release;Platform=ARM      </Properties>  </ProjectToBuild>
-    <ProjectToBuild Include="cxxreflect.sln">  <Properties>SolutionDir=$(MSBuildProjectDirectory)\;Configuration=Release(ZW);Platform=ARM  </Properties>  </ProjectToBuild>
-    <ProjectToBuild Include="cxxreflect.sln">  <Properties>SolutionDir=$(MSBuildProjectDirectory)\;Configuration=Debug;Platform=ARM        </Properties>  </ProjectToBuild>
-    <ProjectToBuild Include="cxxreflect.sln">  <Properties>SolutionDir=$(MSBuildProjectDirectory)\;Configuration=Debug(ZW);Platform=ARM    </Properties>  </ProjectToBuild>
+    <CxxReflectProjectToBuild Include="cxxreflect.sln">  <Properties>SolutionDir=$(MSBuildProjectDirectory)\;Configuration=Release;Platform=ARM      </Properties>  </CxxReflectProjectToBuild>
+    <CxxReflectProjectToBuild Include="cxxreflect.sln">  <Properties>SolutionDir=$(MSBuildProjectDirectory)\;Configuration=Release(ZW);Platform=ARM  </Properties>  </CxxReflectProjectToBuild>
+    <CxxReflectProjectToBuild Include="cxxreflect.sln">  <Properties>SolutionDir=$(MSBuildProjectDirectory)\;Configuration=Debug;Platform=ARM        </Properties>  </CxxReflectProjectToBuild>
+    <CxxReflectProjectToBuild Include="cxxreflect.sln">  <Properties>SolutionDir=$(MSBuildProjectDirectory)\;Configuration=Debug(ZW);Platform=ARM    </Properties>  </CxxReflectProjectToBuild>
   </ItemGroup>
-  
-  <Target Name="Build">
+
+  <!-- TODO:  Is there any way to avoid duplicating all of these entries here? -->
+  <ItemGroup>
+    <CxxReflectProjectToUnitTest Include="tests\unit_tests\neutral\unit_tests_neutral.vcxproj">  <Properties>SolutionDir=$(MSBuildProjectDirectory)\;Configuration=Release;Platform=Win32    </Properties>  </CxxReflectProjectToUnitTest>
+    <CxxReflectProjectToUnitTest Include="tests\unit_tests\neutral\unit_tests_neutral.vcxproj">  <Properties>SolutionDir=$(MSBuildProjectDirectory)\;Configuration=Release(ZW);Platform=Win32</Properties>  </CxxReflectProjectToUnitTest>
+    <CxxReflectProjectToUnitTest Include="tests\unit_tests\neutral\unit_tests_neutral.vcxproj">  <Properties>SolutionDir=$(MSBuildProjectDirectory)\;Configuration=Debug;Platform=Win32      </Properties>  </CxxReflectProjectToUnitTest>
+    <CxxReflectProjectToUnitTest Include="tests\unit_tests\neutral\unit_tests_neutral.vcxproj">  <Properties>SolutionDir=$(MSBuildProjectDirectory)\;Configuration=Debug(ZW);Platform=Win32  </Properties>  </CxxReflectProjectToUnitTest>
+
+    <CxxReflectProjectToUnitTest Include="tests\unit_tests\neutral\unit_tests_neutral.vcxproj">  <Properties>SolutionDir=$(MSBuildProjectDirectory)\;Configuration=Release;Platform=x64      </Properties>  </CxxReflectProjectToUnitTest>
+    <CxxReflectProjectToUnitTest Include="tests\unit_tests\neutral\unit_tests_neutral.vcxproj">  <Properties>SolutionDir=$(MSBuildProjectDirectory)\;Configuration=Release(ZW);Platform=x64  </Properties>  </CxxReflectProjectToUnitTest>
+    <CxxReflectProjectToUnitTest Include="tests\unit_tests\neutral\unit_tests_neutral.vcxproj">  <Properties>SolutionDir=$(MSBuildProjectDirectory)\;Configuration=Debug;Platform=x64        </Properties>  </CxxReflectProjectToUnitTest>
+    <CxxReflectProjectToUnitTest Include="tests\unit_tests\neutral\unit_tests_neutral.vcxproj">  <Properties>SolutionDir=$(MSBuildProjectDirectory)\;Configuration=Debug(ZW);Platform=x64    </Properties>  </CxxReflectProjectToUnitTest>
+
+    <!-- We do not build non-ZW test binaries for ARM -->
+    <CxxReflectProjectToUnitTest Include="tests\unit_tests\neutral\unit_tests_neutral.vcxproj">  <Properties>SolutionDir=$(MSBuildProjectDirectory)\;Configuration=Release(ZW);Platform=ARM  </Properties>  </CxxReflectProjectToUnitTest>
+    <CxxReflectProjectToUnitTest Include="tests\unit_tests\neutral\unit_tests_neutral.vcxproj">  <Properties>SolutionDir=$(MSBuildProjectDirectory)\;Configuration=Debug(ZW);Platform=ARM    </Properties>  </CxxReflectProjectToUnitTest>
     
+    <!-- Note that the Windows Runtime unit tests only run for /ZW configurations -->
+    <CxxReflectProjectToUnitTest Include="tests\unit_tests\windows_runtime\unit_tests_windows_runtime.vcxproj">  <Properties>SolutionDir=$(MSBuildProjectDirectory)\;Configuration=Release(ZW);Platform=Win32</Properties>  </CxxReflectProjectToUnitTest>
+    <CxxReflectProjectToUnitTest Include="tests\unit_tests\windows_runtime\unit_tests_windows_runtime.vcxproj">  <Properties>SolutionDir=$(MSBuildProjectDirectory)\;Configuration=Debug(ZW);Platform=Win32  </Properties>  </CxxReflectProjectToUnitTest>
+    <CxxReflectProjectToUnitTest Include="tests\unit_tests\windows_runtime\unit_tests_windows_runtime.vcxproj">  <Properties>SolutionDir=$(MSBuildProjectDirectory)\;Configuration=Release(ZW);Platform=x64  </Properties>  </CxxReflectProjectToUnitTest>
+    <CxxReflectProjectToUnitTest Include="tests\unit_tests\windows_runtime\unit_tests_windows_runtime.vcxproj">  <Properties>SolutionDir=$(MSBuildProjectDirectory)\;Configuration=Debug(ZW);Platform=x64    </Properties>  </CxxReflectProjectToUnitTest>
+    <CxxReflectProjectToUnitTest Include="tests\unit_tests\windows_runtime\unit_tests_windows_runtime.vcxproj">  <Properties>SolutionDir=$(MSBuildProjectDirectory)\;Configuration=Release(ZW);Platform=ARM  </Properties>  </CxxReflectProjectToUnitTest>
+    <CxxReflectProjectToUnitTest Include="tests\unit_tests\windows_runtime\unit_tests_windows_runtime.vcxproj">  <Properties>SolutionDir=$(MSBuildProjectDirectory)\;Configuration=Debug(ZW);Platform=ARM    </Properties>  </CxxReflectProjectToUnitTest>
+  </ItemGroup>
+
+  <!--
+  CxxReflectExecuteBuild is an internal target invoked by the public targets to build configurations.
+  -->
+  <Target Name="CxxReflectExecuteBuild">
+    <MSBuild Projects="@(CxxReflectProjectToBuild)" BuildInParallel="true" Targets="$(CxxReflectBuildCommand)" />
+  </Target>
+
+  <!--
+  CxxReflectExecuteUnitTests is an internal target invoked by the public targets to run unit tests.
+  -->
+  <Target Name="CxxReflectExecuteUnitTests">
+    <MSBuild Projects="@(CxxReflectProjectToUnitTest)" BuildInParallel="false" Targets="$(CxxReflectBuildCommand)" />
+  </Target>
+  
+  <!--
+  Build builds all of the projects for all configurations of the Solution.
+  -->
+  <Target Name="Build">
     <!--
     First, we need to build the utilities that we use in the build process.  These must be built
     before the rest of the CxxReflect Solution.  They will be built for each configuration as well,
@@ -38,7 +79,11 @@
     this should not cause build failures.)
     -->
     <MSBuild
-      Projects="utility\create_sln_from_filesystem\create_sln_from_filesystem.vcxproj;utility\embed_binary_in_cpp\embed_binary_in_cpp.vcxproj"
+      Projects="
+        utility\create_sln_from_filesystem\create_sln_from_filesystem.vcxproj;
+        utility\embed_binary_in_cpp\embed_binary_in_cpp.vcxproj;
+        utility\unit_test_tools\unit_test_client_tasks.vcxproj;
+        tests\assemblies\cil_assemblies\cil_assemblies.vcxproj"
       Properties="SolutionDir=$(MSBuildProjectDirectory)\;Configuration=Release;Platform=Win32"
       BuildInParallel="true"
     />
@@ -46,8 +91,52 @@
     <!--
     Then we can build the whole Solution (all configurations, specified above):
     -->
-    <MSBuild Projects="@(ProjectToBuild)" BuildInParallel="true" Targets="$(BuildCommand)" />
-    
+    <MSBuild
+      Projects="$(MSBuildProjectFile)"
+      Properties="CxxReflectBuildCommand=Build"
+      Targets="CxxReflectExecuteBuild"
+    />
+  </Target>
+
+  <!--
+  Clean deletes all of the build output, intermediate build files, and app packages.
+  -->
+  <Target Name="Clean">
+    <MSBuild Projects="$(MSBuildProjectFile)" Properties="CxxReflectBuildCommand=Clean" Targets="CxxReflectExecuteBuild" />
+  </Target>
+
+  <!--
+  RunLocalTests runs the unit tests for all x86 and amd64 configurations on the local machine.
+  -->
+  <Target Name="RunLocalTests">
+    <MSBuild Projects="$(MSBuildProjectFile)" Properties="CxxReflectBuildCommand=CxxReflectRunLocalTests" Targets="CxxReflectExecuteUnitTests" />
+  </Target>
+
+  <!--
+  RunRemoteTests runs the unit tests for all ARM configurations on the remote ARM device.
+  -->
+  <Target Name="RunRemoteTests">
+    <MSBuild Projects="$(MSBuildProjectFile)" Properties="CxxReflectBuildCommand=CxxReflectRunRemoteTests" Targets="CxxReflectExecuteUnitTests" />
+  </Target>
+
+  <!--
+  RunTests runs all of the unit tests, both locally for x86/amd64 and remotely for arm.
+  -->
+  <Target Name="RunTests">
+    <MSBuild Projects="$(MSBuildProjectFile)" Properties="CxxReflectBuildCommand=CxxReflectRunLocalTests"  Targets="CxxReflectExecuteUnitTests" />
+    <MSBuild Projects="$(MSBuildProjectFile)" Properties="CxxReflectBuildCommand=CxxReflectRunRemoteTests" Targets="CxxReflectExecuteUnitTests" />
+  </Target>
+
+  <!--
+  VerifyBuild performs full verification of the library and should be run prior to integration.  It
+  performs a clean build then runs all configurations of all unit tests (both locally for x86/amd64
+  and remotely for arm).
+  -->
+  <Target Name="VerifyBuild">
+    <MSBuild Projects="$(MSBuildProjectFile)" Properties="CxxReflectBuildCommand=Clean" Targets="CxxReflectExecuteBuild" />
+    <MSBuild Projects="$(MSBuildProjectFile)" Properties="CxxReflectBuildCommand=Build" Targets="CxxReflectExecuteBuild" />
+    <MSBuild Projects="$(MSBuildProjectFile)" Properties="CxxReflectBuildCommand=CxxReflectRunLocalTests"  Targets="CxxReflectExecuteUnitTests" />
+    <MSBuild Projects="$(MSBuildProjectFile)" Properties="CxxReflectBuildCommand=CxxReflectRunRemoteTests" Targets="CxxReflectExecuteUnitTests" />
   </Target>
   
 </Project>

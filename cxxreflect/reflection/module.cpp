@@ -67,8 +67,17 @@ namespace cxxreflect { namespace reflection {
 
         auto const& underlying_range(_context->type_def_index());
         return type_range(
-            type_iterator(nullptr, underlying_range.begin()),
-            type_iterator(nullptr, underlying_range.end()));
+            type_iterator(nullptr, begin(underlying_range)),
+            type_iterator(nullptr, end(underlying_range)));
+    }
+
+    auto module::find_namespace(core::string_reference const& namespace_name) const -> type_range
+    {
+        core::assert_initialized(*this);
+        auto const& underlying_range(_context->type_def_index().find(namespace_name));
+        return type_range(
+            type_iterator(nullptr, begin(underlying_range)),
+            type_iterator(nullptr, end(underlying_range)));
     }
 
     auto module::find_type(core::string_reference const& namespace_name,
