@@ -21,6 +21,35 @@
 
 
 
+
+.class private auto ansi beforefieldinit MPropertySimple extends [mscorlib]System.Object
+{
+    .method public hidebysig specialname instance int32 get_RW()              { ret; }
+    .method public hidebysig specialname instance void  set_RW(int32 'value') { ret; }
+    .method public hidebysig specialname instance int32 get_R ()              { ret; }
+    .method public hidebysig specialname instance void  set_W (int32 'value') { ret; }
+
+    .property instance int32 RW()
+    {
+        .get instance int32 MPropertySimple::get_RW()
+        .set instance void  MPropertySimple::set_RW(int32)
+    }
+
+    .property instance int32 R()
+    {
+        .get instance int32 MPropertySimple::get_R()
+    }
+
+    .property instance int32 W()
+    {
+        .set instance void MPropertySimple::set_W(int32)
+    } 
+}
+
+
+
+
+
 .class public auto ansi beforefieldinit ZArgument extends [mscorlib]System.Object
 {
     .method public hidebysig specialname rtspecialname instance void .ctor() { ret; }

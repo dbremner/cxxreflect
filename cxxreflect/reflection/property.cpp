@@ -30,7 +30,7 @@ namespace cxxreflect { namespace reflection { namespace {
     auto find_method(property const& property, metadata::method_semantics_attribute const desired_semantics) -> method
     {
         metadata::property_token   const property_token(property.context(core::internal_key()).member_token());
-        metadata::method_def_token const method_token(find_method_token(property_token, metadata::method_semantics_attribute::getter));
+        metadata::method_def_token const method_token(find_method_token(property_token, desired_semantics));
 
         if (!method_token.is_initialized())
             return method();
@@ -46,7 +46,7 @@ namespace cxxreflect { namespace reflection { namespace {
 
         auto const it(core::find_if(declarer.methods(flags), [&](method const& m)
         {
-            return m.metadata_token() == method_token.value();
+            return m.context(core::internal_key()).member_token() == method_token;
         }));
 
         if (it == end(declarer.methods(flags)))

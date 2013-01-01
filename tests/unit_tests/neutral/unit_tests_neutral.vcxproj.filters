@@ -21,11 +21,11 @@
     <ClCompile Include="reflection\basic_types.cpp">
       <Filter>reflection</Filter>
     </ClCompile>
-    <ClCompile Include="reflection\realize_mscorlib.cpp">
-      <Filter>reflection</Filter>
-    </ClCompile>
     <ClCompile Include="metadata\signatures.cpp">
       <Filter>metadata</Filter>
+    </ClCompile>
+    <ClCompile Include="reflection\basic_membership_properties.cpp">
+      <Filter>reflection</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

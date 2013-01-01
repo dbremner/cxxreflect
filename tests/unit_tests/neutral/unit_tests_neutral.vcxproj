@@ -51,6 +51,7 @@
   <ItemGroup>
     <ClCompile Include="metadata\signatures.cpp" />
     <ClCompile Include="reflection\basic_loader.cpp" />
+    <ClCompile Include="reflection\basic_membership_properties.cpp" />
     <ClCompile Include="reflection\basic_types.cpp" />
     <ClCompile Include="metadata\database_correctness.cpp" />
     <ClCompile Include="metadata\tokens.cpp" />

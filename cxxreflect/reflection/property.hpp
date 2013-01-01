@@ -51,11 +51,6 @@ namespace cxxreflect { namespace reflection {
         auto is_initialized() const -> bool;
         auto operator!()      const -> bool;
 
-        // -- The following members of System.Reflection.PropertyInfo are not implemented --
-        // GetValue
-        // IsDefined
-        // SetValue
-
         friend auto operator==(property const&, property const&) -> bool;
         friend auto operator< (property const&, property const&) -> bool;
 

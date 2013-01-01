@@ -18,6 +18,7 @@
 #include "cxxreflect/reflection/loader.hpp"
 #include "cxxreflect/reflection/method.hpp"
 #include "cxxreflect/reflection/module.hpp"
+#include "cxxreflect/reflection/property.hpp"
 #include "cxxreflect/reflection/type.hpp"
 
 
@@ -345,9 +346,27 @@ namespace cxxreflect { namespace reflection {
         return is_constructor != filter.is_set(metadata::binding_attribute::internal_use_only_constructor);
     }
 
-    auto type::filter_property(metadata::binding_flags, type const&, detail::property_table_entry const* const&) -> bool
+    auto type::filter_property(metadata::binding_flags             const  filter,
+                               type                                const& reflected_type,
+                               detail::property_table_entry const* const& current) -> bool
     {
-        core::assert_not_yet_implemented();
+        core::assert_initialized(reflected_type);
+        core::assert_not_null(current);
+
+        auto const method_is_filtered([&](method const& m) -> bool
+        {
+            if (!m.is_initialized())
+                return true;
+
+            return filter_method(filter, reflected_type, &m.context(core::internal_key()));
+        });
+
+        // A property is filtered if and only if both its get and set accessors are filtered:
+        property const p(reflected_type, current, core::internal_key());
+        if (!method_is_filtered(p.get_method()) || !method_is_filtered(p.set_method()))
+            return false;
+
+        return true;
     }
     
     type::type()
@@ -493,6 +512,8 @@ namespace cxxreflect { namespace reflection {
 
     auto type::interfaces() const -> interface_range
     {
+        core::assert_initialized(*this);
+
         token_type const token(token());
         if (token.is_blob() && token.as_blob().as<metadata::type_signature>().is_by_ref())
             return interface_range();
@@ -523,6 +544,7 @@ namespace cxxreflect { namespace reflection {
     auto type::fields(metadata::binding_flags const flags) const -> field_range
     {
         core::assert_initialized(*this);
+
         if (is_by_ref())
             return field_range();
 
@@ -538,6 +560,7 @@ namespace cxxreflect { namespace reflection {
     auto type::methods(metadata::binding_flags const flags) const -> method_range
     {
         core::assert_initialized(*this);
+
         if (is_by_ref())
             return method_range();
 
@@ -548,6 +571,22 @@ namespace cxxreflect { namespace reflection {
         return method_range(
             method_iterator(*this, begin(table), end(table), flags),
             method_iterator());
+    }
+
+    auto type::properties(metadata::binding_flags const flags) const -> property_range
+    {
+        core::assert_initialized(*this);
+
+        if (is_by_ref())
+            return property_range();
+
+        auto const& table(detail::loader_context::from(token().scope()).get_membership(token()).get_properties());
+        if (table.empty())
+            return property_range();
+
+        return property_range(
+            property_iterator(*this, begin(table), end(table), flags),
+            property_iterator());
     }
 
     auto type::find_method(core::string_reference const name, metadata::binding_flags const flags) const -> method
