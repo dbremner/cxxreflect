@@ -75,7 +75,7 @@ configuration of the project:
   projects each support a subset of the project configurations, depending on the type of the 
   project.  Only pure managed projects support AnyCPU.
   -->
-  <PropertyGroup Condition="'$(MSBuildProjectExtension)' == '.vcxproj' or '$(MSBuildProjectExtension)' == '.proj'">
+  <PropertyGroup Condition="('$(MSBuildProjectExtension)' == '.vcxproj' or '$(MSBuildProjectExtension)' == '.proj') and '$(CxxReflectSuppressAutoConfiguration)' != 'true'">
     <!-- Non-ZW configs are enabled for the CxxReflect libraries and all non-Windows Runtime projects -->
     <CxxReflectIncludeNonZWConfigurations Condition="'$(CxxReflectIsCxxReflect)' == 'true' or '$(AppContainerApplication)' != 'true' or '$(CxxReflectIsSdkComponent)' == 'true'">true</CxxReflectIncludeNonZWConfigurations>
     <CxxReflectIncludeNonZWConfigurations Condition="'$(CxxReflectIncludeNonZWConfigurations)' == ''">false</CxxReflectIncludeNonZWConfigurations>

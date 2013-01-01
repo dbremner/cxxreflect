@@ -2,6 +2,11 @@
 <Project DefaultTargets="Build" ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <PropertyGroup>
     <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <CxxReflectSuppressAutoConfiguration>true</CxxReflectSuppressAutoConfiguration>
+    <CxxReflectIncludeNonZWConfigurations>true</CxxReflectIncludeNonZWConfigurations>
+    <CxxReflectIncludeZWConfigurations>true</CxxReflectIncludeZWConfigurations>
+    <CxxReflectIncludeAnyCPUConfigurations>false</CxxReflectIncludeAnyCPUConfigurations>
+    <CxxReflectIncludeArmConfigurations>false</CxxReflectIncludeArmConfigurations>
     <ProjectGuid>{2F515CF8-CE89-4192-B017-8227D21FCD54}</ProjectGuid>
     <RootNamespace>unit_tests_neutral</RootNamespace>
   </PropertyGroup>
@@ -44,6 +49,7 @@
     <Image Include="miscellaneous\UnitTestStoreLogo.png" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="metadata\signatures.cpp" />
     <ClCompile Include="reflection\basic_loader.cpp" />
     <ClCompile Include="reflection\basic_types.cpp" />
     <ClCompile Include="metadata\database_correctness.cpp" />

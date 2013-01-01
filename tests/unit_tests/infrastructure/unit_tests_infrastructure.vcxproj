@@ -13,9 +13,10 @@
     <CxxReflectExcludeFromArm>true</CxxReflectExcludeFromArm>
     <CxxReflectIsStandalone>true</CxxReflectIsStandalone>
   </PropertyGroup>
-  <Import Project="$(SolutionDir)\cxxreflect\cxxreflect.props"/>
+  <Import Project="$(SolutionDir)\cxxreflect\cxxreflect.props" />
   <ItemGroup>
     <ClCompile Include="build_stub.cpp" />
+    <ClInclude Include="signature_builder.hpp" />
     <ClInclude Include="test_driver.hpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

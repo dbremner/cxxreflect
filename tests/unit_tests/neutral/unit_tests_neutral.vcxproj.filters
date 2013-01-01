@@ -21,6 +21,12 @@
     <ClCompile Include="reflection\basic_types.cpp">
       <Filter>reflection</Filter>
     </ClCompile>
+    <ClCompile Include="reflection\realize_mscorlib.cpp">
+      <Filter>reflection</Filter>
+    </ClCompile>
+    <ClCompile Include="metadata\signatures.cpp">
+      <Filter>metadata</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="precompiled_headers.hpp" />
@@ -35,5 +41,16 @@
     <Filter Include="reflection">
       <UniqueIdentifier>{56ad7ac2-9ec5-4ee5-a84f-fe161525f00d}</UniqueIdentifier>
     </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="miscellaneous\UnitTestLogo.png" />
+    <Image Include="miscellaneous\UnitTestSmallLogo.png" />
+    <Image Include="miscellaneous\UnitTestSplashScreen.png" />
+    <Image Include="miscellaneous\UnitTestStoreLogo.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="$(SolutionDir)build\o\Win32\Release\cil_assemblies\*.dll" />
+    <None Include="$(SolutionDir)build\o\Win32\Release\cil_assemblies\*.dll" />
+    <None Include="$(SolutionDir)build\o\Win32\Release\cil_assemblies\*.dll" />
   </ItemGroup>
 </Project>
