@@ -21,7 +21,15 @@
 
 
 
+//
+// Membership :: Properties
+//
 
+
+
+
+
+// This type defines three simple properties:  one read-only, one write only, and one read-write.
 .class private auto ansi beforefieldinit MPropertySimple extends [mscorlib]System.Object
 {
     .method public hidebysig specialname instance int32 get_RW()              { ret; }
@@ -45,6 +53,63 @@
         .set instance void MPropertySimple::set_W(int32)
     } 
 }
+
+
+
+// This type defines a single property named P; we use it with the MPropertySimpleDerived, which
+// derives from this type and also defines a property named P that does _not_ override the base
+// property P.
+.class private auto ansi beforefieldinit MPropertySimpleBase extends [mscorlib]System.Object
+{
+    .method public hidebysig specialname instance int32 get_P()              { ret; }
+    .method public hidebysig specialname instance void  set_P(int32 'value') { ret; }
+
+    .property instance int32 P()
+    {
+        .get instance int32 MPropertySimpleBase::get_P()
+        .set instance void  MPropertySimpleBase::set_P(int32)
+    }
+}
+
+.class private auto ansi beforefieldinit MPropertySimpleDerived extends MPropertySimpleBase
+{
+    .method public hidebysig specialname instance int32 get_P()              { ret; }
+    .method public hidebysig specialname instance void  set_P(int32 'value') { ret; }
+
+    .property instance int32 P()
+    {
+        .get instance int32 MPropertySimpleDerived::get_P()
+        .set instance void  MPropertySimpleDerived::set_P(int32)
+    }
+}
+
+
+
+// These types are similar to the above except the property is virtual and overridden.
+.class private auto ansi beforefieldinit MPropertyVirtualBase extends [mscorlib]System.Object
+{
+    .method public hidebysig newslot specialname virtual instance int32 get_P()              { ret; }
+    .method public hidebysig newslot specialname virtual instance void  set_P(int32 'value') { ret; }
+
+    .property instance int32 P()
+    {
+        .get instance int32 MPropertyVirtualBase::get_P()
+        .set instance void  MPropertyVirtualBase::set_P(int32)
+    }
+}
+
+.class private auto ansi beforefieldinit MPropertyVirtualDerived extends MPropertyVirtualBase
+{
+    .method public hidebysig specialname virtual instance int32 get_P()              { ret; }
+    .method public hidebysig specialname virtual instance void  set_P(int32 'value') { ret; }
+
+    .property instance int32 P()
+    {
+        .get instance int32 MPropertyVirtualDerived::get_P()
+        .set instance void  MPropertyVirtualDerived::set_P(int32)
+    }
+}
+
 
 
 

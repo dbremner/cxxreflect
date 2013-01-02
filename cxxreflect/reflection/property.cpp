@@ -37,19 +37,19 @@ namespace cxxreflect { namespace reflection { namespace {
 
         metadata::property_signature const property_signature(row_from(property_token).signature().as<metadata::property_signature>());
 
-        type const declarer(property.declaring_type());
-        core::assert_initialized(declarer);
+        type const reflected_type(property.reflected_type());
+        core::assert_initialized(reflected_type);
 
-        metadata::binding_flags const flags(
-            (property_signature.has_this() ? metadata::binding_attribute::all_instance : metadata::binding_attribute::all_static) |
-            metadata::binding_attribute::declared_only);
+        metadata::binding_flags const flags(property_signature.has_this()
+            ? metadata::binding_attribute::all_instance
+            : metadata::binding_attribute::all_static);
 
-        auto const it(core::find_if(declarer.methods(flags), [&](method const& m)
+        auto const it(core::find_if(reflected_type.methods(flags), [&](method const& m)
         {
             return m.context(core::internal_key()).member_token() == method_token;
         }));
 
-        if (it == end(declarer.methods(flags)))
+        if (it == end(reflected_type.methods(flags)))
             throw core::runtime_error(L"failed to find property method with requested semantics");
 
         return *it;

@@ -417,6 +417,7 @@ namespace cxxreflect { namespace reflection { namespace detail { namespace {
             {
                 new_table = get_or_create_table_with_base_elements(
                     get_type_def_or_signature(_resolver->resolve_type(base_token)),
+                    type.type_def(),
                     type.signature(),
                     instantiator_arguments);
             }
@@ -503,6 +504,7 @@ namespace cxxreflect { namespace reflection { namespace detail { namespace {
         ///
         /// The derived type signature may be uninitialized.
         auto get_or_create_table_with_base_elements(metadata::type_def_or_signature const& base_type,
+                                                    metadata::type_def_or_signature const& derived_type,
                                                     metadata::blob                  const& derived_type_signature,
                                                     instantiator_arguments_type     const& instantiator_arguments) const
             -> interim_sequence_type
@@ -521,22 +523,50 @@ namespace cxxreflect { namespace reflection { namespace detail { namespace {
             // sources.
             instantiator_type const instantiator(&instantiator_arguments);
 
-            interim_sequence_type new_table(base_table.size());
-            core::transform_all(base_table, begin(new_table), [&](entry_type const* const c) -> interim_type
+            interim_sequence_type new_table;
+            core::for_all(base_table, [&](entry_type const* const c) -> void
             {
+                if (is_base_member_filtered_in_derived(derived_type, c))
+                    return;
+
                 auto const signature(c->member_signature());
                 if (!signature.is_initialized() || !instantiator.would_instantiate(signature))
                 {
                     if (c->has_instantiating_type())
-                        return interim_type(c->member_token(), c->instantiating_type(), c->instantiated_signature());
+                        return new_table.push_back(interim_type(c->member_token(), c->instantiating_type(), c->instantiated_signature()));
 
-                    return interim_type(member_table_entry(c->member_token()));
+                    return new_table.push_back(interim_type(member_table_entry(c->member_token())));
                 }
 
-                return interim_type(c->member_token(), derived_type_signature, instantiate(signature, instantiator));
+                return new_table.push_back(interim_type(c->member_token(), derived_type_signature, instantiate(signature, instantiator)));
             });
 
             return new_table;
+        }
+
+        // TODO This should be moved into the member-specific policy classes
+        auto is_base_member_filtered_in_derived(metadata::type_def_or_signature const& derived_type,
+                                                property_table_entry const*     const  base_context) const -> bool
+        {
+            core::assert_not_null(base_context);
+
+            // TODO:  This is O(m) which is waaaaaaayyy too slow.
+            auto const source_methods(_storage->get_membership(derived_type).get_methods());
+            auto const target_methods(metadata::find_method_semantics(base_context->member_token()));
+
+            return !std::any_of(begin(source_methods), end(source_methods), [&](method_table_entry const* const m) -> bool
+            {
+                return std::any_of(begin(target_methods), end(target_methods), [&](metadata::method_semantics_row const& r) -> bool
+                {
+                    return r.method() == m->member_token();
+                });
+            });
+        }
+
+        template <typename T>
+        auto is_base_member_filtered_in_derived(metadata::type_def_or_signature const&, T const* const) const -> bool
+        {
+            return false;
         }
 
         /// Performs the post-insertion recursion for interface contexts
@@ -684,7 +714,7 @@ namespace cxxreflect { namespace reflection { namespace detail { namespace {
             // correctly generate interface sets.  The process_generic_parameter_constraints does
             // not itself recurse, but it sets up the context that is required to share the same
             // post-insertion logic used by the other create table path.
-            interim_sequence_type new_table(get_or_create_table_with_base_elements(base_type, metadata::blob(), empty_arguments));
+            interim_sequence_type new_table(get_or_create_table_with_base_elements(base_type, type, metadata::blob(), empty_arguments));
 
             process_generic_parameter_constraints(new_table, constraints, traits_type());
 
